@@ -19,7 +19,7 @@
 
 namespace VIO {
 
-RegularVioBackEndParams::RegularVioBackEndParams() : VioBackEndParams() {
+RegularVioBackEndParams::RegularVioBackEndParams() : BackendParams() {
   // Trivial sanity checks.
   CHECK_GE(monoNoiseSigma_, 0.0);
   CHECK_GE(stereoNoiseSigma_, 0.0);
@@ -37,7 +37,7 @@ bool RegularVioBackEndParams::parseYAML(const std::string& filepath) {
          parseYAMLRegularVioBackEndParams(yaml_parser);
 }
 
-bool RegularVioBackEndParams::equals(const VioBackEndParams& vp2,
+bool RegularVioBackEndParams::equals(const BackendParams& vp2,
                                      double tol) const {
   return equalsVioBackEndParams(vp2, tol) &&
          equalsRegularVioBackEndParams(vp2, tol);
@@ -49,7 +49,7 @@ void RegularVioBackEndParams::print() const {
 }
 
 RegularVioBackEndParams RegularVioBackEndParams::safeCast(
-    const VioBackEndParams& params) {
+    const BackendParams& params) {
   try {
     return dynamic_cast<const RegularVioBackEndParams&>(params);
   } catch (const std::bad_cast& e) {
@@ -80,7 +80,7 @@ bool RegularVioBackEndParams::parseYAMLRegularVioBackEndParams(
 }
 
 bool RegularVioBackEndParams::equalsRegularVioBackEndParams(
-    const VioBackEndParams& vp2,
+    const BackendParams& vp2,
     double tol) const {
   RegularVioBackEndParams rvp2 = RegularVioBackEndParams::safeCast(vp2);
   return (fabs(monoNoiseSigma_ - rvp2.monoNoiseSigma_) <= tol) &&

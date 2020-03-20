@@ -41,18 +41,12 @@ namespace VIO {
 class EurocDataProvider : public DataProviderInterface {
  public:
   // Ctor with params.
-  EurocDataProvider(const bool& parallel_run,
+  EurocDataProvider(const std::string& dataset_path,
                     const int& initial_k,
                     const int& final_k,
-                    const std::string& dataset_path,
-                    const std::string& left_cam_params_path,
-                    const std::string& right_cam_params_path,
-                    const std::string& imu_params_path,
-                    const std::string& backend_params_path,
-                    const std::string& frontend_params_path,
-                    const std::string& lcd_params_path);
+                    const VioParams& vio_params);
   // Ctor from gflags
-  explicit EurocDataProvider();
+  explicit EurocDataProvider(const VioParams& vio_params);
   virtual ~EurocDataProvider();
 
  public:
@@ -126,8 +120,6 @@ class EurocDataProvider : public DataProviderInterface {
     return iter->second.getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
-    CHECK_GT(camera_names_.size(), 0u);
-    const std::string& camera_name = camera_names_.at(0);
     const auto& iter = camera_image_lists_.find(id);
     CHECK(iter != camera_image_lists_.end());
     return iter->second.img_lists_.at(k).second;
@@ -169,6 +161,8 @@ class EurocDataProvider : public DataProviderInterface {
   void clipFinalFrame();
 
  private:
+  VioParams pipeline_params_;
+
   /// Images data.
   // TODO(Toni): remove camera_names_ and camera_image_lists_...
   // This matches the names of the folders in the dataset
@@ -178,6 +172,14 @@ class EurocDataProvider : public DataProviderInterface {
 
   bool is_gt_available_;
   std::string dataset_name_;
+  std::string dataset_path_;
+
+  FrameId current_k_;
+  FrameId initial_k_;  // start frame
+  FrameId final_k_;    // end frame
+
+  //! Flag to signal when the dataset has been parsed.
+  bool dataset_parsed_ = false;
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";

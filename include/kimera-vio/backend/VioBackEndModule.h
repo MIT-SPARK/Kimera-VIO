@@ -51,6 +51,7 @@ class VioBackEndModule
 
   virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input) {
     CHECK(input);
+    CHECK(vio_backend_);
     return vio_backend_->spinOnce(*input);
   }
 
@@ -74,11 +75,12 @@ class VioBackEndModule
       const size_t& min_age = 2) {
     return vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
         lmk_id_to_lmk_type_map, min_age);
-  };
+  }
   // TODO This call is unsafe, as we are sending a reference to something that
   // will be modified by the backend thread.
   // TODO send this via the output payload...
   inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
+    CHECK(vio_backend_);
     return vio_backend_->getFactorsUnsafe();
   }
 

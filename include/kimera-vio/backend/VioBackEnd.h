@@ -131,11 +131,11 @@ class VioBackEnd {
    */
   VioBackEnd(const Pose3& B_Pose_leftCam,
              const StereoCalibPtr& stereo_calibration,
-             const VioBackEndParams& backend_params,
+             const BackendParams& backend_params,
              const ImuParams& imu_params,
              const BackendOutputParams& backend_output_params,
              bool log_output);
-  virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; };
+  virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; }
 
  public:
   /* ------------------------------------------------------------------------ */
@@ -328,13 +328,13 @@ class VioBackEnd {
   /// Private setters.
   /* ------------------------------------------------------------------------ */
   // Set parameters for ISAM 2 incremental smoother.
-  void setIsam2Params(const VioBackEndParams& vio_params,
+  void setIsam2Params(const BackendParams& vio_params,
                       gtsam::ISAM2Params* isam_param);
 
   /* ------------------------------------------------------------------------ */
   // Set parameters for all types of factors.
   void setFactorsParams(
-      const VioBackEndParams& vio_params,
+      const BackendParams& vio_params,
       gtsam::SharedNoiseModel* smart_noise,
       gtsam::SmartStereoProjectionParams* smart_factors_params,
       gtsam::SharedNoiseModel* no_motion_prior_noise,
@@ -424,7 +424,7 @@ class VioBackEnd {
  public:
   /// Getters
   // Thread-safe methods, but also the returns are const, so no problems.
-  inline const VioBackEndParams& getBackEndParams() const {
+  inline const BackendParams& getBackEndParams() const {
     return backend_params_;
   }
 
@@ -451,7 +451,7 @@ class VioBackEnd {
 
  protected:
   // Raw, user-specified params.
-  const VioBackEndParams backend_params_;
+  const BackendParams backend_params_;
   const ImuParams imu_params_;
   const BackendOutputParams backend_output_params_;
 
@@ -520,6 +520,9 @@ class VioBackEnd {
 
   //! Landmark count.
   int landmark_count_;
+
+  //! Number of Cheirality exceptions
+  size_t counter_of_exceptions_ = 0;
 
   //! Logger.
   const bool log_output_ = {false};

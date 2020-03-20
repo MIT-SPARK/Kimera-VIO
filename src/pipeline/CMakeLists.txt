@@ -5,5 +5,6 @@ target_sources(kimera_vio
         "${CMAKE_CURRENT_LIST_DIR}/PipelineModule.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/PipelinePayload.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/PipelineParams.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Pipeline-definitions.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/QueueSynchronizer.cpp"
 )

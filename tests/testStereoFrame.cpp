@@ -51,7 +51,7 @@ class StereoFrameFixture : public ::testing::Test {
                                "/sensorRight.yaml");
 
     // construct stereo camera
-    VioFrontEndParams tp;  // only to get default stereo matching params
+    FrontendParams tp;  // only to get default stereo matching params
     sf = std::make_shared<StereoFrame>(
         id,
         timestamp,
@@ -76,8 +76,8 @@ class StereoFrameFixture : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  void SetUp() override {}
+  void TearDown() override {}
 
   // Helper function
   void initializeDataStereo() {
@@ -86,7 +86,7 @@ class StereoFrameFixture : public ::testing::Test {
                                "/sensorRight.yaml");
 
     // construct stereo camera
-    VioFrontEndParams tp;
+    FrontendParams tp;
     sfnew = std::make_shared<StereoFrame>(
         id,
         timestamp,
@@ -216,7 +216,7 @@ TEST_F(StereoFrameFixture, rectification) {
 
 TEST_F(StereoFrameFixture, cloneRectificationParameters) {
   // construct stereo camera
-  VioFrontEndParams tp;
+  FrontendParams tp;
   StereoFrame* sf2 =
       new StereoFrame(id,
                       timestamp,

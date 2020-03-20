@@ -143,13 +143,13 @@ class FeatureSelectorParams {
   }
 };
 
-class VioFrontEndParams : public PipelineParams {
+class FrontendParams : public PipelineParams {
  public:
-  KIMERA_POINTER_TYPEDEFS(VioFrontEndParams);
-  VioFrontEndParams() : PipelineParams("Frontend Parameters") {}
+  KIMERA_POINTER_TYPEDEFS(FrontendParams);
+  FrontendParams() : PipelineParams("Frontend Parameters") {}
 
  public:
-  bool equals(const VioFrontEndParams& tp2, double tol = 1e-10) const {
+  bool equals(const FrontendParams& tp2, double tol = 1e-10) const {
     return (klt_win_size_ == tp2.klt_win_size_) &&
            (klt_max_iter_ == tp2.klt_max_iter_) &&
            (klt_max_level_ == tp2.klt_max_level_) &&
@@ -285,6 +285,13 @@ class VioFrontEndParams : public PipelineParams {
     }
 
     return true;
+  }
+
+
+ protected:
+  bool equals(const PipelineParams& obj) const override {
+    const auto& rhs = static_cast<const FrontendParams&>(obj);
+    return equals(rhs, 1e-10);
   }
 
  public:

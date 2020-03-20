@@ -34,7 +34,7 @@ class RegularVioBackEnd : public VioBackEnd {
   /* ------------------------------------------------------------------------ */
   RegularVioBackEnd(const Pose3& B_Pose_leftCam,
                     const StereoCalibPtr& stereo_calibration,
-                    const VioBackEndParams& backend_params,
+                    const BackendParams& backend_params,
                     const ImuParams& imu_params,
                     const BackendOutputParams& backend_output_params,
                     const bool& log_output);
@@ -85,6 +85,7 @@ class RegularVioBackEnd : public VioBackEnd {
   // We need to make a shared queue with the MeshSegmenter which will push plane
   // hypothesis while the backend pulls them.
   std::vector<Plane> planes_;
+  size_t nr_of_planes_ = 0;
 
  private:
   /* ------------------------------------------------------------------------ */

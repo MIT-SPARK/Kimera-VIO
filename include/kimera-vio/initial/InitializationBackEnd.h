@@ -37,13 +37,15 @@ class InitializationBackEnd : public VioBackEnd {
   // Create and initialize InitializationBackEnd, without initiaing pose.
   InitializationBackEnd(const gtsam::Pose3& B_Pose_leftCam,
                         const StereoCalibPtr& stereo_calibration,
-                        const VioBackEndParams& backend_params,
+                        const BackendParams& backend_params,
                         const ImuParams& imu_params,
                         const BackendOutputParams& backend_output_params,
                         const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
-  virtual ~InitializationBackEnd() = default;
+  virtual ~InitializationBackEnd() {
+    LOG(INFO) << "Initialization Backend destructor called.";
+  }
 
  public:
   /* ------------------------------------------------------------------------ */

@@ -30,23 +30,8 @@ bool ImuParams::parseYAML(const std::string& filepath) {
 
   int imu_preintegration_type;
   yaml_parser.getYamlParam("imu_preintegration_type", &imu_preintegration_type);
-  switch (imu_preintegration_type) {
-    case VIO::to_underlying(
-        ImuPreintegrationType::kPreintegratedCombinedMeasurements): {
-      imu_preintegration_type_ =
-          ImuPreintegrationType::kPreintegratedCombinedMeasurements;
-      break;
-    }
-    case VIO::to_underlying(
-        ImuPreintegrationType::kPreintegratedImuMeasurements): {
-      imu_preintegration_type_ =
-          ImuPreintegrationType::kPreintegratedImuMeasurements;
-      break;
-    }
-    default: {
-      LOG(FATAL) << "Unknown Imu Preintegration Type in IMU parameters.";
-    }
-  }
+  imu_preintegration_type_ =
+      static_cast<ImuPreintegrationType>(imu_preintegration_type);
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
@@ -94,6 +79,21 @@ void ImuParams::print() const {
             << "imu_integration_sigma: " << imu_integration_sigma_ << '\n'
             << "imu_time_shift: " << imu_shift_ << '\n'
             << "n_gravity: " << n_gravity_;
+}
+
+bool ImuParams::equals(const PipelineParams& obj) const {
+  const auto& rhs = static_cast<const ImuParams&>(obj);
+  // clang-format off
+  return imu_preintegration_type_ == rhs.imu_preintegration_type_ &&
+      gyro_noise_ == rhs.gyro_noise_ &&
+      gyro_walk_ == rhs.gyro_walk_ &&
+      acc_noise_ == rhs.acc_noise_ &&
+      acc_walk_ == rhs.acc_walk_ &&
+      imu_shift_ == rhs.imu_shift_ &&
+      nominal_rate_ == rhs.nominal_rate_ &&
+      imu_integration_sigma_ == rhs.imu_integration_sigma_ &&
+      n_gravity_ == rhs.n_gravity_;
+  // clang-format on
 }
 
 }  // namespace VIO

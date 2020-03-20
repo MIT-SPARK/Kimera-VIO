@@ -27,16 +27,14 @@ We kindly ask to cite our paper if you find this library useful:
 
  - A. Rosinol, M. Abate, Y. Chang, L. Carlone. [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). arXiv preprint [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
  ```bibtex
- @misc{Rosinol19arxiv-Kimera,
-   title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
-   author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
-   year = {2019},
-   eprint = {1910.02490},
-   archiveprefix = {arXiv},
-   primaryclass = {cs.RO},
-   url = {https://github.com/MIT-SPARK/Kimera},
-   pdf = {https://arxiv.org/pdf/1910.02490.pdf}
- }
+  @InProceedings{Rosinol20icra-Kimera,
+     title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
+     author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
+     year = {2020},
+     booktitle = {IEEE Intl. Conf. on Robotics and Automation (ICRA)},
+     url = {https://github.com/MIT-SPARK/Kimera},
+     pdf = {https://arxiv.org/pdf/1910.02490.pdf}
+   }
 ```
 
 ### Related Publications
@@ -71,13 +69,13 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 
-> Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimeravio_installation.md](./docs/kimeravio_installation.md).
+> Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimera_vio_install.md](./docs/kimera_vio_install.md).
 
 > Note 2: if you use ROS, then [Kimera-VIO-ROS](https://github.com/MIT-SPARK/Kimera-VIO-ROS) can install all dependencies and Kimera inside a catkin workspace.
 
 ## Installation Instructions
 
-Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimeravio_installation.md)**.
+Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimera_vio_install.md)**.
 
 # 2. Usage
 
@@ -136,7 +134,7 @@ This library can be cloned into a catkin workspace and built alongside the ROS w
 
 ## iii. Evalation and Debugging
 
-For more information on tools for debugging and evaluating the pipeline, see [our documentation](/docs/kimeravio_debug_evaluation.md)
+For more information on tools for debugging and evaluating the pipeline, see [our documentation](/docs/kimera_vio_debug_evaluation.md)
 
 # 3. Parameters
 Kimera-VIO accepts two independent sources of parameters:
@@ -155,7 +153,7 @@ We strongly encourage you to submit issues, feedback and potential improvements.
 We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
-To enable these checks you will need to [install linter](./docs/linter_installation.md).
+To enable these checks you will need to [install linter](./docs/linter_install.md).
 We also provide a `.clang-format` file with the style rules that the repo uses, so that you can use [`clang-format`](https://clang.llvm.org/docs/ClangFormat.html) to reformat your code.
 
 Also, check [tips for development](./docs/tips_development.md) and our **[developer guide](./docs/developer_guide.md)**.

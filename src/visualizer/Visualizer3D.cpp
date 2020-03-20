@@ -34,6 +34,9 @@
 
 #include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 
+
+// TODO(Toni): remove visualizer gflags! There are far too many, use a
+// yaml params class (aka inherit from PipelineParams.
 DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
 
 DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");

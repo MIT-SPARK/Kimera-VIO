@@ -1630,7 +1630,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   // https://answers.opencv.org/question/180984/out-of-range-error-in-delaunay-triangulation/
   static const cv::Rect rect(0, 0, img_size.width, img_size.height);
   // subdiv has the delaunay triangulation function
-  static cv::Subdiv2D subdiv(rect);
+  cv::Subdiv2D subdiv(rect);
   subdiv.initDelaunay(rect);
   // subdiv.swapEdges()
 
