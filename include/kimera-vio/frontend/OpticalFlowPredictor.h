@@ -41,25 +41,25 @@ class OpticalFlowPredictor {
    * @return true if flow could be determined successfully
    */
   virtual bool predictFlow(const KeypointsCV& prev_kps,
-                           const gtsam::Rot3& inter_frame_pose,
+                           const gtsam::Rot3& inter_frame_rot,
                            KeypointsCV* next_kps) = 0;
 };
 
 /**
- * @brief The SillyOpticalFlowPredictor class just assumes that the camera
+ * @brief The NoOpticalFlowPredictor class just assumes that the camera
  * did not move and so the features on the previous frame remain at the same
  * pixel positions in the current frame.
  */
-class SillyOpticalFlowPredictor : public OpticalFlowPredictor {
+class NoOpticalFlowPredictor : public OpticalFlowPredictor {
  public:
-  KIMERA_POINTER_TYPEDEFS(SillyOpticalFlowPredictor);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(SillyOpticalFlowPredictor);
+  KIMERA_POINTER_TYPEDEFS(NoOpticalFlowPredictor);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(NoOpticalFlowPredictor);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  SillyOpticalFlowPredictor() = default;
-  virtual ~SillyOpticalFlowPredictor() = default;
+  NoOpticalFlowPredictor() = default;
+  virtual ~NoOpticalFlowPredictor() = default;
 
   bool predictFlow(const KeypointsCV& prev_kps,
-                   const gtsam::Rot3& inter_frame_pose,
+                   const gtsam::Rot3& /* inter_frame */,
                    KeypointsCV* next_kps) override {
     *CHECK_NOTNULL(next_kps) = prev_kps;
     return true;
@@ -81,15 +81,15 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
   virtual ~RotationalOpticalFlowPredictor() = default;
 
   bool predictFlow(const KeypointsCV& prev_kps,
-                   const gtsam::Rot3& inter_frame_pose,
+                   const gtsam::Rot3& inter_frame_rot,
                    KeypointsCV* next_kps) override {
     CHECK_NOTNULL(next_kps)->clear();
 
     // lf_R_f is a relative rotation which takes a vector from the last frame to
     // the current frame.
-    cv::Matx33f R = UtilsOpenCV::gtsamMatrix3ToCvMat(inter_frame_pose.matrix());
+    cv::Matx33f R = UtilsOpenCV::gtsamMatrix3ToCvMat(inter_frame_rot.matrix());
     cv::Matx33f H = K_ * R * K_inverse_;
-    const size_t n_kps = prev_kps.size();
+    const size_t& n_kps = prev_kps.size();
     next_kps->resize(n_kps);
     for (size_t i = 0; i < n_kps; ++i) {
       // Backproject last frame's corners to bearing vectors
@@ -102,6 +102,9 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
       if (p2[2] > 0.0f) {
         next_kps->at(i) = cv::Point2f(p2[0] / p2[2], p2[1] / p2[2]);
       } else {
+        LOG(WARNING) << "Optical flow prediction failed for keypoint:\n"
+                     << "- p1:  " << p1 << '\n'
+                     << "- p2: " << p2;
         // Projection failed, keep old corner
         next_kps->at(i) = prev_kps[i];
       }

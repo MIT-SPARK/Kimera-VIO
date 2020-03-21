@@ -27,8 +27,8 @@ class OpticalFlowPredictorFactory {
       const OpticalFlowPredictorType& optical_flow_predictor_type,
       Args&&... args) {
     switch (optical_flow_predictor_type) {
-      case OpticalFlowPredictorType::kStatic: {
-        return VIO::make_unique<SillyOpticalFlowPredictor>();
+      case OpticalFlowPredictorType::kNoPrediction: {
+        return VIO::make_unique<NoOpticalFlowPredictor>();
       }
       case OpticalFlowPredictorType::kRotational: {
         return VIO::make_unique<RotationalOpticalFlowPredictor>(
