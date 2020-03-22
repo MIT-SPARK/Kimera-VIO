@@ -374,7 +374,7 @@ TEST_F(OpticalFlowPredictorFixture, DefaultRotationalOpticalFlowPrediction) {
 
   // Since this is a rotational optical flow predictor, the kpts should
   // move given a rotation-only optical flow.
-  const gtsam::Matrix3 K = calib_.K();
+  const gtsam::Matrix3 K = simulated_calib_.K();
   const gtsam::Rot3& R = cam_2_pose_.rotation();
   const gtsam::Matrix3 H = K * R.matrix().inverse() * K.inverse();
   KeypointsCV expected_kpts;
