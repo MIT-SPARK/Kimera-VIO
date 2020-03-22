@@ -277,7 +277,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
 
   void spinDisplay() {
     // Display 3D window
-    static constexpr bool kDisplay = true;
+    static constexpr bool kDisplay = false;
     if (kDisplay) {
       window_.spin();
     }
