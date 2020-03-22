@@ -101,12 +101,12 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
 
   // Relative rotation of the left cam rectified from the last keyframe to the
   // curr frame. pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
-  gtsam::Rot3 calLrectLkf_R_camLrectK_imu =
+  gtsam::Rot3 camLrectLkf_R_camLrectK_imu =
       cam_Rot_body * pim->deltaRij() * body_Rot_cam;
 
   if (VLOG_IS_ON(10)) {
     body_Rot_cam.print("Body_Rot_cam");
-    calLrectLkf_R_camLrectK_imu.print("calLrectLkf_R_camLrectK_imu");
+    camLrectLkf_R_camLrectK_imu.print("calLrectLkf_R_camLrectK_imu");
   }
   //////////////////////////////////////////////////////////////////////////////
 
@@ -115,7 +115,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   // Rotation used in 1 and 2 point ransac.
   VLOG(10) << "Starting processStereoFrame...";
   StatusStereoMeasurementsPtr status_stereo_measurements =
-      processStereoFrame(stereoFrame_k, calLrectLkf_R_camLrectK_imu);
+      processStereoFrame(stereoFrame_k, camLrectLkf_R_camLrectK_imu);
 
   CHECK(!stereoFrame_k_);  // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
@@ -386,6 +386,9 @@ void StereoVisionFrontEnd::outlierRejectionMono(
         tracker_.geometricOutlierRejectionMono(left_frame_lkf, left_frame_k);
     LOG_IF(WARNING, force_53point_ransac_) << "5-point RANSAC was forced!";
   }
+
+  // TODO(TONI): check the status of tracking here: aka look at median disp
+  // and assess whether we are in LOW_DISP or ROT_ONLY
 
   // Set relative pose.
   trackerStatusSummary_.kfTrackingStatus_mono_ = status_pose_mono->first;

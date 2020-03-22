@@ -1344,9 +1344,6 @@ TEST_F(TestTracker, FeatureTrackingRotationalOpticalFlow) {
   // Feed frames: detect kpts.
 
   // Run feature tracking
-  featureTracking(Frame * ref_frame,
-                  Frame * cur_frame,
-                  const gtsam::Rot3& inter_frame_rotation);
 
   // Check cur_frame is correctly populated (rotate features in ref_frame to
   // get the expected keypoints).
@@ -1360,9 +1357,6 @@ TEST_F(TestTracker, FeatureTrackingNoOpticalFlowPrediction) {
   // Feed frames: detect kpts.
 
   // Run feature tracking
-  featureTracking(Frame * ref_frame,
-                  Frame * cur_frame,
-                  const gtsam::Rot3& inter_frame_rotation);
 
   // Check cur_frame is correctly populated (rotate features in ref_frame to
   // get the expected keypoints).
@@ -1376,9 +1370,6 @@ TEST_F(TestTracker, FeatureTrackingRotationalOpticalFlowPredictionLargeRot) {
   // Feed frames: detect kpts.
 
   // Run feature tracking
-  featureTracking(Frame * ref_frame,
-                  Frame * cur_frame,
-                  const gtsam::Rot3& inter_frame_rotation);
 
   // Check cur_frame is correctly populated (rotate features in ref_frame to
   // get the expected keypoints).
@@ -1392,9 +1383,6 @@ TEST_F(TestTracker, FeatureTrackingNoOpticalFlowPredictionLargeRot) {
   // Feed frames: detect kpts.
 
   // Run feature tracking
-  featureTracking(Frame * ref_frame,
-                  Frame * cur_frame,
-                  const gtsam::Rot3& inter_frame_rotation);
 
   // Check cur_frame is correctly populated (rotate features in ref_frame to
   // get the expected keypoints).

@@ -83,15 +83,17 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
   bool predictFlow(const KeypointsCV& prev_kps,
                    const gtsam::Rot3& inter_frame_rot,
                    KeypointsCV* next_kps) override {
-    CHECK_NOTNULL(next_kps)->clear();
+    CHECK_NOTNULL(next_kps);
+    // We use a new object in case next_kps is pointing to prev_kps!
+    KeypointsCV predicted_kps;
 
     // lf_R_f is a relative rotation which takes a vector from the last frame to
     // the current frame.
     cv::Matx33f R = UtilsOpenCV::gtsamMatrix3ToCvMat(inter_frame_rot.matrix());
-    cv::Matx33f H = K_ * R * K_inverse_;
+    cv::Matx33f H = K_ * R.inv() * K_inverse_;
     const size_t& n_kps = prev_kps.size();
-    next_kps->resize(n_kps);
-    for (size_t i = 0; i < n_kps; ++i) {
+    predicted_kps.reserve(n_kps);
+    for (size_t i = 0u; i < n_kps; ++i) {
       // Backproject last frame's corners to bearing vectors
       cv::Vec3f p1(prev_kps[i].x, prev_kps[i].y, 1.0f);
 
@@ -100,15 +102,19 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
 
       // Project predicted bearing vectors to 2D again
       if (p2[2] > 0.0f) {
-        next_kps->at(i) = cv::Point2f(p2[0] / p2[2], p2[1] / p2[2]);
+        predicted_kps.push_back(cv::Point2f(p2[0] / p2[2], p2[1] / p2[2]));
       } else {
         LOG(WARNING) << "Optical flow prediction failed for keypoint:\n"
                      << "- p1:  " << p1 << '\n'
                      << "- p2: " << p2;
         // Projection failed, keep old corner
-        next_kps->at(i) = prev_kps[i];
+        predicted_kps.push_back(prev_kps[i]);
       }
     }
+
+    // Check that keypoints remain inside the image boundaries!
+
+    *next_kps = predicted_kps;
     return true;
   }
 

@@ -35,7 +35,7 @@ Tracker::Tracker(const FrontendParams& tracker_params,
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
-          camera_params_.camera_matrix_);
+          camera_params_.K_);
 }
 
 // TODO(Toni) Optimize this function.
@@ -481,6 +481,10 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   if (disparity < tracker_params_.disparityThreshold_) {
     VLOG(10) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;
+  } else {
+    // Check for rotation only case
+    // optical_flow_predictor_->predictFlow(ref_frame->keypoints_,
+
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
@@ -593,6 +597,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
                      ransac.inliers_,
                      ransac.iterations_);
 
+  // TODO(Toni):
   // CHECK QUALITY OF TRACKING
   TrackingStatus status = TrackingStatus::VALID;
   if (ransac.inliers_.size() < tracker_params_.minNrMonoInliers_) {

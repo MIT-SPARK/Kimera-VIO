@@ -1062,11 +1062,11 @@ TEST(FeatureSelector, DISABLED_featureSelection) {
   cam_param.calibration_ =
       Cal3DS2(Kreal.fx(), Kreal.fy(), 0.0, Kreal.px(), Kreal.py(), 0.0,
               0.0);  // 0 skew and no distortion
-  cam_param.camera_matrix_ = Mat::eye(3, 3, CV_64F);
-  cam_param.camera_matrix_.at<double>(0, 0) = Kreal.fx();
-  cam_param.camera_matrix_.at<double>(1, 1) = Kreal.fy();
-  cam_param.camera_matrix_.at<double>(0, 2) = Kreal.px();
-  cam_param.camera_matrix_.at<double>(1, 2) = Kreal.py();
+  cam_param.K_ = Mat::eye(3, 3, CV_64F);
+  cam_param.K_.at<double>(0, 0) = Kreal.fx();
+  cam_param.K_.at<double>(1, 1) = Kreal.fy();
+  cam_param.K_.at<double>(0, 2) = Kreal.px();
+  cam_param.K_.at<double>(1, 2) = Kreal.py();
   cam_param.distortion_coeff_ = Mat::zeros(1, 5, CV_64F);
   cam_param.distortion_model_ = "radtan";
 

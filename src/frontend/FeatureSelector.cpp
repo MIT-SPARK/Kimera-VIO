@@ -1470,11 +1470,11 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
       CameraParams cam_param;
       cam_param.calibration_ =
           gtsam::Cal3DS2(K.fx(), K.fy(), 0.0, K.px(), K.py(), 0.0, 0.0);
-      cam_param.camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
-      cam_param.camera_matrix_.at<double>(0, 0) = K.fx();
-      cam_param.camera_matrix_.at<double>(1, 1) = K.fy();
-      cam_param.camera_matrix_.at<double>(0, 2) = K.px();
-      cam_param.camera_matrix_.at<double>(1, 2) = K.py();
+      cam_param.K_ = cv::Mat::eye(3, 3, CV_64F);
+      cam_param.K_.at<double>(0, 0) = K.fx();
+      cam_param.K_.at<double>(1, 1) = K.fy();
+      cam_param.K_.at<double>(0, 2) = K.px();
+      cam_param.K_.at<double>(1, 2) = K.py();
       cam_param.distortion_coeff_ =
           cv::Mat::zeros(1, 5, CV_64F);  // undistorted points
 
