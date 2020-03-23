@@ -338,9 +338,9 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   // Setup termination criteria for optical flow.
   const cv::TermCriteria kTerminationCriteria(
-        cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-        tracker_params_.klt_max_iter_,
-        tracker_params_.klt_eps_);
+      cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+      tracker_params_.klt_max_iter_,
+      tracker_params_.klt_eps_);
   const cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
                                   tracker_params_.klt_win_size_);
 
@@ -424,7 +424,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   CHECK_NOTNULL(cur_frame);
   auto start_time_tic = utils::Timer::tic();
 
-  std::vector<std::pair<size_t, size_t>> matches_ref_cur;
+  KeypointMatches matches_ref_cur;
   findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
 
   // Vector of bearing vectors.
@@ -432,7 +432,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   f_cur.reserve(matches_ref_cur.size());
   BearingVectors f_ref;
   f_ref.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
+  for (const KeypointMatch& it : matches_ref_cur) {
     // TODO(Toni) (luca): if versors are only needed at keyframe,
     // do not compute every frame
     f_ref.push_back(ref_frame->versors_.at(it.first));
@@ -462,13 +462,14 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
 
   VLOG(10) << "geometricOutlierRejectionMono: RANSAC complete.";
 
+  VLOG(10) << "RANSAC (MONO): #iter = " << ransac.iterations_ << '\n'
+           << " #inliers = " << ransac.inliers_.size() << " #outliers = "
+           << ransac.inliers_.size() - matches_ref_cur.size();
+  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
+
   // Remove outliers. This modifies the frames, that is why this function does
-  // not simply accept const Frames.
-  removeOutliersMono(ref_frame,
-                     cur_frame,
-                     matches_ref_cur,
-                     ransac.inliers_,
-                     ransac.iterations_);
+  // not simply accept const Frames. And removes outliers from matches.
+  removeOutliersMono(ransac.inliers_, ref_frame, cur_frame, &matches_ref_cur);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
@@ -477,15 +478,20 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
     status = TrackingStatus::FEW_MATCHES;
   }
 
-  double disparity = computeMedianDisparity(*ref_frame, *cur_frame);
+  double disparity;
+  bool median_disparity_success = computeMedianDisparity(ref_frame->keypoints_,
+                                                         cur_frame->keypoints_,
+                                                         matches_ref_cur,
+                                                         &disparity);
+  LOG_IF(ERROR, !median_disparity_success)
+      << "Median disparity calculation failed...";
   VLOG(10) << "Median disparity: " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
-    VLOG(10) << "LOW_DISPARITY: " << disparity;
+    LOG(WARNING) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;
   } else {
     // Check for rotation only case
     // optical_flow_predictor_->predictFlow(ref_frame->keypoints_,
-
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
@@ -509,7 +515,6 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrMonoInliers_ = ransac.inliers_.size();
-  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
   debug_info_.monoRansacIters_ = ransac.iterations_;
 
   return std::make_pair(status, camLrectlkf_P_camLrectkf);
@@ -525,7 +530,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   // To log the time taken to perform this function.
   auto start_time_tic = utils::Timer::tic();
 
-  std::vector<std::pair<size_t, size_t>> matches_ref_cur;
+  KeypointMatches matches_ref_cur;
   findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
 
   // Vector of bearing vectors.
@@ -533,7 +538,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   f_cur.reserve(matches_ref_cur.size());
   BearingVectors f_ref;
   f_ref.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
+  for (const KeypointMatch& it : matches_ref_cur) {
     f_ref.push_back(ref_frame->versors_.at(it.first));
     f_cur.push_back(R.rotate(cur_frame->versors_.at(it.second)));
   }
@@ -551,7 +556,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
 
   VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting 2-point RANSAC";
 
-  // Solve.
+// Solve.
 #ifdef sw_frontend
   // TODO(Toni) this function has rotten because of the ifdef :(
   // @Luca can we remove this ifdef and use a flag instead?
@@ -581,7 +586,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   VLOG(10)
       << "geometricOutlierRejectionMonoGivenRot: RANSAC complete sw version";
 
-  ////////////////////////////////////
+////////////////////////////////////
 #else
   if (!ransac.computeModel(0)) {
     VLOG(10) << "failure: 2pt RANSAC could not find a solution";
@@ -591,12 +596,14 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
 #endif
 
+  VLOG(10) << "RANSAC (MONO): #iter = " << ransac.iterations_ << '\n'
+           << " #inliers = " << ransac.inliers_.size() << "\n #outliers = "
+           << ransac.inliers_.size() - matches_ref_cur.size();
+  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
+
   // Remove outliers.
-  removeOutliersMono(ref_frame,
-                     cur_frame,
-                     matches_ref_cur,
-                     ransac.inliers_,
-                     ransac.iterations_);
+  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();  // before cleaning.
+  removeOutliersMono(ransac.inliers_, ref_frame, cur_frame, &matches_ref_cur);
 
   // TODO(Toni):
   // CHECK QUALITY OF TRACKING
@@ -605,7 +612,13 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
     VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
-  double disparity = computeMedianDisparity(*ref_frame, *cur_frame);
+  double disparity;
+  bool median_disparity_success = computeMedianDisparity(ref_frame->keypoints_,
+                                                         cur_frame->keypoints_,
+                                                         matches_ref_cur,
+                                                         &disparity);
+  LOG_IF(ERROR, !median_disparity_success)
+      << "Median disparity calculation failed...";
 
   VLOG(10) << "median disparity " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
@@ -637,7 +650,6 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrMonoInliers_ = ransac.inliers_.size();
-  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
   debug_info_.monoRansacIters_ = ransac.iterations_;
 
   return std::make_pair(status, camLrectlkf_P_camLrectkf);
@@ -686,7 +698,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
     const gtsam::Rot3& R) {
   auto start_time_tic = utils::Timer::tic();
 
-  std::vector<std::pair<size_t, size_t>> matches_ref_cur;
+  KeypointMatches matches_ref_cur;
   findMatchingStereoKeypoints(
       ref_stereoFrame, cur_stereoFrame, &matches_ref_cur);
 
@@ -735,7 +747,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   Matrices3f cov_relTranf;
   cov_relTranf.reserve(nrMatches);
 
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
+  for (const KeypointMatch& it : matches_ref_cur) {
     // Get reference vector and covariance:
     std::tie(f_ref_i, cov_ref_i) = Tracker::getPoint3AndCovariance(
         ref_stereoFrame, stereoCam, it.first, stereoPtCov);
@@ -801,18 +813,15 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
                   O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                   O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
       innovationMahalanobisNorm =
-          dinv * v(0) *
-              (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
-               v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
-               v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
-          dinv * v(1) *
-              (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
-               O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
-               O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
-          dinv * v(2) *
-              (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
-               O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
-               O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
+          dinv * v(0) * (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
+                         v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
+                         v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
+          dinv * v(1) * (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
+                         O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
+                         O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
+          dinv * v(2) * (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
+                         O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
+                         O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
       // timeMahalanobis += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
 
       // timeBefore = UtilsOpenCV::GetTimeInSeconds();
@@ -858,12 +867,14 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // UtilsOpenCV::PrintVector<int>(inliers,"inliers");
   // std::cout << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
 
-  // TODO(Toni) remove hardcoded value...
-  int iterations = 1;  // to preserve RANSAC api
+  VLOG(10) << "RANSAC (STEREO): #iter = " << 1 << '\n'
+           << " #inliers = " << inliers.size()
+           << "\n #outliers = " << inliers.size() - matches_ref_cur.size();
+  debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
 
   // Remove outliers.
   removeOutliersStereo(
-      ref_stereoFrame, cur_stereoFrame, matches_ref_cur, inliers, iterations);
+      inliers, &ref_stereoFrame, &cur_stereoFrame, &matches_ref_cur);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
@@ -896,8 +907,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   }
   debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrStereoInliers_ = inliers.size();
-  debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
-  debug_info_.stereoRansacIters_ = iterations;
+  debug_info_.stereoRansacIters_ = 1; // this is bcs we use coherent sets here.
 
   return std::make_pair(
       std::make_pair(status, gtsam::Pose3(R, gtsam::Point3(t))),
@@ -909,7 +919,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                                          StereoFrame& cur_stereoFrame) {
   auto start_time_tic = utils::Timer::tic();
 
-  std::vector<std::pair<size_t, size_t>> matches_ref_cur;
+  KeypointMatches matches_ref_cur;
   findMatchingStereoKeypoints(
       ref_stereoFrame, cur_stereoFrame, &matches_ref_cur);
 
@@ -921,7 +931,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   f_cur.reserve(matches_ref_cur.size());
   Points3d f_ref;
   f_ref.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
+  for (const KeypointMatch& it : matches_ref_cur) {
     f_ref.push_back(ref_stereoFrame.keypoints_3d_.at(it.first));
     f_cur.push_back(cur_stereoFrame.keypoints_3d_.at(it.second));
   }
@@ -945,12 +955,14 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
 
   VLOG(10) << "geometricOutlierRejectionStereo: voting complete.";
 
+  VLOG(10) << "RANSAC (STEREO): #iter = " << ransac.iterations_ << '\n'
+           << " #inliers = " << ransac.inliers_.size() << "\n #outliers = "
+           << ransac.inliers_.size() - matches_ref_cur.size();
+  debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
+
   // Remove outliers.
-  removeOutliersStereo(ref_stereoFrame,
-                       cur_stereoFrame,
-                       matches_ref_cur,
-                       ransac.inliers_,
-                       ransac.iterations_);
+  removeOutliersStereo(
+      ransac.inliers_, &ref_stereoFrame, &cur_stereoFrame, &matches_ref_cur);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
@@ -965,17 +977,15 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   // Fill debug info.
   debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrStereoInliers_ = ransac.inliers_.size();
-  debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
   debug_info_.stereoRansacIters_ = ransac.iterations_;
 
   return std::make_pair(status,
                         UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
 }
 
-void Tracker::findOutliers(
-    const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-    std::vector<int> inliers,
-    std::vector<int>* outliers) {
+void Tracker::findOutliers(const KeypointMatches& matches_ref_cur,
+                           std::vector<int> inliers,
+                           std::vector<int>* outliers) {
   CHECK_NOTNULL(outliers)->clear();
   // Get outlier indices from inlier indices.
   std::sort(inliers.begin(), inliers.end(), std::less<size_t>());
@@ -983,9 +993,10 @@ void Tracker::findOutliers(
   // The following is a complicated way of computing a set difference
   size_t k = 0;
   for (size_t i = 0u; i < matches_ref_cur.size(); ++i) {
-    if (k < inliers.size()                    // If we haven't exhaused inliers
-        && static_cast<int>(i) > inliers[k])  // If we are after the inlier[k]
-      ++k;                                    // Check the next inlier
+    if (k < inliers.size()  // If we haven't exhaused inliers
+        &&
+        static_cast<int>(i) > inliers[k])  // If we are after the inlier[k]
+      ++k;                                 // Check the next inlier
     if (k >= inliers.size() ||
         static_cast<int>(i) != inliers[k])  // If i is not an inlier
       outliers->push_back(i);
@@ -1025,70 +1036,79 @@ void Tracker::checkStatusRightKeypoints(
   }
 }
 
-void Tracker::removeOutliersMono(
-    Frame* ref_frame,
-    Frame* cur_frame,
-    const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-    const std::vector<int>& inliers,
-    const int iterations) {
+// TODO(Toni): this and findOutliers can be greatly optimized...
+void Tracker::removeOutliersMono(const std::vector<int>& inliers,
+                                 Frame* ref_frame,
+                                 Frame* cur_frame,
+                                 KeypointMatches* matches_ref_cur) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
+  CHECK_NOTNULL(matches_ref_cur);
   // Find indices of outliers in current frame.
   std::vector<int> outliers;
-  findOutliers(matches_ref_cur, inliers, &outliers);
+  findOutliers(*matches_ref_cur, inliers, &outliers);
   // Remove outliers.
   // outliers cannot be a vector of size_t because opengv uses a vector of
   // int.
-  for (const size_t& i : outliers) {
-    ref_frame->landmarks_.at(matches_ref_cur[i].first) = -1;
-    cur_frame->landmarks_.at(matches_ref_cur[i].second) = -1;
+  for (const size_t& out : outliers) {
+    const auto& ref_kp_cur_kp = (*matches_ref_cur)[out];
+    ref_frame->landmarks_.at(ref_kp_cur_kp.first) = -1;
+    cur_frame->landmarks_.at(ref_kp_cur_kp.second) = -1;
   }
-  VLOG(10) << "RANSAC (MONO): #iter = " << iterations
-           << ", #inliers = " << inliers.size()
-           << " #outliers = " << outliers.size();
+
+  // Store only inliers from now on.
+  KeypointMatches outlier_free_matches_ref_cur;
+  outlier_free_matches_ref_cur.reserve(inliers.size());
+  for (const size_t& in : inliers) {
+    outlier_free_matches_ref_cur.push_back((*matches_ref_cur)[in]);
+  }
+  *matches_ref_cur = outlier_free_matches_ref_cur;
 }
 
-void Tracker::removeOutliersStereo(
-    StereoFrame& ref_stereoFrame,
-    StereoFrame& cur_stereoFrame,
-    const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-    const std::vector<int>& inliers,
-    const int iterations) {
+void Tracker::removeOutliersStereo(const std::vector<int>& inliers,
+                                   StereoFrame* ref_stereoFrame,
+                                   StereoFrame* cur_stereoFrame,
+                                   KeypointMatches* matches_ref_cur) {
+  CHECK_NOTNULL(ref_stereoFrame);
+  CHECK_NOTNULL(cur_stereoFrame);
+  CHECK_NOTNULL(matches_ref_cur);
   // Find indices of outliers in current stereo frame.
   std::vector<int> outliers;
-  findOutliers(matches_ref_cur, inliers, &outliers);
+  findOutliers(*matches_ref_cur, inliers, &outliers);
 
-  // Remove outliers
-  // outliers cannot be a vector of size_t because opengv uses a vector of
-  // int.
-  for (const size_t& i : outliers) {
-    ref_stereoFrame.right_keypoints_status_.at(matches_ref_cur[i].first) =
+  // Remove outliers: outliers cannot be a vector of size_t because opengv uses
+  // a vector of int.
+  for (const size_t& out : outliers) {
+    const KeypointMatch& kp_match = (*matches_ref_cur)[out];
+    ref_stereoFrame->right_keypoints_status_.at(kp_match.first) =
         KeypointStatus::FAILED_ARUN;
-    ref_stereoFrame.keypoints_depth_.at(matches_ref_cur[i].first) = 0.0;
-    ref_stereoFrame.keypoints_3d_.at(matches_ref_cur[i].first) =
-        Vector3::Zero();
+    ref_stereoFrame->keypoints_depth_.at(kp_match.first) = 0.0;
+    ref_stereoFrame->keypoints_3d_.at(kp_match.first) = Vector3::Zero();
 
-    cur_stereoFrame.right_keypoints_status_.at(matches_ref_cur[i].second) =
+    cur_stereoFrame->right_keypoints_status_.at(kp_match.second) =
         KeypointStatus::FAILED_ARUN;
-    cur_stereoFrame.keypoints_depth_.at(matches_ref_cur[i].second) = 0.0;
-    cur_stereoFrame.keypoints_3d_.at(matches_ref_cur[i].second) =
-        Vector3::Zero();
+    cur_stereoFrame->keypoints_depth_.at(kp_match.second) = 0.0;
+    cur_stereoFrame->keypoints_3d_.at(kp_match.second) = Vector3::Zero();
   }
-  VLOG(10) << "RANSAC (STEREO): #iter = " << iterations
-           << ", #inliers = " << inliers.size()
-           << " #outliers = " << outliers.size();
+
+  // Store only inliers from now on.
+  KeypointMatches outlier_free_matches_ref_cur;
+  outlier_free_matches_ref_cur.reserve(inliers.size());
+  for (const size_t& in : inliers) {
+    outlier_free_matches_ref_cur.push_back((*matches_ref_cur)[in]);
+  }
+  *matches_ref_cur = outlier_free_matches_ref_cur;
 }
 
-void Tracker::findMatchingKeypoints(
-    const Frame& ref_frame,
-    const Frame& cur_frame,
-    std::vector<std::pair<size_t, size_t>>* matches_ref_cur) {
+void Tracker::findMatchingKeypoints(const Frame& ref_frame,
+                                    const Frame& cur_frame,
+                                    KeypointMatches* matches_ref_cur) {
   CHECK_NOTNULL(matches_ref_cur)->clear();
 
   // Find keypoints that observe the same landmarks in both frames:
   std::map<LandmarkId, size_t> ref_lm_index_map;
   for (size_t i = 0; i < ref_frame.landmarks_.size(); ++i) {
-    LandmarkId ref_id = ref_frame.landmarks_.at(i);
+    const LandmarkId& ref_id = ref_frame.landmarks_.at(i);
     if (ref_id != -1) {
       // Map landmark id -> position in ref_frame.landmarks_
       ref_lm_index_map[ref_id] = i;
@@ -1099,7 +1119,7 @@ void Tracker::findMatchingKeypoints(
   // cur_frame
   matches_ref_cur->reserve(ref_lm_index_map.size());
   for (size_t i = 0; i < cur_frame.landmarks_.size(); ++i) {
-    LandmarkId cur_id = cur_frame.landmarks_.at(i);
+    const LandmarkId& cur_id = cur_frame.landmarks_.at(i);
     if (cur_id != -1) {
       auto it = ref_lm_index_map.find(cur_id);
       if (it != ref_lm_index_map.end()) {
@@ -1112,9 +1132,9 @@ void Tracker::findMatchingKeypoints(
 void Tracker::findMatchingStereoKeypoints(
     const StereoFrame& ref_stereoFrame,
     const StereoFrame& cur_stereoFrame,
-    std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo) {
+    KeypointMatches* matches_ref_cur_stereo) {
   CHECK_NOTNULL(matches_ref_cur_stereo)->clear();
-  std::vector<std::pair<size_t, size_t>> matches_ref_cur_mono;
+  KeypointMatches matches_ref_cur_mono;
   findMatchingKeypoints(ref_stereoFrame.getLeftFrame(),
                         cur_stereoFrame.getLeftFrame(),
                         &matches_ref_cur_mono);
@@ -1127,8 +1147,8 @@ void Tracker::findMatchingStereoKeypoints(
 void Tracker::findMatchingStereoKeypoints(
     const StereoFrame& ref_stereoFrame,
     const StereoFrame& cur_stereoFrame,
-    const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono,
-    std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo) {
+    const KeypointMatches& matches_ref_cur_mono,
+    KeypointMatches* matches_ref_cur_stereo) {
   CHECK_NOTNULL(matches_ref_cur_stereo)->clear();
   for (size_t i = 0; i < matches_ref_cur_mono.size(); ++i) {
     const size_t& ind_ref = matches_ref_cur_mono[i].first;
@@ -1144,37 +1164,36 @@ void Tracker::findMatchingStereoKeypoints(
   }
 }
 
-double Tracker::computeMedianDisparity(const Frame& ref_frame,
-                                       const Frame& cur_frame) {
-  // Find keypoints that observe the same landmarks in both frames:
-  std::vector<std::pair<size_t, size_t>> matches_ref_cur;
-  findMatchingKeypoints(ref_frame, cur_frame, &matches_ref_cur);
-
+bool Tracker::computeMedianDisparity(const KeypointsCV& ref_frame_kpts,
+                                     const KeypointsCV& cur_frame_kpts,
+                                     const KeypointMatches& matches_ref_cur,
+                                     double* median_disparity) {
+  CHECK_NOTNULL(median_disparity);
   // Compute disparity:
-  std::vector<double> disparity;
-  disparity.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& rc : matches_ref_cur) {
-    KeypointCV pxDiff =
-        cur_frame.keypoints_[rc.second] - ref_frame.keypoints_[rc.first];
-    double pxDistance = sqrt(pxDiff.x * pxDiff.x + pxDiff.y * pxDiff.y);
-    disparity.push_back(pxDistance);
+  std::vector<double> disparity_sq;
+  disparity_sq.reserve(matches_ref_cur.size());
+  for (const KeypointMatch& rc : matches_ref_cur) {
+    KeypointCV px_diff = cur_frame_kpts[rc.second] - ref_frame_kpts[rc.first];
+    double px_dist = px_diff.x * px_diff.x + px_diff.y * px_diff.y;
+    disparity_sq.push_back(px_dist);
   }
 
-  if (disparity.empty()) {
-    VLOG(10) << "WARNING: Have no matches for disparity computation.";
-    return 0.0;
+  if (disparity_sq.empty()) {
+    LOG(WARNING) << "Have no matches for disparity computation.";
+    *median_disparity = 0.0;
+    return false;
   }
 
   // Compute median:
-  const size_t center = disparity.size() / 2;
+  const size_t center = disparity_sq.size() / 2;
+  // nth element sorts the array partially until it finds the median.
   std::nth_element(
-      disparity.begin(), disparity.begin() + center, disparity.end());
-  return disparity[center];
+      disparity_sq.begin(), disparity_sq.begin() + center, disparity_sq.end());
+  *median_disparity = std::sqrt(disparity_sq[center]);
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO this won't work in parallel mode, as visualization must be done in
-// main thread.
 cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
                                  const Frame& cur_frame,
                                  const KeypointsCV& extra_corners_gray,

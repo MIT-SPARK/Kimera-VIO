@@ -423,7 +423,7 @@ void StereoVisionFrontEnd::outlierRejectionStereo(
     // 3-point RANSAC.
     *status_pose_stereo = tracker_.geometricOutlierRejectionStereo(
         *stereoFrame_lkf_, *stereoFrame_k_);
-    if (force_53point_ransac_) LOG(WARNING) << "3-point RANSAC was enforced!";
+    LOG_IF(WARNING, force_53point_ransac_) << "3-point RANSAC was enforced!";
   }
 
   // Set relative pose.
@@ -488,9 +488,9 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::displayFeatureTracks() const {
-  const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   cv::Mat img_left =
-      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
+                               stereoFrame_k_->getLeftFrame());
   VisualizerOutput::UniquePtr visualizer_output =
       VIO::make_unique<VisualizerOutput>();
   ImageToDisplay tracker_image("Tracker Image", img_left);

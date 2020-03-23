@@ -85,19 +85,19 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
       landmark_count_(0),
       log_output_(log_output),
       logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr) {
-  // TODO the parsing of the params should be done inside here out from the
-  // path to the params file, otherwise other derived VIO backends will be
-  // stuck with the parameters used by vanilla VIO, as there is no polymorphic
-  // container in C++...
-  // This way VioBackEnd can parse the params it cares about, while others can
-  // have the opportunity to parse their own parameters as well.
-  // Unfortunately, doing that would not work because many other modules use
-  // VioBackEndParams as weird as this may sound...
-  // For now we have polymorphic params, with dynamic_cast to derived class,
-  // aka suboptimal...
+// TODO the parsing of the params should be done inside here out from the
+// path to the params file, otherwise other derived VIO backends will be
+// stuck with the parameters used by vanilla VIO, as there is no polymorphic
+// container in C++...
+// This way VioBackEnd can parse the params it cares about, while others can
+// have the opportunity to parse their own parameters as well.
+// Unfortunately, doing that would not work because many other modules use
+// VioBackEndParams as weird as this may sound...
+// For now we have polymorphic params, with dynamic_cast to derived class,
+// aka suboptimal...
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Initialize smoother.
+//////////////////////////////////////////////////////////////////////////////
+// Initialize smoother.
 #ifdef INCREMENTAL_SMOOTHER
   gtsam::ISAM2Params isam_param;
   setIsam2Params(backend_params, &isam_param);
@@ -298,19 +298,18 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch (kfTrackingStatus_mono) {
     case TrackingStatus::LOW_DISPARITY:  // vehicle is not moving
-      if (VLOG_IS_ON(10)) {
-        printf("Add zero velocity and no motion factors\n");
-      }
+      LOG(WARNING) << "LOW_DISPARITY: Adding zero velocity and no motion "
+                      "factors to backend.";
       addZeroVelocityPrior(curr_kf_id_);
       addNoMotionFactor(last_kf_id_, curr_kf_id_);
       break;
 
-      // This did not improve in any case
-      //  case TrackingStatus::INVALID :// ransac failed hence we cannot
-      //  trust features
-      //    if (verbosity_ >= 7) {printf("Add constant velocity factor
-      //    (monoRansac is INVALID)\n");}
-      //    addConstantVelocityFactor(last_id_, cur_id_); break;
+    // This did not improve in any case
+    //  case TrackingStatus::INVALID :// ransac failed hence we cannot
+    //  trust features
+    //    if (verbosity_ >= 7) {printf("Add constant velocity factor
+    //    (monoRansac is INVALID)\n");}
+    //    addConstantVelocityFactor(last_id_, cur_id_); break;
 
     default:  // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
               // we add features in VIO

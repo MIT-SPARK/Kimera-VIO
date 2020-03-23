@@ -97,19 +97,15 @@ class Tracker {
                                                StereoFrame& cur_stereoFrame,
                                                const gtsam::Rot3& R);
 
-  void removeOutliersMono(
-      Frame* ref_frame,
-      Frame* cur_frame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      const std::vector<int>& inliers,
-      const int iterations);
+  void removeOutliersMono(const std::vector<int>& inliers,
+                          Frame* ref_frame,
+                          Frame* cur_frame,
+                          KeypointMatches* matches_ref_cur);
 
-  void removeOutliersStereo(
-      StereoFrame& ref_stereoFrame,
-      StereoFrame& cur_stereoFrame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      const std::vector<int>& inliers,
-      const int iterations);
+  void removeOutliersStereo(const std::vector<int>& inliers,
+                            StereoFrame* ref_stereoFrame,
+                            StereoFrame* cur_stereoFrame,
+                            KeypointMatches* matches_ref_cur);
 
   void checkStatusRightKeypoints(
       const std::vector<KeypointStatus>& right_keypoints_status);
@@ -123,29 +119,29 @@ class Tracker {
       const KeypointsCV& extra_corners_blue = KeypointsCV()) const;
 
   /* ---------------------------- STATIC FUNCTIONS -------------------------- */
-  static void findOutliers(
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      std::vector<int> inliers,
-      std::vector<int>* outliers);
+  static void findOutliers(const KeypointMatches& matches_ref_cur,
+                           std::vector<int> inliers,
+                           std::vector<int>* outliers);
 
-  static void findMatchingKeypoints(
-      const Frame& ref_frame,
-      const Frame& cur_frame,
-      std::vector<std::pair<size_t, size_t>>* matches_ref_cur);
+  static void findMatchingKeypoints(const Frame& ref_frame,
+                                    const Frame& cur_frame,
+                                    KeypointMatches* matches_ref_cur);
 
   static void findMatchingStereoKeypoints(
       const StereoFrame& ref_stereoFrame,
       const StereoFrame& cur_stereoFrame,
-      std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo);
+      KeypointMatches* matches_ref_cur_stereo);
 
   static void findMatchingStereoKeypoints(
       const StereoFrame& ref_stereoFrame,
       const StereoFrame& cur_stereoFrame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono,
-      std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo);
+      const KeypointMatches& matches_ref_cur_mono,
+      KeypointMatches* matches_ref_cur_stereo);
 
-  static double computeMedianDisparity(const Frame& ref_frame,
-                                       const Frame& cur_frame);
+  static bool computeMedianDisparity(const KeypointsCV& ref_frame_kpts,
+                                     const KeypointsCV& cur_frame_kpts,
+                                     const KeypointMatches& matches_ref_cur,
+                                     double* median_disparity);
 
   // Returns landmark_count (updated from the new keypoints),
   // and nr or extracted corners.
@@ -181,7 +177,6 @@ class Tracker {
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
   std::string output_images_path_;
-
 };
 
 }  // namespace VIO
