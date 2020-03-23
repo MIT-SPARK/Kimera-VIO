@@ -18,6 +18,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <gtsam/geometry/Rot3.h>
+
 #include "kimera-vio/utils/Timer.h"
 
 DEFINE_bool(visualize_frontend_images,
@@ -44,7 +46,11 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(const ImuParams& imu_params,
                                            const CameraParams& camera_params,
                                            DisplayQueue* display_queue,
                                            bool log_output)
-    : frame_count_(0),
+    : stereoFrame_k_(nullptr),
+      stereoFrame_km1_(nullptr),
+      stereoFrame_lkf_(nullptr),
+      keyframe_R_ref_frame_(gtsam::Rot3::identity()),
+      frame_count_(0),
       keyframe_count_(0),
       tracker_(tracker_params, camera_params),
       trackerStatusSummary_(),
@@ -219,7 +225,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
 StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
-    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu) {
+    const gtsam::Rot3& keyframe_R_cur_frame) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.getTimestamp() << " empirical framerate (sec): "
@@ -242,8 +248,11 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   // Track features from the previous frame
   Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
+  // We need to use the frame to frame rotation.
+  gtsam::Rot3 ref_frame_R_cur_frame =
+      keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
   tracker_.featureTracking(
-      left_frame_km1, left_frame_k, calLrectLkf_R_camLrectKf_imu);
+      left_frame_km1, left_frame_k, ref_frame_R_cur_frame);
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
@@ -294,7 +303,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
-      outlierRejectionMono(calLrectLkf_R_camLrectKf_imu,
+      outlierRejectionMono(keyframe_R_cur_frame,
                            left_frame_lkf,
                            left_frame_k,
                            &status_pose_mono);
@@ -306,7 +315,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       sparse_stereo_time = utils::Timer::toc(start_time).count();
 
       TrackingStatusPose status_pose_stereo;
-      outlierRejectionStereo(calLrectLkf_R_camLrectKf_imu,
+      outlierRejectionStereo(keyframe_R_cur_frame,
                              stereoFrame_lkf_,
                              stereoFrame_k_,
                              &status_pose_stereo);
