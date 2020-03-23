@@ -316,7 +316,7 @@ void Tracker::MyGoodFeaturesToTrackSubPix(
 // it modifies debuginfo_...
 void Tracker::featureTracking(Frame* ref_frame,
                               Frame* cur_frame,
-                              const gtsam::Rot3& inter_frame_rotation) {
+                              const gtsam::Rot3& ref_R_cur) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
   auto tic = utils::Timer::tic();
@@ -348,7 +348,7 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   KeypointsCV px_cur;
   CHECK(optical_flow_predictor_->predictFlow(
-      px_ref, inter_frame_rotation, &px_cur));
+      px_ref, ref_R_cur, &px_cur));
 
   // Do the actual tracking, so px_cur becomes the new pixel locations.
   VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
