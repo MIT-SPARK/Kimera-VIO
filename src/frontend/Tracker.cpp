@@ -35,7 +35,8 @@ Tracker::Tracker(const FrontendParams& tracker_params,
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
-          camera_params_.K_);
+          camera_params_.K_,
+          camera_params_.image_size_);
 }
 
 // TODO(Toni) Optimize this function.

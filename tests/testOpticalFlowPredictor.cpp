@@ -39,17 +39,18 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
         cam_2_pose_(),
         cam_1_(),
         cam_2_(),
-        vio_params_(FLAGS_test_data_path + "/EurocParams"),
+        camera_params_(VioParams(FLAGS_test_data_path + "/EurocParams")
+                           .camera_params_.at(0)),
         optical_flow_predictor_(nullptr),
         window_() {
-    CHECK_GT(vio_params_.camera_params_.size(), 1u);
-
     // Generate 3D points (landmarks) of the scene.
-    buildSceneLandmarks(&lmks_);
+    // We scale it by 2.5 to make some keypoints re-project out of the img
+    // for large rotations of cam2 wrt cam1
+    buildSceneLandmarks(&lmks_, 1.0);
 
     // Create cameras calibration from Euroc dataset.
     // Euroc dataset with distortion and skewness.
-    euroc_calib_ = vio_params_.camera_params_.at(0).calibration_;
+    euroc_calib_ = camera_params_.calibration_;
 
     // You could use euroc_calib_ as well, but you'll have similar results
     // but you need to account for distortion, since the projectSafe function
@@ -57,14 +58,13 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
 
     // Simulated calibration without distortion or skewness, and with the
     // same fx and fy focal length.
-    simulated_calib_ =
-        gtsam::Cal3DS2(euroc_calib_.fx(),
-                       euroc_calib_.fx(),
-                       0.0,
-                       vio_params_.camera_params_.at(0).image_size_.width / 2u,
-                       vio_params_.camera_params_.at(0).image_size_.height / 2u,
-                       0.0,
-                       0.0);
+    simulated_calib_ = gtsam::Cal3DS2(euroc_calib_.fx(),
+                                      euroc_calib_.fx(),
+                                      0.0,
+                                      camera_params_.image_size_.width / 2u,
+                                      camera_params_.image_size_.height / 2u,
+                                      0.0,
+                                      0.0);
 
     // Create Left Camera
     // Move left camera negative x direction so it can see the whole scene.
@@ -85,7 +85,8 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
       const OpticalFlowPredictorType& optical_flow_predictor_type) {
     return OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
         optical_flow_predictor_type,
-        UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K()));
+        UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K()),
+        camera_params_.image_size_);
   }
 
   // Build scene
@@ -129,7 +130,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
         const auto& kpt = kpt_bool.first;
         kpts->push_back(KeypointCV(kpt.x(), kpt.y()));
       } else {
-        LOG(ERROR) << "Landmark projection to camera failed!";
+        LOG(WARNING) << "Landmark projection to camera failed!";
       }
     }
   }
@@ -200,12 +201,10 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
     window_.setBackgroundColor(cv::viz::Color::white());
 
     cv::Matx33d K = UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K());
-    cv::Mat cam_1_img = cv::Mat(vio_params_.camera_params_.at(0).image_size_,
-                                CV_8UC4,
-                                cv::Scalar(255u, 255u, 255u, 40u));
-    cv::Mat cam_2_img = cv::Mat(vio_params_.camera_params_.at(0).image_size_,
-                                CV_8UC4,
-                                cv::Scalar(255u, 0u, 0u, 125u));
+    cv::Mat cam_1_img = cv::Mat(
+        camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 255u, 255u, 40u));
+    cv::Mat cam_2_img = cv::Mat(
+        camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 0u, 0u, 125u));
 
     // Visualize world coords.
     window_.showWidget("World Coordinates", cv::viz::WCoordinateSystem(0.5));
@@ -294,7 +293,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
   gtsam::Pose3 cam_2_pose_;
   PinholeCamera cam_1_;
   PinholeCamera cam_2_;
-  VioParams vio_params_;
+  CameraParams camera_params_;
   OpticalFlowPredictor::UniquePtr optical_flow_predictor_;
 
  private:
@@ -450,22 +449,68 @@ TEST_F(OpticalFlowPredictorFixture,
   spinDisplay();
 }
 
+// Checks that small rotations are handled as if it there was no prediction.
+// EDIT: actually, we also expect to predict even when small rotations, bcs
+// at the border of the image, even small rotations lead to large optical flow.
+TEST_F(OpticalFlowPredictorFixture,
+       RotationalOpticalFlowPredictionSmallRotationOnly) {
+  optical_flow_predictor_ =
+      buildOpticalFlowPredictor(OpticalFlowPredictorType::kRotational);
+  ASSERT_TRUE(optical_flow_predictor_);
+
+  // Create Right Camera with small rotation with respect to cam1
+  //! Cam2 is at 5 degree rotation wrt z axis wrt Cam1.
+  gtsam::Rot3 rot_5_z(0.99999999, 0.0, 0.0, 0.0);
+  gtsam::Pose3 cam_1_P_cam_2(rot_5_z, gtsam::Vector3::Zero());
+  generateCam2(cam_1_P_cam_2);
+
+  // Call predictor to get next_kps
+  KeypointsCV actual_kpts;
+  const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
+  optical_flow_predictor_->predictFlow(
+      cam_1_kpts_, inter_frame_rot, &actual_kpts);
+
+  // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
+  // because we have a small rotation.
+  compareKeypoints(cam_1_kpts_, actual_kpts, 1e-2);
+
+  // Create Right Camera with small rotation with respect to cam1
+  //! Cam2 is at 5 degree rotation wrt z axis wrt Cam1.
+  //! Ensure double cover of quaternion is respected.
+  gtsam::Rot3 rot_5_minus_z(-0.999, 0.0, 0.0, -0.05);
+  cam_1_P_cam_2 = gtsam::Pose3(rot_5_minus_z, gtsam::Vector3::Zero());
+  generateCam2(cam_1_P_cam_2);
+
+  // Call predictor to get next_kps
+  optical_flow_predictor_->predictFlow(
+      cam_1_kpts_, inter_frame_rot, &actual_kpts);
+
+  // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
+  // because we have a small rotation.
+  compareKeypoints(cam_2_kpts_, actual_kpts, 1e-2);
+
+  visualizeScene("SmallRotationOnly", actual_kpts);
+  spinDisplay();
+}
+
 // Checks that the prediction forward does not go outside the image!
+// landmarks are not visible to cam2 but still in front of cam2.
 TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionOutOfImage) {
   optical_flow_predictor_ =
       buildOpticalFlowPredictor(OpticalFlowPredictorType::kRotational);
   ASSERT_TRUE(optical_flow_predictor_);
 
   // Create Right Camera
-  //! Cam2 is at 45 degree rotation wrt z axis wrt Cam1.
-  gtsam::Rot3 rot_90_z(0.707, 0.0, 0.0, 0.707);
-  gtsam::Pose3 cam_1_P_cam_2(rot_90_z, gtsam::Vector3::Zero());
+  //! Cam2 is at 45 degree rotation wrt x axis wrt Cam1: so that landmarks
+  //! remain in front of camera, but outside of image of cam2.
+  gtsam::Rot3 rot_45_x( 0.924, 0.383, 0.0, 0.0);
+  gtsam::Pose3 cam_1_P_cam_2(rot_45_x, gtsam::Vector3::Zero());
   generateCam2(cam_1_P_cam_2);
 
   // Note: cam_2_kpts_ are generated in generateCam2!
-  // Predicting forward should predict the projection on cam_2 minus the ones
-  // that fall outside the image!
-  KeypointsCV expected_kpts = cam_2_kpts_;
+  // Predicting forward should just copy previous keypoint positions if lmks
+  // fall outside the image.
+  KeypointsCV expected_kpts = cam_1_kpts_;
 
   // Calculate actual kpts
   KeypointsCV actual_kpts;
@@ -477,6 +522,38 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionOutOfImage) {
   compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 
   visualizeScene("OutOfImage", actual_kpts);
+  spinDisplay();
+}
+
+// Checks that the prediction forward does not get wrong prediction when
+// landmarks are behind cam2, but still project inside the image.
+TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionBehindCam) {
+  optical_flow_predictor_ =
+      buildOpticalFlowPredictor(OpticalFlowPredictorType::kRotational);
+  ASSERT_TRUE(optical_flow_predictor_);
+
+  // Create Right Camera
+  //! Cam2 is at 180 degree rotation wrt x axis wrt Cam1: so that landmarks
+  //! are in the back of the camera, but still "project" inside of image of cam2
+  gtsam::Rot3 rot_180_y(0.0, 0.0, 1.0, 0.0);
+  gtsam::Pose3 cam_1_P_cam_2(rot_180_y, gtsam::Vector3::Zero());
+  generateCam2(cam_1_P_cam_2);
+
+  // Note: cam_2_kpts_ are generated in generateCam2!
+  // Predicting forward should just copy previous keypoint positions if lmks
+  // fall outside the image.
+  KeypointsCV expected_kpts = cam_1_kpts_;
+
+  // Calculate actual kpts
+  KeypointsCV actual_kpts;
+  const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
+  optical_flow_predictor_->predictFlow(
+      cam_1_kpts_, inter_frame_rot, &actual_kpts);
+
+  // Expect not out of image kpts.
+  compareKeypoints(expected_kpts, actual_kpts, 1e-1);
+
+  visualizeScene("BehindCamera", actual_kpts);
   spinDisplay();
 }
 
