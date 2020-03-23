@@ -1,0 +1,13 @@
+%YAML:1.0
+# frontend_type
+# Type of VIO Frontend to use
+# 0: StereoImu
+frontend_type: 0
+
+# Type of vioBackEnd to use:
+# 0: VioBackEnd
+# 1: RegularVioBackEnd
+backend_type: 1
+
+# Run VIO parallel or sequential
+parallel_run: 1
