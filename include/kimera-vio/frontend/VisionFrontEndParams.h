@@ -129,7 +129,7 @@ protected:
   double disparityThreshold_ = 0.5;
 
   OpticalFlowPredictorType optical_flow_predictor_type_ =
-      OpticalFlowPredictorType::kStatic;
+      OpticalFlowPredictorType::kNoPrediction;
 };
 
 }  // namespace VIO

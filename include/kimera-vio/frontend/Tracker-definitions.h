@@ -147,4 +147,7 @@ public:
 typedef double KeypointScore;
 typedef std::vector<double> KeypointScores;
 typedef std::pair<KeypointsCV, KeypointScores> KeypointsWithScores;
+typedef std::pair<size_t, size_t> KeypointMatch;
+typedef std::vector<std::pair<size_t, size_t>> KeypointMatches;
+
 } // End of VIO namespace.

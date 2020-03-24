@@ -135,6 +135,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam translation to a opencv mat.
   static cv::Mat gtsamVector3ToCvMat(const gtsam::Vector3& tran);
+  static cv::Point3d gtsamVector3ToCvPoint3(const gtsam::Vector3& tran);
 
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam pose3 to a opencv Affine3d

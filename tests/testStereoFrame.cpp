@@ -1088,12 +1088,12 @@ TEST(testStereoFrame, undistortFisheye) {
   // Undistort image using pinhole equidistant (fisheye) model
   if (cam_params_left_fisheye.distortion_model_ == "equidistant") {
     cv::fisheye::initUndistortRectifyMap(
-        cam_params_left_fisheye.camera_matrix_,
+        cam_params_left_fisheye.K_,
         cam_params_left_fisheye.distortion_coeff_,
         // not relevant here
         cv::Mat::eye(3, 3, CV_32F),
         // don't to use default identity!
-        cam_params_left_fisheye.camera_matrix_,
+        cam_params_left_fisheye.K_,
         cam_params_left_fisheye.image_size_,
         CV_32FC1,
         // output
@@ -1141,8 +1141,7 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
                                      // Right frame
                                      right_fisheye_image_dist,
                                      cam_params_right_fisheye,
-                                     // Relative pose
-                                     // Default, not used here
+                                     // Relative pose // Default, not used here
                                      StereoMatchingParams());
 
   // Get rectified images

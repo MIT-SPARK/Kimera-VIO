@@ -17,6 +17,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 DEFINE_int32(mesh_shading, 0, "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation,

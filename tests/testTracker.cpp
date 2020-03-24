@@ -228,8 +228,9 @@ class TestTracker : public ::testing::Test {
       Vector3 versor_ref = Frame::calibratePixel(pt_ref, f_ref->cam_param_);
 
       // Randomly generate the depth
-      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                          ((double)rand() / RAND_MAX);
+      double depth =
+          depth_range[0] +
+          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
 
       // project to the current frame!
       Vector3 versor_cur =
@@ -374,8 +375,9 @@ class TestTracker : public ::testing::Test {
       Vector3 versor_ref =
           Frame::calibratePixel(pt_ref, sf_ref->getLeftFrame().cam_param_);
       // Randomly generate the depth
-      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                          ((double)rand() / RAND_MAX);
+      double depth =
+          depth_range[0] +
+          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
 
       versor_ref = versor_ref * depth;
 
@@ -423,12 +425,12 @@ class TestTracker : public ::testing::Test {
             Frame::calibratePixel(pt_cur, sf_cur->getLeftFrame().cam_param_);
 
         // Check that they are indeed outliers!
-        double depth_ref =
-            depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                 (((double)rand()) / ((double)RAND_MAX));
-        double depth_cur =
-            depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                 (((double)rand()) / ((double)RAND_MAX));
+        double depth_ref = depth_range[0] +
+                           (depth_range[1] - depth_range[0]) *
+                               (((double)rand()) / ((double)RAND_MAX));
+        double depth_cur = depth_range[0] +
+                           (depth_range[1] - depth_range[0]) *
+                               (((double)rand()) / ((double)RAND_MAX));
 
         versor_ref = versor_ref * depth_ref;
         versor_cur = versor_cur * depth_cur;
@@ -1280,7 +1282,7 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, mahalanobisDistance) {
+TEST_F(TestTracker, MahalanobisDistance) {
   auto timeBefore = VIO::utils::Timer::tic();
   double time1 = 0, time2 = 0, time3 = 0;
   for (size_t test = 0; test < 1000; test++) {
@@ -1337,3 +1339,61 @@ TEST_F(TestTracker, mahalanobisDistance) {
           << "time2 (x'*O*x): " << time2 << '\n'
           << "time3 (manual): " << time3;
 }
+
+TEST_F(TestTracker, FeatureTrackingRotationalOpticalFlow) {
+  // Load one Euroc image
+
+  // Create second image with homography: small rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+}
+
+TEST_F(TestTracker, FeatureTrackingNoOpticalFlowPrediction) {
+  // Load one Euroc image
+
+  // Create second image with homography: small rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+}
+
+TEST_F(TestTracker, FeatureTrackingRotationalOpticalFlowPredictionLargeRot) {
+  // Load one Euroc image
+
+  // Create second image with homography: LARGE rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+}
+
+TEST_F(TestTracker, FeatureTrackingNoOpticalFlowPredictionLargeRot) {
+  // Load one Euroc image
+
+  // Create second image with homography: LARGE rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+
+  // SHOULD kind of fail...
+  // EXPECT_NEAR kpts actual vs kpts expected (large tolerance).
+}
+
+TEST_F(TestTracker,
+       FeatureTrackingRotationalOpticalFlowPredictionWithLargeRot) {}
