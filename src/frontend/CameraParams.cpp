@@ -46,7 +46,7 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   parseCameraIntrinsics(yaml_parser, &intrinsics_);
 
   // Convert intrinsics to cv::Mat format.
-  convertIntrinsicsVectorToMatrix(intrinsics_, &camera_matrix_);
+  convertIntrinsicsVectorToMatrix(intrinsics_, &K_);
 
   // Create gtsam calibration object.
   // Calibration of a camera with radial distortion that also supports
@@ -184,7 +184,7 @@ void CameraParams::print() const {
             << "image_size_: width= " << image_size_.width
             << " height= " << image_size_.height << '\n'
             << "camera_matrix_: \n"
-            << camera_matrix_ << '\n'
+            << K_ << '\n'
             << "distortion_model_: " << distortion_model_ << '\n'
             << "distortion_coeff_: \n"
             << distortion_coeff_ << '\n'
@@ -212,8 +212,8 @@ bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const 
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
          calibration_.equals(cam_par.calibration_, tol) &&
-         UtilsOpenCV::compareCvMatsUpToTol(camera_matrix_,
-                                           cam_par.camera_matrix_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(K_,
+                                           cam_par.K_) &&
          UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_,
                                            cam_par.distortion_coeff_) &&
          UtilsOpenCV::compareCvMatsUpToTol(undistRect_map_x_,

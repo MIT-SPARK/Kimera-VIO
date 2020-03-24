@@ -17,7 +17,7 @@
 namespace VIO {
 
 enum class OpticalFlowPredictorType {
-  kStatic = 0,
+  kNoPrediction = 0,
   kRotational = 1,
 };
 

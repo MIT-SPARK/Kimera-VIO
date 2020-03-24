@@ -270,8 +270,8 @@ class FrontendParams : public PipelineParams {
     yaml_parser.getYamlParam("optical_flow_predictor_type",
                              &optical_flow_predictor_type);
     switch (optical_flow_predictor_type) {
-      case VIO::to_underlying(OpticalFlowPredictorType::kStatic): {
-        optical_flow_predictor_type_ = OpticalFlowPredictorType::kStatic;
+      case VIO::to_underlying(OpticalFlowPredictorType::kNoPrediction): {
+        optical_flow_predictor_type_ = OpticalFlowPredictorType::kNoPrediction;
         break;
       }
       case VIO::to_underlying(OpticalFlowPredictorType::kRotational): {
@@ -339,7 +339,7 @@ class FrontendParams : public PipelineParams {
   double disparityThreshold_ = 0.5;
 
   OpticalFlowPredictorType optical_flow_predictor_type_ =
-      OpticalFlowPredictorType::kStatic;
+      OpticalFlowPredictorType::kNoPrediction;
 };
 
 } // namespace VIO

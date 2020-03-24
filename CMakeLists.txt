@@ -229,6 +229,7 @@ if(BUILD_TESTS)
     tests/testVioFrontEndParams.cpp
     # tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
+    tests/testOpticalFlowPredictor.cpp
     )
   target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
 

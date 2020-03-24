@@ -227,8 +227,9 @@ class TestTracker : public ::testing::Test {
       Vector3 versor_ref = Frame::calibratePixel(pt_ref, f_ref->cam_param_);
 
       // Randomly generate the depth
-      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                          ((double)rand() / RAND_MAX);
+      double depth =
+          depth_range[0] +
+          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
 
       // project to the current frame!
       Vector3 versor_cur =
@@ -373,8 +374,9 @@ class TestTracker : public ::testing::Test {
       Vector3 versor_ref =
           Frame::calibratePixel(pt_ref, sf_ref->getLeftFrame().cam_param_);
       // Randomly generate the depth
-      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                          ((double)rand() / RAND_MAX);
+      double depth =
+          depth_range[0] +
+          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
 
       versor_ref = versor_ref * depth;
 
@@ -422,12 +424,12 @@ class TestTracker : public ::testing::Test {
             Frame::calibratePixel(pt_cur, sf_cur->getLeftFrame().cam_param_);
 
         // Check that they are indeed outliers!
-        double depth_ref =
-            depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                 (((double)rand()) / ((double)RAND_MAX));
-        double depth_cur =
-            depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                 (((double)rand()) / ((double)RAND_MAX));
+        double depth_ref = depth_range[0] +
+                           (depth_range[1] - depth_range[0]) *
+                               (((double)rand()) / ((double)RAND_MAX));
+        double depth_cur = depth_range[0] +
+                           (depth_range[1] - depth_range[0]) *
+                               (((double)rand()) / ((double)RAND_MAX));
 
         versor_ref = versor_ref * depth_ref;
         versor_cur = versor_cur * depth_cur;
@@ -1279,7 +1281,7 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, mahalanobisDistance) {
+TEST_F(TestTracker, MahalanobisDistance) {
   double timeBefore = 0;
   double time1 = 0, time2 = 0, time3 = 0;
   for (size_t test = 0; test < 1000; test++) {
@@ -1310,18 +1312,15 @@ TEST_F(TestTracker, mahalanobisDistance) {
                       O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                       O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
     float innovationMahalanobisNorm3 =
-        dinv * v(0) *
-            (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
-             v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
-             v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
-        dinv * v(1) *
-            (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
-             O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
-             O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
-        dinv * v(2) *
-            (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
-             O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
-             O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
+        dinv * v(0) * (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
+                       v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
+                       v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
+        dinv * v(1) * (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
+                       O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
+                       O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
+        dinv * v(2) * (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
+                       O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
+                       O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
     time3 += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
 
     EXPECT_NEAR(double(innovationMahalanobisNorm1),
@@ -1336,3 +1335,61 @@ TEST_F(TestTracker, mahalanobisDistance) {
           << "time2 (x'*O*x): " << time2 << '\n'
           << "time3 (manual): " << time3;
 }
+
+TEST_F(TestTracker, FeatureTrackingRotationalOpticalFlow) {
+  // Load one Euroc image
+
+  // Create second image with homography: small rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+}
+
+TEST_F(TestTracker, FeatureTrackingNoOpticalFlowPrediction) {
+  // Load one Euroc image
+
+  // Create second image with homography: small rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+}
+
+TEST_F(TestTracker, FeatureTrackingRotationalOpticalFlowPredictionLargeRot) {
+  // Load one Euroc image
+
+  // Create second image with homography: LARGE rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+}
+
+TEST_F(TestTracker, FeatureTrackingNoOpticalFlowPredictionLargeRot) {
+  // Load one Euroc image
+
+  // Create second image with homography: LARGE rotation
+
+  // Feed frames: detect kpts.
+
+  // Run feature tracking
+
+  // Check cur_frame is correctly populated (rotate features in ref_frame to
+  // get the expected keypoints).
+
+  // SHOULD kind of fail...
+  // EXPECT_NEAR kpts actual vs kpts expected (large tolerance).
+}
+
+TEST_F(TestTracker,
+       FeatureTrackingRotationalOpticalFlowPredictionWithLargeRot) {}

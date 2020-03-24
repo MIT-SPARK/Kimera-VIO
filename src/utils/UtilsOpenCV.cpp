@@ -138,6 +138,10 @@ cv::Mat UtilsOpenCV::gtsamVector3ToCvMat(const gtsam::Vector3& tran) {
   return T;
 }
 
+cv::Point3d UtilsOpenCV::gtsamVector3ToCvPoint3(const gtsam::Vector3& tran) {
+  return cv::Point3d(tran[0], tran[1], tran[2]);
+}
+
 /* -------------------------------------------------------------------------- */
 // Converts a gtsam pose3 to a opencv Affine3d
 cv::Affine3d UtilsOpenCV::gtsamPose3ToCvAffine3d(const gtsam::Pose3& pose) {

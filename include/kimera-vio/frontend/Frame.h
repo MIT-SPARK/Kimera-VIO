@@ -204,13 +204,13 @@ class Frame : public PipelinePayload {
       // something I hope.
       cv::undistortPoints(uncalibrated_px,
                           calibrated_px,
-                          cam_param.camera_matrix_,
+                          cam_param.K_,
                           cam_param.distortion_coeff_);
     } else if ((cam_param.distortion_model_ == "equidistant")) {
       // TODO: Create unit test for fisheye / equidistant model
       cv::fisheye::undistortPoints(uncalibrated_px,
                                    calibrated_px,
-                                   cam_param.camera_matrix_,
+                                   cam_param.K_,
                                    cam_param.distortion_coeff_);
     } else {
       LOG(ERROR) << "Camera distortion model not found in CalibratePixel()!";

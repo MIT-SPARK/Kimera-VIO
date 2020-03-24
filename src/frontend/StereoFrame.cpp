@@ -620,9 +620,9 @@ void StereoFrame::computeRectificationParameters(
     VLOG(10) << "Stereo camera distortion for rectification: radtan";
     cv::stereoRectify(
         // Input
-        left_camera_info.camera_matrix_,
+        left_camera_info.K_,
         left_camera_info.distortion_coeff_,
-        right_camera_info.camera_matrix_,
+        right_camera_info.K_,
         right_camera_info.distortion_coeff_,
         left_camera_info.image_size_,
         L_Rot_R,
@@ -636,9 +636,9 @@ void StereoFrame::computeRectificationParameters(
   } else if (left_camera_info.distortion_model_ == "equidistant") {
     // Get stereo rectification
     VLOG(10) << "Stereo camera distortion for rectification: equidistant";
-    cv::fisheye::stereoRectify(left_camera_info.camera_matrix_,
+    cv::fisheye::stereoRectify(left_camera_info.K_,
                                left_camera_info.distortion_coeff_,
-                               right_camera_info.camera_matrix_,
+                               right_camera_info.K_,
                                right_camera_info.distortion_coeff_,
                                left_camera_info.image_size_,
                                L_Rot_R,
@@ -703,7 +703,7 @@ void StereoFrame::computeRectificationParameters(
       left_camera_info.distortion_model_ == "radial-tangential") {
     // Get rectification & undistortion maps. (radtan dist. model)
     VLOG(10) << "Left camera distortion: radtan";
-    cv::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+    cv::initUndistortRectifyMap(left_camera_info.K_,
                                 left_camera_info.distortion_coeff_,
                                 left_camera_info.R_rectify_,
                                 P1,
@@ -715,7 +715,7 @@ void StereoFrame::computeRectificationParameters(
   } else if (left_camera_info.distortion_model_ == "equidistant") {
     // Get rectification & undistortion maps. (equi dist. model)
     VLOG(10) << "Left camera distortion: equidistant";
-    cv::fisheye::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+    cv::fisheye::initUndistortRectifyMap(left_camera_info.K_,
                                          left_camera_info.distortion_coeff_,
                                          left_camera_info.R_rectify_,
                                          P1,
@@ -733,7 +733,7 @@ void StereoFrame::computeRectificationParameters(
       right_camera_info.distortion_model_ == "radial-tangential") {
     // Get rectification & undistortion maps. (radtan dist. model)
     VLOG(10) << "Right camera distortion: radtan";
-    cv::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+    cv::initUndistortRectifyMap(right_camera_info.K_,
                                 right_camera_info.distortion_coeff_,
                                 right_camera_info.R_rectify_,
                                 P2,
@@ -745,7 +745,7 @@ void StereoFrame::computeRectificationParameters(
   } else if (right_camera_info.distortion_model_ == "equidistant") {
     // Get rectification & undistortion maps. (equi dist. model)
     VLOG(10) << "Right camera distortion: equidistant";
-    cv::fisheye::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+    cv::fisheye::initUndistortRectifyMap(right_camera_info.K_,
                                          right_camera_info.distortion_coeff_,
                                          right_camera_info.R_rectify_,
                                          P2,

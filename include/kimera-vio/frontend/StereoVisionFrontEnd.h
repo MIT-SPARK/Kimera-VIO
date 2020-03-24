@@ -24,6 +24,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <gtsam/geometry/Rot3.h>
+
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
@@ -181,8 +183,6 @@ class StereoVisionFrontEnd {
   // Log, visualize and/or save the feature tracks on the current left frame
   void sendFeatureTracksToLogger() const;
 
-  void displayFeatureTracks() const;
-
   // Log, visualize and/or save quality of temporal and stereo matching
   void sendStereoMatchesToLogger() const;
 
@@ -231,6 +231,10 @@ class StereoVisionFrontEnd {
   std::shared_ptr<StereoFrame> stereoFrame_km1_;
   // Last keyframe
   std::shared_ptr<StereoFrame> stereoFrame_lkf_;
+
+  // Rotation from last keyframe to reference frame
+  // We use this to calculate the rotation btw reference frame and current frame
+  gtsam::Rot3 keyframe_R_ref_frame_;
 
   // Counters.
   int frame_count_;
