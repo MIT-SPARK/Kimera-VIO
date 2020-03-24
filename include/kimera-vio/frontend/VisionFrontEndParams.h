@@ -45,6 +45,13 @@ struct SubPixelCornerFinderParams : public PipelineParams {
   bool parseYAML(const std::string& filepath);
   bool equals(const SubPixelCornerFinderParams& tp2, double tol = 1e-10) const;
 
+ protected:
+  // Parameters of the pipeline must specify how to be compared.
+  virtual bool equals(const PipelineParams& obj) const {
+    const auto& rhs = static_cast<const SubPixelCornerFinderParams&>(obj);
+    return equals(rhs);
+  }
+
  public:
   /// Termination criteria defined in terms of change in error and maximum
   /// number of iterations
@@ -54,15 +61,21 @@ struct SubPixelCornerFinderParams : public PipelineParams {
   cv::Size zero_zone_ = cv::Size(-1, -1);
 };
 
-struct VisionFrontEndParams : public PipelineParams {
+struct FrontendParams : public PipelineParams {
  public:
-  KIMERA_POINTER_TYPEDEFS(VisionFrontEndParams);
-  VisionFrontEndParams();
+  KIMERA_POINTER_TYPEDEFS(FrontendParams);
+  FrontendParams();
 
  public:
   void print() const;
   bool parseYAML(const std::string& filepath);
-  bool equals(const VisionFrontEndParams& tp2, double tol = 1e-10) const;
+  bool equals(const FrontendParams& tp2, double tol = 1e-10) const;
+
+protected:
+  virtual bool equals(const PipelineParams& obj) const {
+    const auto& rhs = static_cast<const FrontendParams&>(obj);
+    return equals(rhs);
+  }
 
  public:
   // tracking (Optical flow) params

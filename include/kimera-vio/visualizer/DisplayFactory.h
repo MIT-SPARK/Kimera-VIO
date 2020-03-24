@@ -27,12 +27,14 @@ class DisplayFactory {
   KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayFactory);
 
   DisplayFactory() = default;
-  ~DisplayFactory() = default;
+  virtual ~DisplayFactory() = default;
 
-  static DisplayBase::UniquePtr makeDisplay(const DisplayType& display_type) {
+  static DisplayBase::UniquePtr makeDisplay(
+      const DisplayType& display_type,
+      const ShutdownPipelineCallback& shutdown_pipeline_cb) {
     switch (display_type) {
       case DisplayType::kOpenCV: {
-        return VIO::make_unique<OpenCv3dDisplay>();
+        return VIO::make_unique<OpenCv3dDisplay>(shutdown_pipeline_cb);
       }
       default: {
         LOG(FATAL) << "Requested display type is not supported.\n"

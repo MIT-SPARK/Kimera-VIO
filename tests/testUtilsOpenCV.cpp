@@ -579,10 +579,10 @@ TEST_F(UtilsOpenCVFixture, computeRTErrors_upToScale) {
 TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   // original image is already gray, hence it remains the same
   {
-    Mat chessboardImg;
-    vector<KeypointCV> keypoints_expected;
-    tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
-    Mat chessboardImgGray =
+    cv::Mat chessboardImg;
+    std::vector<KeypointCV> keypoints_expected;
+    std::tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
+    cv::Mat chessboardImgGray =
         UtilsOpenCV::ReadAndConvertToGrayScale("chessboard.png");
     EXPECT_EQ(chessboardImgGray.channels(), 1);
     EXPECT_TRUE(
@@ -590,22 +590,22 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   }
   // original image is in color and it is converted to gray
   {
-    cv::Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(FLAGS_test_data_path) + "lena.png");
-    imwrite("lenaGrayScale.png", imageGray);
-    EXPECT_EQ(imageGray.channels(), 1);
+    cv::Mat img_gray = UtilsOpenCV::ReadAndConvertToGrayScale(
+        FLAGS_test_data_path + "/lena.png");
+    cv::imwrite("lenaGrayScale.png", img_gray);
+    EXPECT_EQ(img_gray.channels(), 1);
     // we read gray image we just wrote and make sure it is ok
-    Mat imgGrayWritten = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
-    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(imageGray, imgGrayWritten));
+    cv::Mat img_gray_written = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img_gray, img_gray_written));
   }
   // original image is already gray, hence it remains the same
   {
-    Mat img =
-        imread(string(FLAGS_test_data_path) + "testImage.png", IMREAD_ANYCOLOR);
-    Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(FLAGS_test_data_path) + "testImage.png");
-    EXPECT_EQ(imageGray.channels(), 1);
-    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, imageGray));
+    cv::Mat img =
+        cv::imread(FLAGS_test_data_path + "/testImage.png", IMREAD_ANYCOLOR);
+    cv::Mat img_gray = UtilsOpenCV::ReadAndConvertToGrayScale(
+        FLAGS_test_data_path + "/testImage.png");
+    EXPECT_EQ(img_gray.channels(), 1);
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, img_gray));
   }
 }
 

@@ -7,10 +7,9 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testVisionFrontEndParams.h
- * @brief  test VisionFrontEndParams
- * @author Antoni Rosinol
- * @author Luca Carlone
+ * @file   testVioFrontEndParams.h
+ * @brief  test VioFrontEndParams
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <algorithm>
@@ -28,14 +27,18 @@
 
 DECLARE_string(test_data_path);
 
-namespace VIO {
+using namespace gtsam;
+using namespace std;
+using namespace VIO;
+
+static const double tol = 1e-7;
 
 /* ************************************************************************* */
-TEST(testVisionFrontEndParams, TrackerParamParseYAML) {
+TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
-  VisionFrontEndParams tp;
+  FrontendParams tp;
   tp.parseYAML(FLAGS_test_data_path + "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
@@ -81,9 +84,7 @@ TEST(testVisionFrontEndParams, TrackerParamParseYAML) {
 }
 
 /* ************************************************************************** */
-TEST(testVisionFrontEndParams, equals) {
-  VisionFrontEndParams tp = VisionFrontEndParams();
+TEST(testVioFrontEndParams, equals) {
+  FrontendParams tp = FrontendParams();
   EXPECT_TRUE(tp.equals(tp));
 }
-
-}  // namespace VIO

@@ -23,6 +23,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesh.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Histogram.h"
@@ -37,7 +38,8 @@ class Mesher {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  explicit Mesher(const MesherParams& mesher_params);
+  explicit Mesher(const MesherParams& mesher_params,
+                  const bool& serialize_meshes = false);
   virtual ~Mesher() = default;
 
   /**
@@ -93,20 +95,22 @@ class Mesher {
       const PointsWithIdMap& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
+  /**
+   * @brief serializeMeshes Write meshes to file so that they can be loaded
+   * later (Note: the function is not const bcs serialize needs to be non-const)
+   * But we do not modify the meshes.
+   */
+  void serializeMeshes();
+
+  /**
+   * @brief deserializeMeshes Load meshes from a file where the meshes were
+   * previously serialized.
+   */
+  void deserializeMeshes();
+
   static std::vector<cv::Vec6f> createMesh2D(
       const Frame& frame,
       const std::vector<size_t>& selected_indices);
-
- private:
-  // The 3D mesh.
-  Mesh3D mesh_3d_;
-  // The histogram of z values for vertices of polygons parallel to ground.
-  Histogram z_hist_;
-  // The 2d histogram of theta angle (latitude) and distance of polygons
-  // perpendicular to the vertical (aka parallel to walls).
-  Histogram hist_2d_;
-
-  const MesherParams mesher_params_;
 
  private:
   // Provide Mesh 3D in read-only mode.
@@ -381,6 +385,21 @@ class Mesher {
       const cv::Size& img_size,
       std::vector<std::pair<LandmarkId, gtsam::Point3>>* lmk_with_id_stereo =
           nullptr);
+
+ private:
+  // The current per-frame 2D mesh.
+  Mesh2D mesh_2d_;
+  // The 3D mesh.
+  Mesh3D mesh_3d_;
+  // The histogram of z values for vertices of polygons parallel to ground.
+  Histogram z_hist_;
+  // The 2d histogram of theta angle (latitude) and distance of polygons
+  // perpendicular to the vertical (aka parallel to walls).
+  Histogram hist_2d_;
+
+  const MesherParams mesher_params_;
+  std::unique_ptr<MesherLogger> mesher_logger_;
+  const bool serialize_meshes_;
 };
 
 }  // namespace VIO

@@ -33,7 +33,7 @@
 #include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 //#define useSpectra
@@ -47,120 +47,6 @@
 //#define FEATURE_SELECTOR_DEBUG_COUT
 
 namespace VIO {
-
-class FeatureSelectorParams {
- public:
-  // TODO make an enum class.
-  enum FeatureSelectionCriterion { QUALITY, MIN_EIG, LOGDET, RANDOM };
-
-  FeatureSelectorParams()
-      : featureSelectionCriterion_(FeatureSelectionCriterion::QUALITY),
-        featureSelectionHorizon_(3),  // in seconds
-        featureSelectionNrCornersToSelect_(
-            1000),  // detect larger number of keypoints, and then select
-        // maxFeaturesPerFrame_
-        featureSelectionImuRate_(0.005),     // for feature selector
-        featureSelectionDefaultDepth_(5.0),  // for feature selector
-        featureSelectionCosineNeighborhood_(
-            cos((10 * M_PI) / (180.0))),  // 10 degrees
-        featureSelectionUseLazyEvaluation_(true) {}
-
-  void print() const {
-    LOG(INFO) << "** Feature selection parameters **\n"
-              << "featureSelectionCriterion_: " << featureSelectionCriterion_
-              << '\n'
-              << "featureSelectionHorizon_: " << featureSelectionHorizon_
-              << '\n'
-              << "featureSelectionNrCornersToSelect_: "
-              << featureSelectionNrCornersToSelect_ << '\n'
-              << "featureSelectionImuRate_: " << featureSelectionImuRate_
-              << '\n'
-              << "featureSelectionDefaultDepth_: "
-              << featureSelectionDefaultDepth_ << '\n'
-              << "featureSelectionCosineNeighborhood_: "
-              << featureSelectionCosineNeighborhood_ << '\n'
-              << "featureSelectionUseLazyEvaluation_: "
-              << featureSelectionUseLazyEvaluation_ << '\n'
-              << "useSuccessProbabilities_: " << useSuccessProbabilities_;
-  }
-
- public:
-  // Selection params
-  int featureSelectionNrCornersToSelect_;
-  FeatureSelectionCriterion featureSelectionCriterion_;
-  double featureSelectionHorizon_, featureSelectionImuRate_;
-  double featureSelectionDefaultDepth_, featureSelectionCosineNeighborhood_;
-  bool featureSelectionUseLazyEvaluation_;
-  bool useSuccessProbabilities_;
-
-  /* ------------------------------------------------------------------------ */
-  static std::string FeatureSelectionCriterionStr(const int i) {
-    std::string featSelCriterionStr;
-    switch (i) {
-    case 0:
-      featSelCriterionStr = "QUALITY";
-      break;
-    case 1:
-      featSelCriterionStr = "MIN_EIG";
-      break;
-    case 2:
-      featSelCriterionStr = "LOGDET";
-      break;
-    case 3:
-      featSelCriterionStr = "RANDOM";
-      break;
-    default:
-      LOG(FATAL) << "FeatureSelectionCriterionStr: invalid feature selection "
-                    "criterion";
-    }
-    return featSelCriterionStr;
-  }
-
-  bool parseYAML(const std::string& filepath) {
-    YamlParser yaml_parser(filepath);
-
-    int featureSelectionCriterionNr;
-    yaml_parser.getYamlParam("featureSelectionCriterion",
-                             &featureSelectionCriterionNr);
-    switch (featureSelectionCriterionNr) {
-      case 0:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::QUALITY;
-        break;
-      case 1:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::MIN_EIG;
-        break;
-      case 2:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::LOGDET;
-        break;
-      case 3:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::RANDOM;
-        break;
-      default:
-        LOG(FATAL) << "Wrong choice of featureSelectionCriterion parameter.";
-        break;
-    }
-
-    yaml_parser.getYamlParam("featureSelectionHorizon",
-                             &featureSelectionHorizon_);
-    yaml_parser.getYamlParam("featureSelectionNrCornersToSelect",
-                             &featureSelectionNrCornersToSelect_);
-    yaml_parser.getYamlParam("featureSelectionImuRate",
-                             &featureSelectionImuRate_);
-    yaml_parser.getYamlParam("featureSelectionDefaultDepth",
-                             &featureSelectionDefaultDepth_);
-    yaml_parser.getYamlParam("featureSelectionCosineNeighborhood",
-                             &featureSelectionCosineNeighborhood_);
-    yaml_parser.getYamlParam("featureSelectionUseLazyEvaluation",
-                             &featureSelectionUseLazyEvaluation_);
-
-    yaml_parser.getYamlParam("useSuccessProbabilities",
-                             &useSuccessProbabilities_);
-    return true;
-  }
-};
-
-
-
 struct StampedPose{
 public:
   StampedPose(const gtsam::Pose3 p, const double t);
@@ -215,8 +101,8 @@ public:
   bool useSuccessProbabilities_;
 
   // Constructor.
-  FeatureSelector(const VisionFrontEndParams& trackerParams = VisionFrontEndParams(),
-                  const VioBackEndParams& vioParams = VioBackEndParams(),
+  FeatureSelector(const FrontendParams& trackerParams = FrontendParams(),
+                  const BackendParams& vioParams = BackendParams(),
                   const FeatureSelectorParams& feature_select_params =
                       FeatureSelectorParams());
 

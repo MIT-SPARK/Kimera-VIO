@@ -16,6 +16,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "kimera-vio/pipeline/Pipeline-definitions.h"  // Needed for shutdown cb
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
@@ -39,7 +40,7 @@ class OpenCv3dDisplay : public DisplayBase {
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay();
+  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb);
 
   // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;
@@ -101,6 +102,10 @@ class OpenCv3dDisplay : public DisplayBase {
 
  private:
   WindowData window_data_;
+
+  //! We use this callback to shutdown the pipeline gracefully if
+  //! the visualization window is closed.
+  ShutdownPipelineCallback shutdown_pipeline_cb_;
 };
 
 }  // namespace VIO

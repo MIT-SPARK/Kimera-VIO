@@ -9,6 +9,9 @@ int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
+  FLAGS_logtostderr = 1;
+  FLAGS_colorlogtostderr = 1;
   return RUN_ALL_TESTS();
 }

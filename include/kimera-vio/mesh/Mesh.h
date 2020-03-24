@@ -21,6 +21,8 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/viz/types.hpp>  // Just for color type.
 
+#include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/SerializationOpenCv.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -30,10 +32,12 @@ namespace VIO {
 template <typename VertexPosition = cv::Point3f>
 class Mesh {
  public:
+  KIMERA_POINTER_TYPEDEFS(Mesh);
   // Color for a vertex
   typedef cv::Vec3b VertexColorRGB;
   // Normal for a vertex
   typedef cv::Point3f VertexNormal;
+  typedef std::vector<VertexNormal> VertexNormals;
 
  public:
   // Default constructor.
@@ -74,7 +78,8 @@ class Mesh {
           vertex_normal_(),
           vertex_color_(cv::viz::Color::white()) {}
 
-    Vertex(const LandmarkId& lmk_id, const VertexPosition& vertex_position,
+    Vertex(const LandmarkId& lmk_id,
+           const VertexPosition& vertex_position,
            const VertexNormal& vertex_normal = VertexNormal(),
            const VertexColorRGB& vertex_color = cv::viz::Color::white())
         : lmk_id_(lmk_id),
@@ -160,30 +165,64 @@ class Mesh {
                  Vertex<VertexPosition>* vertex = nullptr,
                  VertexId* vertex_id = nullptr) const;
 
+  /* ------------------------------------------------------------------------ */
+  // Calculate normal of a triangle, and return whether it was possible or not.
+  // Calculating the normal of aligned points in 3D is not possible...
+  static bool getTriangleNormal(const cv::Point3f& p1,
+                                const cv::Point3f& p2,
+                                const cv::Point3f& p3,
+                                VertexNormal* normal);
+
   // NOT TESTED
   void computePerVertexNormals();
 
+  // NOT THREADSAFE.
   // Colors a vertex of the mesh given a LandmarkId.
   // Returns true if we could find the vertex with the given landmark id
   // false otherwise.
-  // NOT THREADSAFE.
   bool setVertexColor(const LandmarkId& lmk_id, const VertexColorRGB& vertex);
+  // NOT THREADSAFE.
+  // Updates position of a vertex of the mesh given a LandmarkId.
+  // Returns true if we could find the vertex with the given landmark id
+  // false otherwise.
+  bool setVertexPosition(const LandmarkId& lmk_id,
+                         const VertexPosition& vertex);
+
+  // Get a list of all lmk ids in the mesh.
+  LandmarkIds getLandmarkIds() const;
 
  private:
   /// Functions
   // Updates internal structures to add a vertex.
   // Used by addPolygonToMesh, it is not supposed to be used by the end user.
   void updateMeshDataStructures(
-      const LandmarkId& lmk_id, const VertexPosition& lmk_position,
+      const LandmarkId& lmk_id,
+      const VertexPosition& lmk_position,
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
       std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
-      cv::Mat* vertices_mesh, cv::Mat_<VertexNormal>* vertices_mesh_normal,
-      cv::Mat* vertices_mesh_color, cv::Mat* polygon_mesh,
+      cv::Mat* vertices_mesh,
+      VertexNormals* vertices_mesh_normal,
+      cv::Mat* vertices_mesh_color,
+      cv::Mat* polygon_mesh,
       const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
 
   // Sets all vertex normals to 0.
-  inline void clearVertexNormals() {
-    vertices_mesh_normal_ = VertexNormal(0.0, 0.0, 0.0);
+  inline void clearVertexNormals() { vertices_mesh_normal_.clear(); }
+
+  friend class boost::serialization::access;
+  // When the class Archive corresponds to an output archive, the
+  // & operator is defined similar to <<.  Likewise, when the class Archive
+  // is a type of input archive the & operator is defined similar to >>.
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& vertex_to_lmk_id_map_;
+    ar& lmk_id_to_vertex_map_;
+    ar& vertices_mesh_;
+    ar& vertices_mesh_normal_;
+    ar& normals_computed_;
+    ar& vertices_mesh_color_;
+    ar& polygons_mesh_;
+    ar& const_cast<size_t&>(polygon_dimension_);
   }
 
  private:
@@ -206,7 +245,7 @@ class Mesh {
   // Format: n rows (one for each point), with each row being a CV_32FC3.
   // where n should be the same number as rows for vertices_mesh_.
   // One normal per vertex.
-  cv::Mat_<VertexNormal> vertices_mesh_normal_;
+  VertexNormals vertices_mesh_normal_;
   // If the normals have been computed;
   bool normals_computed_ = false;
 

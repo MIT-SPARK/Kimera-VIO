@@ -39,13 +39,12 @@ DEFINE_bool(log_stereo_matching_images,
 
 namespace VIO {
 
-StereoVisionFrontEnd::StereoVisionFrontEnd(
-    const ImuParams& imu_params,
-    const ImuBias& imu_initial_bias,
-    const VisionFrontEndParams& tracker_params,
-    const CameraParams& camera_params,
-    DisplayQueue* display_queue,
-    bool log_output)
+StereoVisionFrontEnd::StereoVisionFrontEnd(const ImuParams& imu_params,
+                                           const ImuBias& imu_initial_bias,
+                                           const FrontendParams& tracker_params,
+                                           const CameraParams& camera_params,
+                                           DisplayQueue* display_queue,
+                                           bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
       tracker_(tracker_params, camera_params),
@@ -111,9 +110,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
       << " Hz. (" << full_preint_duration << " us).";
 
   // On the left camera rectified!!
-  static const gtsam::Rot3 body_Rot_cam =
+  const gtsam::Rot3 body_Rot_cam =
       stereoFrame_km1_->getBPoseCamLRect().rotation();
-  static const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
+  const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
 
   // Relative rotation of the left cam rectified from the last keyframe to the
   // curr frame. pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
@@ -355,6 +354,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
+    if (display_queue_) displayFeatureTracks();
 
     // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
@@ -512,6 +512,9 @@ cv::Mat StereoVisionFrontEnd::displayFeatureTracks() const {
     visualizer_output->images_to_display_.push_back(tracker_image);
     visualizer_output->visualization_type_ = VisualizationType::kNone;
     display_queue_->push(std::move(visualizer_output));
+  } else {
+    LOG(ERROR) << "Requested displayFeatureTracks, but no display_queue_ is "
+                  "available.";
   }
   return feature_tracks;
 }

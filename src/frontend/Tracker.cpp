@@ -26,9 +26,10 @@
 
 namespace VIO {
 
-Tracker::Tracker(const VisionFrontEndParams& tracker_params,
+Tracker::Tracker(const FrontendParams& tracker_params,
                  const CameraParams& camera_params)
-    : tracker_params_(tracker_params),
+    : landmark_count_(0),
+      tracker_params_(tracker_params),
       camera_params_(camera_params),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
@@ -81,10 +82,12 @@ void Tracker::featureTracking(Frame* ref_frame,
   }
 
   // Setup termination criteria for optical flow.
-  static cv::TermCriteria kTerminationCriteria(
-      cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-      tracker_params_.klt_max_iter_,
-      tracker_params_.klt_eps_);
+  const cv::TermCriteria kTerminationCriteria(
+        cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+        tracker_params_.klt_max_iter_,
+        tracker_params_.klt_eps_);
+  const cv::Size2i klt_window_size(tracker_params_.klt_win_size_,
+                                   tracker_params_.klt_win_size_);
 
   // Initialize to old locations
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
@@ -98,8 +101,6 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   std::vector<uchar> status;
   std::vector<float> error;
-  static cv::Size2i klt_window_size(tracker_params_.klt_win_size_,
-                                    tracker_params_.klt_win_size_);
   auto time_lukas_kanade_tic = utils::Timer::tic();
   cv::calcOpticalFlowPyrLK(ref_frame->img_,
                            cur_frame->img_,

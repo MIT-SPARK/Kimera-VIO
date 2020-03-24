@@ -104,6 +104,8 @@ class ThreadsafeQueueBase {
     data_cond_.notify_all();
   }
 
+  inline bool isShutdown() { return shutdown_; }
+
   void resume() {
     std::unique_lock<std::mutex> mlock(mutex_);
     // Even if the shared variable is atomic, it must be modified under the

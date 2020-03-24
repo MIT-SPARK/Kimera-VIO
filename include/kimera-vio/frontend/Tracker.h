@@ -48,11 +48,14 @@ class Tracker {
    * @param tracker_params Parameters for feature tracking
    * @param camera_params Parameters for the camera used for tracking.
    */
-  Tracker(const VisionFrontEndParams& tracker_params,
+  Tracker(const FrontendParams& tracker_params,
           const CameraParams& camera_params);
 
   // Tracker parameters.
-  const VisionFrontEndParams tracker_params_;
+  const FrontendParams tracker_params_;
+
+  // Mask for features.
+  cv::Mat cam_mask_;
 
  public:
   void featureTracking(Frame* ref_frame,
@@ -144,6 +147,9 @@ class Tracker {
   inline DebugTrackerInfo getTrackerDebugInfo() { return debug_info_; }
 
  private:
+  // Incremental id assigned to new landmarks.
+  LandmarkId landmark_count_;
+
   // Camera params for the camera used to track: currently we only use K if the
   // rotational optical flow predictor is used
   const CameraParams camera_params_;

@@ -114,7 +114,7 @@ class LCDFixture :public ::testing::Test {
     std::string img_name_cur2_right = lcd_test_data_path_ + "/right_img_3.png";
 
     // Initialize StereoFrame objects for reference and current frames
-    VisionFrontEndParams tp;
+    FrontendParams tp;
     Tracker tracker(tp, CameraParams());
     FeatureDetectorParams fdp;
     FeatureDetector feature_detector(FeatureDetectorType::FAST, fdp);
@@ -290,8 +290,8 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   CHECK(lcd_detector_);
   CHECK(ref1_stereo_frame_);
   CHECK(cur1_stereo_frame_);
-  FrameId frm_0 = lcd_detector_->processAndAddFrame(*ref1_stereo_frame_);
-  FrameId frm_1 = lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
+  lcd_detector_->processAndAddFrame(*ref1_stereo_frame_);
+  lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
 
   gtsam::Pose3 camRef1_T_camCur1_mono;
   lcd_detector_->geometricVerificationCheck(1, 0, &camRef1_T_camCur1_mono);
@@ -361,8 +361,8 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   /* Test pose recovery given ground truth rotation and unit translation */
   CHECK(ref1_stereo_frame_);
   CHECK(cur1_stereo_frame_);
-  FrameId frm_0 = lcd_detector_->processAndAddFrame(*ref1_stereo_frame_);
-  FrameId frm_1 = lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
+  lcd_detector_->processAndAddFrame(*ref1_stereo_frame_);
+  lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
 
   body_input_pose = gtsam::Pose3(ref1_to_cur1_pose_.rotation(),
                                  ref1_to_cur1_pose_.translation() /

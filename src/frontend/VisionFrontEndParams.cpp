@@ -58,10 +58,10 @@ bool SubPixelCornerFinderParams::equals(const SubPixelCornerFinderParams& tp2,
          (window_size_ == tp2.window_size_) && (zero_zone_ == tp2.zero_zone_);
 }
 
-VisionFrontEndParams::VisionFrontEndParams()
+FrontendParams::FrontendParams()
     : PipelineParams("Frontend Parameters") {}
 
-void VisionFrontEndParams::print() const {
+void FrontendParams::print() const {
   LOG(INFO) << "****************** Feature Tracker Params *******************\n"
             << "** Feature tracking parameters **\n"
             << "klt_win_size_: " << klt_win_size_ << '\n'
@@ -109,7 +109,7 @@ void VisionFrontEndParams::print() const {
       << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&";
 }
 
-bool VisionFrontEndParams::parseYAML(const std::string& filepath) {
+bool FrontendParams::parseYAML(const std::string& filepath) {
   stereo_matching_params_.parseYAML(filepath);
 
   YamlParser yaml_parser(filepath);
@@ -202,7 +202,7 @@ bool VisionFrontEndParams::parseYAML(const std::string& filepath) {
   return true;
 }
 
-bool VisionFrontEndParams::equals(const VisionFrontEndParams& tp2,
+bool FrontendParams::equals(const FrontendParams& tp2,
                                   double tol) const {
   return (klt_win_size_ == tp2.klt_win_size_) &&
          (klt_max_iter_ == tp2.klt_max_iter_) &&

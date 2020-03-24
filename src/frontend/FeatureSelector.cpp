@@ -77,8 +77,8 @@ bool FeatureSelectorData::isEmpty() const {
 
 //////////////////////////////////////////////////////////////////////////////
 FeatureSelector::FeatureSelector(
-    const VisionFrontEndParams& trackerParams,
-    const VioBackEndParams& vioParams,
+    const FrontendParams& trackerParams,
+    const BackendParams& vioParams,
     const FeatureSelectorParams& feature_select_params) {
   imuDeltaT_ = feature_select_params.featureSelectionImuRate_;
   // Variance, converted to discrete time, see ImuFactor.cpp

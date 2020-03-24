@@ -55,7 +55,7 @@ class StereoVisionFrontEnd {
  public:
   StereoVisionFrontEnd(const ImuParams& imu_params,
                        const ImuBias& imu_initial_bias,
-                       const VisionFrontEndParams& tracker_params,
+                       const FrontendParams& tracker_params,
                        const CameraParams& camera_params,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);
@@ -153,7 +153,7 @@ class StereoVisionFrontEnd {
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
       const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
-      cv::Mat* feature_tracks);
+      cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
   void outlierRejectionMono(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,

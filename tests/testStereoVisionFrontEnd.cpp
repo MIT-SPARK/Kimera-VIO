@@ -73,7 +73,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         id_cur, timestamp_cur, cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
-    VisionFrontEndParams tp;
+    FrontendParams tp;
 
     ref_stereo_frame = std::make_shared<StereoFrame>(
         id_ref,
@@ -328,7 +328,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   ref_stereo_frame->setIsRectified(true);
 
   StereoVisionFrontEnd st(
-      imu_params_, ImuBias{}, VisionFrontEndParams(), CameraParams());
+      imu_params_, ImuBias{}, FrontendParams(), CameraParams());
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -444,7 +444,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   EXPECT_NEAR(0, baseline(1), 1e-4);
   EXPECT_NEAR(0, baseline(2), 1e-4);
 
-  VisionFrontEndParams p = VisionFrontEndParams();  // default
+  FrontendParams p = FrontendParams();  // default
   p.min_distance_ = 0.05;
   p.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);

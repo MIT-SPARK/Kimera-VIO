@@ -16,10 +16,7 @@
 
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
-#include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 
 namespace VIO {
 
@@ -34,7 +31,7 @@ class VisionFrontEndFactory {
       const FrontendType& frontend_type,
       const ImuParams& imu_params,
       const ImuBias& imu_initial_bias,
-      const VisionFrontEndParams& frontend_params,
+      const FrontendParams& frontend_params,
       const CameraParams& camera_params,
       DisplayQueue* display_queue,
       bool log_output);
