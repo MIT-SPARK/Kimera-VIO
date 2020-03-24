@@ -24,9 +24,7 @@ namespace VIO {
 /**
  * @brief The DisplayType enum: enumerates the types of supported renderers.
  */
-enum class DisplayType {
-  kOpenCV = 0,
-};
+enum class DisplayType { kOpenCV = 0 };
 
 /**
  * @brief The WindowData struct: Contains internal data for Visualizer3D window.
@@ -52,5 +50,27 @@ struct WindowData {
   bool mesh_lighting_;
 };
 
-typedef ThreadsafeQueue<VisualizerOutput::UniquePtr> DisplayQueue;
+/**
+ * @brief displayImage helper function to push images to a given display queue
+ * @param title Title of the image that will be displayed
+ * @param img Actual image to be displayed
+ * @param display_queue Threadsafe queue were images will be pushed and that
+ * needs to be consumed by a display thread.
+ */
+inline void displayImage(const std::string& title,
+                         const cv::Mat& img,
+                         DisplayQueue* display_queue) {
+  VisualizerOutput::UniquePtr visualizer_output =
+      VIO::make_unique<VisualizerOutput>();
+  ImageToDisplay img_to_display(title, img);
+  visualizer_output->images_to_display_.push_back(img_to_display);
+  visualizer_output->visualization_type_ = VisualizationType::kNone;
+  if (display_queue) {
+    display_queue->push(std::move(visualizer_output));
+  } else {
+    LOG(ERROR) << "Requested display image, but display_queue is "
+                  "not valid.";
+  }
+}
+
 }  // namespace VIO

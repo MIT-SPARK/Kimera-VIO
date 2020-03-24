@@ -183,8 +183,6 @@ class StereoVisionFrontEnd {
   // Log, visualize and/or save the feature tracks on the current left frame
   void sendFeatureTracksToLogger() const;
 
-  void displayFeatureTracks() const;
-
   // Log, visualize and/or save quality of temporal and stereo matching
   void sendStereoMatchesToLogger() const;
 

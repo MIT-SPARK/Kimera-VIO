@@ -18,19 +18,24 @@
 
 #include <boost/shared_ptr.hpp>  // used for opengv
 
+#include <opencv2/imgproc/imgproc.hpp>
+
 #include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/visualizer/Display-definitions.h"
 
 namespace VIO {
 
 Tracker::Tracker(const FrontendParams& tracker_params,
-                 const CameraParams& camera_params)
+                 const CameraParams& camera_params,
+                 DisplayQueue* display_queue)
     : landmark_count_(0),
       tracker_params_(tracker_params),
       camera_params_(camera_params),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
+      display_queue_(display_queue),
       output_images_path_("./outputImages/") {
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
@@ -368,6 +373,7 @@ void Tracker::featureTracking(Frame* ref_frame,
                            cv::OPTFLOW_USE_INITIAL_FLOW);
   VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
 
+
   // TODO(Toni): use the error to further take only the best tracks?
 
   // TODO(TONI): WTF is this doing? Are we always having empty keypoints??
@@ -410,6 +416,13 @@ void Tracker::featureTracking(Frame* ref_frame,
                                   cur_frame->landmarks_age_.end())
              << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
              << ")";
+  }
+
+  // Display feature tracks together with predicted points.
+  if (display_queue_) {
+    displayImage("Feature Tracks With Predicted Keypoints",
+                 getTrackerImage(*ref_frame, *cur_frame, px_cur, px_ref),
+                 display_queue_);
   }
 
   // Fill debug information
@@ -1207,11 +1220,11 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
   static const cv::Scalar green(0, 255, 0);
 
   // Add extra corners if desired.
-  for (const auto& px_cur : extra_corners_gray) {
-    cv::circle(img_rgb, px_cur, 4, gray, 2);
+  for (const auto& px : extra_corners_gray) {
+    cv::circle(img_rgb, px, 4, gray, 2);
   }
-  for (const auto& px_cur : extra_corners_blue) {
-    cv::circle(img_rgb, px_cur, 4, blue, 2);
+  for (const auto& px : extra_corners_blue) {
+    cv::circle(img_rgb, px, 4, blue, 2);
   }
 
   // Add all keypoints in cur_frame with the tracks.
@@ -1227,9 +1240,9 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
         // If feature was in previous frame, display tracked feature with
         // green circle/line:
         cv::circle(img_rgb, px_cur, 6, green, 1);
-        int nPos = std::distance(ref_frame.landmarks_.begin(), it);
-        const cv::Point2f& px_ref = ref_frame.keypoints_.at(nPos);
-        cv::line(img_rgb, px_cur, px_ref, green, 1);
+        int i = std::distance(ref_frame.landmarks_.begin(), it);
+        const cv::Point2f& px_ref = ref_frame.keypoints_.at(i);
+        cv::arrowedLine(img_rgb, px_ref, px_cur, green, 1);
       } else {  // New feature tracks are blue.
         cv::circle(img_rgb, px_cur, 6, blue, 1);
       }

@@ -52,7 +52,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(const ImuParams& imu_params,
       keyframe_R_ref_frame_(gtsam::Rot3::identity()),
       frame_count_(0),
       keyframe_count_(0),
-      tracker_(tracker_params, camera_params),
+      tracker_(tracker_params, camera_params, display_queue),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       display_queue_(display_queue),
@@ -251,8 +251,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   // We need to use the frame to frame rotation.
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
-  tracker_.featureTracking(
-      left_frame_km1, left_frame_k, ref_frame_R_cur_frame);
+  tracker_.featureTracking(left_frame_km1, left_frame_k, ref_frame_R_cur_frame);
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
@@ -344,7 +343,12 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
-    if (display_queue_) displayFeatureTracks();
+    if (display_queue_) {
+      displayImage("Feature Tracks",
+                   tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
+                                            stereoFrame_k_->getLeftFrame()),
+                   display_queue_);
+    }
 
     // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
@@ -493,24 +497,6 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
   return smart_stereo_measurements;
-}
-
-/* -------------------------------------------------------------------------- */
-void StereoVisionFrontEnd::displayFeatureTracks() const {
-  cv::Mat img_left =
-      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
-                               stereoFrame_k_->getLeftFrame());
-  VisualizerOutput::UniquePtr visualizer_output =
-      VIO::make_unique<VisualizerOutput>();
-  ImageToDisplay tracker_image("Tracker Image", img_left);
-  visualizer_output->images_to_display_.push_back(tracker_image);
-  visualizer_output->visualization_type_ = VisualizationType::kNone;
-  if (display_queue_) {
-    display_queue_->push(std::move(visualizer_output));
-  } else {
-    LOG(ERROR) << "Requested displayFeatureTracks, but no display_queue_ is "
-                  "available.";
-  }
 }
 
 /* -------------------------------------------------------------------------- */
