@@ -355,6 +355,7 @@ void Tracker::featureTracking(Frame* ref_frame,
   KeypointsCV px_cur;
   CHECK(optical_flow_predictor_->predictFlow(
       px_ref, ref_R_cur, &px_cur));
+  KeypointsCV px_predicted = px_cur;
 
   // Do the actual tracking, so px_cur becomes the new pixel locations.
   VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
@@ -421,7 +422,7 @@ void Tracker::featureTracking(Frame* ref_frame,
   // Display feature tracks together with predicted points.
   if (display_queue_) {
     displayImage("Feature Tracks With Predicted Keypoints",
-                 getTrackerImage(*ref_frame, *cur_frame, px_cur, px_ref),
+                 getTrackerImage(*ref_frame, *cur_frame, px_predicted, px_ref),
                  display_queue_);
   }
 
@@ -1214,10 +1215,10 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
   cv::Mat img_rgb(cur_frame.img_.size(), CV_8U);
   cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
 
-  static const cv::Scalar gray(255, 255, 255);
-  static const cv::Scalar blue(255, 0, 0);
+  static const cv::Scalar gray(0, 255, 255);
   static const cv::Scalar red(0, 0, 255);
   static const cv::Scalar green(0, 255, 0);
+  static const cv::Scalar blue(255, 0, 0);
 
   // Add extra corners if desired.
   for (const auto& px : extra_corners_gray) {

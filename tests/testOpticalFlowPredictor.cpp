@@ -477,7 +477,7 @@ TEST_F(OpticalFlowPredictorFixture,
   // Create Right Camera with small rotation with respect to cam1
   //! Cam2 is at 5 degree rotation wrt z axis wrt Cam1.
   //! Ensure double cover of quaternion is respected.
-  gtsam::Rot3 rot_5_minus_z(-0.999, 0.0, 0.0, -0.05);
+  gtsam::Rot3 rot_5_minus_z(-0.999, 0.0, 0.0, -0.001);
   cam_1_P_cam_2 = gtsam::Pose3(rot_5_minus_z, gtsam::Vector3::Zero());
   generateCam2(cam_1_P_cam_2);
 
@@ -487,7 +487,7 @@ TEST_F(OpticalFlowPredictorFixture,
 
   // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
   // because we have a small rotation.
-  compareKeypoints(cam_2_kpts_, actual_kpts, 1e-2);
+  compareKeypoints(cam_1_kpts_, actual_kpts, 1e-2);
 
   visualizeScene("SmallRotationOnly", actual_kpts);
   spinDisplay();

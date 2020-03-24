@@ -91,12 +91,13 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
     // Handle case when rotation is small: just copy prev_kps
     // Removed bcs even small rotations lead to huge optical flow at the borders
     // of the image.
-    // static constexpr double kSmallRotationTol = 1e-7;
-    // if (std::abs(1.0 - std::abs(cam1_R_cam2.quaternion()[0])) <
-    //     kSmallRotationTol) {
-    //   *next_kps = prev_kps;
-    //   return true;
-    // }
+    // Keep because then you save a lot of computation.
+    static constexpr double kSmallRotationTol = 1e-4;
+    if (std::abs(1.0 - std::abs(cam1_R_cam2.quaternion()[0])) <
+        kSmallRotationTol) {
+      *next_kps = prev_kps;
+      return true;
+    }
 
     // We use a new object in case next_kps is pointing to prev_kps!
     KeypointsCV predicted_kps;
