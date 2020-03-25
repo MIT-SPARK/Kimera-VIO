@@ -1447,17 +1447,16 @@ void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
                                 gtsam::ISAM2Params* isam_param) {
   CHECK_NOTNULL(isam_param);
   // iSAM2 SETTINGS
-  gtsam::ISAM2GaussNewtonParams gauss_newton_params;
-  // TODO remove this hardcoded value...
-  gauss_newton_params.wildfireThreshold = vio_params.wildfire_threshold_;
-  // gauss_newton_params.setWildfireThreshold(0.001);
-
-  gtsam::ISAM2DoglegParams dogleg_params;
-  // dogleg_params.setVerbose(false); // only for debugging.
-
   if (vio_params.useDogLeg_) {
+    gtsam::ISAM2DoglegParams dogleg_params;
+    dogleg_params.wildfireThreshold = vio_params.wildfire_threshold_;
+    // dogleg_params.adaptationMode;
+    // dogleg_params.initialDelta;
+    // dogleg_params.setVerbose(false); // only for debugging.
     isam_param->optimizationParams = dogleg_params;
   } else {
+    gtsam::ISAM2GaussNewtonParams gauss_newton_params;
+    gauss_newton_params.wildfireThreshold = vio_params.wildfire_threshold_;
     isam_param->optimizationParams = gauss_newton_params;
   }
 
