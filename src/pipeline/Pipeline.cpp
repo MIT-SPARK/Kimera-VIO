@@ -433,6 +433,8 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
     VLOG_IF(5, display_module_) << "Visualizer is working? "
                                 << display_module_->isWorking();
 
+    // Print all statistics
+    LOG(INFO) << utils::Statistics::Print();
     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
