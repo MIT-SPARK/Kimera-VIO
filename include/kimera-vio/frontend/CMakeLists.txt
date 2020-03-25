@@ -19,3 +19,5 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/OpticalFlowPredictor.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpticalFlowPredictorFactory.h"
 )
+
+add_subdirectory(feature-detector)
