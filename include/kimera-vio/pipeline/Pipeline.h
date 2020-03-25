@@ -62,15 +62,17 @@ class Pipeline {
   }
   //! Callbacks to fill queues but they block if queues are getting full.
   //! Useful when parsing datasets, don't use with real sensors.
-  inline void fillLeftFrameQueueBlocking(Frame::UniquePtr left_frame) {
+  inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
     CHECK(data_provider_module_);
     CHECK(left_frame);
-    data_provider_module_->fillLeftFrameQueueBlocking(std::move(left_frame));
+    data_provider_module_->fillLeftFrameQueueBlockingIfFull(
+        std::move(left_frame));
   }
-  inline void fillRightFrameQueueBlocking(Frame::UniquePtr right_frame) {
+  inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
     CHECK(data_provider_module_);
     CHECK(right_frame);
-    data_provider_module_->fillRightFrameQueueBlocking(std::move(right_frame));
+    data_provider_module_->fillRightFrameQueueBlockingIfFull(
+        std::move(right_frame));
   }
   //! Fill one IMU measurement at a time.
   inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
