@@ -389,57 +389,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
          (display_module_ ? !display_module_->isWorking() : true)))) {
     // Note that the values in the log below might be different than the
     // evaluation above since they are separately evaluated at different times.
-    LOG(INFO) << "shutdown_: " << shutdown_ << '\n'
-              << "VIO pipeline status: \n"
-              << "Initialized? " << is_initialized_ << '\n'
-              << "Data provider is working? "
-              << data_provider_module_->isWorking() << '\n'
-              << "Frontend input queue shutdown? "
-              << stereo_frontend_input_queue_.isShutdown() << '\n'
-              << "Frontend input queue empty? "
-              << stereo_frontend_input_queue_.empty() << '\n'
-              << "Frontend is working? " << vio_frontend_module_->isWorking()
-              << '\n'
-              << "Backend Input queue shutdown? "
-              << backend_input_queue_.isShutdown() << '\n'
-              << "Backend Input queue empty? " << backend_input_queue_.empty()
-              << '\n'
-              << "Backend is working? "
-              << (is_initialized_ ? vio_backend_module_->isWorking() : false)
-              << '\n'
-              << "Mesher is working? "
-              << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
-              << "LCD is working? "
-              << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
-              << "Visualizer is working? "
-              << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
-              << '\n'
-              << "Display Input queue shutdown? "
-              << display_input_queue_.isShutdown() << '\n'
-              << "Display Input queue empty? " << display_input_queue_.empty()
-              << '\n'
-              << "Displayer is working? "
-              << (display_module_ ? !display_module_->isWorking() : false);
-
-    VLOG_IF(5, mesher_module_) << "Mesher is working? "
-                               << mesher_module_->isWorking();
-
-    VLOG_IF(5, lcd_module_) << "LoopClosureDetector is working? "
-                            << lcd_module_->isWorking();
-
-    VLOG_IF(5, visualizer_module_) << "Visualizer is working? "
-                                   << visualizer_module_->isWorking();
-
-    VLOG_IF(5, display_module_) << "Visualizer is working? "
-                                << display_module_->isWorking();
-
-    // Print all statistics
-    LOG(INFO) << utils::Statistics::Print();
-    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-  }
-  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
-               "idle.";
-  LOG(INFO) << "shutdown_: " << shutdown_ << '\n'
+    VLOG(1) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
             << "Initialized? " << is_initialized_ << '\n'
             << "Data provider is working? "
@@ -470,6 +420,56 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
             << '\n'
             << "Displayer is working? "
             << (display_module_ ? !display_module_->isWorking() : false);
+
+    VLOG_IF(5, mesher_module_) << "Mesher is working? "
+                               << mesher_module_->isWorking();
+
+    VLOG_IF(5, lcd_module_) << "LoopClosureDetector is working? "
+                            << lcd_module_->isWorking();
+
+    VLOG_IF(5, visualizer_module_) << "Visualizer is working? "
+                                   << visualizer_module_->isWorking();
+
+    VLOG_IF(5, display_module_) << "Visualizer is working? "
+                                << display_module_->isWorking();
+
+    // Print all statistics
+    LOG(INFO) << utils::Statistics::Print();
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+  }
+  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
+               "idle.";
+  VLOG(1) << "shutdown_: " << shutdown_ << '\n'
+          << "VIO pipeline status: \n"
+          << "Initialized? " << is_initialized_ << '\n'
+          << "Data provider is working? " << data_provider_module_->isWorking()
+          << '\n'
+          << "Frontend input queue shutdown? "
+          << stereo_frontend_input_queue_.isShutdown() << '\n'
+          << "Frontend input queue empty? "
+          << stereo_frontend_input_queue_.empty() << '\n'
+          << "Frontend is working? " << vio_frontend_module_->isWorking()
+          << '\n'
+          << "Backend Input queue shutdown? "
+          << backend_input_queue_.isShutdown() << '\n'
+          << "Backend Input queue empty? " << backend_input_queue_.empty()
+          << '\n'
+          << "Backend is working? "
+          << (is_initialized_ ? vio_backend_module_->isWorking() : false)
+          << '\n'
+          << "Mesher is working? "
+          << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
+          << "LCD is working? "
+          << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
+          << "Visualizer is working? "
+          << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
+          << '\n'
+          << "Display Input queue shutdown? "
+          << display_input_queue_.isShutdown() << '\n'
+          << "Display Input queue empty? " << display_input_queue_.empty()
+          << '\n'
+          << "Displayer is working? "
+          << (display_module_ ? !display_module_->isWorking() : false);
   if (!shutdown_) shutdown();
   return true;
 }
