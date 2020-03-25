@@ -87,8 +87,8 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
   const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
-  LOG(INFO) << "------------------- Processing frame k = " << k
-            << "--------------------";
+  VLOG(1) << "------------------- Processing frame k = " << k
+          << "--------------------";
 
   ////////////////////////////// PROCESS IMU DATA //////////////////////////////
 
@@ -150,9 +150,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     CHECK_EQ(stereoFrame_lkf_->getFrameId(), stereoFrame_km1_->getFrameId());
     CHECK(!stereoFrame_k_);
     CHECK(stereoFrame_lkf_->isKeyframe());
-    LOG(INFO) << "Keyframe " << k
-              << " with: " << status_stereo_measurements->second.size()
-              << " smart measurements";
+    VLOG(1) << "Keyframe " << k
+            << " with: " << status_stereo_measurements->second.size()
+            << " smart measurements";
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (logger_) {
@@ -269,10 +269,11 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
-    // TODO(Toni): this image should already be computed and inside the display_queue
+    // TODO(Toni): this image should already be computed and inside the
+    // display_queue
     // if it is sent to the tracker.
     *feature_tracks = tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
-        stereoFrame_k_->getLeftFrame());
+                                               stereoFrame_k_->getLeftFrame());
   }
   VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
@@ -399,7 +400,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                      // TODO(Toni): please, fix this, don't use std::pair...
                      // copies, manyyyy copies: actually thousands of copies...
                      smart_stereo_measurements ? *smart_stereo_measurements
-                                             : SmartStereoMeasurements()));
+                                               : SmartStereoMeasurements()));
 }
 
 void StereoVisionFrontEnd::outlierRejectionMono(

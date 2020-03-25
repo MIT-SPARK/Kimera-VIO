@@ -44,7 +44,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
   }
 
   // Sorting keypoints by deacreasing order of strength
-  LOG(INFO) << "Sorting keypoints in decreasing order of strength.";
+  VLOG(5) << "Sorting keypoints in decreasing order of strength.";
   std::vector<int> responseVector;
   for (unsigned int i = 0; i < keyPoints.size(); i++) {
     responseVector.push_back(keyPoints[i].response);
@@ -58,7 +58,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
   }
 
   std::vector<cv::KeyPoint> keypoints;
-  LOG(INFO) << "Starting Adaptive Non-Maximum Suppression.";
+  VLOG(5) << "Starting Adaptive Non-Maximum Suppression.";
   switch (anms_algorithm_type_) {
     case AnmsAlgorithmType::TopN: {
       VLOG(1) << "Running TopN: " << VIO::to_underlying(anms_algorithm_type_);
