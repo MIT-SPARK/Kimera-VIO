@@ -67,9 +67,9 @@ bool BackendParams::parseYAMLVioBackEndParams(
       LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
   }
 
-  int degeneracyModeId;
-  yaml_parser.getYamlParam("degeneracyMode", &degeneracyModeId);
-  switch (degeneracyModeId) {
+  int degeneracy_mode_id;
+  yaml_parser.getYamlParam("degeneracyMode", &degeneracy_mode_id);
+  switch (degeneracy_mode_id) {
     case 0:
       degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
       break;

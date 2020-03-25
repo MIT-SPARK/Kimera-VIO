@@ -159,11 +159,11 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   }
 
   // Generate extra optional backend ouputs.
-  static const bool kOutputLmkMap =
+  const bool kOutputLmkMap =
       backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
-  static const bool kMinLmkObs =
+  const bool kMinLmkObs =
       backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
-  static const bool kOutputLmkTypeMap =
+  const bool kOutputLmkTypeMap =
       backend_output_params_.output_lmk_id_to_lmk_type_map_;
   LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
@@ -790,7 +790,7 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id,
   precisions.head<3>().setConstant(backend_params_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(
       backend_params_.betweenTranslationPrecision_);
-  static const gtsam::SharedNoiseModel& betweenNoise_ =
+  const gtsam::SharedNoiseModel& betweenNoise_ =
       gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   new_imu_prior_and_other_factors_.push_back(
