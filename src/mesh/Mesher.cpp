@@ -1690,7 +1690,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
       // Triangle with all vertices inside image
       good_triangulation.push_back(tri);
     } else {
-      LOG(WARNING) << "Delaunay Triangle out of image (size: x: " << rect.x
+      VLOG(1) << "Delaunay Triangle out of image (size: x: " << rect.x
                    << ", y: " << rect.y << ", height: " << rect.height
                    << ", width "<< rect.width << "\n Triangle: x, y: \n"
                    << tri[0] << ", " << tri[1] << '\n'
