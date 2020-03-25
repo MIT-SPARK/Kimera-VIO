@@ -38,273 +38,12 @@ Tracker::Tracker(const FrontendParams& tracker_params,
       optical_flow_predictor_(nullptr),
       display_queue_(display_queue),
       output_images_path_("./outputImages/") {
-
   // Create the optical flow prediction module
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
           camera_params_.K_,
           camera_params_.image_size_);
-}
-
-// TODO(Toni) Optimize this function.
-void Tracker::featureDetection(Frame* cur_frame) {
-  CHECK_NOTNULL(cur_frame);
-  // Check how many new features we need: maxFeaturesPerFrame_ - n_existing
-  // features If ref_frame has zero features this simply detects
-  // maxFeaturesPerFrame_ new features for cur_frame
-  int n_existing = 0;  // count existing (tracked) features
-  for (size_t i = 0; i < cur_frame->landmarks_.size(); ++i) {
-    // count nr of valid keypoints
-    if (cur_frame->landmarks_.at(i) != -1) ++n_existing;
-    // features that have been tracked so far have Age+1
-    cur_frame->landmarks_age_.at(i)++;
-  }
-
-  // Detect new features in image.
-  // detect this much new corners if possible
-  int nr_corners_needed =
-      std::max(tracker_params_.maxFeaturesPerFrame_ - n_existing, 0);
-  debug_info_.need_n_corners_ = nr_corners_needed;
-
-  ///////////////// FEATURE DETECTION //////////////////////
-  // If feature FeatureSelectionCriterion is quality, just extract what you
-  // need:
-  auto start_time_tic = utils::Timer::tic();
-  const KeypointsWithScores& corners_with_scores =
-      Tracker::featureDetection(*cur_frame, cam_mask_, nr_corners_needed);
-
-  debug_info_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.extracted_corners_ = corners_with_scores.first.size();
-
-  ///////////////// STORE NEW KEYPOINTS  //////////////////////
-  // Store features in our Frame
-  size_t nrExistingKeypoints =
-      cur_frame->keypoints_.size();  // for debug, these are the ones tracked
-                                     // from the previous frame
-  cur_frame->landmarks_.reserve(cur_frame->keypoints_.size() +
-                                corners_with_scores.first.size());
-  cur_frame->landmarks_age_.reserve(cur_frame->keypoints_.size() +
-                                    corners_with_scores.first.size());
-  cur_frame->keypoints_.reserve(cur_frame->keypoints_.size() +
-                                corners_with_scores.first.size());
-  cur_frame->scores_.reserve(cur_frame->scores_.size() +
-                             corners_with_scores.second.size());
-  cur_frame->versors_.reserve(cur_frame->keypoints_.size() +
-                              corners_with_scores.first.size());
-
-  // TODO(Toni) Fix this loop, very unefficient. Use std::move over keypoints
-  // with scores.
-  // Counters.
-  for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
-    cur_frame->landmarks_.push_back(landmark_count_);
-    cur_frame->landmarks_age_.push_back(1);  // seen in a single (key)frame
-    cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
-    cur_frame->scores_.push_back(corners_with_scores.second.at(i));
-    cur_frame->versors_.push_back(Frame::calibratePixel(
-        corners_with_scores.first.at(i), cur_frame->cam_param_));
-    ++landmark_count_;
-  }
-  VLOG(10) << "featureExtraction: frame " << cur_frame->id_
-           << ",  Nr tracked keypoints: " << nrExistingKeypoints
-           << ",  Nr extracted keypoints: " << corners_with_scores.first.size()
-           << ",  total: " << cur_frame->keypoints_.size()
-           << "  (max: " << tracker_params_.maxFeaturesPerFrame_ << ")";
-}
-
-KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
-                                              const cv::Mat& cam_mask,
-                                              const int need_n_corners) {
-  // Create mask such that new keypoints are not close to old ones.
-  cv::Mat mask;
-  cam_mask.copyTo(mask);
-  for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
-    if (cur_frame.landmarks_.at(i) != -1) {
-      cv::circle(mask,
-                 cur_frame.keypoints_.at(i),
-                 tracker_params_.min_distance_,
-                 cv::Scalar(0),
-                 CV_FILLED);
-    }
-  }
-
-  // Find new features and corresponding scores.
-  KeypointsWithScores corners_with_scores;
-  if (need_n_corners > 0) {
-    MyGoodFeaturesToTrackSubPix(cur_frame.img_,
-                                need_n_corners,
-                                tracker_params_.quality_level_,
-                                tracker_params_.min_distance_,
-                                mask,
-                                tracker_params_.block_size_,
-                                tracker_params_.use_harris_detector_,
-                                tracker_params_.k_,
-                                &corners_with_scores);
-  }
-
-  return corners_with_scores;
-}
-
-// TODO(Toni): VIT this function should be optimized and cleaned.
-// Use std::vector<std::pair<cv::Point2f, double>>
-// Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
-// Remove hardcoded parameters (there are a ton).
-void Tracker::MyGoodFeaturesToTrackSubPix(
-    const cv::Mat& image,
-    const int& max_corners,
-    const double& quality_level,
-    const double& min_distance,
-    const cv::Mat& mask,
-    const int& block_size,
-    const bool& use_harris_corners,
-    const double& harrisK,
-    KeypointsWithScores* corners_with_scores) {
-  CHECK_NOTNULL(corners_with_scores);
-  try {
-    // Get image of cornerness response, and get peaks for good features.
-    cv::Mat cornerness_response;
-    if (use_harris_corners) {
-      cv::cornerHarris(image, cornerness_response, block_size, 3, harrisK);
-    } else {
-      // Cornerness response corresponds to eigen values.
-      cv::cornerMinEigenVal(image, cornerness_response, block_size, 3);
-    }
-
-    // Cut off corners below quality level.
-    double max_val = 0;
-    double min_val;
-    cv::Point min_loc;
-    cv::Point max_loc;
-    cv::minMaxLoc(
-        cornerness_response, &min_val, &max_val, &min_loc, &max_loc, mask);
-
-    // Cut stuff below quality.
-    cv::threshold(cornerness_response,
-                  cornerness_response,
-                  max_val * quality_level,
-                  0,
-                  CV_THRESH_TOZERO);
-    cv::Mat tmp;
-    cv::dilate(cornerness_response, tmp, cv::Mat());
-
-    // Create corners.
-    std::vector<std::pair<const float*, float>> tmp_corners_scores;
-
-    // collect list of pointers to features - put them into temporary image
-    const cv::Size& img_size = image.size();
-    for (int y = 1; y < img_size.height - 1; y++) {
-      const float* thresholded_cornerness =
-          (const float*)cornerness_response.ptr(y);
-      const float* dilated_cornerness = (const float*)tmp.ptr(y);
-      const uchar* mask_data = mask.data ? mask.ptr(y) : nullptr;
-
-      for (int x = 1; x < img_size.width - 1; x++) {
-        const float& val = thresholded_cornerness[x];
-        // TODO this takes a ton of time 12ms each time...
-        if (val != 0 && val == dilated_cornerness[x] &&
-            (!mask_data || mask_data[x])) {
-          tmp_corners_scores.push_back(
-              std::make_pair(thresholded_cornerness + x, val));
-        }
-      }
-    }
-
-    std::sort(tmp_corners_scores.begin(),
-              tmp_corners_scores.end(),
-              myGreaterThanPtr<float>());
-
-    // Put sorted corner in other struct.
-    size_t j;
-    size_t total = tmp_corners_scores.size();
-    size_t ncorners = 0;
-
-    double min_distance_tmp = min_distance;
-    if (min_distance_tmp >= 1) {
-      // Partition the image into larger grids
-      int w = image.cols;
-      int h = image.rows;
-
-      const int cell_size = cvRound(min_distance_tmp);
-      const int grid_width = (w + cell_size - 1) / cell_size;
-      const int grid_height = (h + cell_size - 1) / cell_size;
-
-      std::vector<KeypointsCV> grid(grid_width * grid_height);
-
-      min_distance_tmp *= min_distance_tmp;
-
-      for (size_t i = 0; i < total; i++) {
-        int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
-                        cornerness_response.data);
-        int y = (int)(ofs / cornerness_response.step);
-        int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
-        double eigVal = double(tmp_corners_scores[i].second);
-
-        bool good = true;
-
-        int x_cell = x / cell_size;
-        int y_cell = y / cell_size;
-
-        int x1 = x_cell - 1;
-        int y1 = y_cell - 1;
-        int x2 = x_cell + 1;
-        int y2 = y_cell + 1;
-
-        // boundary check
-        x1 = std::max(0, x1);
-        y1 = std::max(0, y1);
-        x2 = std::min(grid_width - 1, x2);
-        y2 = std::min(grid_height - 1, y2);
-
-        for (int yy = y1; yy <= y2; yy++) {
-          for (int xx = x1; xx <= x2; xx++) {
-            const KeypointsCV& m = grid[yy * grid_width + xx];
-
-            if (m.size()) {
-              for (j = 0; j < m.size(); j++) {
-                const float& dx = x - m[j].x;
-                const float& dy = y - m[j].y;
-
-                if (dx * dx + dy * dy < min_distance_tmp) {
-                  good = false;
-                  goto break_out;
-                }
-              }
-            }
-          }
-        }
-
-      break_out:
-
-        if (good) {
-          // printf("%d: %d %d -> %d %d, %d, %d -- %d %d %d %d, %d %d, c=%d\n",
-          //    i,x, y, x_cell, y_cell, (int)minDistance, cell_size,x1,y1,x2,y2,
-          //    grid_width,grid_height,c);
-          grid[y_cell * grid_width + x_cell].push_back(
-              KeypointCV((float)x, (float)y));
-          corners_with_scores->first.push_back(KeypointCV((float)x, (float)y));
-          corners_with_scores->second.push_back(eigVal);
-          ++ncorners;
-          if (max_corners > 0 && (int)ncorners == max_corners) {
-            break;
-          }
-        }
-      }
-    } else {
-      for (size_t i = 0; i < total; i++) {
-        int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
-                        cornerness_response.data);
-        int y = (int)(ofs / cornerness_response.step);
-        int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
-        double eigVal = double(tmp_corners_scores[i].second);
-        corners_with_scores->first.push_back(KeypointCV((float)x, (float)y));
-        corners_with_scores->second.push_back(eigVal);
-        ++ncorners;
-        if (max_corners > 0 && (int)ncorners == max_corners) {
-          break;
-        }
-      }
-    }
->>>>>>> 5fe383e8fc6062f268b55a81a96cef61a0450693
 
   // Setup Mono Ransac
   mono_ransac_.threshold_ = tracker_params_.ransac_threshold_mono_;
@@ -348,9 +87,9 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   // Setup termination criteria for optical flow.
   const cv::TermCriteria kTerminationCriteria(
-        cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-        tracker_params_.klt_max_iter_,
-        tracker_params_.klt_eps_);
+      cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+      tracker_params_.klt_max_iter_,
+      tracker_params_.klt_eps_);
   const cv::Size2i klt_window_size(tracker_params_.klt_win_size_,
                                    tracker_params_.klt_win_size_);
 
@@ -358,12 +97,11 @@ void Tracker::featureTracking(Frame* ref_frame,
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
 
   KeypointsCV px_cur;
-  CHECK(optical_flow_predictor_->predictFlow(
-      px_ref, ref_R_cur, &px_cur));
+  CHECK(optical_flow_predictor_->predictFlow(px_ref, ref_R_cur, &px_cur));
   KeypointsCV px_predicted = px_cur;
 
   // Do the actual tracking, so px_cur becomes the new pixel locations.
-  VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
+  VLOG(2) << "Starting Optical Flow Pyr LK tracking...";
 
   std::vector<uchar> status;
   std::vector<float> error;
@@ -381,7 +119,6 @@ void Tracker::featureTracking(Frame* ref_frame,
   VLOG(1) << "Optical Flow Timing [ms]: "
           << utils::Timer::toc(time_lukas_kanade_tic).count();
   VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
-
 
   // TODO(Toni): use the error to further take only the best tracks?
 
@@ -418,7 +155,7 @@ void Tracker::featureTracking(Frame* ref_frame,
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
     cur_frame->keypoints_.push_back(px_cur[i]);
     cur_frame->versors_.push_back(
-          Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
+        Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
   }
 
   // max number of frames in which a feature is seen
@@ -428,8 +165,7 @@ void Tracker::featureTracking(Frame* ref_frame,
            << " (max observed age of tracked features: "
            << *std::max_element(cur_frame->landmarks_age_.begin(),
                                 cur_frame->landmarks_age_.end())
-           << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
-           << ")";
+           << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_ << ")";
   // Display feature tracks together with predicted points.
   if (display_queue_) {
     displayImage("Feature Tracks With Predicted Keypoints",
@@ -483,14 +219,15 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
 
   VLOG(10) << "geometricOutlierRejectionMono: RANSAC complete.";
 
-  VLOG(10) << "RANSAC (MONO): #iter = " << ransac.iterations_ << '\n'
-           << " #inliers = " << ransac.inliers_.size() << " #outliers = "
-           << ransac.inliers_.size() - matches_ref_cur.size();
+  VLOG(10) << "RANSAC (MONO): #iter = " << mono_ransac_.iterations_ << '\n'
+           << " #inliers = " << mono_ransac_.inliers_.size() << " #outliers = "
+           << mono_ransac_.inliers_.size() - matches_ref_cur.size();
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
 
   // Remove outliers. This modifies the frames, that is why this function does
   // not simply accept const Frames. And removes outliers from matches.
-  removeOutliersMono(mono_ransac_.inliers_, ref_frame, cur_frame, &matches_ref_cur);
+  removeOutliersMono(
+      mono_ransac_.inliers_, ref_frame, cur_frame, &matches_ref_cur);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
@@ -566,14 +303,17 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   }
   VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
 
-  VLOG(10) << "RANSAC (MONO): #iter = " << ransac.iterations_ << '\n'
-           << " #inliers = " << ransac.inliers_.size() << "\n #outliers = "
-           << ransac.inliers_.size() - matches_ref_cur.size();
+  VLOG(10) << "RANSAC (MONO): #iter = " << mono_ransac_given_rot_.iterations_
+           << '\n'
+           << " #inliers = " << mono_ransac_given_rot_.inliers_.size()
+           << "\n #outliers = "
+           << mono_ransac_given_rot_.inliers_.size() - matches_ref_cur.size();
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
 
   // Remove outliers.
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();  // before cleaning.
-  removeOutliersMono(mono_ransac_given_rot_.inliers_, ref_frame, cur_frame, &matches_ref_cur);
+  removeOutliersMono(
+      mono_ransac_given_rot_.inliers_, ref_frame, cur_frame, &matches_ref_cur);
 
   // TODO(Toni):
   // CHECK QUALITY OF TRACKING
@@ -880,7 +620,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   }
   debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrStereoInliers_ = inliers.size();
-  debug_info_.stereoRansacIters_ = 1; // this is bcs we use coherent sets here.
+  debug_info_.stereoRansacIters_ = 1;  // this is bcs we use coherent sets here.
 
   return std::make_pair(
       std::make_pair(status, gtsam::Pose3(R, gtsam::Point3(t))),
@@ -928,14 +668,17 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
 
   VLOG(10) << "geometricOutlierRejectionStereo: voting complete.";
 
-  VLOG(10) << "RANSAC (STEREO): #iter = " << ransac.iterations_ << '\n'
-           << " #inliers = " << ransac.inliers_.size() << "\n #outliers = "
-           << ransac.inliers_.size() - matches_ref_cur.size();
+  VLOG(10) << "RANSAC (STEREO): #iter = " << stereo_ransac_.iterations_ << '\n'
+           << " #inliers = " << stereo_ransac_.inliers_.size()
+           << "\n #outliers = "
+           << stereo_ransac_.inliers_.size() - matches_ref_cur.size();
   debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
 
   // Remove outliers.
-  removeOutliersStereo(
-      stereo_ransac_.inliers_, &ref_stereoFrame, &cur_stereoFrame, &matches_ref_cur);
+  removeOutliersStereo(stereo_ransac_.inliers_,
+                       &ref_stereoFrame,
+                       &cur_stereoFrame,
+                       &matches_ref_cur);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;

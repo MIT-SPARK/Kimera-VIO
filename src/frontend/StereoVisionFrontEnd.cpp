@@ -137,7 +137,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   VLOG(10) << "Starting processStereoFrame...";
   cv::Mat feature_tracks;
   StatusStereoMeasurementsPtr status_stereo_measurements = processStereoFrame(
-      stereoFrame_k, calLrectLkf_R_camLrectK_imu, &feature_tracks);
+      stereoFrame_k, camLrectLkf_R_camLrectK_imu, &feature_tracks);
 
   CHECK(!stereoFrame_k_);  // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
