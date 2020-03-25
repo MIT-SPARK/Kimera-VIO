@@ -40,4 +40,5 @@ noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
 numOptimize: 1
 horizon: 5 # In seconds.
+wildfire_threshold: 0.001
 useDogLeg: 0
