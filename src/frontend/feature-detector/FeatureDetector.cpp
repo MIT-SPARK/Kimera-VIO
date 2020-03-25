@@ -45,8 +45,8 @@ FeatureDetector::FeatureDetector(
     }
     case FeatureDetectorType::GFTT: {
       // TODO(Toni): parametrizeeee
-      static constexpr double quality_level = 0.01;
-      static constexpr double min_distance = 1;
+      static constexpr double quality_level = 0.001;
+      static constexpr double min_distance = 20;
       static constexpr int block_size = 3;
       static constexpr bool use_harris_detector = false;
       static constexpr double k = 0.04;
