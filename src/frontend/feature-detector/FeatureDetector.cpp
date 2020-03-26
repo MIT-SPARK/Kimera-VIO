@@ -16,19 +16,17 @@
 namespace VIO {
 
 FeatureDetector::FeatureDetector(
-    const FeatureDetectorType& feature_detector_type,
     const FeatureDetectorParams& feature_detector_params)
-    : feature_detector_type_(feature_detector_type),
-      feature_detector_params_(feature_detector_params),
+    : feature_detector_params_(feature_detector_params),
       non_max_suppression_(nullptr),
       feature_detector_() {
   // TODO(Toni): parametrize as well whether we use bucketing or anms...
   // Right now we asume we want anms not bucketing...
   non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
-        feature_detector_params.non_max_suppression_type);
+      feature_detector_params.non_max_suppression_type_);
 
   // TODO(Toni): find a way to pass params here using args lists
-  switch (feature_detector_type) {
+  switch (feature_detector_params.feature_detector_type_) {
     case FeatureDetectorType::FAST: {
       // Fast threshold, usually in range [10, 35]
       static constexpr int fast_thresh = 10;
@@ -44,25 +42,20 @@ FeatureDetector::FeatureDetector(
       break;
     }
     case FeatureDetectorType::GFTT: {
-      // TODO(Toni): parametrizeeee
-      static constexpr double quality_level = 0.001;
-      static constexpr double min_distance = 20;
-      static constexpr int block_size = 3;
-      static constexpr bool use_harris_detector = false;
-      static constexpr double k = 0.04;
       // goodFeaturesToTrack detector.
       feature_detector_ = cv::GFTTDetector::create(
           feature_detector_params_.max_features_per_frame_,
-          quality_level,
-          min_distance,
-          block_size,
-          use_harris_detector,
-          k);
+          feature_detector_params_.quality_level_,
+          feature_detector_params_.min_distance_btw_tracked_and_detected_features_,
+          feature_detector_params_.block_size_,
+          feature_detector_params_.use_harris_corner_detector_,
+          feature_detector_params_.k_);
       break;
     }
     default: {
       LOG(FATAL) << "Unknown feature detector type: "
-                 << VIO::to_underlying(feature_detector_type);
+                 << VIO::to_underlying(
+                        feature_detector_params.feature_detector_type_);
     }
   }
 }
@@ -162,6 +155,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   }
 
   std::vector<cv::KeyPoint> keyPoints;  // vector to keep detected KeyPoints
+  CHECK(feature_detector_);
   feature_detector_->detect(cur_frame.img_, keyPoints, mask);
   VLOG(1) << "Number of points detected : " << keyPoints.size();
 

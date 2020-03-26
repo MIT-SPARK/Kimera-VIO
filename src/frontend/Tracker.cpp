@@ -161,7 +161,9 @@ void Tracker::featureTracking(Frame* ref_frame,
   // max number of frames in which a feature is seen
   VLOG(10) << "featureTracking: frame " << cur_frame->id_
            << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
-           << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
+           << " (max: "
+           << tracker_params_.feature_detector_params_.max_features_per_frame_
+           << ")"
            << " (max observed age of tracked features: "
            << *std::max_element(cur_frame->landmarks_age_.begin(),
                                 cur_frame->landmarks_age_.end())

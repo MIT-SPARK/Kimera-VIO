@@ -227,6 +227,7 @@ if(BUILD_TESTS)
     tests/testVioBackEnd.cpp
     tests/testVioBackEndParams.cpp
     tests/testVisionFrontEndParams.cpp
+    tests/testFeatureDetectorParams.cpp
     # tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp

@@ -59,6 +59,9 @@ class StereoVisionFrontEnd {
                        const CameraParams& camera_params,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);
+  virtual ~StereoVisionFrontEnd() {
+    LOG(INFO) << "StereoVisionFrontEnd destructor called.";
+  }
 
  public:
   /* ------------------------------------------------------------------------ */
@@ -245,11 +248,11 @@ class StereoVisionFrontEnd {
   // Timestamp of last keyframe.
   Timestamp last_keyframe_timestamp_;
 
-  // Set of functionalities for tracking.
-  Tracker tracker_;
-
   // Create the feature detector
   FeatureDetector::UniquePtr feature_detector_;
+
+  // Set of functionalities for tracking.
+  Tracker tracker_;
 
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;

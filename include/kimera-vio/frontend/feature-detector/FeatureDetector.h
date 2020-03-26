@@ -31,8 +31,7 @@ class FeatureDetector {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FeatureDetector);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  FeatureDetector(const FeatureDetectorType& feature_detector_type,
-                  const FeatureDetectorParams& feature_detector_params);
+  FeatureDetector(const FeatureDetectorParams& feature_detector_params);
   virtual ~FeatureDetector() = default;
 
  public:
@@ -45,7 +44,6 @@ class FeatureDetector {
                                const int& need_n_corners);
 
   // Parameters.
-  const FeatureDetectorType feature_detector_type_;
   const FeatureDetectorParams feature_detector_params_;
 
   // TODO(TOni): should be debug feature detector info...

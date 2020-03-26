@@ -28,38 +28,12 @@
 #include "kimera-vio/frontend/OpticalFlowPredictor-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 #include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
-
-struct SubPixelCornerFinderParams : public PipelineParams {
- public:
-  KIMERA_POINTER_TYPEDEFS(SubPixelCornerFinderParams);
-  SubPixelCornerFinderParams();
-  virtual ~SubPixelCornerFinderParams() = default;
-
- public:
-  void print() const;
-  bool parseYAML(const std::string& filepath);
-  bool equals(const SubPixelCornerFinderParams& tp2, double tol = 1e-10) const;
-
- protected:
-  // Parameters of the pipeline must specify how to be compared.
-  virtual bool equals(const PipelineParams& obj) const {
-    const auto& rhs = static_cast<const SubPixelCornerFinderParams&>(obj);
-    return equals(rhs);
-  }
-
- public:
-  /// Termination criteria defined in terms of change in error and maximum
-  /// number of iterations
-  cv::TermCriteria term_criteria_ =
-      cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 10, 0.01);
-  cv::Size window_size_ = cv::Size(10, 10);
-  cv::Size zero_zone_ = cv::Size(-1, -1);
-};
 
 struct FrontendParams : public PipelineParams {
  public:
@@ -85,21 +59,8 @@ protected:
   double klt_eps_ = 0.1;    // @TODO: add comments on each parameter
   int maxFeatureAge_ = 25;  // we cut feature tracks longer than that
 
-  /// Find subpixel corners when doing monocular feature tracking
-  /// by solving iterative optimization problem.
-  bool enable_subpixel_corner_finder_ = false;
-  SubPixelCornerFinderParams subpixel_corner_finder_params_ =
-      SubPixelCornerFinderParams();
-
   // Detection parameters
-  FeatureDetectorType feature_detector_type_ = FeatureDetectorType::FAST;
-  int maxFeaturesPerFrame_ = 1000;
-  double quality_level_ = 0.001;  // @TODO: add comments on each parameter
-  double min_distance_ = 10.0;    // min distance to create mask around old
-                                  // keypoints for detector
-  int block_size_ = 3;
-  bool use_harris_detector_ = false;
-  double k_ = 0.04;
+  FeatureDetectorParams feature_detector_params_ = FeatureDetectorParams();
 
   // Encapsulate StereoMatchingParams.
   StereoMatchingParams stereo_matching_params_ = StereoMatchingParams();
