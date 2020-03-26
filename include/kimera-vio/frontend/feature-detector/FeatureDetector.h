@@ -16,30 +16,15 @@
 
 #include <Eigen/Eigen>
 
+#include <opencv2/features2d.hpp>
+
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
-
-// TODO(Toni): put in feature detector params!
-struct FeatureDetectorParams {
-  //! Maximum amount of features to be detected per frame.
-  int max_features_per_frame_ = 400;
-  //! Whether to enable subpixel feature detection.
-  bool enable_subpixel_corner_refinement_ = true;
-  //! Parameters for subpixel refinement in case it is enabled.
-  SubPixelCornerFinderParams subpixel_corner_finder_params_;
-  //! Whether to enable non maximum suppression after feature detection.
-  bool enable_non_max_suppression = true;
-  AnmsAlgorithmType non_max_suppression_type = AnmsAlgorithmType::RangeTree;
-  //! Minimum distance between the already tracked features and the new
-  //! features to be detected. This avoids detections near tracked features.
-  int min_distance_btw_tracked_and_detected_features_ = 10;
-};
-
 class FeatureDetector {
  public:
   KIMERA_POINTER_TYPEDEFS(FeatureDetector);

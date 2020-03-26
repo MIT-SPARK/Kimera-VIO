@@ -7,8 +7,8 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   FeatureDetector.h
- * @brief  Base class for feature detector interface
+ * @file   FeatureDetector-definitions.h
+ * @brief  Definitions for feature detection.
  * @author Antoni Rosinol
  */
 

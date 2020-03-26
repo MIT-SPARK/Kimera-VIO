@@ -28,12 +28,19 @@ SubPixelCornerFinderParams::SubPixelCornerFinderParams()
     : PipelineParams("SubPixelCornerFinder Parameters") {}
 
 void SubPixelCornerFinderParams::print() const {
-  LOG(INFO) << "************* SubPixel Corner Finder Params *****************\n"
-            << "Termination criteria type: " << term_criteria_.type << '\n'
-            << "max_iters_: " << term_criteria_.maxCount << '\n'
-            << "epsilon_error_: " << term_criteria_.epsilon << '\n'
-            << "window_size_: " << window_size_ << '\n'
-            << "zero_zone_: " << zero_zone_ << '\n';
+  std::stringstream out;
+  PipelineParams::print(out,
+                        "Termination criteria type",
+                        term_criteria_.type,
+                        "Termination criteria maximum iters",
+                        term_criteria_.maxCount,
+                        "Termination criteria epsilon",
+                        term_criteria_.epsilon,
+                        "Window size",
+                        window_size_,
+                        "Zero zone",
+                        zero_zone_);
+  LOG(INFO) << out.str();
 }
 
 bool SubPixelCornerFinderParams::parseYAML(const std::string& filepath) {
@@ -58,8 +65,7 @@ bool SubPixelCornerFinderParams::equals(const SubPixelCornerFinderParams& tp2,
          (window_size_ == tp2.window_size_) && (zero_zone_ == tp2.zero_zone_);
 }
 
-FrontendParams::FrontendParams()
-    : PipelineParams("Frontend Parameters") {}
+FrontendParams::FrontendParams() : PipelineParams("Frontend Parameters") {}
 
 void FrontendParams::print() const {
   LOG(INFO) << "****************** Feature Tracker Params *******************\n"
@@ -202,14 +208,14 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   return true;
 }
 
-bool FrontendParams::equals(const FrontendParams& tp2,
-                                  double tol) const {
+bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
   return (klt_win_size_ == tp2.klt_win_size_) &&
          (klt_max_iter_ == tp2.klt_max_iter_) &&
          (klt_max_level_ == tp2.klt_max_level_) &&
          (fabs(klt_eps_ - tp2.klt_eps_) <= tol) &&
          (maxFeatureAge_ == tp2.maxFeatureAge_) &&
-         (enable_subpixel_corner_finder_ == tp2.enable_subpixel_corner_finder_) &&
+         (enable_subpixel_corner_finder_ ==
+          tp2.enable_subpixel_corner_finder_) &&
          (subpixel_corner_finder_params_.equals(
              tp2.subpixel_corner_finder_params_)) &&
          // detection parameters
