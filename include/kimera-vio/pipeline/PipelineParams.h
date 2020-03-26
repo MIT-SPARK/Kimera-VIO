@@ -48,7 +48,8 @@ class PipelineParams {
   /** @brief print Helper function to print arguments in a standardized way
    * @param[out] Stream were the printed output will be written. You can then
    * log that to cout or glog, i.e: `LOG(INFO) << out.c_str()`;
-   * @param[in] *Even* list of arguments, where we assume the first to be the name
+   * @param[in] *Even* list of arguments, where we assume the first to be the
+   * name
    * and the second a value (both can be of any type (with operator <<)).
    * Note: uneven list of arguments will raise compilation errors.
    * Usage:
@@ -67,14 +68,16 @@ class PipelineParams {
 
     // Add title.
     out.width(kTotalWidth);
-    out << '\n' << name_.c_str() << '\n';
+    size_t center = (kTotalWidth - name_.size() - 2u) / 2u; // -2u for ' ' chars
+    out << '\n'
+        << std::string(center, '*').c_str() << ' ' << name_.c_str() << ' '
+        << std::string(center, '*').c_str() << '\n';
 
     // Add columns' headers.
     out.width(kNameWidth);  // Remove hardcoded, need to pre-calc width.
     out.setf(std::ios::left, std::ios::adjustfield);
     out << "Name";
     out.setf(std::ios::right, std::ios::adjustfield);
-    out << "|";
     out.width(kValueWidth);
     out << "Value\n";
 
@@ -94,7 +97,7 @@ class PipelineParams {
  public:
   std::string name_;
 
-private:
+ private:
   template <typename TName, typename TValue>
   void printImpl(std::stringstream& out, TName name, TValue value) const {
     out.width(kNameWidth);
@@ -120,9 +123,9 @@ private:
   }
 
  private:
-  static constexpr int kTotalWidth = 60;
-  static constexpr int kNameWidth = 40;
-  static constexpr int kValueWidth = 20;
+  static constexpr size_t kTotalWidth = 60;
+  static constexpr size_t kNameWidth = 40;
+  static constexpr size_t kValueWidth = 20;
 };
 
 inline bool operator==(const PipelineParams& lhs, const PipelineParams& rhs) {

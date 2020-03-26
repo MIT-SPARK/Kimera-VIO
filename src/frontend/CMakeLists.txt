@@ -4,6 +4,7 @@ target_sources(kimera_vio
   "${CMAKE_CURRENT_LIST_DIR}/CameraParams.cpp"
   # "${CMAKE_CURRENT_LIST_DIR}/FeatureSelector.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/StereoMatchingParams.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/StereoImuSyncPacket.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndModule.cpp"

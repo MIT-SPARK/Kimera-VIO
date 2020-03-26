@@ -68,51 +68,78 @@ bool SubPixelCornerFinderParams::equals(const SubPixelCornerFinderParams& tp2,
 FrontendParams::FrontendParams() : PipelineParams("Frontend Parameters") {}
 
 void FrontendParams::print() const {
-  LOG(INFO) << "****************** Feature Tracker Params *******************\n"
-            << "** Feature tracking parameters **\n"
-            << "klt_win_size_: " << klt_win_size_ << '\n'
-            << "klt_max_iter_: " << klt_max_iter_ << '\n'
-            << "klt_max_level_: " << klt_max_level_ << '\n'
-            << "klt_eps_: " << klt_eps_ << '\n'
-            << "maxFeatureAge_: " << maxFeatureAge_ << '\n'
-            << "enable_subpixel_corner_finder: "
-            << enable_subpixel_corner_finder_;
+  std::stringstream out;
+  PipelineParams::print(out,
+                        // Tracker params
+                        "klt_win_size_: ",
+                        klt_win_size_,
+                        "klt_max_iter_: ",
+                        klt_max_iter_,
+                        "klt_max_level_: ",
+                        klt_max_level_,
+                        "klt_eps_: ",
+                        klt_eps_,
+                        "maxFeatureAge_: ",
+                        maxFeatureAge_,
+                        "Optical Flow Predictor Type",
+                        VIO::to_underlying(optical_flow_predictor_type_),
+                        // "** Feature detection parameters **\n"
+                        "enable_subpixel_corner_finder: ",
+                        enable_subpixel_corner_finder_,
+                        "Feature Detector Type: ",
+                        VIO::to_underlying(feature_detector_type_),
+                        "maxFeaturesPerFrame_: ",
+                        maxFeaturesPerFrame_,
+                        "quality_level_: ",
+                        quality_level_,
+                        "min_distance_: ",
+                        min_distance_,
+                        "block_size_: ",
+                        block_size_,
+                        "use_harris_detector_: ",
+                        use_harris_detector_,
+                        "k_: ",
+                        k_,
+                        // RANSAC params
+                        "useRANSAC_: ",
+                        useRANSAC_,
+                        "minNrMonoInliers_: ",
+                        minNrMonoInliers_,
+                        "minNrStereoInliers_: ",
+                        minNrStereoInliers_,
+                        "ransac_threshold_mono_: ",
+                        ransac_threshold_mono_,
+                        "ransac_threshold_stereo_: ",
+                        ransac_threshold_stereo_,
+                        "ransac_use_1point_stereo_: ",
+                        ransac_use_1point_stereo_,
+                        "ransac_use_2point_mono_: ",
+                        ransac_use_2point_mono_,
+                        "ransac_max_iterations_: ",
+                        ransac_max_iterations_,
+                        "ransac_probability_: ",
+                        ransac_probability_,
+                        "ransac_randomize_: ",
+                        ransac_randomize_,
+                        // "** STEREO tracker parameters **\n"
+                        "intra_keyframe_time_: ",
+                        intra_keyframe_time_ns_,
+                        "minNumberFeatures_: ",
+                        min_number_features_,
+                        "useStereoTracking_: ",
+                        useStereoTracking_,
+                        // OTHER parameters
+                        "disparityThreshold_: ",
+                        disparityThreshold_);
+  LOG(INFO) << out.str();
 
   if (enable_subpixel_corner_finder_) {
     subpixel_corner_finder_params_.print();
   }
 
-  LOG(INFO) << "** Feature detection parameters **\n"
-            << "maxFeaturesPerFrame_: " << maxFeaturesPerFrame_ << '\n'
-            << "quality_level_: " << quality_level_ << '\n'
-            << "min_distance_: " << min_distance_ << '\n'
-            << "block_size_: " << block_size_ << '\n'
-            << "use_harris_detector_: " << use_harris_detector_ << '\n'
-            << "k_: " << k_;
-
-  stereo_matching_params_.print();
-
-  LOG(INFO)
-      << "** RANSAC parameters **\n"
-      << "useRANSAC_: " << useRANSAC_ << '\n'
-      << "minNrMonoInliers_: " << minNrMonoInliers_ << '\n'
-      << "minNrStereoInliers_: " << minNrStereoInliers_ << '\n'
-      << "ransac_threshold_mono_: " << ransac_threshold_mono_ << '\n'
-      << "ransac_threshold_stereo_: " << ransac_threshold_stereo_ << '\n'
-      << "ransac_use_1point_stereo_: " << ransac_use_1point_stereo_ << '\n'
-      << "ransac_use_2point_mono_: " << ransac_use_2point_mono_ << '\n'
-      << "ransac_max_iterations_: " << ransac_max_iterations_ << '\n'
-      << "ransac_probability_: " << ransac_probability_ << '\n'
-      << "ransac_randomize_: " << ransac_randomize_ << '\n'
-
-      << "** STEREO tracker parameters **\n"
-      << "intra_keyframe_time_: " << intra_keyframe_time_ns_ << '\n'
-      << "minNumberFeatures_: " << min_number_features_ << '\n'
-      << "useStereoTracking_: " << useStereoTracking_ << '\n'
-
-      << "** OTHER parameters **" << '\n'
-      << "disparityThreshold_: " << disparityThreshold_ << '\n'
-      << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&";
+  if (useStereoTracking_) {
+    stereo_matching_params_.print();
+  }
 }
 
 bool FrontendParams::parseYAML(const std::string& filepath) {
