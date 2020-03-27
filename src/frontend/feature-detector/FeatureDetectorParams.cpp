@@ -89,7 +89,9 @@ void FeatureDetectorParams::print() const {
                         "use_harris_corner_detector",
                         use_harris_corner_detector_,
                         "k_: ",
-                        k_);
+                        k_,
+                        "Fast Threshold",
+                        fast_thresh_);
   LOG(INFO) << out.str();
   if (enable_subpixel_corner_refinement_) {
     subpixel_corner_finder_params_.print();
@@ -172,9 +174,11 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("min_distance",
                            &min_distance_btw_tracked_and_detected_features_);
   yaml_parser.getYamlParam("block_size", &block_size_);
-  yaml_parser.getYamlParam("use_harris_detector",
-                           &use_harris_corner_detector_);
+  yaml_parser.getYamlParam("use_harris_detector", &use_harris_corner_detector_);
   yaml_parser.getYamlParam("k", &k_);
+
+  // FAST specific params
+  yaml_parser.getYamlParam("fast_thresh", &fast_thresh_);
 }
 
 bool FeatureDetectorParams::equals(const FeatureDetectorParams& tp2,
@@ -192,7 +196,7 @@ bool FeatureDetectorParams::equals(const FeatureDetectorParams& tp2,
          (fabs(quality_level_ - tp2.quality_level_) <= tol) &&
          (block_size_ == tp2.block_size_) &&
          (use_harris_corner_detector_ == tp2.use_harris_corner_detector_) &&
-         (fabs(k_ - tp2.k_) <= tol);
+         (fabs(k_ - tp2.k_) <= tol) && (fast_thresh_ == tp2.fast_thresh_);
 }
 
 }  // namespace VIO

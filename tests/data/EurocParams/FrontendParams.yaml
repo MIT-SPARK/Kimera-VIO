@@ -20,6 +20,10 @@ min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
+
+# FAST detector specific parameters
+fast_thresh: 5
+
 equalizeImage: 0
 nominalBaseline: 0.11
 toleranceTemplateMatching: 0.15

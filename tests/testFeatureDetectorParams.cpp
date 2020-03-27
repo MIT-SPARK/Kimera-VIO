@@ -44,6 +44,7 @@ TEST(testFeatureDetectorParams, FeatureDetectorParamParseYAML) {
   EXPECT_EQ(tp.block_size_, 3);
   EXPECT_EQ(tp.use_harris_corner_detector_, 0);
   EXPECT_EQ(tp.k_, 0.04);
+  EXPECT_EQ(tp.fast_thresh_, 52);
 }
 
 TEST(testFeatureDetectorParams, equals) {

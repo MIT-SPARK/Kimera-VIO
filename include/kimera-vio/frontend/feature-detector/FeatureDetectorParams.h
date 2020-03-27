@@ -88,6 +88,9 @@ struct FeatureDetectorParams : public PipelineParams {
   int block_size_ = 3;
   bool use_harris_corner_detector_ = false;
   double k_ = 0.04;
+
+  // FAST specific params
+  int fast_thresh_ = 10;
 };
 
 }  // namespace VIO

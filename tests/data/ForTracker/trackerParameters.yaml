@@ -6,12 +6,15 @@ klt_max_level: 2
 klt_eps: 0.001
 maxFeatureAge: 10
 maxFeaturesPerFrame: 200
+
 feature_detector_type: 0
 quality_level: 0.5
 min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
+fast_thresh: 52
+
 equalizeImage: 1
 nominalBaseline: 110
 toleranceTemplateMatching: 0.17

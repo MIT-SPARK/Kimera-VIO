@@ -29,8 +29,8 @@ FeatureDetector::FeatureDetector(
   switch (feature_detector_params.feature_detector_type_) {
     case FeatureDetectorType::FAST: {
       // Fast threshold, usually in range [10, 35]
-      static constexpr int fast_thresh = 10;
-      feature_detector_ = cv::FastFeatureDetector::create(fast_thresh, true);
+      feature_detector_ = cv::FastFeatureDetector::create(
+                            feature_detector_params.fast_thresh_, true);
       break;
     }
     case FeatureDetectorType::ORB: {
