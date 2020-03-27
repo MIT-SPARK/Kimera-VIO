@@ -154,10 +154,10 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
     }
   }
 
-  std::vector<cv::KeyPoint> keyPoints;  // vector to keep detected KeyPoints
+  std::vector<cv::KeyPoint> keypoints;  // vector to keep detected KeyPoints
   CHECK(feature_detector_);
-  feature_detector_->detect(cur_frame.img_, keyPoints, mask);
-  VLOG(1) << "Number of points detected : " << keyPoints.size();
+  feature_detector_->detect(cur_frame.img_, keypoints, mask);
+  VLOG(1) << "Number of points detected : " << keypoints.size();
 
   // cv::Mat fastDetectionResults;  // draw FAST detections
   // cv::drawKeypoints(cur_frame.img_,
@@ -170,14 +170,11 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // cv::waitKey(0);
 
   VLOG(1) << "Need n corners: " << need_n_corners;
-  int numRetPoints = need_n_corners;
-  // int numRetPoints = 750;  // choose exact number of return points
-  // float percentage = 0.1; //or choose percentage of points to be return
-  // int numRetPoints = (int)keyPoints.size()*percentage;
-  float tolerance = 0.1;  // tolerance of the number of return points
+  // Tolerance of the number of returned points in percentage.
+  static constexpr float tolerance = 0.1;
   const std::vector<cv::KeyPoint>& sscKP =
-      non_max_suppression_->suppressNonMax(keyPoints,
-                                           numRetPoints,
+      non_max_suppression_->suppressNonMax(keypoints,
+                                           need_n_corners,
                                            tolerance,
                                            cur_frame.img_.cols,
                                            cur_frame.img_.rows);

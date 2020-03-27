@@ -392,9 +392,13 @@ std::pair<double, double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
 cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string& img_name,
                                                bool equalize) {
   cv::Mat img = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
-  if (img.channels() > 1) cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
-  if (equalize) {  // Apply Histogram Equalization
-    LOG(INFO) << "- Histogram Equalization for image: " << img_name;
+  if (img.channels() > 1) {
+    LOG(WARNING) << "Converting img from BGR to GRAY...";
+    cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+  }
+  // Apply Histogram Equalization
+  if (equalize) {
+    LOG(WARNING) << "- Histogram Equalization for image: " << img_name;
     cv::equalizeHist(img, img);
   }
   return img;

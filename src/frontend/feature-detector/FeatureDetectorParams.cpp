@@ -64,8 +64,7 @@ bool SubPixelCornerFinderParams::equals(const SubPixelCornerFinderParams& tp2,
 }
 
 FeatureDetectorParams::FeatureDetectorParams()
-    : PipelineParams("FeatureDetector Parameters") {
-}
+    : PipelineParams("FeatureDetector Parameters") {}
 
 void FeatureDetectorParams::print() const {
   std::stringstream out;
