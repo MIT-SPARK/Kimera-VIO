@@ -25,16 +25,17 @@ Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation 
 
 We kindly ask to cite our paper if you find this library useful:
 
- - A. Rosinol, M. Abate, Y. Chang, L. Carlone. [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). arXiv preprint [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
+- A. Rosinol, M. Abate, Y. Chang, L. Carlone, [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). IEEE Intl. Conf. on Robotics and Automation (ICRA), 2020. [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
+ 
  ```bibtex
-  @InProceedings{Rosinol20icra-Kimera,
-     title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
-     author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
-     year = {2020},
-     booktitle = {IEEE Intl. Conf. on Robotics and Automation (ICRA)},
-     url = {https://github.com/MIT-SPARK/Kimera},
-     pdf = {https://arxiv.org/pdf/1910.02490.pdf}
-   }
+ @InProceedings{Rosinol20icra-Kimera,
+   title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
+   author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
+   year = {2020},
+   booktitle = {IEEE Intl. Conf. on Robotics and Automation (ICRA)},
+   url = {https://github.com/MIT-SPARK/Kimera},
+   pdf = {https://arxiv.org/pdf/1910.02490.pdf}
+ }
 ```
 
 ### Related Publications
