@@ -31,13 +31,17 @@ SOFTWARE.
 
 #include <opencv2/opencv.hpp>
 
-#include "kimera-vio/frontend/feature-detector/anms/range-tree/ranget.h"
 #include "kimera-vio/frontend/feature-detector/anms/nanoflann.hpp"
+#include "kimera-vio/frontend/feature-detector/anms/range-tree/ranget.h"
 
 namespace anms {
 
-std::vector<cv::KeyPoint> TopN(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> TopN(const std::vector<cv::KeyPoint>& keyPoints,
                                int numRetPoints) {
+  if (numRetPoints > keyPoints.size()) {
+    return keyPoints;
+  }
+
   std::vector<cv::KeyPoint> kp;
   for (int i = 0; i < numRetPoints; i++)
     kp.push_back(keyPoints[i]);  // simply extracting numRetPoints keyPoints
@@ -45,8 +49,12 @@ std::vector<cv::KeyPoint> TopN(std::vector<cv::KeyPoint> keyPoints,
   return kp;
 }
 
-std::vector<cv::KeyPoint> BrownANMS(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> BrownANMS(const std::vector<cv::KeyPoint>& keyPoints,
                                     int numRetPoints) {
+  if (numRetPoints > keyPoints.size()) {
+    return keyPoints;
+  }
+
   std::vector<pair<float, int> > results;
   results.push_back(make_pair(FLT_MAX, 0));
   for (unsigned int i = 1; i < keyPoints.size();
@@ -70,7 +78,7 @@ std::vector<cv::KeyPoint> BrownANMS(std::vector<cv::KeyPoint> keyPoints,
   return kp;
 }
 
-std::vector<cv::KeyPoint> Sdc(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> Sdc(const std::vector<cv::KeyPoint>& keyPoints,
                               int numRetPoints,
                               float tolerance,
                               int cols,
@@ -151,7 +159,7 @@ std::vector<cv::KeyPoint> Sdc(std::vector<cv::KeyPoint> keyPoints,
   return kp;
 }
 
-std::vector<cv::KeyPoint> KdTree(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> KdTree(const std::vector<cv::KeyPoint>& keyPoints,
                                  int numRetPoints,
                                  float tolerance,
                                  int cols,
@@ -245,7 +253,7 @@ std::vector<cv::KeyPoint> KdTree(std::vector<cv::KeyPoint> keyPoints,
   return kp;
 }
 
-std::vector<cv::KeyPoint> RangeTree(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> RangeTree(const std::vector<cv::KeyPoint>& keyPoints,
                                     int numRetPoints,
                                     float tolerance,
                                     int cols,
@@ -333,7 +341,7 @@ std::vector<cv::KeyPoint> RangeTree(std::vector<cv::KeyPoint> keyPoints,
   return kp;
 }
 
-std::vector<cv::KeyPoint> Ssc(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> Ssc(const std::vector<cv::KeyPoint>& keyPoints,
                               int numRetPoints,
                               float tolerance,
                               int cols,

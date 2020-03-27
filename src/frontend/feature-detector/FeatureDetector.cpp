@@ -22,19 +22,38 @@ FeatureDetector::FeatureDetector(
       feature_detector_() {
   // TODO(Toni): parametrize as well whether we use bucketing or anms...
   // Right now we asume we want anms not bucketing...
-  non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
-      feature_detector_params.non_max_suppression_type_);
+  if (feature_detector_params.enable_non_max_suppression_) {
+    non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
+                             feature_detector_params.non_max_suppression_type_);
+  }
 
   // TODO(Toni): find a way to pass params here using args lists
   switch (feature_detector_params.feature_detector_type_) {
     case FeatureDetectorType::FAST: {
       // Fast threshold, usually in range [10, 35]
       feature_detector_ = cv::FastFeatureDetector::create(
-                            feature_detector_params.fast_thresh_, true);
+          feature_detector_params.fast_thresh_, true);
       break;
     }
     case FeatureDetectorType::ORB: {
-      feature_detector_ = cv::ORB::create();
+      static constexpr float scale_factor = 1.2f;
+      static constexpr int n_levels = 8;
+      static constexpr int edge_threshold =
+          10;  // Very small bcs we don't use descriptors (yet).
+      static constexpr int first_level = 0;
+      static constexpr int WTA_K = 0;  // We don't use descriptors (yet).
+      static constexpr int score_type = cv::ORB::HARRIS_SCORE;
+      static constexpr int patch_size = 0;  // We don't use descriptors (yet).
+      feature_detector_ =
+          cv::ORB::create(feature_detector_params_.max_features_per_frame_,
+                          scale_factor,
+                          n_levels,
+                          edge_threshold,
+                          first_level,
+                          WTA_K,
+                          score_type,
+                          patch_size,
+                          feature_detector_params.fast_thresh_);
       break;
     }
     case FeatureDetectorType::AGAST: {
@@ -46,7 +65,8 @@ FeatureDetector::FeatureDetector(
       feature_detector_ = cv::GFTTDetector::create(
           feature_detector_params_.max_features_per_frame_,
           feature_detector_params_.quality_level_,
-          feature_detector_params_.min_distance_btw_tracked_and_detected_features_,
+          feature_detector_params_
+              .min_distance_btw_tracked_and_detected_features_,
           feature_detector_params_.block_size_,
           feature_detector_params_.use_harris_corner_detector_,
           feature_detector_params_.k_);
@@ -171,19 +191,24 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
 
   VLOG(1) << "Need n corners: " << need_n_corners;
   // Tolerance of the number of returned points in percentage.
-  static constexpr float tolerance = 0.1;
-  const std::vector<cv::KeyPoint>& sscKP =
+  std::vector<cv::KeyPoint>& max_suppressed_keypoints = keypoints;
+  if (non_max_suppression_) {
+    static constexpr float tolerance = 0.1;
+    max_suppressed_keypoints =
       non_max_suppression_->suppressNonMax(keypoints,
                                            need_n_corners,
                                            tolerance,
                                            cur_frame.img_.cols,
                                            cur_frame.img_.rows);
+  }
+  // NOTE: if we don't use max_suppression we may end with more corners than
+  // requested...
 
   // Find new features.
   // TODO(Toni): we should be using cv::KeyPoint... not cv::Point2f...
   KeypointsCV new_corners;
-  new_corners.reserve(sscKP.size());
-  for (const cv::KeyPoint& kp : sscKP) {
+  new_corners.reserve(max_suppressed_keypoints.size());
+  for (const cv::KeyPoint& kp : max_suppressed_keypoints) {
     new_corners.push_back(kp.pt);
   }
   // if (need_n_corners > 0) {

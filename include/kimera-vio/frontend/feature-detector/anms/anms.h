@@ -36,7 +36,7 @@ namespace anms {
 
 using namespace std;
 
-std::vector<cv::KeyPoint> TopN(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> TopN(const std::vector<cv::KeyPoint>& keyPoints,
                                int numRetPoints);
 
 struct sort_pred {
@@ -45,10 +45,10 @@ struct sort_pred {
   }
 };
 
-std::vector<cv::KeyPoint> BrownANMS(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> BrownANMS(const std::vector<cv::KeyPoint>& keyPoints,
                                     int numRetPoints);
 
-std::vector<cv::KeyPoint> Sdc(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> Sdc(const std::vector<cv::KeyPoint>& keyPoints,
                               int numRetPoints,
                               float tolerance,
                               int cols,
@@ -105,19 +105,19 @@ inline void generatePointCloud(PointCloud<T>& point,
   }
 }
 
-std::vector<cv::KeyPoint> KdTree(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> KdTree(const std::vector<cv::KeyPoint>& keyPoints,
                                  int numRetPoints,
                                  float tolerance,
                                  int cols,
                                  int rows);
 
-std::vector<cv::KeyPoint> RangeTree(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> RangeTree(const std::vector<cv::KeyPoint>& keyPoints,
                                     int numRetPoints,
                                     float tolerance,
                                     int cols,
                                     int rows);
 
-std::vector<cv::KeyPoint> Ssc(std::vector<cv::KeyPoint> keyPoints,
+std::vector<cv::KeyPoint> Ssc(const std::vector<cv::KeyPoint>& keyPoints,
                               int numRetPoints,
                               float tolerance,
                               int cols,
