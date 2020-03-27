@@ -157,7 +157,7 @@ pipeline {
 
 
         // Clear the source and build dirs before the next run
-        deleteDir()
+        // deleteDir()
       }
     }
     success {
@@ -183,7 +183,7 @@ pipeline {
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
       node(null) {
-        cleanWs()
+        // cleanWs()
       }
     }
   }
