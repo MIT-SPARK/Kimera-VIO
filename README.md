@@ -68,7 +68,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
-- [ANMS](https://github.com/BAILOOL/ANMS-Codes) (source files in `feature-detector/anms`, used for non-max suppression).
+- [ANMS](https://github.com/BAILOOL/ANMS-Codes) (source files in `src/frontend/feature-detector/anms`, used for adaptive non-max suppression).
 
 > Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimera_vio_install.md](./docs/kimera_vio_install.md).
 
