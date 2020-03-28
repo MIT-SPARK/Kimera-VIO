@@ -199,7 +199,6 @@ if(BUILD_TESTS)
     tests/testVioParams.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
-    #tests/testFeatureSelector.cpp
     tests/testDataProviderModule.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
