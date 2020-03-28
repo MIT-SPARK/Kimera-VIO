@@ -162,6 +162,14 @@ class Pipeline {
     return data_provider_module_->spin();
   }
 
+  /**
+   * @brief printStatistics Prints timing statistics of each VIO module.
+   * @return A table of the timing statistics that can be printed to console.
+   */
+  inline std::string printStatistics() const {
+    return utils::Statistics::Print();
+  }
+
  private:
   // Spin the pipeline only once.
   void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
