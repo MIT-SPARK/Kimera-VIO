@@ -102,7 +102,7 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
   static const std::string kMesh = "Mesh";
   auto mesh_iterator = widgets->find(kMesh);
   if (mesh_iterator == widgets->end()) {
-    LOG(WARNING) << "Missing Mesh in visualization's 3D widgets";
+    LOG_EVERY_N(WARNING, 100) << "Missing Mesh in visualization's 3D widgets.";
     return;
   }
   WidgetPtr& mesh_widget = mesh_iterator->second;
