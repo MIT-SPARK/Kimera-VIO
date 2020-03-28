@@ -7,8 +7,8 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testVioFrontEndParams.h
- * @brief  test VioFrontEndParams
+ * @file   testVisionFrontEndParams.h
+ * @brief  test VisionFrontEndParams
  * @author Antoni Rosinol, Luca Carlone
  */
 
@@ -31,7 +31,7 @@ static const double tol = 1e-7;
 
 namespace VIO {
 
-TEST(testVioFrontEndParams, TrackerParamParseYAML) {
+TEST(testVisionFrontEndParams, TrackerParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
@@ -73,7 +73,7 @@ TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   EXPECT_EQ(tp.disparityThreshold_, 1);
 }
 
-TEST(testVioFrontEndParams, equals) {
+TEST(testVisionFrontEndParams, equals) {
   FrontendParams tp = FrontendParams();
   EXPECT_TRUE(tp.equals(tp));
 }
