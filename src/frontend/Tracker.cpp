@@ -26,8 +26,12 @@
 #include "kimera-vio/utils/UtilsOpenCV.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
 
-namespace VIO {
+DEFINE_bool(visualize_feature_predictions,
+            false,
+            "Visualizes feature tracks and predicted keypoints given rotation "
+            "from IMU.");
 
+namespace VIO {
 Tracker::Tracker(const FrontendParams& tracker_params,
                  const CameraParams& camera_params,
                  DisplayQueue* display_queue)
@@ -169,7 +173,7 @@ void Tracker::featureTracking(Frame* ref_frame,
                                 cur_frame->landmarks_age_.end())
            << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_ << ")";
   // Display feature tracks together with predicted points.
-  if (display_queue_) {
+  if (display_queue_ && FLAGS_visualize_feature_predictions) {
     displayImage("Feature Tracks With Predicted Keypoints",
                  getTrackerImage(*ref_frame, *cur_frame, px_predicted, px_ref),
                  display_queue_);
@@ -385,7 +389,8 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
   Vector3 point3_i_gtsam =
       stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2).vector();
   Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
-  // TODO(Toni): Adapt value of this threshold for different calibration models!
+  // TODO(Toni): Adapt value of this threshold for different calibration
+  // models!
   // (1e-1)
   if ((point3_i_gtsam - point3_i).norm() > 1e-1) {
     VLOG(10) << "\n point3_i_gtsam \n " << point3_i_gtsam << "\n point3_i \n"
@@ -629,7 +634,8 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
       totalInfo.cast<double>());
 }
 
-// TODO(Toni): this function is almost a replica of the Mono version, factorize.
+// TODO(Toni): this function is almost a replica of the Mono version,
+// factorize.
 std::pair<TrackingStatus, gtsam::Pose3>
 Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                                          StereoFrame& cur_stereoFrame) {
@@ -795,7 +801,8 @@ void Tracker::removeOutliersStereo(const std::vector<int>& inliers,
   std::vector<int> outliers;
   findOutliers(*matches_ref_cur, inliers, &outliers);
 
-  // Remove outliers: outliers cannot be a vector of size_t because opengv uses
+  // Remove outliers: outliers cannot be a vector of size_t because opengv
+  // uses
   // a vector of int.
   for (const size_t& out : outliers) {
     const KeypointMatch& kp_match = (*matches_ref_cur)[out];
@@ -912,7 +919,6 @@ bool Tracker::computeMedianDisparity(const KeypointsCV& ref_frame_kpts,
   return true;
 }
 
-/* -------------------------------------------------------------------------- */
 cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
                                  const Frame& cur_frame,
                                  const KeypointsCV& extra_corners_gray,

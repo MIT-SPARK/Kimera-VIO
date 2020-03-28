@@ -191,7 +191,6 @@ Pipeline::Pipeline(const VioParams& params)
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
 
-  // TODO(Toni): only create if used.
   if (static_cast<VisualizationType>(FLAGS_viz_type) ==
       VisualizationType::kMesh2dTo3dSparse) {
     mesher_module_ = VIO::make_unique<MesherModule>(

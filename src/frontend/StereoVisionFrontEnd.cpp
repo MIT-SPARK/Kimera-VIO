@@ -23,6 +23,7 @@
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 
+DEFINE_bool(visualize_feature_tracks, true, "Display feature tracks.");
 DEFINE_bool(visualize_frontend_images,
             false,
             "Display images in frontend logger for debugging (only use "
@@ -360,7 +361,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
-    if (display_queue_) {
+    if (display_queue_ && FLAGS_visualize_feature_tracks) {
       displayImage("Feature Tracks",
                    tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
                                             stereoFrame_k_->getLeftFrame()),
