@@ -3,7 +3,7 @@
 # 0: Structureless factors only, 4: SPR pipeline
 backend_modality: 0
 #INITIALIZATION PARAMETERS
-autoInitialize: 0
+autoInitialize: 1
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
