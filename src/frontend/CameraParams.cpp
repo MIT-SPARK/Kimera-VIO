@@ -14,8 +14,8 @@
 
 #include "kimera-vio/frontend/CameraParams.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 #include <gtsam/navigation/ImuBias.h>
 
@@ -153,52 +153,53 @@ void CameraParams::createGtsamCalibration(const std::vector<double>& distortion,
   CHECK_NOTNULL(calibration);
   CHECK_GE(intrinsics.size(), 4);
   CHECK_GE(distortion.size(), 4);
-  *calibration = gtsam::Cal3DS2(
-      intrinsics[0],   // fx
-      intrinsics[1],   // fy
-      0.0,             // skew
-      intrinsics[2],   // u0
-      intrinsics[3],   // v0
-      distortion[0],   // k1
-      distortion[1],   // k2
-      distortion[2],   // p1 (k3)
-      distortion[3]);  // p2 (k4)
+  *calibration = gtsam::Cal3DS2(intrinsics[0],   // fx
+                                intrinsics[1],   // fy
+                                0.0,             // skew
+                                intrinsics[2],   // u0
+                                intrinsics[3],   // v0
+                                distortion[0],   // k1
+                                distortion[1],   // k2
+                                distortion[2],   // p1 (k3)
+                                distortion[3]);  // p2 (k4)
 }
 
 /* -------------------------------------------------------------------------- */
 // Display all params.
 void CameraParams::print() const {
-  std::string output;
-  for(size_t i = 0; i < intrinsics_.size(); i++) {
-    output += std::to_string(intrinsics_.at(i)) + " , ";
-  }
-  LOG(INFO) << "------------ Camera ID: " << camera_id_ << " -------------\n"
-            << "intrinsics_: " << output;
+  std::stringstream out;
+  PipelineParams::print(out,
+                        "Camera ID ",
+                        camera_id_,
+                        "Intrinsics: \n- fx",
+                        intrinsics_[0],
+                        "- fy",
+                        intrinsics_[1],
+                        "- cu",
+                        intrinsics_[2],
+                        "- cv",
+                        intrinsics_[3],
+                        "frame_rate_: ",
+                        frame_rate_,
+                        "image_size_: \n - width",
+                        image_size_.width,
+                        "- height",
+                        image_size_.height);
+  LOG(INFO) << out.str();
+  LOG(INFO) << "- body_Pose_cam_: " << body_Pose_cam_ << '\n'
+            << "- K: " << K_ << '\n'
+            << "- distortion_model: " << distortion_model_ << '\n'
+            << "- distortion_coeff: " << distortion_coeff_ << '\n'
+            << "- R_rectify: " << R_rectify_ << '\n'
+            << "- P: " << P_;
 
-  LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
-
-  if (FLAGS_minloglevel < 1)
-    calibration_.print("\n gtsam calibration:\n");
-
-  LOG(INFO) << "frame_rate_: " << frame_rate_ << '\n'
-            << "image_size_: width= " << image_size_.width
-            << " height= " << image_size_.height << '\n'
-            << "camera_matrix_: \n"
-            << K_ << '\n'
-            << "distortion_model_: " << distortion_model_ << '\n'
-            << "distortion_coeff_: \n"
-            << distortion_coeff_ << '\n'
-            << "R_rectify_: \n"
-            << R_rectify_ << '\n'
-            << "undistRect_map_y_ too large to display (only created in "
-            << "StereoFrame)" << '\n'
-            << "P_: \n"
-            << P_ << '\n';
+  if (FLAGS_minloglevel < 1) calibration_.print("\n gtsam calibration:\n");
 }
 
 /* -------------------------------------------------------------------------- */
 // Assert equality up to a tolerance.
-bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const {
+bool CameraParams::equals(const CameraParams& cam_par,
+                          const double& tol) const {
   bool areIntrinsicEqual = true;
   for (size_t i = 0; i < intrinsics_.size(); i++) {
     if (std::fabs(intrinsics_[i] - cam_par.intrinsics_[i]) > tol) {
@@ -212,8 +213,7 @@ bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const 
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
          calibration_.equals(cam_par.calibration_, tol) &&
-         UtilsOpenCV::compareCvMatsUpToTol(K_,
-                                           cam_par.K_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(K_, cam_par.K_) &&
          UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_,
                                            cam_par.distortion_coeff_) &&
          UtilsOpenCV::compareCvMatsUpToTol(undistRect_map_x_,

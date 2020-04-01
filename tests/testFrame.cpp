@@ -57,7 +57,8 @@ TEST(testFrame, ExtractCornersChessboard) {
           0,
           CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
-  f.extractCorners();
+  UtilsOpenCV::ExtractCorners(f.img_,
+                              &f.keypoints_);
   int numCorners_expected = 7 * 9;
   int numCorners_actual = f.keypoints_.size();
   // Assert that there are right number of corners!
@@ -68,7 +69,8 @@ TEST(testFrame, ExtractCornersChessboard) {
 TEST(testFrame, ExtractCornersWhiteBoard) {
   Frame f(0, 0, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(whitewallImgName));
-  f.extractCorners();
+  UtilsOpenCV::ExtractCorners(f.img_,
+                              &f.keypoints_);
   int numCorners_expected = 0;
   int numCorners_actual = f.keypoints_.size();
   // Assert that there are no corners!
@@ -172,7 +174,7 @@ uncalibrated_px_actual - uncalibrated_px_expected;
 TEST(testFrame, findLmkIdFromPixel) {
   Frame f(0, 0, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
-  f.extractCorners();
+  UtilsOpenCV::ExtractCorners(f.img_, &f.keypoints_);
   for (int i = 0; i < f.keypoints_.size(); i++) {
     f.landmarks_.push_back(
         i + 5);  // always push a valid and sometimes also an outlier

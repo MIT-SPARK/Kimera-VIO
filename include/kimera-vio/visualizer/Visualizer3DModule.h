@@ -52,9 +52,7 @@ class VisualizerModule
   inline void fillBackendQueue(const VizBackendInput& backend_payload) {
     backend_queue_.push(backend_payload);
   }
-  inline void fillMesherQueue(const VizMesherInput& mesher_payload) {
-    mesher_queue_.push(mesher_payload);
-  }
+  void fillMesherQueue(const VizMesherInput& mesher_payload);
 
  protected:
   //! Synchronize input queues. Currently doing it in a crude way:
@@ -76,7 +74,8 @@ class VisualizerModule
   //! Input Queues
   ThreadsafeQueue<VizFrontendInput> frontend_queue_;
   ThreadsafeQueue<VizBackendInput> backend_queue_;
-  ThreadsafeQueue<VizMesherInput> mesher_queue_;
+  /// Mesher queue is optional, therefore it is a unique ptr (nullptr if unused)
+  ThreadsafeQueue<VizMesherInput>::UniquePtr mesher_queue_;
 
   //! Visualizer implementation
   Visualizer3D::UniquePtr visualizer_;

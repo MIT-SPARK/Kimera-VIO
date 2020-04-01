@@ -76,6 +76,9 @@ noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
 numOptimize: 1
 horizon: 6 # In seconds.
+# ISAM2GaussNewtonParams: continue updating the linear delta only when
+# changes are above this threshold (default: 0.001)
+wildfire_threshold: 0.001
 useDogLeg: 0
 
 ## NON PARSED PARAMS ##########################################################

@@ -33,6 +33,8 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
 
+#include "kimera-vio/utils/UtilsNumerical.h"
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -249,30 +251,24 @@ bool UtilsOpenCV::roundAndCropToSize(cv::Point2f* px, const cv::Size& size) {
 /* -------------------------------------------------------------------------- */
 bool UtilsOpenCV::ExtractCorners(const cv::Mat& img,
                                  std::vector<cv::Point2f>* corners,
+                                 const int& max_n_corners,
                                  const double& qualityLevel,
                                  const double& minDistance,
                                  const int& blockSize,
                                  const double& k,
                                  const bool& useHarrisDetector) {
   CHECK_NOTNULL(corners)->clear();
-  // TODO(Toni): wtf are all these hardcoded things :(
-  // please remove...
-  static const cv::TermCriteria criteria(
-      CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-  static const cv::Size winSize(10, 10);
-  static const cv::Size zeroZone(-1, -1);
   try {
     // Extract the corners
     cv::goodFeaturesToTrack(img,
                             *corners,
-                            100,
+                            max_n_corners,
                             qualityLevel,
                             minDistance,
                             cv::noArray(),
                             blockSize,
                             useHarrisDetector,
                             k);
-    cv::cornerSubPix(img, *corners, winSize, zeroZone, criteria);
   } catch (...) {
     LOG(ERROR) << "ExtractCorners: no corner found in image.";
     return false;
@@ -347,25 +343,13 @@ gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3& x) {
   }
   return gtsam::Unit3(x_vect_round);
 }
-/* -------------------------------------------------------------------------- */
-// rounds number to a specified number of decimal digits
-// (digits specifies the number of digits to keep AFTER the decimal point)
-double UtilsOpenCV::RoundToDigit(const double x, const int digits) {
-  double dec = pow(10, digits);  // 10^digits
-  double y = double(round(x * dec)) / dec;
-  return y;
-}
-/* ------------------------------------------------------------------------ */
-// Generate random float using random number generator between -sigma and sigma
-double UtilsOpenCV::RandomFloatGenerator(const double sigma) {
-  return ((double)rand() / RAND_MAX) * sigma - sigma / 2.0;
-}
+
 /* ------------------------------------------------------------------------ */
 // Generate random vector using random number generator between -sigma and sigma
 gtsam::Vector3 UtilsOpenCV::RandomVectorGenerator(const double sigma) {
-  double x = RandomFloatGenerator(sigma);
-  double y = RandomFloatGenerator(sigma);
-  double z = RandomFloatGenerator(sigma);
+  double x = UtilsNumerical::RandomFloatGenerator(sigma);
+  double y = UtilsNumerical::RandomFloatGenerator(sigma);
+  double z = UtilsNumerical::RandomFloatGenerator(sigma);
   return gtsam::Vector3(x, y, z);
 }
 /* ------------------------------------------------------------------------ */
@@ -376,33 +360,7 @@ gtsam::Pose3 UtilsOpenCV::RandomPose3(const double rad_sigma,
   gtsam::Vector3 pos = RandomVectorGenerator(pos_sigma);
   return gtsam::Pose3(gtsam::Rot3::RzRyRx(rot.x(), rot.y(), rot.z()), pos);
 }
-/* -------------------------------------------------------------------------- */
-// converts doulbe to sting with desired number of digits (total number of
-// digits)
-std::string UtilsOpenCV::To_string_with_precision(const double a_value,
-                                                  const int n) {
-  std::ostringstream out;
-  out << std::setprecision(n) << a_value;
-  return out.str();
-}
-/* -------------------------------------------------------------------------- */
-// converts time from nanoseconds to seconds
-double UtilsOpenCV::NsecToSec(const Timestamp& timestamp) {
-  return double(timestamp) * 1e-9;
-}
-/* -------------------------------------------------------------------------- */
-// (NOT TESTED): converts time from seconds to nanoseconds
-std::int64_t UtilsOpenCV::SecToNsec(const double timeInSec) {
-  return double(timeInSec * 1e9);
-}
-/* -------------------------------------------------------------------------- */
-// (NOT TESTED): get current time in seconds
-double UtilsOpenCV::GetTimeInSeconds() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  int64_t time_usec = tv.tv_sec * (int64_t)1e6 + tv.tv_usec;
-  return ((double)time_usec * 1e-6);
-}
+
 /* -------------------------------------------------------------------------- */
 // given two gtsam::Pose3 computes the relative rotation and translation errors:
 // rotError,tranError
@@ -434,15 +392,13 @@ std::pair<double, double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
 cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string& img_name,
                                                bool equalize) {
   cv::Mat img = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
-  LOG_IF(ERROR, img.empty()) << "Image " << img_name << " is empty!";
   if (img.channels() > 1) {
-    LOG_EVERY_N(WARNING, 100)
-        << "Note: performing color conversion for images.";
+    LOG(WARNING) << "Converting img from BGR to GRAY...";
     cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
   }
+  // Apply Histogram Equalization
   if (equalize) {
-    LOG_EVERY_N(WARNING, 100)
-        << "Note: performing Histogram Equalization for images.";
+    LOG(WARNING) << "- Histogram Equalization for image: " << img_name;
     cv::equalizeHist(img, img);
   }
   return img;
@@ -592,12 +548,13 @@ void UtilsOpenCV::DrawTextInPlace(cv::Mat& img,
   if (img.channels() < 3) cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
   for (size_t i = 0; i < imagePoints.size(); i++) {
     if (imagePoints.size() == textDoubles.size())  // write text
-      cv::putText(img,
-                  To_string_with_precision(textDoubles.at(i), 3),
-                  imagePoints[i] + textOffset,
-                  CV_FONT_HERSHEY_COMPLEX,
-                  msize,
-                  color);
+      cv::putText(
+          img,
+          UtilsNumerical::To_string_with_precision(textDoubles.at(i), 3),
+          imagePoints[i] + textOffset,
+          CV_FONT_HERSHEY_COMPLEX,
+          msize,
+          color);
   }
 }
 /* -------------------------------------------------------------------------- */
@@ -704,7 +661,7 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
     if (displayWithText && circleSizes.size() == imagePoints.size() &&
         circleSizes[i] != -1) {
       cv::putText(img_color,
-                  UtilsOpenCV::To_string_with_precision(circleSizes[i]),
+                  UtilsNumerical::To_string_with_precision(circleSizes[i]),
                   imagePoints[i] + textOffset,
                   CV_FONT_HERSHEY_COMPLEX,
                   0.4,

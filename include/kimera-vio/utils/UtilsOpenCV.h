@@ -16,6 +16,7 @@
 #pragma once
 
 #include <iostream>
+#include <string>
 
 #include <glog/logging.h>
 
@@ -177,6 +178,7 @@ public:
   // goodFeaturesToTrack)
   static bool ExtractCorners(const cv::Mat& img,
                              std::vector<cv::Point2f>* corners,
+                             const int& max_n_corners = 100,
                              const double& qualityLevel = 0.01,
                              const double& minDistance = 10,
                              const int& blockSize = 3,
@@ -195,37 +197,12 @@ public:
   static gtsam::Unit3 RoundUnit3(const gtsam::Unit3& x);
 
   /* ------------------------------------------------------------------------ */
-  // rounds number to a specified number of decimal digits
-  // (digits specifies the number of digits to keep AFTER the decimal point)
-  static double RoundToDigit(const double x, const int digits = 2);
-
-  /* ------------------------------------------------------------------------ */
-  // Generate random float using random number generator between -sigma and sigma
-  static double RandomFloatGenerator(const double sigma);
-
-  /* ------------------------------------------------------------------------ */
   // Generate random vector using random number generator between -sigma and sigma
   static gtsam::Vector3 RandomVectorGenerator(const double sigma);
 
   /* ------------------------------------------------------------------------ */
   // Generates random noisy pose around identity with rad_sigma and pos_sigma
   static gtsam::Pose3 RandomPose3(const double rad_sigma, const double pos_sigma);
-
-  /* ------------------------------------------------------------------------ */
-  // converts doulbe to sting with desired number of digits (total number of digits)
-  static std::string To_string_with_precision(const double a_value,
-                                              const int n = 3);
-  /* ------------------------------------------------------------------------ */
-  // converts time from nanoseconds to seconds
-  static double NsecToSec(const std::int64_t& timestamp);
-
-  /* ------------------------------------------------------------------------ */
-  // (NOT TESTED): converts time from seconds to nanoseconds
-  static std::int64_t SecToNsec(const double timeInSec);
-
-  /* ------------------------------------------------------------------------ */
-  // (NOT TESTED): get current time in seconds
-  static double GetTimeInSeconds();
 
   /* ------------------------------------------------------------------------ */
   // given two gtsam::Pose3 computes the relative rotation and translation errors: rotError,tranError

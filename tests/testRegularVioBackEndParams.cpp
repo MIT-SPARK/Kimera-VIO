@@ -68,6 +68,7 @@ TEST(testRegularVioBackEndParams, VioParseYAML) {
   EXPECT_DOUBLE_EQ(1.4, vp.constantVelSigma_);
   EXPECT_DOUBLE_EQ(0, vp.numOptimize_);
   EXPECT_DOUBLE_EQ(2, vp.horizon_);
+  EXPECT_DOUBLE_EQ(0.001, vp.wildfire_threshold_);
   EXPECT_DOUBLE_EQ(1, vp.useDogLeg_);
 }
 

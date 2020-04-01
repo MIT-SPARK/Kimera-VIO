@@ -43,10 +43,10 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   }
 
   if (!queue_state) {
-    LOG_IF(WARNING, PIO::parallel_run_)
-        << "Module: " << name_id_ << " - queue is down";
-    VLOG_IF(1, !PIO::parallel_run_)
-        << "Module: " << name_id_ << " - queue is empty or down";
+    LOG_IF(WARNING, PIO::parallel_run_) << "Module: " << name_id_
+                                        << " - queue is down";
+    VLOG_IF(1, !PIO::parallel_run_) << "Module: " << name_id_
+                                    << " - queue is empty or down";
     return nullptr;
   }
 
@@ -54,8 +54,15 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   const Timestamp& timestamp = left_frame_payload->timestamp_;
 
   // Look for the synchronized right frame inside the queue.
+  // This search might not be successful if the data_provider did not push to
+  // the right queue (perhaps fast enough).
   Frame::UniquePtr right_frame_payload = nullptr;
-  PIO::syncQueue(timestamp, &right_frame_queue_, &right_frame_payload);
+  if (!PIO::syncQueue(timestamp, &right_frame_queue_, &right_frame_payload)) {
+    // Dropping this message because of missing left/right stereo synced frames.
+    LOG(ERROR) << "Missing right frame for left frame with id "
+               << left_frame_payload->id_ << ", dropping this frame.";
+    return nullptr;
+  }
   CHECK(right_frame_payload);
 
   if (imu_data_.imu_buffer_.size() == 0) {
@@ -81,13 +88,14 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
-  while (!shutdown_ &&
+  while (
+      !shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
            timestamp_last_frame_,
            timestamp,
            &imu_meas.timestamps_,
            &imu_meas.acc_gyr_)) !=
-      utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
+          utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
     VLOG(1) << "No IMU data available. Reason:\n";
     switch (query_result) {
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
@@ -145,14 +153,15 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);
     vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
-                             StereoFrame(left_frame_payload->id_,
-                                         timestamp,
-                                         *left_frame_payload,
-                                         *right_frame_payload,
-                                         stereo_matching_params_),  // TODO(Toni): these params should
-                             // be given in PipelineParams.
-                             imu_meas.timestamps_,
-                             imu_meas.acc_gyr_));
+        StereoFrame(
+            left_frame_payload->id_,
+            timestamp,
+            *left_frame_payload,
+            *right_frame_payload,
+            stereo_matching_params_),  // TODO(Toni): these params should
+        // be given in PipelineParams.
+        imu_meas.timestamps_,
+        imu_meas.acc_gyr_));
   }
 
   // Push the synced messages to the frontend's input queue

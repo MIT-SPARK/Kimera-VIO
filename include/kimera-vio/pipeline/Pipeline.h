@@ -26,7 +26,6 @@
 #include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/DataProviderModule.h"
-#include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
@@ -63,15 +62,17 @@ class Pipeline {
   }
   //! Callbacks to fill queues but they block if queues are getting full.
   //! Useful when parsing datasets, don't use with real sensors.
-  inline void fillLeftFrameQueueBlocking(Frame::UniquePtr left_frame) {
+  inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
     CHECK(data_provider_module_);
     CHECK(left_frame);
-    data_provider_module_->fillLeftFrameQueueBlocking(std::move(left_frame));
+    data_provider_module_->fillLeftFrameQueueBlockingIfFull(
+        std::move(left_frame));
   }
-  inline void fillRightFrameQueueBlocking(Frame::UniquePtr right_frame) {
+  inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
     CHECK(data_provider_module_);
     CHECK(right_frame);
-    data_provider_module_->fillRightFrameQueueBlocking(std::move(right_frame));
+    data_provider_module_->fillRightFrameQueueBlockingIfFull(
+        std::move(right_frame));
   }
   //! Fill one IMU measurement at a time.
   inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
@@ -122,8 +123,12 @@ class Pipeline {
   // Register external callback to output mesher results.
   inline void registerMesherOutputCallback(
       const MesherModule::OutputCallback& callback) {
-    CHECK(mesher_module_);
-    mesher_module_->registerCallback(callback);
+    if (mesher_module_) {
+      mesher_module_->registerCallback(callback);
+    } else {
+      LOG(ERROR) << "Attempt to register Mesher output callback, but no "
+                 << "Mesher member is active in pipeline.";
+    }
   }
 
   // Register external callback to output the LoopClosureDetector's results.
@@ -157,6 +162,14 @@ class Pipeline {
     return data_provider_module_->spin();
   }
 
+  /**
+   * @brief printStatistics Prints timing statistics of each VIO module.
+   * @return A table of the timing statistics that can be printed to console.
+   */
+  inline std::string printStatistics() const {
+    return utils::Statistics::Print();
+  }
+
  private:
   // Spin the pipeline only once.
   void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
@@ -187,20 +200,6 @@ class Pipeline {
 
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  StatusStereoMeasurements featureSelect(
-      const FrontendParams& tracker_params,
-      const FeatureSelectorParams& feature_selector_params,
-      const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf,
-      const gtsam::Pose3& W_Pose_Blkf,
-      double* feature_selection_time,
-      std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusStereoMeasurements& smart_stereo_meas,
-      int cur_kf_id,
-      int save_image_selector,
-      const gtsam::Matrix& curr_state_cov,
-      const Frame& left_frame);
 
   // Launch different threads with processes.
   void launchThreads();
@@ -236,7 +235,6 @@ class Pipeline {
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
   StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
-  std::unique_ptr<FeatureSelector> feature_selector_;
 
   //! Stereo vision frontend payloads.
   StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
