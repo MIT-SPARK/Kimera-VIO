@@ -28,7 +28,7 @@
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -66,25 +66,14 @@ class Tracker {
                        Frame* cur_frame,
                        const gtsam::Rot3& inter_frame_rotation);
 
-  // Get good features to track from image (wrapper for opencv
-  // goodFeaturesToTrack)
-  static void MyGoodFeaturesToTrackSubPix(
-      const cv::Mat& image,
-      const int& max_corners,
-      const double& quality_level,
-      const double& min_distance,  // Not const because modified dkwhy inside...
-      const cv::Mat& mask,
-      const int& blockSize,
-      const bool& useHarrisDetector,
-      const double& harrisK,
-      KeypointsWithScores* corners_with_scores);
-
-  void featureDetection(Frame* cur_frame);
-
+  // TODO(Toni): this function is almost a replica of the Stereo version,
+  // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
       Frame* ref_frame,
       Frame* cur_frame);
 
+  // TODO(Toni): this function is almost a replica of the Mono version,
+  // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionStereo(
       StereoFrame& ref_frame,
       StereoFrame& cur_frame);
@@ -147,12 +136,6 @@ class Tracker {
                                      const KeypointMatches& matches_ref_cur,
                                      double* median_disparity);
 
-  // Returns landmark_count (updated from the new keypoints),
-  // and nr or extracted corners.
-  KeypointsWithScores featureDetection(const Frame& cur_frame,
-                                       const cv::Mat& cam_mask,
-                                       const int need_n_corners);
-
   static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
       const StereoFrame& stereoFrame,
       const gtsam::StereoCamera& stereoCam,
@@ -184,6 +167,13 @@ class Tracker {
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
   std::string output_images_path_;
+
+  // Monocular RANSACs
+  opengv::sac::Ransac<ProblemMono> mono_ransac_;
+  opengv::sac::Ransac<ProblemMonoGivenRot> mono_ransac_given_rot_;
+
+  // Stereo RANSAC
+  opengv::sac::Ransac<ProblemStereo> stereo_ransac_;
 };
 
 }  // namespace VIO

@@ -15,10 +15,13 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <string>
+#include <utility>
 
 #include <glog/logging.h>
 
@@ -32,7 +35,7 @@ class ThreadsafeQueueBase {
   KIMERA_POINTER_TYPEDEFS(ThreadsafeQueueBase);
   KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueueBase);
   typedef std::queue<std::shared_ptr<T>> InternalQueue;
-  ThreadsafeQueueBase(const std::string& queue_id);
+  explicit ThreadsafeQueueBase(const std::string& queue_id);
   virtual ~ThreadsafeQueueBase() = default;
 
   /** \brief Push by value. Returns false if the queue has been shutdown.
@@ -70,6 +73,8 @@ class ThreadsafeQueueBase {
    * If the queue has been shutdown, it returns a null shared_ptr.
    */
   virtual std::shared_ptr<T> popBlocking() = 0;
+
+  virtual bool popBlockingWithTimeout(T& value, size_t duration_ms) = 0;
 
   /** \brief Pop without blocking, just checks once if the queue is empty.
    * Returns true if the value could be retrieved, false otherwise.
@@ -119,6 +124,14 @@ class ThreadsafeQueueBase {
     return data_queue_.empty();
   }
 
+  /** \brief Checks if the queue is shutdown.
+   * the state of the queue might change right after this query.
+   */
+  bool isShutdown() const {
+    std::lock_guard<std::mutex> lk(mutex_);
+    return shutdown_;
+  }
+
  public:
   std::string queue_id_;
 
@@ -135,7 +148,7 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
   using TQB = ThreadsafeQueueBase<T>;
   KIMERA_POINTER_TYPEDEFS(ThreadsafeQueue);
   KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueue);
-  ThreadsafeQueue(const std::string& queue_id);
+  explicit ThreadsafeQueue(const std::string& queue_id);
   virtual ~ThreadsafeQueue() = default;
 
   /** \brief Push by value. Returns false if the queue has been shutdown.
@@ -175,6 +188,15 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
    */
   std::shared_ptr<T> popBlocking() override;
 
+  /**
+   * @brief popBlockingUpToTime Same as Pop blocking, but further returns early
+   * if the given duration has passed...
+   * @param value Returned value
+   * @param duration_ms Time to wait for a msg [in milliseconds]
+   * @return Returns false if the queue has been shutdown or if it was timeout.
+   */
+  bool popBlockingWithTimeout(T& value, size_t duration_ms) override;
+
   /** \brief Pop without blocking, just checks once if the queue is empty.
    * Returns true if the value could be retrieved, false otherwise.
    */
@@ -212,9 +234,9 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
  public:
   KIMERA_POINTER_TYPEDEFS(ThreadsafeNullQueue);
   KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeNullQueue);
-  ThreadsafeNullQueue(const std::string& queue_id)
+  explicit ThreadsafeNullQueue(const std::string& queue_id)
       : ThreadsafeQueue<T>(queue_id) {}
-  virtual ~ThreadsafeNullQueue() override = default;
+  ~ThreadsafeNullQueue() override = default;
 
   //! Do nothing
   // virtual bool push(const T& new_value) override { return true; }
@@ -296,6 +318,22 @@ std::shared_ptr<T> ThreadsafeQueue<T>::popBlocking() {
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
   return result;
+}
+
+template <typename T>
+bool ThreadsafeQueue<T>::popBlockingWithTimeout(T& value, size_t duration_ms) {
+  std::unique_lock<std::mutex> lk(mutex_);
+  // Wait until there is data in the queue, shutdown is requested, or
+  // the given time is elapsed...
+  data_cond_.wait_for(lk, std::chrono::milliseconds(duration_ms), [this] {
+    return !data_queue_.empty() || shutdown_;
+  });
+  // Return false in case shutdown is requested or the queue is empty (in which
+  // case, a timeout has happened).
+  if (shutdown_ || data_queue_.empty()) return false;
+  value = std::move(*data_queue_.front());
+  data_queue_.pop();
+  return true;
 }
 
 template <typename T>

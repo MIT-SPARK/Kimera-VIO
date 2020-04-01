@@ -121,6 +121,7 @@ class BackendParams : public PipelineParams {
   double relinearizeSkip_ = 1.0;
   double horizon_ = 6.0;
   int numOptimize_ = 2;
+  double wildfire_threshold_ = 0.001;
   bool useDogLeg_ = false;
 
   //! No Motion params

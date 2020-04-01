@@ -726,7 +726,7 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
   std::vector<FrameId> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, false);
 
-  Points3d f_ref, f_cur;
+  BearingVectors f_ref, f_cur;
 
   // Fill point clouds with matched 3D keypoints.
   CHECK_EQ(i_query.size(), i_match.size());

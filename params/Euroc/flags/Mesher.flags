@@ -10,7 +10,6 @@
 --log_histogram_1D=false
 --visualize_histogram_2D=false
 --log_histogram_2D=false
---visualize_mesh_2d=true
 
 # Mesh filters.
 --max_grad_in_triangle=-1
@@ -55,4 +54,4 @@
 --z_histogram_max_number_of_peaks_to_select=3
 
 # Extras
---return_mesh_2d=true
+--return_mesh_2d=false

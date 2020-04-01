@@ -14,6 +14,10 @@
 
 #pragma once
 
+#include <deque>
+#include <map>
+#include <memory>
+#include <string>
 #include <vector>
 
 #include <glog/logging.h>
@@ -209,9 +213,11 @@ class Visualizer3D {
                                              const Mesh2D& mesh_2d,
                                              const Mesh3D& mesh_3d);
 
+ public:
+  VisualizationType visualization_type_;
+
  private:
   // Flags for visualization behaviour.
-  const VisualizationType visualization_type_;
   const BackendType backend_type_;
 
   // Callbacks.

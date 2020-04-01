@@ -43,9 +43,8 @@ OpenCv3dDisplay::OpenCv3dDisplay(
   // TODO(Toni): not sure if we need this...
   // See page 211:
   // Learning OpenCV 3: Computer Vision in C++ with the OpenCV Library
-  LOG_IF(WARNING, cv::startWindowThread() == 0)
-      << "Could not start OpenCV window thread.";
-  cv::namedWindow("Mesh 2D");
+  //LOG_IF(WARNING, cv::startWindowThread() == 0)
+  //    << "Could not start OpenCV window thread.";
 
   // TODO(Toni): perhaps we want to use these in the future
   // cv::createButton(nameb2, callbackButton,NULL,QT_CHECKBOX,0);
@@ -103,7 +102,7 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
   static const std::string kMesh = "Mesh";
   auto mesh_iterator = widgets->find(kMesh);
   if (mesh_iterator == widgets->end()) {
-    LOG(WARNING) << "Missing Mesh in visualization's 3D widgets";
+    LOG_EVERY_N(WARNING, 100) << "Missing Mesh in visualization's 3D widgets.";
     return;
   }
   WidgetPtr& mesh_widget = mesh_iterator->second;

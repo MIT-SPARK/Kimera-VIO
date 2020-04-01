@@ -7,13 +7,18 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   VioFrontEndParams.cpp
- * @brief frontend parameters
+ * @file   FeatureDetector-definitions.h
+ * @brief  Definitions for feature detection.
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#pragma once
 
-#include <utility>
+#include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
 
-namespace VIO {}  // namespace VIO
+namespace VIO {
+
+// GFTT is goodFeaturesToTrack detector.
+enum class FeatureDetectorType { FAST = 0, ORB = 1, AGAST = 2, GFTT = 3 };
+
+}  // namespace VIO

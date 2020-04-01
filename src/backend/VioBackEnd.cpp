@@ -42,6 +42,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DEFINE_bool(debug_graph_before_opt,
             false,
@@ -158,11 +159,11 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   }
 
   // Generate extra optional backend ouputs.
-  static const bool kOutputLmkMap =
+  const bool kOutputLmkMap =
       backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
-  static const bool kMinLmkObs =
+  const bool kMinLmkObs =
       backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
-  static const bool kOutputLmkTypeMap =
+  const bool kOutputLmkTypeMap =
       backend_output_params_.output_lmk_id_to_lmk_type_map_;
   LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
@@ -252,7 +253,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   ++curr_kf_id_;
 
   VLOG(1) << "VIO: adding keyframe " << curr_kf_id_
-          << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
+          << " at timestamp:" << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
@@ -297,12 +298,14 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   const TrackingStatus& kfTrackingStatus_mono =
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch (kfTrackingStatus_mono) {
-    case TrackingStatus::LOW_DISPARITY:  // vehicle is not moving
-      LOG(WARNING) << "LOW_DISPARITY: Adding zero velocity and no motion "
-                      "factors to backend.";
+    // vehicle is not moving
+    case TrackingStatus::LOW_DISPARITY: {
+      LOG(WARNING)
+          << "Low disparity: adding zero velocity and no motion factors.";
       addZeroVelocityPrior(curr_kf_id_);
       addNoMotionFactor(last_kf_id_, curr_kf_id_);
       break;
+    }
 
     // This did not improve in any case
     //  case TrackingStatus::INVALID :// ransac failed hence we cannot
@@ -311,10 +314,12 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     //    (monoRansac is INVALID)\n");}
     //    addConstantVelocityFactor(last_id_, cur_id_); break;
 
-    default:  // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
-              // we add features in VIO
+      // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
+      // we add features in VIO
+    default: {
       addLandmarksToGraph(landmarks_kf);
       break;
+    }
   }
 
   // Why do we do this??
@@ -352,8 +357,8 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   int n_updated_landmarks = 0;
   debug_info_.numAddedSmartF_ += landmarks_kf.size();
 
-  for (const LandmarkId& lm_id : landmarks_kf) {
-    FeatureTrack& ft = feature_tracks_.at(lm_id);
+  for (const LandmarkId& lmk_id : landmarks_kf) {
+    FeatureTrack& ft = feature_tracks_.at(lmk_id);
     if (ft.obs_.size() < 2) {  // we only insert feature tracks of length at
                                // least 2 (otherwise uninformative)
       continue;
@@ -361,25 +366,22 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
 
     if (!ft.in_ba_graph_) {
       ft.in_ba_graph_ = true;
-      addLandmarkToGraph(lm_id, ft);
+      addLandmarkToGraph(lmk_id, ft);
       ++n_new_landmarks;
     } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
-      if (obs_kf.first != curr_kf_id_)  // sanity check
-        LOG(FATAL) << "addLandmarksToGraph: last obs is not from the current "
-                      "keyframe!\n";
+      LOG_IF(FATAL, obs_kf.first != curr_kf_id_)
+          << "addLandmarksToGraph: last obs is not from the current "
+             "keyframe!\n";
 
-      updateLandmarkInGraph(lm_id, obs_kf);
+      updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
 
-  if (VLOG_IS_ON(10)) {
-    std::cout << "Added " << n_new_landmarks << " new landmarks" << std::endl;
-    std::cout << "Updated " << n_updated_landmarks << " landmarks in graph"
-              << std::endl;
-  }
+  VLOG(10) << "Added " << n_new_landmarks << " new landmarks\n"
+           << "Updated " << n_updated_landmarks << " landmarks in graph";
 }
 
 /* --------------------------------------------------------------------------
@@ -393,10 +395,9 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
       boost::make_shared<SmartStereoFactor>(
           smart_noise_, smart_factors_params_, B_Pose_leftCam_);
 
-  if (VLOG_IS_ON(10)) {
-    std::cout << "Adding landmark with: " << ft.obs_.size()
-              << " landmarks to graph, with keys: ";
-  }
+  VLOG(10) << "Adding landmark with: " << ft.obs_.size()
+           << " landmarks to graph, with keys: ";
+
   if (VLOG_IS_ON(10)) {
     new_factor->print();
   }
@@ -411,6 +412,7 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
   if (VLOG_IS_ON(10)) {
     std::cout << std::endl;
   }
+
   // add new factor to suitable structures:
   new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
   old_smart_factors_.insert(
@@ -688,6 +690,10 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
       VLOG(20) << "Updating feature track for lmk: " << lmk_id_in_kf_i << ".";
       feature_track_it->second.obs_.push_back(
           std::make_pair(frame_num, stereo_px_i));
+
+      // TODO(Toni):
+      // Mark feature tracks that have been re-observed, so that we can delete
+      // the broken feature tracks efficiently.
     }
   }
 }
@@ -784,7 +790,7 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id,
   precisions.head<3>().setConstant(backend_params_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(
       backend_params_.betweenTranslationPrecision_);
-  static const gtsam::SharedNoiseModel& betweenNoise_ =
+  const gtsam::SharedNoiseModel& betweenNoise_ =
       gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   new_imu_prior_and_other_factors_.push_back(
@@ -1441,17 +1447,16 @@ void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
                                 gtsam::ISAM2Params* isam_param) {
   CHECK_NOTNULL(isam_param);
   // iSAM2 SETTINGS
-  gtsam::ISAM2GaussNewtonParams gauss_newton_params;
-  // TODO remove this hardcoded value...
-  gauss_newton_params.wildfireThreshold = -1.0;
-  // gauss_newton_params.setWildfireThreshold(0.001);
-
-  gtsam::ISAM2DoglegParams dogleg_params;
-  // dogleg_params.setVerbose(false); // only for debugging.
-
   if (vio_params.useDogLeg_) {
+    gtsam::ISAM2DoglegParams dogleg_params;
+    dogleg_params.wildfireThreshold = vio_params.wildfire_threshold_;
+    // dogleg_params.adaptationMode;
+    // dogleg_params.initialDelta;
+    // dogleg_params.setVerbose(false); // only for debugging.
     isam_param->optimizationParams = dogleg_params;
   } else {
+    gtsam::ISAM2GaussNewtonParams gauss_newton_params;
+    gauss_newton_params.wildfireThreshold = vio_params.wildfire_threshold_;
     isam_param->optimizationParams = gauss_newton_params;
   }
 
