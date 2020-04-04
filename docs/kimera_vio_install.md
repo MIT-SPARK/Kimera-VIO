@@ -69,7 +69,7 @@ Clone GTSAM: `git clone git@github.com:borglab/gtsam.git`
 > (last tested with commit `ee069286b447ff58b809423cc77c777a02abdfe5`)
 > Previously tested commits: `0c3e05f375c03c5ff5218e708db416b38f4113c8`
 
-Make build dir, and run `cmake`:
+Make build dir, and run `cmake` (if you use Ubuntu 16.04, check this [issue](https://github.com/borglab/gtsam/issues/266), you will have to update cmake or use one of the specific gtsam commits above):
 
 ```bash
 cd gtsam
