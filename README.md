@@ -69,6 +69,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
+- [ANMS](https://github.com/BAILOOL/ANMS-Codes) (source files in `src/frontend/feature-detector/anms`, used for adaptive non-max suppression).
 
 > Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimera_vio_install.md](./docs/kimera_vio_install.md).
 
@@ -133,9 +134,20 @@ We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
-## iii. Evalation and Debugging
+## iii. Evaluation and Debugging
 
 For more information on tools for debugging and evaluating the pipeline, see [our documentation](/docs/kimera_vio_debug_evaluation.md)
+
+## iv. Unit Testing
+
+We use [gtest](https://github.com/google/googletest) for unit testing.
+To run the unit tests: build the code, navigate inside the `build` folder and run `testKimeraVIO`:
+```bash
+cd build
+./testKimeraVIO
+```
+
+A useful flag is `./testKimeraVIO --gtest_filter=foo` to only run the test you are interested in (regex is also valid).
 
 # 3. Parameters
 Kimera-VIO accepts two independent sources of parameters:

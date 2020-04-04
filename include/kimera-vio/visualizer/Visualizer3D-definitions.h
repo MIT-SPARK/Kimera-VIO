@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 #include <string>
 
@@ -35,10 +38,10 @@ enum class VisualizerType {
 };
 
 enum class VisualizationType {
-  kMesh2dTo3dSparse,  // same as MESH2DTo3D but filters out triangles
-                      // corresponding to non planar obstacles
-  kPointcloud,        // visualize 3D VIO points  (no repeated point)
-  kNone               // does not visualize map
+  kMesh2dTo3dSparse = 0,  // same as MESH2DTo3D but filters out triangles
+                          // corresponding to non planar obstacles
+  kPointcloud = 1,        // visualize 3D VIO points  (no repeated point)
+  kNone = 2               // does not visualize map
 };
 
 typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
@@ -65,10 +68,9 @@ struct VisualizerInput : public PipelinePayload {
         mesher_output_(mesher_output),
         backend_output_(backend_output),
         frontend_output_(frontend_output) {
-    CHECK(mesher_output);
     CHECK(backend_output);
     CHECK(frontend_output);
-    CHECK_EQ(timestamp, mesher_output->timestamp_);
+    if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
     CHECK_EQ(timestamp, backend_output->timestamp_);
   }

@@ -20,6 +20,7 @@
 #include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/Statistics.h"
 
 namespace VIO {
 

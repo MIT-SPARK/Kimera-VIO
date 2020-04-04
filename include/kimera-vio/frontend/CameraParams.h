@@ -56,7 +56,8 @@ class CameraParams : public PipelineParams {
         undistRect_map_y_(),
         R_rectify_(),
         P_(),
-        is_stereo_with_camera_ids_() {}
+        is_stereo_with_camera_ids_() {
+  }
   virtual ~CameraParams() = default;
 
   // Parse YAML file describing camera parameters.

@@ -10,13 +10,11 @@
 --log_histogram_1D=false
 --visualize_histogram_2D=false
 --log_histogram_2D=false
---visualize_mesh_2d=false
---visualize_mesh_2d_filtered=false
 
 # Mesh filters.
 --max_grad_in_triangle=-1
---min_ratio_btw_largest_smallest_side=0
---min_elongation_ratio=0
+--min_ratio_btw_largest_smallest_side=0.2
+--min_elongation_ratio=0.2
 --max_triangle_side=2.0
 
 # Association.
@@ -56,4 +54,4 @@
 --z_histogram_max_number_of_peaks_to_select=3
 
 # Extras
---return_mesh_2d=true
+--return_mesh_2d=false

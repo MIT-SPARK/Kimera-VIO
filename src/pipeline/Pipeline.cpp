@@ -53,8 +53,6 @@ DEFINE_int32(viz_type,
              "keypoints in the left frame and filters out triangles \n"
              "2: NONE, does not visualize map.");
 
-DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
-
 DEFINE_bool(deterministic_random_number_generator,
             false,
             "If true the random number generator will consistently output the "
@@ -100,7 +98,6 @@ Pipeline::Pipeline(const VioParams& params)
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
-      feature_selector_(nullptr),
       vio_backend_module_(nullptr),
       lcd_module_(nullptr),
       backend_params_(params.backend_params_),
@@ -170,8 +167,8 @@ Pipeline::Pipeline(const VioParams& params)
   //! Params for what the backend outputs.
   // TODO(Toni): put this into backend params.
   BackendOutputParams backend_output_params(
-      static_cast<VisualizationType>(FLAGS_viz_type) ==
-          VisualizationType::kMesh2dTo3dSparse,
+      static_cast<VisualizationType>(FLAGS_viz_type) !=
+          VisualizationType::kNone,
       FLAGS_min_num_obs_for_mesher_points,
       FLAGS_visualize_lmk_type);
 
@@ -194,22 +191,24 @@ Pipeline::Pipeline(const VioParams& params)
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
 
-  // TODO(Toni): only create if used.
-  mesher_module_ = VIO::make_unique<MesherModule>(
-      parallel_run_,
-      MesherFactory::createMesher(
-          MesherType::PROJECTIVE,
-          MesherParams(stereo_camera_->getLeftCamPose(),
-                       params.camera_params_.at(0).image_size_)));
-  //! Register input callbacks
-  vio_backend_module_->registerCallback(
-      std::bind(&MesherModule::fillBackendQueue,
-                std::ref(*CHECK_NOTNULL(mesher_module_.get())),
-                std::placeholders::_1));
-  vio_frontend_module_->registerCallback(
-      std::bind(&MesherModule::fillFrontendQueue,
-                std::ref(*CHECK_NOTNULL(mesher_module_.get())),
-                std::placeholders::_1));
+  if (static_cast<VisualizationType>(FLAGS_viz_type) ==
+      VisualizationType::kMesh2dTo3dSparse) {
+    mesher_module_ = VIO::make_unique<MesherModule>(
+        parallel_run_,
+        MesherFactory::createMesher(
+            MesherType::PROJECTIVE,
+            MesherParams(stereo_camera_->getLeftCamPose(),
+                         params.camera_params_.at(0u).image_size_)));
+    //! Register input callbacks
+    vio_backend_module_->registerCallback(
+        std::bind(&MesherModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(mesher_module_.get())),
+                  std::placeholders::_1));
+    vio_frontend_module_->registerCallback(
+        std::bind(&MesherModule::fillFrontendQueue,
+                  std::ref(*CHECK_NOTNULL(mesher_module_.get())),
+                  std::placeholders::_1));
+  }
 
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
@@ -230,10 +229,12 @@ Pipeline::Pipeline(const VioParams& params)
         std::bind(&VisualizerModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
-    mesher_module_->registerCallback(
-        std::bind(&VisualizerModule::fillMesherQueue,
-                  std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-                  std::placeholders::_1));
+    if (mesher_module_) {
+      mesher_module_->registerCallback(
+          std::bind(&VisualizerModule::fillMesherQueue,
+                    std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                    std::placeholders::_1));
+    }
     //! Actual displaying of visual data is done in the main thread.
     display_module_ = VIO::make_unique<DisplayModule>(
         &display_input_queue_,
@@ -258,12 +259,6 @@ Pipeline::Pipeline(const VioParams& params)
         std::bind(&LcdModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
-  }
-
-  // Instantiate feature selector: not used in vanilla implementation.
-  if (FLAGS_use_feature_selection) {
-    feature_selector_ =
-        VIO::make_unique<FeatureSelector>(frontend_params_, *backend_params_);
   }
 }
 
@@ -393,37 +388,37 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
          (display_module_ ? !display_module_->isWorking() : true)))) {
     // Note that the values in the log below might be different than the
     // evaluation above since they are separately evaluated at different times.
-    LOG(INFO) << "shutdown_: " << shutdown_ << '\n'
-              << "VIO pipeline status: \n"
-              << "Initialized? " << is_initialized_ << '\n'
-              << "Data provider is working? "
-              << data_provider_module_->isWorking() << '\n'
-              << "Frontend input queue shutdown? "
-              << stereo_frontend_input_queue_.isShutdown() << '\n'
-              << "Frontend input queue empty? "
-              << stereo_frontend_input_queue_.empty() << '\n'
-              << "Frontend is working? " << vio_frontend_module_->isWorking()
-              << '\n'
-              << "Backend Input queue shutdown? "
-              << backend_input_queue_.isShutdown() << '\n'
-              << "Backend Input queue empty? " << backend_input_queue_.empty()
-              << '\n'
-              << "Backend is working? "
-              << (is_initialized_ ? vio_backend_module_->isWorking() : false)
-              << '\n'
-              << "Mesher is working? "
-              << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
-              << "LCD is working? "
-              << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
-              << "Visualizer is working? "
-              << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
-              << '\n'
-              << "Display Input queue shutdown? "
-              << display_input_queue_.isShutdown() << '\n'
-              << "Display Input queue empty? " << display_input_queue_.empty()
-              << '\n'
-              << "Displayer is working? "
-              << (display_module_ ? !display_module_->isWorking() : false);
+    VLOG(1) << "shutdown_: " << shutdown_ << '\n'
+            << "VIO pipeline status: \n"
+            << "Initialized? " << is_initialized_ << '\n'
+            << "Data provider is working? "
+            << data_provider_module_->isWorking() << '\n'
+            << "Frontend input queue shutdown? "
+            << stereo_frontend_input_queue_.isShutdown() << '\n'
+            << "Frontend input queue empty? "
+            << stereo_frontend_input_queue_.empty() << '\n'
+            << "Frontend is working? " << vio_frontend_module_->isWorking()
+            << '\n'
+            << "Backend Input queue shutdown? "
+            << backend_input_queue_.isShutdown() << '\n'
+            << "Backend Input queue empty? " << backend_input_queue_.empty()
+            << '\n'
+            << "Backend is working? "
+            << (is_initialized_ ? vio_backend_module_->isWorking() : false)
+            << '\n'
+            << "Mesher is working? "
+            << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
+            << "LCD is working? "
+            << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
+            << "Visualizer is working? "
+            << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
+            << '\n'
+            << "Display Input queue shutdown? "
+            << display_input_queue_.isShutdown() << '\n'
+            << "Display Input queue empty? " << display_input_queue_.empty()
+            << '\n'
+            << "Displayer is working? "
+            << (display_module_ ? !display_module_->isWorking() : false);
 
     VLOG_IF(5, mesher_module_) << "Mesher is working? "
                                << mesher_module_->isWorking();
@@ -437,23 +432,43 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
     VLOG_IF(5, display_module_) << "Visualizer is working? "
                                 << display_module_->isWorking();
 
+    // Print all statistics
+    LOG(INFO) << utils::Statistics::Print();
     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
-  VLOG(10) << "shutdown_: " << shutdown_ << '\n'
-           << "VIO pipeline status: \n"
-           << "Initialized? " << is_initialized_ << '\n'
-           << "Data provider is working? " << data_provider_module_->isWorking()
-           << '\n'
-           << "Frontend input queue empty? "
-           << stereo_frontend_input_queue_.empty() << '\n'
-           << "Frontend is working? " << vio_frontend_module_->isWorking()
-           << '\n'
-           << "Backend Input queue empty? " << backend_input_queue_.empty()
-           << '\n'
-           << "Backend is working? "
-           << (is_initialized_ ? vio_backend_module_->isWorking() : false);
+  VLOG(1) << "shutdown_: " << shutdown_ << '\n'
+          << "VIO pipeline status: \n"
+          << "Initialized? " << is_initialized_ << '\n'
+          << "Data provider is working? " << data_provider_module_->isWorking()
+          << '\n'
+          << "Frontend input queue shutdown? "
+          << stereo_frontend_input_queue_.isShutdown() << '\n'
+          << "Frontend input queue empty? "
+          << stereo_frontend_input_queue_.empty() << '\n'
+          << "Frontend is working? " << vio_frontend_module_->isWorking()
+          << '\n'
+          << "Backend Input queue shutdown? "
+          << backend_input_queue_.isShutdown() << '\n'
+          << "Backend Input queue empty? " << backend_input_queue_.empty()
+          << '\n'
+          << "Backend is working? "
+          << (is_initialized_ ? vio_backend_module_->isWorking() : false)
+          << '\n'
+          << "Mesher is working? "
+          << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
+          << "LCD is working? "
+          << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
+          << "Visualizer is working? "
+          << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
+          << '\n'
+          << "Display Input queue shutdown? "
+          << display_input_queue_.isShutdown() << '\n'
+          << "Display Input queue empty? " << display_input_queue_.empty()
+          << '\n'
+          << "Displayer is working? "
+          << (display_module_ ? !display_module_->isWorking() : false);
   if (!shutdown_) shutdown();
   return true;
 }
@@ -755,59 +770,6 @@ bool Pipeline::initializeOnline(
 }
 
 /* -------------------------------------------------------------------------- */
-StatusStereoMeasurements Pipeline::featureSelect(
-    const FrontendParams& tracker_params,
-    const FeatureSelectorParams& feature_selector_params,
-    const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf,
-    const gtsam::Pose3& W_Pose_Blkf,
-    double* feature_selection_time,
-    std::shared_ptr<StereoFrame>& stereoFrame_km1,
-    const StatusStereoMeasurements& status_stereo_meas,
-    int cur_kf_id,
-    int save_image_selector,
-    const gtsam::Matrix& curr_state_cov,
-    const Frame& left_frame) {  // last one for visualization only
-  CHECK_NOTNULL(feature_selection_time);
-
-  // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
-  size_t nrKfInHorizon =
-      round(feature_selector_params.featureSelectionHorizon_ /
-            tracker_params.intra_keyframe_time_);
-  VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
-
-  // Future poses are gt and might be far from the vio pose: we have to
-  // attach the *relative* poses from the gt to the latest vio estimate.
-  // W_Pose_Bkf_gt    : ground truth pose at previous keyframe.
-  // vio->W_Pose_Blkf_: vio pose at previous keyframe.
-  // More important than the time, it is important that
-  // it is the same time as vio->W_Pose_Blkf_
-  KeyframeToStampedPose posesAtFutureKeyframes;
-  Pose3 W_Pose_Bkf_gt;
-
-  VLOG(100) << "Starting feature selection...";
-  SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
-  std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time) =
-      feature_selector_->splitTrackedAndNewFeatures_Select_Display(
-          stereoFrame_km1,
-          status_stereo_meas.second,
-          cur_kf_id,
-          save_image_selector,
-          feature_selector_params.featureSelectionCriterion_,
-          feature_selector_params.featureSelectionNrCornersToSelect_,
-          tracker_params.maxFeatureAge_,
-          posesAtFutureKeyframes,
-          curr_state_cov,
-          "",
-          left_frame);  // last 2 are for visualization
-  VLOG(100) << "Feature selection completed.";
-
-  // Same status as before.
-  TrackerStatusSummary status = status_stereo_meas.first;
-  return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
-}
-
-/* -------------------------------------------------------------------------- */
 void Pipeline::launchThreads() {
   LOG(INFO) << "Launching threads.";
   launchFrontendThread();
@@ -835,8 +797,10 @@ void Pipeline::launchRemainingThreads() {
     backend_thread_ = VIO::make_unique<std::thread>(
         &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
-    mesher_thread_ = VIO::make_unique<std::thread>(
-        &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
+    if (mesher_module_) {
+      mesher_thread_ = VIO::make_unique<std::thread>(
+          &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
+    }
 
     if (lcd_module_) {
       lcd_thread_ = VIO::make_unique<std::thread>(

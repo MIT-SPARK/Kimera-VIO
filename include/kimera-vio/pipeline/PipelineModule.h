@@ -187,9 +187,6 @@ class PipelineModule : public PipelineModuleBase {
           VLOG(1) << "Module: " << name_id_ << "  - Skipped sending an output.";
         }
         auto spin_duration = utils::Timer::toc(tic).count();
-        LOG(WARNING) << "Module: " << name_id_
-                     << " - frequency: " << 1000.0 / spin_duration << " Hz. ("
-                     << spin_duration << " ms).";
         timing_stats.AddSample(spin_duration);
       } else {
         LOG_IF(WARNING, VLOG_IS_ON(1))
