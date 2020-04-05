@@ -36,7 +36,6 @@
 #include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
-DEFINE_bool(log_output, false, "Log output to CSV files.");
 DEFINE_bool(extract_planes_from_the_scene,
             false,
             "Whether to use structural regularities in the scene,"
@@ -113,6 +112,7 @@ Pipeline::Pipeline(const VioParams& params)
       lcd_thread_(nullptr),
       visualizer_thread_(nullptr),
       parallel_run_(params.parallel_run_),
+      log_output_(params.log_output_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
           "initialization_frontend_output_queue"),
@@ -149,7 +149,7 @@ Pipeline::Pipeline(const VioParams& params)
           params.frontend_params_,
           params.camera_params_.at(0),
           FLAGS_visualize ? &display_input_queue_ : nullptr,
-          FLAGS_log_output));
+          params.log_output_));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
       [&backend_input_queue](const FrontendOutput::Ptr& output) {
@@ -184,7 +184,7 @@ Pipeline::Pipeline(const VioParams& params)
                                     *backend_params_,
                                     imu_params_,
                                     backend_output_params,
-                                    FLAGS_log_output));
+                                    params.log_output_));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
@@ -249,7 +249,7 @@ Pipeline::Pipeline(const VioParams& params)
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
-                              FLAGS_log_output));
+                              params.log_output_));
     //! Register input callbacks
     vio_backend_module_->registerCallback(
         std::bind(&LcdModule::fillBackendQueue,
@@ -723,7 +723,7 @@ bool Pipeline::initializeOnline(
           backend_params_init,
           imu_params_,
           BackendOutputParams(false, 0, false),
-          FLAGS_log_output);
+          log_output_);
 
       // Enforce zero bias in initial propagation
       // TODO(Sandro): Remove this, once AHRS is implemented

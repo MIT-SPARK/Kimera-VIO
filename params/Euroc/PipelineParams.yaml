@@ -1,15 +1,21 @@
 %YAML:1.0
-# frontend_type
+
+# Frontend type
 # Type of VIO Frontend to use
 # 0: StereoImu
 frontend_type: 0
 
-# Type of vioBackEnd to use:
-# 0: VioBackEnd
-# 1: RegularVioBackEnd
+# Backend type
+# 0: VioBackEnd, vanilla backend.
+# 1: RegularVioBackEnd, backend using planes in the scene.
 backend_type: 1
 
 # Run VIO parallel or sequential
 # 0: Sequential
 # 1: Parallel
 parallel_run: 1
+
+# Log output to CSV files.
+# 0: don't log
+# 1: log
+log_output: 0

@@ -220,11 +220,13 @@ class Pipeline {
   void joinThread(const std::string& thread_name, std::thread* thread);
 
   // Init Vio parameter
+  // TODO(Toni): just keep VioParams...
   BackendParams::ConstPtr backend_params_;
   FrontendParams frontend_params_;
   ImuParams imu_params_;
   BackendType backend_type_;
   bool parallel_run_;
+  bool log_output_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;
