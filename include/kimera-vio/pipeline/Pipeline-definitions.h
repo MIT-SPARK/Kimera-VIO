@@ -119,15 +119,22 @@ struct VioParams : public PipelineParams {
   BackendType backend_type_;
   bool parallel_run_;
 
-  //! Log VIO pipeline output.
-  bool log_output_;
-
  protected:
   //! Helper function to parse camera params.
   CameraParams parseCameraParams(const std::string& filename) const;
 
-  //! Checks if two VioParams are equal.
-  bool equals(const PipelineParams& obj) const override;
+  bool equals(const PipelineParams& obj) const override {
+    const auto& rhs = static_cast<const VioParams&>(obj);
+    return imu_params_ == rhs.imu_params_ &&
+        camera_params_ == rhs.camera_params_ &&
+        frontend_params_ == rhs.frontend_params_ &&
+        backend_params_ == rhs.backend_params_ &&
+        lcd_params_ == rhs.lcd_params_ &&
+        frontend_type_ == rhs.frontend_type_ &&
+        backend_type_ == rhs.backend_type_ &&
+        parallel_run_ == rhs.parallel_run_;
+  }
+
 
   //! Names of the YAML files with the parameters.
   std::string pipeline_params_filename_;

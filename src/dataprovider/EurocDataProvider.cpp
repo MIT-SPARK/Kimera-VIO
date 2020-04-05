@@ -23,7 +23,6 @@
 #include <utility>  // for pair<>
 #include <vector>
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"

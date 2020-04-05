@@ -32,19 +32,11 @@ class YamlParser {
  public:
   KIMERA_POINTER_TYPEDEFS(YamlParser);
 
-  // Don't make explicit, bcs strings get truncated...
-  YamlParser(const std::string& filepath)
-      : fs_(), filepath_(filepath) {
+  YamlParser(const std::string& filepath) : fs_(), filepath_(filepath) {
     openFile(filepath, &fs_);
   }
-  virtual ~YamlParser() { closeFile(&fs_); }
+  ~YamlParser() { closeFile(&fs_); }
 
-  /**
-   * @brief getYamlParam reads a yaml parameter, but breaks if the parameter
-   * is not found. This is useful for required parameters.
-   * @param id String identifying the parameter in the yaml file.
-   * @param output Returned object read from the yaml file.
-   */
   template <class T>
   void getYamlParam(const std::string& id, T* output) const {
     CHECK(!id.empty());
@@ -53,27 +45,6 @@ class YamlParser {
         << "Missing parameter: " << id.c_str()
         << " in file: " << filepath_.c_str();
     file_handle >> *CHECK_NOTNULL(output);
-  }
-
-  /**
-   * @brief getOptionalYamlParam reads a yaml parameter only if it could be
-   * found.
-   * @param id String identifying the parameter in the yaml file.
-   * @param output Returned object read from the yaml file.
-   * @return True if the parameter could be found, false otherwise.
-   */
-  template <class T>
-  bool getOptionalYamlParam(const std::string& id, T* output) const {
-    CHECK(!id.empty());
-    const cv::FileNode& file_handle = fs_[id];
-    if (file_handle.type() == cv::FileNode::NONE) {
-      VLOG(5) << "Missing optional parameter: " << id.c_str()
-              << " in file: " << filepath_.c_str();
-      return false;
-    } else {
-      file_handle >> *CHECK_NOTNULL(output);
-      return true;
-    }
   }
 
   template <class T>
