@@ -32,6 +32,7 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
+#include "kimera-vio/logging/Logger.h"
 
 namespace VIO {
 
@@ -82,7 +83,7 @@ class EurocDataProvider : public DataProviderInterface {
   bool parseImuData(const std::string& input_dataset_path,
                     const std::string& imu_name);
 
-  bool parseGTdata(const std::string& input_dataset_path,
+  bool parseGtData(const std::string& input_dataset_path,
                    const std::string& gtSensorName);
 
   bool parseCameraData(const std::string& cam_name,
@@ -196,6 +197,8 @@ class EurocDataProvider : public DataProviderInterface {
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";
+
+  EurocGtLogger::UniquePtr logger_;
 };
 
 }  // namespace VIO

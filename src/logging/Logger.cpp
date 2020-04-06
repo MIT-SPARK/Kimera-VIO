@@ -9,13 +9,14 @@
 /**
  * @file   Logger.cpp
  * @brief  Logging output information.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
  */
 
 #include "kimera-vio/logging/Logger.h"
 
 #include <memory>
 #include <string>
+#include <fstream>
 
 #include <boost/filesystem.hpp>  // to create folders
 #include <boost/foreach.hpp>
@@ -58,6 +59,18 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
   OpenFile(output_path_ + '/' + output_file_name,
            &ofstream_,
            open_file_in_append_mode);
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("output_gt_poses.csv") {}
+
+void EurocGtLogger::logGtData(const std::string& file_path) {
+  std::ifstream f_in(file_path.c_str(), std::ios::binary);
+  CHECK(f_in.is_open()) << "Cannot open file: " << file_path;
+  std::ofstream f_out(output_gt_poses_csv_.filename_, std::ios::binary);
+  // Just copy the data.
+  f_out << f_in.rdbuf();
+  f_in.close();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -391,8 +404,7 @@ void FrontendLogger::logFrontendStats(
   }
 
   output_stream_stats
-      << timestamp_lkf
-      << ","
+      << timestamp_lkf << ","
       // Mono status.
       << TrackerStatusSummary::asString(tracker_summary.kfTrackingStatus_mono_)
       << ","
@@ -401,21 +413,18 @@ void FrontendLogger::logFrontendStats(
              tracker_summary.kfTrackingStatus_stereo_)
       << ","
       // Nr of keypoints.
-      << nrKeypoints
-      << ","
+      << nrKeypoints << ","
       // Feature detection, tracking and ransac.
       << tracker_info.nrDetectedFeatures_ << ","
       << tracker_info.nrTrackerFeatures_ << "," << tracker_info.nrMonoInliers_
       << "," << tracker_info.nrMonoPutatives_ << ","
       << tracker_info.nrStereoInliers_ << "," << tracker_info.nrStereoPutatives_
       << "," << tracker_info.monoRansacIters_ << ","
-      << tracker_info.stereoRansacIters_
-      << ","
+      << tracker_info.stereoRansacIters_ << ","
       // Performance of sparse-stereo-matching and ransac.
       << tracker_info.nrValidRKP_ << "," << tracker_info.nrNoLeftRectRKP_ << ","
       << tracker_info.nrNoRightRectRKP_ << "," << tracker_info.nrNoDepthRKP_
-      << "," << tracker_info.nrFailedArunRKP_
-      << ","
+      << "," << tracker_info.nrFailedArunRKP_ << ","
       // Info about timing.
       << tracker_info.featureDetectionTime_ << ","
       << tracker_info.featureTrackingTime_ << ","
