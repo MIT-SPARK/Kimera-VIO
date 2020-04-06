@@ -170,7 +170,7 @@ Pipeline::Pipeline(const VioParams& params)
       static_cast<VisualizationType>(FLAGS_viz_type) !=
           VisualizationType::kNone,
       FLAGS_min_num_obs_for_mesher_points,
-      FLAGS_visualize_lmk_type);
+      FLAGS_visualize && FLAGS_visualize_lmk_type);
 
   //! Create backend
   CHECK(backend_params_);
