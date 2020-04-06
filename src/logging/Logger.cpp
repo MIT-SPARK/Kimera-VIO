@@ -65,11 +65,10 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
 EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("output_gt_poses.csv") {}
 
 void EurocGtLogger::logGtData(const std::string& file_path) {
-  std::ifstream f_in(file_path.c_str(), std::ios::binary);
+  std::ifstream f_in(file_path.c_str());
   CHECK(f_in.is_open()) << "Cannot open file: " << file_path;
-  std::ofstream f_out(output_gt_poses_csv_.filename_, std::ios::binary);
-  // Just copy the data.
-  f_out << f_in.rdbuf();
+  std::ofstream& output_stream = output_gt_poses_csv_.ofstream_;
+  output_stream << f_in.rdbuf();
   f_in.close();
 }
 
