@@ -14,9 +14,9 @@
 
 #include "kimera-vio/logging/Logger.h"
 
+#include <fstream>
 #include <memory>
 #include <string>
-#include <fstream>
 
 #include <boost/filesystem.hpp>  // to create folders
 #include <boost/foreach.hpp>
@@ -67,8 +67,18 @@ EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("traj_gt.csv") {}
 void EurocGtLogger::logGtData(const std::string& file_path) {
   std::ifstream f_in(file_path.c_str());
   CHECK(f_in.is_open()) << "Cannot open file: " << file_path;
+  // Drop first line, we want to use our own header.
+  std::string dummy_header;
+  std::getline(f_in, dummy_header);
+
   std::ofstream& output_stream = output_gt_poses_csv_.ofstream_;
+  // First, write header
+  output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
+                << "bgx,bgy,bgz,bax,bay,baz" << std::endl;
+  // Then, copy all gt data to file
   output_stream << f_in.rdbuf();
+
+  // Clean
   f_in.close();
 }
 
