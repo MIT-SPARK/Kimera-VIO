@@ -62,7 +62,7 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("output_gt_poses.csv") {}
+EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("traj_gt.csv") {}
 
 void EurocGtLogger::logGtData(const std::string& file_path) {
   std::ifstream f_in(file_path.c_str());
@@ -74,7 +74,7 @@ void EurocGtLogger::logGtData(const std::string& file_path) {
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 BackendLogger::BackendLogger()
-    : output_poses_vio_csv_("output_posesVIO.csv"),
+    : output_poses_vio_csv_("traj_vio.csv"),
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
@@ -517,7 +517,7 @@ void PipelineLogger::logPipelineOverallTiming(
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.csv"),
-      output_traj_("output_lcd_optimized_traj.csv"),
+      output_traj_("traj_pgo.csv"),
       output_status_("output_lcd_status.csv"),
       ts_map_() {}
 
