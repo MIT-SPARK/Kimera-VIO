@@ -43,7 +43,11 @@ RUN cd opencv/build && \
       -DOPENCV_EXTRA_MODULES_PATH=$DIRPATH/opencv_contrib/modules .. && \
       make -j$(nproc) install
 
-# Install GTSAM
+# Install GTSAM (in 16_04 it needs an updated cmake...)
+ADD https://cmake.org/files/v3.15/cmake-3.15.7-Linux-x86_64.sh /cmake-3.15.7-Linux-x86_64.sh
+RUN mkdir /opt/cmake
+RUN sh /cmake-3.15.7-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
 ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/develop version.json
 RUN git clone https://github.com/borglab/gtsam.git
