@@ -35,10 +35,6 @@
 
 namespace VIO {
 
-// class Camera {
-//
-//
-//};
 //
 // class MultiCamera : public Camera {
 //
@@ -198,9 +194,9 @@ class StereoCamera {
       VLOG(10) << "Stereo camera distortion for rectification: radtan";
       cv::stereoRectify(
           // Input
-          left_cam_params.camera_matrix_,
+          left_cam_params.K_,
           left_cam_params.distortion_coeff_,
-          right_cam_params.camera_matrix_,
+          right_cam_params.K_,
           right_cam_params.distortion_coeff_,
           left_cam_params.image_size_,
           L_Rot_R,
@@ -214,9 +210,9 @@ class StereoCamera {
     } else if (left_cam_params.distortion_model_ == "equidistant") {
       // Get stereo rectification
       VLOG(10) << "Stereo camera distortion for rectification: equidistant";
-      cv::fisheye::stereoRectify(left_cam_params.camera_matrix_,
+      cv::fisheye::stereoRectify(left_cam_params.K_,
                                  left_cam_params.distortion_coeff_,
-                                 right_cam_params.camera_matrix_,
+                                 right_cam_params.K_,
                                  right_cam_params.distortion_coeff_,
                                  left_cam_params.image_size_,
                                  L_Rot_R,
@@ -287,7 +283,7 @@ class StereoCamera {
         left_cam_params.distortion_model_ == "radial-tangential") {
       // Get rectification & undistortion maps. (radtan dist. model)
       VLOG(10) << "Left camera distortion: radtan";
-      cv::initUndistortRectifyMap(left_cam_params.camera_matrix_,
+      cv::initUndistortRectifyMap(left_cam_params.K_,
                                   left_cam_params.distortion_coeff_,
                                   left_cam_params.R_rectify_,
                                   P1,
@@ -300,7 +296,7 @@ class StereoCamera {
       // Get rectification & undistortion maps. (equi dist. model)
       VLOG(10) << "Left camera distortion: equidistant";
       cv::fisheye::initUndistortRectifyMap(
-          left_cam_params.camera_matrix_,
+          left_cam_params.K_,
           left_cam_params.distortion_coeff_,
           left_cam_params.R_rectify_,
           P1,
@@ -319,7 +315,7 @@ class StereoCamera {
       // Get rectification & undistortion maps. (radtan dist. model)
       VLOG(10) << "Right camera distortion: radtan";
       cv::initUndistortRectifyMap(
-          right_cam_params.camera_matrix_,
+          right_cam_params.K_,
           right_cam_params.distortion_coeff_,
           right_cam_params.R_rectify_,
           P2,
@@ -332,7 +328,7 @@ class StereoCamera {
       // Get rectification & undistortion maps. (equi dist. model)
       VLOG(10) << "Right camera distortion: equidistant";
       cv::fisheye::initUndistortRectifyMap(
-          right_cam_params.camera_matrix_,
+          right_cam_params.K_,
           right_cam_params.distortion_coeff_,
           right_cam_params.R_rectify_,
           P2,
@@ -351,8 +347,6 @@ class StereoCamera {
     // contains an extra column to project in homogeneous coordinates
     right_cam_rectified_params->P_ = P2;
   }
-
- private:
 };
 
 }  // namespace VIO

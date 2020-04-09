@@ -30,6 +30,7 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
@@ -58,6 +59,9 @@ class StereoVisionFrontEnd {
                        const CameraParams& camera_params,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);
+  virtual ~StereoVisionFrontEnd() {
+    LOG(INFO) << "StereoVisionFrontEnd destructor called.";
+  }
 
  public:
   /* ------------------------------------------------------------------------ */
@@ -151,7 +155,8 @@ class StereoVisionFrontEnd {
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu);
+      const gtsam::Rot3& keyframe_R_ref_frame_,
+      cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
   void outlierRejectionMono(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
@@ -181,7 +186,7 @@ class StereoVisionFrontEnd {
   // Log, visualize and/or save the feature tracks on the current left frame
   void sendFeatureTracksToLogger() const;
 
-  void displayFeatureTracks() const;
+  cv::Mat displayFeatureTracks() const;
 
   // Log, visualize and/or save quality of temporal and stereo matching
   void sendStereoMatchesToLogger() const;
@@ -232,12 +237,19 @@ class StereoVisionFrontEnd {
   // Last keyframe
   std::shared_ptr<StereoFrame> stereoFrame_lkf_;
 
+  // Rotation from last keyframe to reference frame
+  // We use this to calculate the rotation btw reference frame and current frame
+  gtsam::Rot3 keyframe_R_ref_frame_;
+
   // Counters.
   int frame_count_;
   int keyframe_count_;
 
   // Timestamp of last keyframe.
   Timestamp last_keyframe_timestamp_;
+
+  // Create the feature detector
+  FeatureDetector::UniquePtr feature_detector_;
 
   // Set of functionalities for tracking.
   Tracker tracker_;

@@ -7,8 +7,8 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testVioFrontEndParams.h
- * @brief  test VioFrontEndParams
+ * @file   testVisionFrontEndParams.h
+ * @brief  test VisionFrontEndParams
  * @author Antoni Rosinol, Luca Carlone
  */
 
@@ -23,18 +23,15 @@
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 
 DECLARE_string(test_data_path);
 
-using namespace gtsam;
-using namespace std;
-using namespace VIO;
-
 static const double tol = 1e-7;
 
-/* ************************************************************************* */
-TEST(testVioFrontEndParams, TrackerParamParseYAML) {
+namespace VIO {
+
+TEST(testVisionFrontEndParams, TrackerParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
@@ -47,13 +44,6 @@ TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   EXPECT_EQ(tp.klt_max_level_, 2);
   EXPECT_EQ(tp.klt_eps_, 0.001);
   EXPECT_EQ(tp.maxFeatureAge_, 10);
-
-  EXPECT_EQ(tp.maxFeaturesPerFrame_, 200);
-  EXPECT_EQ(tp.quality_level_, 0.5);
-  EXPECT_EQ(tp.min_distance_, 20);
-  EXPECT_EQ(tp.block_size_, 3);
-  EXPECT_EQ(tp.use_harris_detector_, 0);
-  EXPECT_EQ(tp.k_, 0.04);
 
   EXPECT_EQ(tp.stereo_matching_params_.equalize_image_, true);
   EXPECT_EQ(tp.stereo_matching_params_.nominal_baseline_, 110);
@@ -77,14 +67,15 @@ TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   EXPECT_EQ(tp.ransac_probability_, 0.995);
   EXPECT_EQ(tp.ransac_randomize_, false);
 
-  EXPECT_EQ(tp.intra_keyframe_time_, 0.5);
+  EXPECT_EQ(tp.intra_keyframe_time_ns_, 0.5 * 1e9);
   EXPECT_EQ(tp.min_number_features_, 100);
   EXPECT_EQ(tp.useStereoTracking_, 1);
   EXPECT_EQ(tp.disparityThreshold_, 1);
 }
 
-/* ************************************************************************** */
-TEST(testVioFrontEndParams, equals) {
+TEST(testVisionFrontEndParams, equals) {
   FrontendParams tp = FrontendParams();
   EXPECT_TRUE(tp.equals(tp));
 }
+
+}  // namespace VIO

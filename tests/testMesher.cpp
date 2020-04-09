@@ -59,7 +59,7 @@ class MesherFixture : public ::testing::Test {
         VIO::make_unique<Frame>(id, tmp, CameraParams(), img_);
 
     if (extract_corners) {
-      frame->extractCorners();
+      UtilsOpenCV::ExtractCorners(frame->img_, &frame->keypoints_);
       // Populate landmark structure with fake data.
       for (int i = 0; i < frame->keypoints_.size(); i++) {
         frame->landmarks_.push_back(i);

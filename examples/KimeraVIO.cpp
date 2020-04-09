@@ -74,11 +74,11 @@ int main(int argc, char* argv[]) {
   // We use blocking variants to avoid overgrowing the input queues (use
   // the non-blocking versions with real sensor streams)
   dataset_parser->registerLeftFrameCallback(
-      std::bind(&VIO::Pipeline::fillLeftFrameQueueBlocking,
+      std::bind(&VIO::Pipeline::fillLeftFrameQueue,
                 &vio_pipeline,
                 std::placeholders::_1));
   dataset_parser->registerRightFrameCallback(
-      std::bind(&VIO::Pipeline::fillRightFrameQueueBlocking,
+      std::bind(&VIO::Pipeline::fillRightFrameQueue,
                 &vio_pipeline,
                 std::placeholders::_1));
 

@@ -445,8 +445,8 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   EXPECT_NEAR(0, baseline(2), 1e-4);
 
   FrontendParams p = FrontendParams();  // default
-  p.min_distance_ = 0.05;
-  p.quality_level_ = 0.1;
+  p.feature_detector_params_.min_distance_btw_tracked_and_detected_features_ = 0.05;
+  p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
 
   StereoFrame first_stereo_frame(

@@ -22,7 +22,7 @@ class Timer {
   }
 };
 
-// Usage: measure<>::execution(functor(dummy))
+// Usage: measure<>::execution(function, arguments)
 template <typename T = std::chrono::milliseconds>
 struct Measure {
   template <typename F, typename... Args>

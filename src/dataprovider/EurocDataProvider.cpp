@@ -97,8 +97,8 @@ bool EurocDataProvider::spin() {
     // Spin.
     CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
-    LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
-              << final_k_;
+    LOG_EVERY_N(INFO, 1) << "Running dataset between frame " << initial_k_
+                         << " and frame " << final_k_;
     while (!shutdown_ && spinOnce()) {
       if (!pipeline_params_.parallel_run_) {
         return true;
@@ -131,24 +131,33 @@ bool EurocDataProvider::spinOnce() {
   // TODO(Toni): ideally only send cv::Mat raw images...:
   // - pass params to vio_pipeline ctor
   // - make vio_pipeline actually equalize or transform images as necessary.
-  CHECK(left_frame_callback_);
-  left_frame_callback_(
-      VIO::make_unique<Frame>(current_k_,
-                              timestamp_frame_k,
-                              // TODO(Toni): this info should be passed to
-                              // the camera... not all the time here...
-                              left_cam_info,
-                              UtilsOpenCV::ReadAndConvertToGrayScale(
-                                  getLeftImgName(current_k_), equalize_image)));
-  CHECK(right_frame_callback_);
-  right_frame_callback_(VIO::make_unique<Frame>(
-      current_k_,
-      timestamp_frame_k,
-      // TODO(Toni): this info should be passed to
-      // the camera... not all the time here...
-      right_cam_info,
-      UtilsOpenCV::ReadAndConvertToGrayScale(getRightImgName(current_k_),
-                                             equalize_image)));
+  std::string left_img_filename;
+  bool available_left_img = getLeftImgName(current_k_, &left_img_filename);
+  std::string right_img_filename;
+  bool available_right_img = getRightImgName(current_k_, &right_img_filename);
+  if (available_left_img && available_right_img) {
+    // Both stereo images are available, send data to VIO
+    CHECK(left_frame_callback_);
+    left_frame_callback_(
+        VIO::make_unique<Frame>(current_k_,
+                                timestamp_frame_k,
+                                // TODO(Toni): this info should be passed to
+                                // the camera... not all the time here...
+                                left_cam_info,
+                                UtilsOpenCV::ReadAndConvertToGrayScale(
+                                    left_img_filename, equalize_image)));
+    CHECK(right_frame_callback_);
+    right_frame_callback_(
+        VIO::make_unique<Frame>(current_k_,
+                                timestamp_frame_k,
+                                // TODO(Toni): this info should be passed to
+                                // the camera... not all the time here...
+                                right_cam_info,
+                                UtilsOpenCV::ReadAndConvertToGrayScale(
+                                    right_img_filename, equalize_image)));
+  } else {
+    LOG(ERROR) << "Missing left/right stereo pair, proceeding to the next one.";
+  }
 
   // This is done directly when parsing the Imu data.
   // imu_single_callback_(imu_meas);
@@ -409,8 +418,7 @@ bool EurocDataProvider::parseDataset() {
   // CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
 
   // Parse Ground-Truth data.
-  static const std::string ground_truth_name =
-      "state_groundtruth_estimate0";
+  static const std::string ground_truth_name = "state_groundtruth_estimate0";
   is_gt_available_ = parseGTdata(dataset_path_, ground_truth_name);
 
   clipFinalFrame();
@@ -634,6 +642,43 @@ const InitializationPerformance EurocDataProvider::getInitializationPerformance(
   init_performance.print();
   // Return
   return init_performance;
+}
+
+/* -------------------------------------------------------------------------- */
+size_t EurocDataProvider::getNumImages() const {
+  CHECK_GT(camera_names_.size(), 0u);
+  const std::string& left_cam_name = camera_names_.at(0);
+  const std::string& right_cam_name = camera_names_.at(0);
+  size_t n_left_images = getNumImagesForCamera(left_cam_name);
+  size_t n_right_images = getNumImagesForCamera(right_cam_name);
+  CHECK_EQ(n_left_images, n_right_images);
+  return n_left_images;
+}
+
+/* -------------------------------------------------------------------------- */
+size_t EurocDataProvider::getNumImagesForCamera(
+    const std::string& camera_name) const {
+  const auto& iter = camera_image_lists_.find(camera_name);
+  CHECK(iter != camera_image_lists_.end());
+  return iter->second.getNumImages();
+}
+
+/* -------------------------------------------------------------------------- */
+bool EurocDataProvider::getImgName(const std::string& camera_name,
+                                   const size_t& k,
+                                   std::string* img_filename) const {
+  CHECK_NOTNULL(img_filename);
+  const auto& iter = camera_image_lists_.find(camera_name);
+  CHECK(iter != camera_image_lists_.end());
+  const auto& img_lists = iter->second.img_lists_;
+  if (k < img_lists.size()) {
+    *img_filename = img_lists.at(k).second;
+    return true;
+  } else {
+    LOG(ERROR) << "Requested image #: " << k << " but we only have "
+               << img_lists.size() << " images.";
+  }
+  return false;
 }
 
 /* -------------------------------------------------------------------------- */

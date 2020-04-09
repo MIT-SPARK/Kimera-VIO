@@ -47,6 +47,7 @@ struct InitializationInputPayload : public FrontendOutput {
                        relative_pose_body_stereo,
                        stereo_frame_lkf,
                        pim,
+                       cv::Mat(),
                        debug_tracker_info),
         ahrs_pim_(ahrs_pim) {}
 

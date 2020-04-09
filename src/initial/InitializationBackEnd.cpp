@@ -21,6 +21,8 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
+#include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
@@ -70,7 +72,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     Timestamp timestamp_kf =
         init_input_payload.stereo_frame_lkf_.getTimestamp();
     delta_t_camera.push_back(
-        UtilsOpenCV::NsecToSec(timestamp_kf - timestamp_lkf_));
+        UtilsNumerical::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
 
     // Check that all frames are keyframes (required)
@@ -223,7 +225,7 @@ void InitializationBackEnd::addInitialVisualState(
   debug_info_.resetAddedFactorsStatistics();
 
   VLOG(10) << "Initialization: adding keyframe " << curr_kf_id_
-           << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
+           << " at timestamp:" << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
            << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////

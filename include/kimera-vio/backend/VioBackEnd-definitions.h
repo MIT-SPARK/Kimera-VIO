@@ -65,9 +65,11 @@ using Slot = long int;
 using SmartFactorMap =
     gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
-using PointWithId = std::pair<LandmarkId, gtsam::Point3>;
+using Landmark = gtsam::Point3;
+using Landmarks = std::vector<Landmark>;
+using PointWithId = std::pair<LandmarkId, Landmark>;
 using PointsWithId = std::vector<PointWithId>;
-using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
+using PointsWithIdMap = std::unordered_map<LandmarkId, Landmark>;
 using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -55,13 +55,13 @@ TEST(testCameraParams, parseYAML) {
     EXPECT_DOUBLE_EQ(intrinsics_expected[c], cam_params.intrinsics_[c]);
   }
   EXPECT_DOUBLE_EQ(intrinsics_expected[0],
-                   cam_params.camera_matrix_.at<double>(0, 0));
+                   cam_params.K_.at<double>(0, 0));
   EXPECT_DOUBLE_EQ(intrinsics_expected[1],
-                   cam_params.camera_matrix_.at<double>(1, 1));
+                   cam_params.K_.at<double>(1, 1));
   EXPECT_DOUBLE_EQ(intrinsics_expected[2],
-                   cam_params.camera_matrix_.at<double>(0, 2));
+                   cam_params.K_.at<double>(0, 2));
   EXPECT_DOUBLE_EQ(intrinsics_expected[3],
-                   cam_params.camera_matrix_.at<double>(1, 2));
+                   cam_params.K_.at<double>(1, 2));
   EXPECT_EQ(cam_params.intrinsics_.size(), 4u);
   EXPECT_DOUBLE_EQ(intrinsics_expected[0], cam_params.calibration_.fx());
   EXPECT_DOUBLE_EQ(intrinsics_expected[1], cam_params.calibration_.fy());
