@@ -69,6 +69,7 @@ using PointsWithId = std::vector<PointWithId>;
 using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
 using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // FeatureTrack
 // TODO(Toni): what is this doing here... should be in frontend at worst.
@@ -314,6 +315,7 @@ struct BackendOutput : public PipelinePayload {
         lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
         graph_() {}
 
+  
   const VioNavStateTimestamped W_State_Blkf_;
   const gtsam::Values state_;
   const gtsam::Matrix state_covariance_lkf_;

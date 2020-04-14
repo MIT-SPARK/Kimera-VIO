@@ -25,6 +25,7 @@
 
 namespace VIO {
 
+using camPoses = std::vector<VioNavState>;
 /* -------------------------------------------------------------------------- */
 // Open files with name output_filename, and checks that it is valid
 static void OpenFile(const std::string& output_filename,
@@ -62,7 +63,7 @@ class OfstreamWrapper {
 class BackendLogger {
  public:
   BackendLogger();
-  ~BackendLogger() = default;
+  ~BackendLogger();
 
   void logBackendOutput(const BackendOutput& output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
@@ -70,14 +71,21 @@ class BackendLogger {
                                   const VioNavState& initial_state_gt,
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
+	
 
  private:
-  void logBackendResultsCSV(const BackendOutput& output);
+  
   void logSmartFactorsStats(const BackendOutput& output);
   void logBackendPimNavstates(const BackendOutput& output);
   void logBackendFactorsStats(const BackendOutput& output);
-  void logBackendTiming(const BackendOutput& output);
-
+  void logBackendTiming(const BackendOutput& output); 
+  void logBackendResultsCSV(const BackendOutput& output);
+  void savePoints(const BackendOutput& output);
+  void writePly(const camPoses& poses,
+                const PointsWithId& landmarks,
+                const std::string& cam0,
+                const std::string& cam1);
+  
  private:
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_poses_vio_csv_;
@@ -85,9 +93,15 @@ class BackendLogger {
   OfstreamWrapper output_pim_navstates_csv_;
   OfstreamWrapper output_backend_factors_stats_csv_;
   OfstreamWrapper output_backend_timing_csv_;
-
-  gtsam::Pose3 W_Pose_Bprevkf_vio_;
+  OfstreamWrapper output_land_marks_csv;
+  
+  PointsWithId out_landmarks;
+  camPoses camPosesVec;
+  std::string cam0;
+  std::string cam1;
   double timing_loggerBackend_;
+  int vertex_count;
+  gtsam::Pose3 W_Pose_Bprevkf_vio_;
 };
 
 class FrontendLogger {
@@ -152,7 +166,9 @@ class LoopClosureDetectorLogger {
   void logLoopClosure(const LcdOutput& lcd_output);
   void logOptimizedTraj(const LcdOutput& lcd_output);
   void logDebugInfo(const LcdDebugInfo& debug_info);
-
+  
+ 
+  
  private:
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_lcd_;

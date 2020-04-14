@@ -4,7 +4,7 @@
 
 # Specify path of the EuRoC dataset.
 # The path can be absolute, or relative to this file location.
-DATASET_PATH="E:/kimera-slam/SLAM-Data/Datasets/MH_05_difficult"
+DATASET_PATH="E:/MH_05_difficult"
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
@@ -19,7 +19,7 @@ PARALLEL_RUN=1
 USE_LCD=1
 
 # Specify: 1 to enable logging of output files, 0 to not.
-LOG_OUTPUT=0
+LOG_OUTPUT=1
 ###################################################################
 
 ###################################################################
@@ -106,7 +106,8 @@ echo """ Launching:
 # Execute stereoVIOEuroc with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
-E:/kimera_new/Kimera-VIO/out/build/x64-Release/stereoVIOEuroc.exe \
+# "E:\kimera_git\Kimera-VIO\out\build\x64-Release\stereoVIOEuroc.exe"
+E:/kimera_git/Kimera-VIO/out/build/x64-Release/stereoVIOEuroc.exe \
   --dataset_type="$DATASET_TYPE" \
   --dataset_path="$DATASET_PATH" \
   --initial_k=50 \

@@ -7,7 +7,7 @@
 --visualize_lmk_type=false
 --visualize_mesh=true
 --visualize_mesh_with_colored_polygon_clusters=false
---visualize_point_cloud=false
+--visualize_point_cloud=true
 --visualize_convex_hull=false
 --visualize_plane_constraints=false
 --visualize_planes=false
@@ -18,3 +18,10 @@
 --viz_type=0
 --min_num_obs_for_mesher_points=3
 --extract_planes_from_the_scene=false
+
+# For displaying/saving frontend images:
+--visualize_frontend_images=false
+--save_frontend_images=false
+--log_feature_tracks=true
+--log_mono_tracking_images=false
+--log_stereo_matching_images=false

@@ -12,7 +12,7 @@ block_size: 3
 use_harris_detector: 0
 k: 0.04
 equalizeImage: 0
-nominalBaseline: 0.11
+nominalBaseline: 0.110074
 toleranceTemplateMatching: 0.15
 templ_cols: 101 #must be odd
 templ_rows: 11

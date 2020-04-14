@@ -3,7 +3,9 @@
 --mesh_shading=0
 --mesh_representation=0
 --set_mesh_lighting=true
---set_mesh_ambient=false
---log_mesh=false
---log_accumulated_mesh=false
+--set_mesh_ambient=true
+--log_mesh=true
+--log_accumulated_mesh=true
 --displayed_trajectory_length=-1
+
+

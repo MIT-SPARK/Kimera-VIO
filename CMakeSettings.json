@@ -10,9 +10,7 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
-      "variables": [
-        
-      ],
+      "variables": [],
       "cmakeToolchain": "PATH_TO_TOOLCHAIN"
     },
     {
@@ -28,22 +26,22 @@
       "variables": [
         {
           "name": "GTSAM_DIR",
-          "value": "PATH_TO_INSTALLED_GTSAM_DIR",
+          "value": "E:\\kimera-slam\\gtsam\\out\\install\\x64-Release\\CMake",
           "type": "PATH"
         },
         {
           "name": "DBoW2_DIR",
-          "value": "PATH_TO_INSTALLED_DBoW2_DIR",
+          "value": "E:\\kimera-slam\\DBoW2\\out\\install\\x64-Release\\lib\\cmake\\DBoW2",
           "type": "PATH"
         },
         {
           "name": "opengv_DIR",
-          "value": "PATH_TO_INSTALLED_opengv_DIR",
+          "value": "E:\\kimera-slam\\opengv\\out\\install\\x64-Release\\lib\\cmake\\opengv-1.0",
           "type": "PATH"
         },
         {
           "name": "KimeraRPGO_DIR",
-          "value": "PATH_TO_INSTALLED_KimeraRPGO_DIR",
+          "value": "E:/kimera-slam/Kimera-RPGO/out/install/x64-Release/lib/cmake/KimeraRPGO",
           "type": "PATH"
         },
         {
@@ -52,7 +50,7 @@
           "type": "BOOL"
         }
       ],
-      "cmakeToolchain": "PATH_TO_TOOLCHAIN"
+      "cmakeToolchain": "C:/src/vcpkg/scripts/buildsystems/vcpkg.cmake"
     }
   ]
 }

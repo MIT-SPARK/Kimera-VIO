@@ -11,7 +11,6 @@
  * @brief  Logging output information.
  * @author Antoni Rosinol, Luca Carlone
  */
-
 #include "kimera-vio/logging/Logger.h"
 
 #include <boost/foreach.hpp>
@@ -42,6 +41,8 @@ OfstreamWrapper::OfstreamWrapper(const std::string& filename,
 OfstreamWrapper::~OfstreamWrapper() {
   LOG(INFO) << "Closing output file: " << filename_.c_str();
   ofstream_.close();
+  // BackendLogger::
+  
 }
 
 void OfstreamWrapper::closeAndOpenLogFile() {
@@ -64,9 +65,17 @@ BackendLogger::BackendLogger()
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
-      output_backend_timing_csv_("output_backendTiming.csv") {}
-
+      output_backend_timing_csv_("output_backendTiming.csv"),
+      output_land_marks_csv("output_landmarks.ply"),
+      cam0("E:\\kimera-slam\\SLAM-Data\\Datasets\\MH_01_easy\\mav0\\cam0"),
+      cam1("E:\\kimera-slam\\SLAM-Data\\Datasets\\MH_01_easy\\mav0\\cam1") {
+	
+}
+BackendLogger::~BackendLogger() { 
+	writePly(camPosesVec, out_landmarks,cam0,cam1); 
+}
 void BackendLogger::logBackendOutput(const BackendOutput& output) {
+  savePoints(output);
   logBackendResultsCSV(output);
   logBackendFactorsStats(output);
   logBackendPimNavstates(output);
@@ -113,9 +122,11 @@ void BackendLogger::displayInitialStateVioInfo(
 }
 
 void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
+  // AngleAxis
+  Eigen::Matrix3d mat;  
   // We log the poses in csv format for later alignement and analysis.
   std::ofstream& output_stream = output_poses_vio_csv_.ofstream_;
-
+  //std::ofstream& out_ply = output_land_marks_csv.ofstream_;
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
@@ -126,10 +137,11 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   }
   const auto& cached_state = vio_output.W_State_Blkf_;
   const auto& w_pose_blkf_trans = cached_state.pose_.translation().transpose();
-  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().quaternion();
+  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().quaternion();  
   const auto& w_vel_blkf = cached_state.velocity_.transpose();
   const auto& imu_bias_gyro = cached_state.imu_bias_.gyroscope().transpose();
   const auto& imu_bias_acc = cached_state.imu_bias_.accelerometer().transpose();
+  
   output_stream << cached_state.timestamp_ << ","  //
                 << w_pose_blkf_trans.x() << ","    //
                 << w_pose_blkf_trans.y() << ","    //
@@ -148,7 +160,92 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
                 << imu_bias_acc(1) << ","          //
                 << imu_bias_acc(2)                 //
                 << std::endl;
+ /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  // Get rotation matrix at specific timestamp
+  camPosesVec.push_back(cached_state);
+  /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  mat = cached_state.pose_.rotation().matrix();
+  Eigen::AngleAxisd newAngleAxis(mat);
+  const auto& result = newAngleAxis;
+  // vio_output.graph_.end();
+  // Increament vertex count 
+  vertex_count++;
 }
+
+void BackendLogger::savePoints(const BackendOutput& output) {
+	/* Get landmarks */
+    // point id
+	const auto& point_id = output.landmarks_with_id_map_;
+    // point id color 
+	const auto& point_color = output.lmk_id_to_lmk_type_map_;
+	// Start creating a vector of 3d points 
+    for (const std::pair<LandmarkId, gtsam::Point3>& id_point : point_id) {
+        out_landmarks.push_back(id_point);
+        vertex_count++;
+	}
+	 
+}
+void BackendLogger::writePly(const camPoses& poses,
+                             const PointsWithId& landmarks,
+                             const std::string& cam0,
+                             const std::string& cam1) {
+    Eigen::Matrix3d mat;
+    std::ofstream& output_landmarks_stream = output_land_marks_csv.ofstream_;
+
+	/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+    output_landmarks_stream << "ply\n"
+                            << "format ascii 1.0\n"
+                            << "element vertex " << vertex_count << "\n"
+                            << "property uint isCamera\n"
+                            << "property double x\n"
+                            << "property double y\n"
+                            << "property double z\n"
+                            << "property double nx\n"
+                            << "property double ny\n"
+                            << "property double nz\n"
+                            << "property uchar diffuse_red\n"  // Start of vertex color.
+                            << "property uchar diffuse_green\n"
+                            << "property uchar diffuse_blue\n"
+                            << "comment user 0\n";
+                            
+    /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+        cv::String left(cam0  + "/*.png");
+        cv::String right(cam1 + "/*.png");
+
+		std::vector<cv::String> fn0;
+		std::vector<cv::String> fn1;
+
+		cv::glob(left, fn0, true);
+        cv::glob(right, fn1, true);
+        
+		for (size_t i = 0; i < fn0.size(); i++) {
+                  output_landmarks_stream << "comment " << fn0[i] << "\n" << "comment " << fn1[i] << "\n";  
+		}
+        output_landmarks_stream << "end_header\n";
+    /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+    for (const PointWithId& point : landmarks) {
+          output_landmarks_stream << 0 << " " << point.second.x() << " "
+                              << point.second.y() << " " << point.second.z()
+                              << " 0 0 0"
+						      << " 0 255 0\n";
+		  
+    }
+    /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+	for (const auto& item : poses) 
+    {
+      mat = item.pose_.rotation().matrix();
+          
+      Eigen::AngleAxisd newAngleAxis(mat);
+      output_landmarks_stream << 1 << " " << item.pose_.translation().x() << " "
+                              << item.pose_.translation().y() << " "
+                              << item.pose_.translation().z() << " " 
+		                      << newAngleAxis.axis().x() << " " 
+							  << newAngleAxis.axis().y() << " " 
+							  << newAngleAxis.axis().z()<< " "
+                              << "255 0 0\n";
+    }
+    /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/    
+  }
 
 void BackendLogger::logSmartFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_smart_factors_stats_csv_.ofstream_;
@@ -196,7 +293,7 @@ void BackendLogger::logBackendPimNavstates(const BackendOutput& output) {
   const gtsam::Point3& position = pose.translation();
   const gtsam::Quaternion& quaternion = pose.rotation().toQuaternion();
   const gtsam::Velocity3& velocity = output.debug_info_.navstate_k_.velocity();
-
+	
   output_stream << output.W_State_Blkf_.timestamp_ << "," << position.x() << ","
                 << position.y() << "," << position.z() << "," << quaternion.w()
                 << "," << quaternion.x() << "," << quaternion.y() << ","
@@ -265,15 +362,16 @@ VisualizerLogger::VisualizerLogger()
       output_landmarks_("output_landmarks.txt") {}
 
 void VisualizerLogger::logLandmarks(const PointsWithId& lmks) {
+   
   // Absolute vio errors
   std::ofstream& output_landmarks_stream = output_landmarks_.ofstream_;
-  output_landmarks_stream << "Id\t"
-                          << "x\t"
-                          << "y\t"
+  output_landmarks_stream << "Id "
+                          << "x "
+                          << "y "
                           << "z\n";
   for (const PointWithId& point : lmks) {
-    output_landmarks_stream << point.first << "\t" << point.second.x() << "\t"
-                            << point.second.y() << "\t" << point.second.z()
+    output_landmarks_stream << point.first << " " << point.second.x() << " "
+                            << point.second.y() << " " << point.second.z()
                             << "\n";
   }
   output_landmarks_stream << std::endl;
@@ -283,12 +381,12 @@ void VisualizerLogger::logLandmarks(const cv::Mat& lmks) {
   // cv::Mat each row has a lmk with x, y, z.
   // Absolute vio errors
   std::ofstream& output_landmarks_stream = output_landmarks_.ofstream_;
-  output_landmarks_stream << "x\t"
-                          << "y\t"
+  output_landmarks_stream << "x "
+                          << "y "
                           << "z\n";
   for (int i = 0; i < lmks.rows; i++) {
-    output_landmarks_stream << lmks.at<float>(i, 0) << "\t"
-                            << lmks.at<float>(i, 1) << "\t"
+    output_landmarks_stream << lmks.at<float>(i, 0) << " "
+                            << lmks.at<float>(i, 1) << " "
                             << lmks.at<float>(i, 2) << "\n";
   }
   output_landmarks_stream << std::endl;
@@ -310,8 +408,6 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
   if (!is_header_written || !log_accumulated_mesh) {
     output_mesh_stream << "ply\n"
                        << "format ascii 1.0\n"
-                       << "comment Mesh for SPARK VIO at timestamp "
-                       << timestamp << "\n"
                        << "element vertex " << vertex_count << "\n"
                        << "property float x\n"
                        << "property float y\n"
@@ -319,7 +415,6 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
                        << "property uchar red\n"  // Start of vertex color.
                        << "property uchar green\n"
                        << "property uchar blue\n"
-                       << "element face " << faces_count << "\n"
                        << "property list uchar int vertex_indices\n"
                        << "end_header\n";
     is_header_written = true;
@@ -344,6 +439,40 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
                        << mesh.at<int32_t>(index + 3) << " \n";
   }
   output_mesh_stream << std::endl;
+  
+  /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  //output_mesh_stream << "ply\n"
+  //                        << "format ascii 1.0\n"
+  //                        << "element vertex " << vertex_count << "\n"
+  //                        << "property double x\n"
+  //                        << "property double y\n"
+  //                        << "property double z\n"
+  //                        << "property uchar red\n"  // Start of vertex color.
+  //                        << "property uchar green\n"
+  //                        << "property uchar blue\n"
+  //                        << "property list uchar int vertex_indices\n"
+  //                        << "end_header\n";
+  ///*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  //Eigen::Matrix3d mat;
+  //for (const PointWithId& point : outp_landmarks) {
+  //  output_mesh_stream << 0 << " " << point.second.x() << " "
+  //                          << point.second.y() << " " << point.second.z() << 0
+  //                          << " " << 255 << " " << 0 << "\n";
+  //}
+  ///*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  //for (const auto& item : poses) {
+  //  mat = item.pose_.rotation().matrix();
+  //
+  //  Eigen::AngleAxisd newAngleAxis(mat);
+  //  output_mesh_stream
+  //      << 1 << " " << item.pose_.translation().x() << " "
+  //      << item.pose_.translation().y() << " " << item.pose_.translation().z()
+  //      << " " << newAngleAxis.axis() << " " << 255 << " " << 0 << " " << 0
+  //      << "\n";
+  //}
+  /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+  /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

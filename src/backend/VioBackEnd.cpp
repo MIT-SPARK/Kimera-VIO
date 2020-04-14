@@ -190,6 +190,8 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   if (logger_) {
     logger_->logBackendOutput(*output_payload);
   }
+  //output_payload->
+  //output_payload->graph_.end();
   return output_payload;
 }
 

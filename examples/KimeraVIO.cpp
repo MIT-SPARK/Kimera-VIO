@@ -36,10 +36,6 @@ DEFINE_int32(dataset_type,
 
 int main(int argc, char* argv[]) {
   	  
-  
-
-  
-
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
@@ -108,11 +104,12 @@ int main(int argc, char* argv[]) {
   LOG(INFO) << "Pipeline successful? "
             << (is_pipeline_successful ? "Yes!" : "No!");
 
-  if (is_pipeline_successful) {
-    // Log overall time of pipeline run.
-    VIO::PipelineLogger logger;
-    logger.logPipelineOverallTiming(spin_duration);
-  }
-
+  //if (is_pipeline_successful) {
+  //  // Log overall time of pipeline run.
+  //  VIO::PipelineLogger logger;
+  //  logger.logPipelineOverallTiming(spin_duration);
+	//
+  //}
+   
   return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
 }
