@@ -3,19 +3,19 @@
 # General functionality for the mesher.
 --add_extra_lmks_from_stereo=true
 --reduce_mesh_to_time_horizon=true
+--compute_per_vertex_normals=false
 
 # Visualization.
 --visualize_histogram_1D=false
 --log_histogram_1D=false
 --visualize_histogram_2D=false
 --log_histogram_2D=false
---visualize_mesh_2d=false
---visualize_mesh_2d_filtered=false
+--visualize_mesh_2d=true
 
 # Mesh filters.
 --max_grad_in_triangle=-1
---min_ratio_btw_largest_smallest_side=0.5
---min_elongation_ratio=0.5
+--min_ratio_btw_largest_smallest_side=0.2
+--min_elongation_ratio=0.2
 --max_triangle_side=2.0
 
 # Association.
