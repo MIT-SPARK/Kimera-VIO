@@ -152,7 +152,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
                                           LmkIdToLmkTypeMap()));
 
   // First check the output_posesVIO.csv results file.
-  std::string results_csv = FLAGS_output_path + "output_posesVIO.csv";
+  std::string results_csv = FLAGS_output_path + "traj_vio.csv";
   CsvMat results = csv_reader_.getData(results_csv);
 
   // Check that only header and one line were logged.
@@ -435,7 +435,7 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
 
   // First check the output_frontend_ransac_mono.csv results file.
   std::string opt_traj_csv = FLAGS_output_path +
-      "output_lcd_optimized_traj.csv";
+      "traj_pgo.csv";
   CsvMat opt_traj = csv_reader_.getData(opt_traj_csv);
 
   // Check that only header and one line were logged.

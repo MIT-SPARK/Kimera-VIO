@@ -9,11 +9,12 @@
 /**
  * @file   Logger.cpp
  * @brief  Logging output information.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
  */
 
 #include "kimera-vio/logging/Logger.h"
 
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -61,8 +62,29 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("traj_gt.csv") {}
+
+void EurocGtLogger::logGtData(const std::string& file_path) {
+  std::ifstream f_in(file_path.c_str());
+  CHECK(f_in.is_open()) << "Cannot open file: " << file_path;
+  // Drop first line, we want to use our own header.
+  std::string dummy_header;
+  std::getline(f_in, dummy_header);
+
+  std::ofstream& output_stream = output_gt_poses_csv_.ofstream_;
+  // First, write header
+  output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
+                << "bgx,bgy,bgz,bax,bay,baz" << std::endl;
+  // Then, copy all gt data to file
+  output_stream << f_in.rdbuf();
+
+  // Clean
+  f_in.close();
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 BackendLogger::BackendLogger()
-    : output_poses_vio_csv_("output_posesVIO.csv"),
+    : output_poses_vio_csv_("traj_vio.csv"),
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
@@ -391,8 +413,7 @@ void FrontendLogger::logFrontendStats(
   }
 
   output_stream_stats
-      << timestamp_lkf
-      << ","
+      << timestamp_lkf << ","
       // Mono status.
       << TrackerStatusSummary::asString(tracker_summary.kfTrackingStatus_mono_)
       << ","
@@ -401,21 +422,18 @@ void FrontendLogger::logFrontendStats(
              tracker_summary.kfTrackingStatus_stereo_)
       << ","
       // Nr of keypoints.
-      << nrKeypoints
-      << ","
+      << nrKeypoints << ","
       // Feature detection, tracking and ransac.
       << tracker_info.nrDetectedFeatures_ << ","
       << tracker_info.nrTrackerFeatures_ << "," << tracker_info.nrMonoInliers_
       << "," << tracker_info.nrMonoPutatives_ << ","
       << tracker_info.nrStereoInliers_ << "," << tracker_info.nrStereoPutatives_
       << "," << tracker_info.monoRansacIters_ << ","
-      << tracker_info.stereoRansacIters_
-      << ","
+      << tracker_info.stereoRansacIters_ << ","
       // Performance of sparse-stereo-matching and ransac.
       << tracker_info.nrValidRKP_ << "," << tracker_info.nrNoLeftRectRKP_ << ","
       << tracker_info.nrNoRightRectRKP_ << "," << tracker_info.nrNoDepthRKP_
-      << "," << tracker_info.nrFailedArunRKP_
-      << ","
+      << "," << tracker_info.nrFailedArunRKP_ << ","
       // Info about timing.
       << tracker_info.featureDetectionTime_ << ","
       << tracker_info.featureTrackingTime_ << ","
@@ -509,7 +527,7 @@ void PipelineLogger::logPipelineOverallTiming(
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.csv"),
-      output_traj_("output_lcd_optimized_traj.csv"),
+      output_traj_("traj_pgo.csv"),
       output_status_("output_lcd_status.csv"),
       ts_map_() {}
 

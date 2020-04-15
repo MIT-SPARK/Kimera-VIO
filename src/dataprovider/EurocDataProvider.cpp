@@ -27,6 +27,7 @@
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/logging/Logger.h"
 
 DEFINE_string(dataset_path,
               "/Users/Luca/data/MH_01_easy",
@@ -39,6 +40,9 @@ DEFINE_int64(final_k,
              10000,
              "Final frame to finish processing dataset, "
              "subsequent frames will not be used.");
+DEFINE_bool(log_euroc_gt_data,
+            false,
+            "Log Euroc ground-truth data to file for later evaluation.");
 
 namespace VIO {
 
@@ -52,7 +56,9 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       current_k_(std::numeric_limits<FrameId>::max()),
       initial_k_(initial_k),
       final_k_(final_k),
-      pipeline_params_(vio_params) {
+      pipeline_params_(vio_params),
+      logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
+                                      : nullptr) {
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);
@@ -97,7 +103,7 @@ bool EurocDataProvider::spin() {
     // Spin.
     CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
-    LOG_EVERY_N(INFO, 1) << "Running dataset between frame " << initial_k_
+    LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
                          << " and frame " << final_k_;
     while (!shutdown_ && spinOnce()) {
       if (!pipeline_params_.parallel_run_) {
@@ -265,7 +271,7 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool EurocDataProvider::parseGTdata(const std::string& input_dataset_path,
+bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
                                     const std::string& gtSensorName) {
   CHECK(!input_dataset_path.empty());
   CHECK(!gtSensorName.empty());
@@ -313,21 +319,22 @@ bool EurocDataProvider::parseGTdata(const std::string& input_dataset_path,
   std::string line;
   std::getline(fin, line);
 
-  size_t deltaCount = 0u;
+  size_t delta_count = 0u;
   Timestamp sumOfDelta = 0;
   Timestamp previous_timestamp = -1;
 
   // Read/store gt, line by line.
-  double maxGTvel = 0;
+  double max_gt_vel = 0;
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
-    std::vector<double> gtDataRaw;
-    for (size_t i = 0; i < 17; i++) {
+    std::vector<double> gt_data_raw;
+    for (size_t i = 0u; i < 17; i++) {
       int idx = line.find_first_of(',');
-      if (i == 0)
+      if (i == 0u) {
         timestamp = std::stoll(line.substr(0, idx));
-      else
-        gtDataRaw.push_back(std::stod(line.substr(0, idx)));
+      } else {
+        gt_data_raw.push_back(std::stod(line.substr(0, idx)));
+      }
       line = line.substr(idx + 1);
     }
     if (previous_timestamp == -1) {
@@ -336,64 +343,64 @@ bool EurocDataProvider::parseGTdata(const std::string& input_dataset_path,
       sumOfDelta += (timestamp - previous_timestamp);
       // std::cout << "time diff (sec): " << (timestamp - previous_timestamp) *
       // 1e-9 << std::endl;
-      deltaCount += 1u;
+      delta_count += 1u;
       previous_timestamp = timestamp;
     }
 
     VioNavState gt_curr;
-    gtsam::Point3 position(gtDataRaw[0], gtDataRaw[1], gtDataRaw[2]);
+    gtsam::Point3 position(gt_data_raw[0], gt_data_raw[1], gt_data_raw[2]);
     // Quaternion w x y z.
     gtsam::Rot3 rot = gtsam::Rot3::Quaternion(
-        gtDataRaw[3], gtDataRaw[4], gtDataRaw[5], gtDataRaw[6]);
+        gt_data_raw[3], gt_data_raw[4], gt_data_raw[5], gt_data_raw[6]);
 
     // Sanity check.
     gtsam::Vector q = rot.quaternion();
     // Figure out sign for quaternion.
-    if (std::fabs(q(0) + gtDataRaw[3]) < std::fabs(q(0) - gtDataRaw[3])) {
+    if (std::fabs(q(0) + gt_data_raw[3]) < std::fabs(q(0) - gt_data_raw[3])) {
       q = -q;
     }
 
     LOG_IF(FATAL,
-           (fabs(q(0) - gtDataRaw[3]) > 1e-3) ||
-               (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
-               (fabs(q(2) - gtDataRaw[5]) > 1e-3) ||
-               (fabs(q(3) - gtDataRaw[6]) > 1e-3))
+           (fabs(q(0) - gt_data_raw[3]) > 1e-3) ||
+               (fabs(q(1) - gt_data_raw[4]) > 1e-3) ||
+               (fabs(q(2) - gt_data_raw[5]) > 1e-3) ||
+               (fabs(q(3) - gt_data_raw[6]) > 1e-3))
         << "parseGTdata: wrong quaternion conversion"
-        << "(" << q(0) << "," << gtDataRaw[3] << ") "
-        << "(" << q(1) << "," << gtDataRaw[4] << ") "
-        << "(" << q(2) << "," << gtDataRaw[5] << ") "
-        << "(" << q(3) << "," << gtDataRaw[6] << ").";
+        << "(" << q(0) << "," << gt_data_raw[3] << ") "
+        << "(" << q(1) << "," << gt_data_raw[4] << ") "
+        << "(" << q(2) << "," << gt_data_raw[5] << ") "
+        << "(" << q(3) << "," << gt_data_raw[6] << ").";
 
     gt_curr.pose_ =
         gtsam::Pose3(rot, position).compose(gt_data_.body_Pose_cam_);
     gt_curr.velocity_ =
-        gtsam::Vector3(gtDataRaw[7], gtDataRaw[8], gtDataRaw[9]);
+        gtsam::Vector3(gt_data_raw[7], gt_data_raw[8], gt_data_raw[9]);
     gtsam::Vector3 gyroBias =
-        gtsam::Vector3(gtDataRaw[10], gtDataRaw[11], gtDataRaw[12]);
+        gtsam::Vector3(gt_data_raw[10], gt_data_raw[11], gt_data_raw[12]);
     gtsam::Vector3 accBias =
-        gtsam::Vector3(gtDataRaw[13], gtDataRaw[14], gtDataRaw[15]);
+        gtsam::Vector3(gt_data_raw[13], gt_data_raw[14], gt_data_raw[15]);
     gt_curr.imu_bias_ = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
     gt_data_.map_to_gt_.insert(
         std::pair<Timestamp, VioNavState>(timestamp, gt_curr));
 
-    double normVel = gt_curr.velocity_.norm();
-    if (normVel > maxGTvel) maxGTvel = normVel;
+    double norm_vel = gt_curr.velocity_.norm();
+    if (norm_vel > max_gt_vel) max_gt_vel = norm_vel;
   }  // End of while loop.
 
-  CHECK_EQ(deltaCount, gt_data_.map_to_gt_.size() - 1u)
-      << "parseGTdata: wrong nr of deltaCount: deltaCount " << deltaCount
+  CHECK_EQ(delta_count, gt_data_.map_to_gt_.size() - 1u)
+      << "parseGTdata: wrong nr of deltaCount: deltaCount " << delta_count
       << " nrPoses " << gt_data_.map_to_gt_.size();
 
-  CHECK_NE(deltaCount, 0u);
+  CHECK_NE(delta_count, 0u);
   // Converted in seconds.
   // TODO(TONI): this looks horrible.
   gt_data_.gt_rate_ =
-      (static_cast<double>(sumOfDelta) / static_cast<double>(deltaCount)) *
+      (static_cast<double>(sumOfDelta) / static_cast<double>(delta_count)) *
       1e-9;
   fin.close();
 
-  VLOG(1) << "Maximum ground truth velocity: " << maxGTvel;
+  VLOG(1) << "Maximum ground truth velocity: " << max_gt_vel;
   return true;
 }
 
@@ -419,9 +426,20 @@ bool EurocDataProvider::parseDataset() {
 
   // Parse Ground-Truth data.
   static const std::string ground_truth_name = "state_groundtruth_estimate0";
-  is_gt_available_ = parseGTdata(dataset_path_, ground_truth_name);
+  is_gt_available_ = parseGtData(dataset_path_, ground_truth_name);
 
   clipFinalFrame();
+
+  // Log Ground-Truth data.
+  if (logger_) {
+    if (is_gt_available_) {
+      logger_->logGtData(dataset_path_ + "/mav0/" + ground_truth_name +
+                         "/data.csv");
+    } else {
+      LOG(ERROR) << "Requested ground-truth data logging but no ground-truth "
+                    "data available.";
+    }
+  }
 
   return true;
 }
