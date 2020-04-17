@@ -131,18 +131,19 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
 BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   if (VLOG_IS_ON(10)) input.print();
 
+  bool backend_status = false;
   switch (backend_state_) {
     case BackendState::Bootstrap: {
       // Initialize backend.
       // TODO(Toni) we should do initialization here and follow the general
       // workflow of the pipeline instead of having a different module...
       backend_state_ = BackendState::Nominal;
-      addVisualInertialStateAndOptimize(input);
+      backend_status = addVisualInertialStateAndOptimize(input);
       break;
     }
     case BackendState::Nominal: {
       // Process data with VIO.
-      addVisualInertialStateAndOptimize(input);
+      backend_status = addVisualInertialStateAndOptimize(input);
       break;
     }
     default: {
@@ -151,45 +152,53 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
     }
   }
 
-  if (VLOG_IS_ON(10)) {
-    LOG(INFO) << "Latest backend IMU bias is: ";
-    getLatestImuBias().print();
-    LOG(INFO) << "Prev kf backend IMU bias is: ";
-    getImuBiasPrevKf().print();
+  // Fill ouput_payload (it will remain nullptr if the backend_status is not ok)
+  BackendOutput::UniquePtr output_payload = nullptr;
+  if (backend_status) {
+    // If backend is doing ok, fill and return ouput_payload;
+    if (VLOG_IS_ON(10)) {
+      LOG(INFO) << "Latest backend IMU bias is: ";
+      getLatestImuBias().print();
+      LOG(INFO) << "Prev kf backend IMU bias is: ";
+      getImuBiasPrevKf().print();
+    }
+
+    // Generate extra optional backend ouputs.
+    const bool kOutputLmkMap =
+        backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
+    const bool kMinLmkObs =
+        backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
+    const bool kOutputLmkTypeMap =
+        backend_output_params_.output_lmk_id_to_lmk_type_map_;
+    LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+    PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
+    if (kOutputLmkMap) {
+      // Generate this map only if requested, since costly.
+      // Also, if lmk type requested, fill lmk id to lmk type object.
+      lmk_ids_to_3d_points_in_time_horizon =
+          getMapLmkIdsTo3dPointsInTimeHorizon(
+              kOutputLmkTypeMap ? &lmk_id_to_lmk_type_map : nullptr,
+              kMinLmkObs);
+    }
+
+    // Create Backend Output Payload.
+    output_payload = VIO::make_unique<BackendOutput>(
+        VioNavStateTimestamped(
+            input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
+        // TODO(Toni): Make all below optional!!
+        state_,
+        getCurrentStateCovariance(),
+        curr_kf_id_,
+        landmark_count_,
+        debug_info_,
+        lmk_ids_to_3d_points_in_time_horizon,
+        lmk_id_to_lmk_type_map);
+
+    if (logger_) {
+      logger_->logBackendOutput(*output_payload);
+    }
   }
 
-  // Generate extra optional backend ouputs.
-  const bool kOutputLmkMap =
-      backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
-  const bool kMinLmkObs =
-      backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
-  const bool kOutputLmkTypeMap =
-      backend_output_params_.output_lmk_id_to_lmk_type_map_;
-  LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-  PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
-  if (kOutputLmkMap) {
-    // Generate this map only if requested, since costly.
-    // Also, if lmk type requested, fill lmk id to lmk type object.
-    lmk_ids_to_3d_points_in_time_horizon = getMapLmkIdsTo3dPointsInTimeHorizon(
-        kOutputLmkTypeMap ? &lmk_id_to_lmk_type_map : nullptr, kMinLmkObs);
-  }
-
-  // Create Backend Output Payload.
-  BackendOutput::UniquePtr output_payload = VIO::make_unique<BackendOutput>(
-      VioNavStateTimestamped(
-          input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
-      // TODO(Toni): Make all below optional!!
-      state_,
-      getCurrentStateCovariance(),
-      curr_kf_id_,
-      landmark_count_,
-      debug_info_,
-      lmk_ids_to_3d_points_in_time_horizon,
-      lmk_id_to_lmk_type_map);
-
-  if (logger_) {
-    logger_->logBackendOutput(*output_payload);
-  }
   return output_payload;
 }
 
@@ -241,7 +250,7 @@ void VioBackEnd::initStateAndSetPriors(
 // [in] timestamp_kf_nsec, keyframe timestamp.
 // [in] status_smart_stereo_measurements_kf, vision data.
 // [in] stereo_ransac_body_pose, inertial data.
-void VioBackEnd::addVisualInertialStateAndOptimize(
+bool VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
@@ -314,8 +323,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     //    (monoRansac is INVALID)\n");}
     //    addConstantVelocityFactor(last_id_, cur_id_); break;
 
-      // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
-      // we add features in VIO
+    // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
+    // we add features in VIO
     default: {
       addLandmarksToGraph(landmarks_kf);
       break;
@@ -327,10 +336,10 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // imu_bias_lkf_ gets updated in the optimize call.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
-  optimize(timestamp_kf_nsec, curr_kf_id_, backend_params_.numOptimize_);
+  return optimize(timestamp_kf_nsec, curr_kf_id_, backend_params_.numOptimize_);
 }
 
-void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
+bool VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   bool use_stereo_btw_factor =
       backend_params_.addBetweenStereoFactors_ &&
       input.stereo_tracking_status_ == TrackingStatus::VALID;
@@ -338,7 +347,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
-  addVisualInertialStateAndOptimize(
+  bool is_smoother_ok = addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
@@ -347,6 +356,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
           : boost::none);  // optional: pose estimate from stereo ransac
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
+  return is_smoother_ok;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -836,7 +846,7 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 // parameters...
 // TODO make changes to global variables to the addVisualInertial blah blah.
 // TODO remove timing logging and use Statistics.h instead.
-void VioBackEnd::optimize(
+bool VioBackEnd::optimize(
     const Timestamp& timestamp_kf_nsec,
     const FrameId& cur_id,
     const size_t& max_extra_iterations,
@@ -972,7 +982,7 @@ void VioBackEnd::optimize(
            << ", and " << delete_slots.size() << " deleted factors.";
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
-  updateSmoother(
+  bool is_smoother_ok = updateSmoother(
       &result, new_factors_tmp, new_values_, timestamps, delete_slots);
   VLOG(10) << "Finished first update.";
 
@@ -983,8 +993,7 @@ void VioBackEnd::optimize(
     start_time = utils::Timer::tic();
   }
 
-  /////////////////////////// BOOKKEEPING
-  /////////////////////////////////////////
+  /////////////////////////// BOOKKEEPING //////////////////////////////////////
 
   // Reset everything for next round.
   // TODO what about the old_smart_factors_?
@@ -1017,9 +1026,10 @@ void VioBackEnd::optimize(
   //////////////////////////////////////////////////////////////////////////////
 
   // Do some more optimization iterations.
-  for (size_t n_iter = 1; n_iter < max_extra_iterations; ++n_iter) {
+  for (size_t n_iter = 1; n_iter < max_extra_iterations && is_smoother_ok;
+       ++n_iter) {
     VLOG(10) << "Doing extra iteration nr: " << n_iter;
-    updateSmoother(&result);
+    is_smoother_ok = updateSmoother(&result);
   }
 
   if (VLOG_IS_ON(5) || log_output_) {
@@ -1028,16 +1038,20 @@ void VioBackEnd::optimize(
     start_time = utils::Timer::tic();
   }
 
-  // Update states we need for next iteration.
-  updateStates(cur_id);
+  // Update states we need for next iteration, if smoother is ok.
+  if (is_smoother_ok) {
+    updateStates(cur_id);
 
-  // TODO: Add Update latest covariance --> move flag
-  if (FLAGS_compute_state_covariance) {
-    computeStateCovariance();
+    // TODO: Add Update latest covariance --> move flag
+    if (FLAGS_compute_state_covariance) {
+      computeStateCovariance();
+    }
+
+    // Debug.
+    postDebug(total_start_time, start_time);
   }
 
-  // Debug.
-  postDebug(total_start_time, start_time);
+  return is_smoother_ok;
 }
 
 /// Private methods.
@@ -1144,7 +1158,7 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
 
 /* -------------------------------------------------------------------------- */
 // Update smoother.
-void VioBackEnd::updateSmoother(Smoother::Result* result,
+bool VioBackEnd::updateSmoother(Smoother::Result* result,
                                 const gtsam::NonlinearFactorGraph& new_factors,
                                 const gtsam::Values& new_values,
                                 const std::map<Key, double>& timestamps,
@@ -1178,30 +1192,35 @@ void VioBackEnd::updateSmoother(Smoother::Result* result,
                << "and index " << symb.index() << std::endl;
 
     smoother_->getFactors().print("Smoother's factors:\n[\n\t");
-    std::cout << " ]" << std::endl;
+    LOG(INFO) << " ]";
     state_.print("State values\n[\n\t");
-    std::cout << " ]" << std::endl;
-
+    LOG(INFO) << " ]";
     printSmootherInfo(new_factors, delete_slots);
-    throw;
+    return false;
   } catch (const gtsam::InvalidNoiseModel& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::InvalidMatrixBlock& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::InvalidDenseElimination& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::InvalidArgumentThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::ValuesKeyDoesNotExist& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::CholeskyFailed& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::CheiralityException& e) {
     LOG(ERROR) << e.what();
     const gtsam::Key& lmk_key = e.nearbyVariable();
@@ -1223,22 +1242,26 @@ void VioBackEnd::updateSmoother(Smoother::Result* result,
   } catch (const gtsam::RuntimeErrorThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const gtsam::OutOfRangeThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const std::out_of_range& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (const std::exception& e) {
     // Catch anything thrown within try block that derives from
     // std::exception.
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
+    return false;
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
     printSmootherInfo(new_factors, delete_slots);
-    // Do not intentionally throw to see what checks fail later.
+    return false;
   }
 
   if (FLAGS_process_cheirality) {
@@ -1298,17 +1321,20 @@ void VioBackEnd::updateSmoother(Smoother::Result* result,
       // Try again to optimize. This is a recursive call.
       LOG(WARNING) << "Starting updateSmoother after handling "
                       "cheirality exception.";
-      updateSmoother(result,
-                     new_factors_tmp_cheirality,
-                     new_values_cheirality,
-                     timestamps_cheirality,
-                     delete_slots_cheirality);
+      bool status = updateSmoother(result,
+                                   new_factors_tmp_cheirality,
+                                   new_values_cheirality,
+                                   timestamps_cheirality,
+                                   delete_slots_cheirality);
       LOG(WARNING) << "Finished updateSmoother after handling "
                       "cheirality exception";
+      return status;
     } else {
       counter_of_exceptions_ = 0;
     }
   }
+
+  return true;
 }
 
 /* --------------------------------------------------------------------------

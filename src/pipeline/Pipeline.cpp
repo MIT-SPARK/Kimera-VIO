@@ -177,6 +177,7 @@ Pipeline::Pipeline(const VioParams& params)
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
       parallel_run_,
+      std::bind(&Pipeline::shutdown, this),
       BackEndFactory::createBackend(backend_type_,
                                     // These two should be given by parameters.
                                     stereo_camera_->getLeftCamPose(),

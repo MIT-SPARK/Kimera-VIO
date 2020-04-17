@@ -146,7 +146,7 @@ RegularVioBackEnd::RegularVioBackEnd(
 }
 
 /* -------------------------------------------------------------------------- */
-void RegularVioBackEnd::addVisualInertialStateAndOptimize(
+bool RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
@@ -356,26 +356,30 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(10) << "Starting optimize...";
-  optimize(timestamp_kf_nsec,
-           curr_kf_id_,
-           backend_params_.numOptimize_,
-           delete_slots);
+  bool is_smoother_ok = optimize(timestamp_kf_nsec,
+                                 curr_kf_id_,
+                                 backend_params_.numOptimize_,
+                                 delete_slots);
   VLOG(10) << "Finished optimize.";
 
-  // Sanity check: ensure no one is removing planes outside
-  // updatePlaneEstimates.
-  CHECK_LE(nr_of_planes_, planes_.size());
+  if (is_smoother_ok) {
+    // Sanity check: ensure no one is removing planes outside
+    // updatePlaneEstimates.
+    CHECK_LE(nr_of_planes_, planes_.size());
 
-  // Update estimates of planes, and remove planes that are not in the state.
-  VLOG(10) << "Starting updatePlaneEstimates...";
-  updatePlaneEstimates(&planes_);
-  VLOG(10) << "Finished updatePlaneEstimates.";
-  nr_of_planes_ = planes_.size();
+    // Update estimates of planes, and remove planes that are not in the state.
+    VLOG(10) << "Starting updatePlaneEstimates...";
+    updatePlaneEstimates(&planes_);
+    VLOG(10) << "Finished updatePlaneEstimates.";
+    nr_of_planes_ = planes_.size();
 
-  // Reset list of factors to delete.
-  // These are the smart factors that have been converted to projection factors
-  // and must be deleted from the factor graph.
-  delete_slots_of_converted_smart_factors_.resize(0);
+    // Reset list of factors to delete.
+    // These are the smart factors that have been converted to projection factors
+    // and must be deleted from the factor graph.
+    delete_slots_of_converted_smart_factors_.resize(0);
+  }
+
+  return is_smoother_ok;
 }
 
 /* -------------------------------------------------------------------------- */

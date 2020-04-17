@@ -195,7 +195,7 @@ class VioBackEnd {
   // [in] timestamp_kf_nsec, keyframe timestamp.
   // [in] status_smart_stereo_measurements_kf, vision data.
   // [in] stereo_ransac_body_pose, inertial data.
-  virtual void addVisualInertialStateAndOptimize(
+  virtual bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
@@ -236,8 +236,15 @@ class VioBackEnd {
                         const FrameId& to_id,
                         const gtsam::Pose3& from_id_POSE_to_id);
 
-  /* ------------------------------------------------------------------------ */
-  void optimize(const Timestamp& timestamp_kf_nsec,
+  /**
+   * @brief optimize
+   * @param timestamp_kf_nsec
+   * @param cur_id
+   * @param max_iterations
+   * @param extra_factor_slots_to_delete
+   * @return False if optimization failed, true otherwise
+   */
+  bool optimize(const Timestamp& timestamp_kf_nsec,
                 const FrameId& cur_id,
                 const size_t& max_iterations,
                 const gtsam::FactorIndices& extra_factor_slots_to_delete =
@@ -252,7 +259,7 @@ class VioBackEnd {
 
  private:
   /* ------------------------------------------------------------------------ */
-  void addVisualInertialStateAndOptimize(const BackendInput& input);
+  bool addVisualInertialStateAndOptimize(const BackendInput& input);
 
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
@@ -266,8 +273,16 @@ class VioBackEnd {
   void updateStates(const FrameId& cur_id);
 
   /* ------------------------------------------------------------------------ */
-  // Update smoother.
-  void updateSmoother(
+  /**
+   * @brief updateSmoother
+   * @param result
+   * @param new_factors_tmp
+   * @param new_values
+   * @param timestamps
+   * @param delete_slots
+   * @return False if the update failed, true otw.
+   */
+  bool updateSmoother(
       Smoother::Result* result,
       const gtsam::NonlinearFactorGraph& new_factors_tmp =
           gtsam::NonlinearFactorGraph(),

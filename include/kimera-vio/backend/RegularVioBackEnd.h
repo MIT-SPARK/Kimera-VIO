@@ -44,7 +44,7 @@ class RegularVioBackEnd : public VioBackEnd {
 
  public:
   /* ------------------------------------------------------------------------ */
-  virtual void addVisualInertialStateAndOptimize(
+  bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,

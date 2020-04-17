@@ -34,6 +34,8 @@ class VioBackEndModule
   using SIMO = SIMOPipelineModule<BackendInput, BackendOutput>;
   using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
 
+  typedef std::function<void()> ShutdownPipelineCallback;
+
   /**
    * @brief VioBackEndModule
    * @param input_queue
@@ -43,8 +45,10 @@ class VioBackEndModule
    */
   VioBackEndModule(InputQueue* input_queue,
                    bool parallel_run,
+                   ShutdownPipelineCallback shutdown_pipeline_cb,
                    VioBackEnd::UniquePtr vio_backend)
       : SIMO(input_queue, "VioBackEnd", parallel_run),
+        shutdown_pipeline_cb_(shutdown_pipeline_cb),
         vio_backend_(std::move(vio_backend)) {
     CHECK(vio_backend_);
   }
@@ -53,7 +57,12 @@ class VioBackEndModule
   virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input) {
     CHECK(input);
     CHECK(vio_backend_);
-    return vio_backend_->spinOnce(*input);
+    OutputUniquePtr output = vio_backend_->spinOnce(*input);
+    if (!output && shutdown_pipeline_cb_) {
+      LOG(ERROR) << "Shutting down VIO pipeline because backend failed...";
+      shutdown_pipeline_cb_();
+    }
+    return output;
   }
 
  public:
@@ -87,6 +96,7 @@ class VioBackEndModule
 
  protected:
   const VioBackEnd::UniquePtr vio_backend_;
+  ShutdownPipelineCallback shutdown_pipeline_cb_;
 };
 
 }  // namespace VIO
