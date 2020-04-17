@@ -12,8 +12,6 @@
  * @author Antoni Rosinol
  */
 
-#pragma once
-
 #include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
 #include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
