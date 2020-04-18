@@ -1998,7 +1998,7 @@ void VioBackEnd::postDebug(
     const auto& end_time =
         utils::Timer::toc<std::chrono::seconds>(total_start_time).count();
     const auto& end_time_from_sum = debug_info_.sumAllTimes();
-    CHECK_EQ(end_time, end_time_from_sum)
+    LOG_IF(ERROR, end_time != end_time_from_sum)
         << "Optimize: time measurement mismatch."
            "The sum of the parts is not equal to the total.";
 
