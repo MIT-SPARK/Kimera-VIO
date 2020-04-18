@@ -216,9 +216,6 @@ class Pipeline {
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Thread Managing
-  /// Launch different threads with processes.
-  void launchThreads();
-
   /// Launch frontend thread with process.
   void launchFrontendThread();
 

@@ -295,13 +295,52 @@ TEST_F(VioPipelineFixture, OfflineParallelSpinShutdownWhenFinished) {
 }
 
 // This tests that the VIO pipeline dies gracefully if the backend breaks.
+TEST_F(VioPipelineFixture, OfflineSequentialSpinBackendFailureGracefulShutdown) {
+  // Modify vio pipeline so that the backend fails
+  vio_params_.parallel_run_ = false;
+  vio_params_.backend_params_->horizon_ = 0;
+  vio_params_.backend_type_ = BackendType::kStereoImu;
+  buildOfflinePipeline(vio_params_);
+  ASSERT_TRUE(dataset_parser_);
+  ASSERT_TRUE(vio_pipeline_);
+  while (dataset_parser_->spin() && vio_pipeline_->spin()) {
+    /* well, nothing to do :) */
+  };
+  vio_pipeline_->shutdown();
+}
+
+// This tests that the VIO pipeline dies gracefully if the backend breaks.
 TEST_F(VioPipelineFixture, OnlineParallelSpinBackendFailureGracefulShutdown) {
+  // Modify vio pipeline so that the backend fails
+  vio_params_.backend_params_->horizon_ = 0;
+  vio_params_.backend_type_ = BackendType::kStereoImu;
+  buildOnlinePipeline(vio_params_);
   ASSERT_TRUE(vio_params_.parallel_run_);
   ASSERT_TRUE(dataset_parser_);
   ASSERT_TRUE(vio_pipeline_);
+  auto handle = std::async(std::launch::async,
+                           &VIO::DataProviderInterface::spin,
+                           dataset_parser_.get());
+  auto handle_pipeline =
+      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+  auto handle_shutdown = std::async(std::launch::async,
+                                    &VIO::Pipeline::shutdownWhenFinished,
+                                    vio_pipeline_.get(),
+                                    500);
+  EXPECT_TRUE(handle_shutdown.get());
+  EXPECT_FALSE(handle_pipeline.get());
+  EXPECT_FALSE(handle.get());
+}
+
+// This tests that the VIO pipeline dies gracefully if the backend breaks.
+TEST_F(VioPipelineFixture, OnlineParallelSpinRegularBackendFailureGracefulShutdown) {
   // Modify vio pipeline so that the backend fails
   vio_params_.backend_params_->horizon_ = 0;
-  vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params_);
+  vio_params_.backend_type_ = BackendType::kStructuralRegularities;
+  buildOnlinePipeline(vio_params_);
+  ASSERT_TRUE(vio_params_.parallel_run_);
+  ASSERT_TRUE(dataset_parser_);
+  ASSERT_TRUE(vio_pipeline_);
   auto handle = std::async(std::launch::async,
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());

@@ -296,9 +296,11 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
       // but not using it for initialization, because accumulated and actual IMU
       // data at init is the same...
       if (initialize(*stereo_imu_sync_packet)) {
-        LOG(INFO) << "Before launching threads.";
-        launchRemainingThreads();
-        LOG(INFO) << " launching threads.";
+        if (parallel_run_) {
+          LOG(INFO) << "Before launching threads.";
+          launchRemainingThreads();
+          LOG(INFO) << " launching threads.";
+        }
         is_initialized_ = true;
       } else {
         LOG(INFO) << "Not yet initialized...";
@@ -765,13 +767,6 @@ bool Pipeline::initializeOnline(
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::launchThreads() {
-  LOG(INFO) << "Launching threads.";
-  launchFrontendThread();
-  launchRemainingThreads();
-}
-
-/* -------------------------------------------------------------------------- */
 void Pipeline::launchFrontendThread() {
   if (parallel_run_) {
     // Start frontend_thread.
@@ -823,15 +818,6 @@ void Pipeline::resume() {
 
   LOG(INFO) << "Restarting backend workers and queues...";
   backend_input_queue_.resume();
-
-  // Re-launch threads
-  /*if (parallel_run_) {
-    launchThreads();
-  } else {
-    LOG(INFO) << "Running in sequential mode (parallel_run set to "
-              << parallel_run_<< ").";
-  }
-  is_launched_ = true; */
 }
 
 /* -------------------------------------------------------------------------- */

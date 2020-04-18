@@ -26,8 +26,8 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
-#include "kimera-vio/utils/UtilsNumerical.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DEFINE_int32(min_num_of_observations,
              2,
@@ -374,7 +374,8 @@ bool RegularVioBackEnd::addVisualInertialStateAndOptimize(
     nr_of_planes_ = planes_.size();
 
     // Reset list of factors to delete.
-    // These are the smart factors that have been converted to projection factors
+    // These are the smart factors that have been converted to projection
+    // factors
     // and must be deleted from the factor graph.
     delete_slots_of_converted_smart_factors_.resize(0);
   }
@@ -399,6 +400,8 @@ void RegularVioBackEnd::addLandmarksToGraph(
 
     // Only insert feature tracks of length at least 2
     // (otherwise uninformative)
+    // TODO(TONI): parametrize this min_num_of_obs... should be in frontend
+    // rather than backend though...
     if (feature_track.obs_.size() >= FLAGS_min_num_of_observations) {
       // We have enough observations of the lmk.
       if (!feature_track.in_ba_graph_) {
@@ -482,6 +485,8 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   // Add new factor to suitable structures.
   // TODO why do we need to store the new_factor in both structures??
   VLOG(10) << "Add lmk with id: " << lmk_id << " to new_smart_factors_";
+  CHECK_NE(lmk_id, -1)
+      << "Lmk id should not be -1 when adding to factor graph.";
   new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
   VLOG(10) << "Add lmk with id: " << lmk_id << " to old_smart_factors_";
   old_smart_factors_.insert(
@@ -555,6 +560,8 @@ void RegularVioBackEnd::updateExistingSmartFactor(
     SmartFactorMap* old_smart_factors) {
   CHECK_NOTNULL(new_smart_factors);
   CHECK_NOTNULL(old_smart_factors);
+  CHECK_NE(lmk_id, -1) << "When calling update existing smart factor, the slot "
+                          "should already be != -1! \n";
 
   // Update existing smart-factor.
   const SmartFactorMap::iterator& old_smart_factors_it =
@@ -697,6 +704,9 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
     CHECK(old_smart_factors->find(lmk_id) != old_smart_factors->end());
     VLOG(20) << "Erasing lmk with id " << lmk_id << " from old_smart_factors";
     old_smart_factors->erase(lmk_id);
+    CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
+    FeatureTrack& ft = feature_tracks_.at(lmk_id);
+    ft.in_ba_graph_ = false;
     ////////////////////////////////////////////////////////////////////////
 
     return true;
@@ -871,9 +881,8 @@ bool RegularVioBackEnd::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id
-             << " needs to stay as it is since it is "
-                "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
+                                         "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -886,9 +895,8 @@ bool RegularVioBackEnd::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id
-             << " needs to be a proj. factor, as it "
-                "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
+                                         "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,

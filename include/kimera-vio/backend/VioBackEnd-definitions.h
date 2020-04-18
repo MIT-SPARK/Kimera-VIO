@@ -104,7 +104,7 @@ class FeatureTrack {
 // Key is the lmk_id and feature track the collection of pairs of
 // frame id and pixel location.
 // TODO(Toni): what is this doing here... should be in frontend at worst.
-using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
+using FeatureTracks = std::unordered_map<LandmarkId, FeatureTrack>;
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugVioInfo {

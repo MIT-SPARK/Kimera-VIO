@@ -175,6 +175,7 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
     if (kOutputLmkMap) {
       // Generate this map only if requested, since costly.
       // Also, if lmk type requested, fill lmk id to lmk type object.
+      // WARNING this also cleans the lmks inside the old_smart_factors map!
       lmk_ids_to_3d_points_in_time_horizon =
           getMapLmkIdsTo3dPointsInTimeHorizon(
               kOutputLmkTypeMap ? &lmk_id_to_lmk_type_map : nullptr,
@@ -362,7 +363,8 @@ bool VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   return is_smoother_ok;
 }
 
-/* -------------------------------------------------------------------------- */
+// TODO(Toni): no need to pass landmarks_kf, can iterate directly over feature
+// tracks...
 // Uses landmark table to add factors in graph.
 void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   // Add selected landmarks to graph:
@@ -372,6 +374,8 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
 
   for (const LandmarkId& lmk_id : landmarks_kf) {
     FeatureTrack& ft = feature_tracks_.at(lmk_id);
+    // TODO(TONI): parametrize this min_num_of_obs... should be in frontend
+    // rather than backend though...
     if (ft.obs_.size() < 2) {  // we only insert feature tracks of length at
                                // least 2 (otherwise uninformative)
       continue;
@@ -400,7 +404,7 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
 /* --------------------------------------------------------------------------
  */
 // Adds a landmark to the graph for the first time.
-void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
+void VioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                     const FeatureTrack& ft) {
   // We use a unit pinhole projection camera for the smart factors to be
   // more efficient.
@@ -427,20 +431,19 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
   }
 
   // add new factor to suitable structures:
-  new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
+  new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
   old_smart_factors_.insert(
-      std::make_pair(lm_id, std::make_pair(new_factor, -1)));
+      std::make_pair(lmk_id, std::make_pair(new_factor, -1)));
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::updateLandmarkInGraph(
     const LandmarkId& lmk_id,
     const std::pair<FrameId, StereoPoint2>& newObs) {
   // Update existing smart-factor
   auto old_smart_factors_it = old_smart_factors_.find(lmk_id);
-  LOG_IF(FATAL, old_smart_factors_it == old_smart_factors_.end())
-      << "Landmark not found in old_smart_factors_";
+  CHECK(old_smart_factors_it != old_smart_factors_.end())
+      << "Landmark not found in old_smart_factors_ with id: " << lmk_id;
 
   const SmartStereoFactor::shared_ptr& old_factor =
       old_smart_factors_it->second.first;
@@ -459,10 +462,7 @@ void VioBackEnd::updateLandmarkInGraph(
                   "be already != -1! \n";
   }
   old_smart_factors_it->second.first = new_factor;
-  if (VLOG_IS_ON(10)) {
-    std::cout << "updateLandmarkInGraph: added observation to point: " << lmk_id
-              << std::endl;
-  }
+  VLOG(10) << "updateLandmarkInGraph: added observation to point: " << lmk_id;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -521,6 +521,12 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
               << " does not exist in the graph.\n"
               << "Deleting old_smart_factor of lmk id: " << lmk_id;
       old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
+      // Update as well the feature track....
+      // TODO(TONI): please remove this and centralize how feature tracks
+      // and new/old_smart_factors are added and removed!
+      CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
+      FeatureTrack& ft = feature_tracks_.at(lmk_id);
+      ft.in_ba_graph_ = false;
       continue;
     } else {
       VLOG(20) << "Slot id: " << slot_id
@@ -541,6 +547,9 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
                  << "lmk with id: " << lmk_id << "\n."
                  << "Deleting old_smart_factor of lmk id: " << lmk_id;
       old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
+      CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
+      FeatureTrack& ft = feature_tracks_.at(lmk_id);
+      ft.in_ba_graph_ = false;
       continue;
     }
 
@@ -647,23 +656,25 @@ void VioBackEnd::computeStateCovariance() {
 // TODO this function doesn't do just one thing... Should be refactored!
 // It returns the landmark ids of the stereo measurements
 // It also updates the feature tracks. Why is this in the backend???
+// TODO(Toni): the FeatureTracks can be fully replaced by the StereoMeasurements
+// class...
 void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     const int& frame_num,
-    const SmartStereoMeasurements& stereoMeasurements_kf,
+    const SmartStereoMeasurements& stereo_meas_kf,
     LandmarkIds* landmarks_kf) {
   CHECK_NOTNULL(landmarks_kf);
 
   // TODO: feature tracks will grow unbounded.
 
   // Make sure the landmarks_kf vector is empty and has a suitable size.
-  const size_t& n_stereo_measurements = stereoMeasurements_kf.size();
+  const size_t& n_stereo_measurements = stereo_meas_kf.size();
   landmarks_kf->resize(n_stereo_measurements);
 
   // Store landmark ids.
   // TODO(Toni): the concept of feature tracks should not be in the backend...
-  for (size_t i = 0; i < n_stereo_measurements; ++i) {
-    const LandmarkId& lmk_id_in_kf_i = stereoMeasurements_kf[i].first;
-    const StereoPoint2& stereo_px_i = stereoMeasurements_kf[i].second;
+  for (size_t i = 0u; i < n_stereo_measurements; ++i) {
+    const LandmarkId& lmk_id_in_kf_i = stereo_meas_kf[i].first;
+    const StereoPoint2& stereo_px_i = stereo_meas_kf[i].second;
 
     // We filtered invalid lmks in the StereoTracker, so this should not happen.
     CHECK_NE(lmk_id_in_kf_i, -1) << "landmarkId_kf_i == -1?";
@@ -1638,8 +1649,7 @@ void VioBackEnd::printSmootherInfo(
     const gtsam::FactorIndices& delete_slots,
     const std::string& message,
     const bool& showDetails) const {
-  LOG(INFO) << " =============== START:" << message
-            << " =============== " << std::endl;
+  LOG(INFO) << " =============== START:" << message << " =============== ";
 
   const std::string* which_graph = nullptr;
   const gtsam::NonlinearFactorGraph* graph = nullptr;
@@ -1659,7 +1669,7 @@ void VioBackEnd::printSmootherInfo(
   CHECK_NOTNULL(which_graph);
   CHECK_NOTNULL(graph);
 
-  static constexpr bool print_smart_factors = false;
+  static constexpr bool print_smart_factors = true; // There a lot of these!
   static constexpr bool print_point_plane_factors = true;
   static constexpr bool print_plane_priors = true;
   static constexpr bool print_point_priors = true;
@@ -1677,8 +1687,7 @@ void VioBackEnd::printSmootherInfo(
                      print_linear_container_factors);
   LOG(INFO) << " ]" << std::endl;
 
-  ///////////// Print factors that were newly added to the
-  /// optimization.////////
+  ///////////// Print factors that were newly added to the optimization.//////
   LOG(INFO) << "Nr of new factors to add: " << new_factors_tmp.size()
             << " with factors:" << std::endl;
   LOG(INFO) << "[\n (slot # wrt to new_factors_tmp graph) \t";
@@ -1690,16 +1699,15 @@ void VioBackEnd::printSmootherInfo(
                      print_linear_container_factors);
   LOG(INFO) << " ]" << std::endl;
 
-  ////////////////////////////// Print deleted
-  /// slots.///////////////////////////
+  ////////////////////////////// Print deleted /// slots.///////////////////////
   LOG(INFO) << "Nr deleted slots: " << delete_slots.size()
             << ", with slots:" << std::endl;
   LOG(INFO) << "[\n\t";
   if (debug_info_.graphToBeDeleted.size() != 0) {
     // If we are storing the graph to be deleted, then print extended info
     // besides the slot to be deleted.
-    CHECK_EQ(debug_info_.graphToBeDeleted.size(), delete_slots.size());
-    for (size_t i = 0; i < delete_slots.size(); ++i) {
+    CHECK_GE(debug_info_.graphToBeDeleted.size(), delete_slots.size());
+    for (size_t i = 0u; i < delete_slots.size(); ++i) {
       CHECK(debug_info_.graphToBeDeleted.at(i));
       if (print_point_plane_factors) {
         printSelectedFactors(debug_info_.graphToBeDeleted.at(i),
@@ -1723,8 +1731,7 @@ void VioBackEnd::printSmootherInfo(
   std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
-  //////////////////////// Print all values in state.
-  /////////////////////////////
+  //////////////////////// Print all values in state. ////////////////////////
   LOG(INFO) << "Nr of values in state_ : " << state_.size() << ", with keys:";
   std::cout << "[\n\t";
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value, state_) {
@@ -1982,7 +1989,8 @@ void VioBackEnd::postDebug(
 
   if (VLOG_IS_ON(10)) {
     // Print old_smart_factors_
-    LOG(INFO) << "Landmarks in old_smart_factors_:";
+    LOG(INFO) << "Landmarks in old_smart_factors_: "
+              << old_smart_factors_.size();
     for (const auto& it : old_smart_factors_) {
       LOG(INFO) << " - Landmark " << it.first << " with slot "
                 << it.second.second;
