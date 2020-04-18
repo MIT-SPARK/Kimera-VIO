@@ -294,19 +294,6 @@ TEST_F(VioPipelineFixture, OfflineParallelSpinShutdownWhenFinished) {
   EXPECT_FALSE(handle.get());
 }
 
-TEST_F(VioPipelineFixture, OnlineParallelStartBackendShutdown) {
-  ASSERT_TRUE(vio_params_.parallel_run_);
-  ASSERT_TRUE(dataset_parser_);
-  ASSERT_TRUE(vio_pipeline_);
-  auto handle = std::async(std::launch::async,
-                           &VIO::DataProviderInterface::spin,
-                           dataset_parser_.get());
-  auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
-  EXPECT_FALSE(handle_pipeline.get());
-  EXPECT_FALSE(handle.get());
-}
-
 // This tests that the VIO pipeline dies gracefully if the backend breaks.
 TEST_F(VioPipelineFixture, OnlineParallelSpinBackendFailureGracefulShutdown) {
   ASSERT_TRUE(vio_params_.parallel_run_);
