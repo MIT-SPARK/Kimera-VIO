@@ -172,7 +172,7 @@ class VioBackEnd {
 
   /* ------------------------------------------------------------------------ */
   // Set initial state at given pose, velocity and bias.
-  void initStateAndSetPriors(
+  bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
 
  protected:
@@ -485,28 +485,43 @@ class VioBackEnd {
   // Vision params.
   gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
-  const Pose3 B_Pose_leftCam_;  // pose of the left camera wrt body
+  // Pose of the left camera wrt body
+  const Pose3 B_Pose_leftCam_;
+  // Stores calibration, baseline.
   const gtsam::Cal3_S2Stereo::shared_ptr
-      stereo_cal_;  // stores calibration, baseline
+      stereo_cal_;
 
   // State.
-  gtsam::Values state_;  //!< current state of the system.
+  //!< current state of the system.
+  gtsam::Values state_;
 
-  // GTSAM:
+  // ISAM2 smoother
   std::unique_ptr<Smoother> smoother_;
 
   // Values
-  gtsam::Values new_values_;  //!< new states to be added
+  //!< new states to be added
+  gtsam::Values new_values_;
 
   // Factors.
+  //!< New factors to be added
   gtsam::NonlinearFactorGraph
-      new_imu_prior_and_other_factors_;  //!< new factors to be added
-  LandmarkIdSmartFactorMap
-      new_smart_factors_;  //!< landmarkId -> {SmartFactorPtr}
-  SmartFactorMap
-      old_smart_factors_;  //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+      new_imu_prior_and_other_factors_;
+  //!< landmarkId -> {SmartFactorPtr}
+  LandmarkIdSmartFactorMap new_smart_factors_;
+  //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+  SmartFactorMap old_smart_factors_;
   // if SlotIndex is -1, means that the factor has not been inserted yet in the
   // graph
+
+  // Data:
+  // TODO grows unbounded currently, but it should be limited to time horizon.
+  FeatureTracks feature_tracks_;
+
+  // Counters.
+  //! Last keyframe id.
+  int last_kf_id_;
+  //! Current keyframe id.
+  int curr_kf_id_;
 
   // Imu Bias update callback. To be called as soon as we have a new IMU bias
   // update so that the frontend performs preintegration with the newest bias.
@@ -517,15 +532,6 @@ class VioBackEnd {
 
   // To print smoother info, useful when looking for optimization bugs.
   bool debug_smoother_ = false;
-
-  // Data:
-  // TODO grows unbounded currently, but it should be limited to time horizon.
-  FeatureTracks feature_tracks_;
-
-  /// Counters.
-  int last_kf_id_;
-  // Id of current keyframe, increases from 0 to inf.
-  int curr_kf_id_;
 
  private:
   //! No motion factors settings.

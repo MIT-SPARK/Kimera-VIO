@@ -215,8 +215,11 @@ void VioBackEnd::registerImuBiasUpdateCallback(
 }
 
 /* -------------------------------------------------------------------------- */
-void VioBackEnd::initStateAndSetPriors(
+bool VioBackEnd::initStateAndSetPriors(
     const VioNavStateTimestamped& vio_nav_state_initial_seed) {
+  // Clean state
+  new_values_.clear();
+
   // Update member variables.
   timestamp_lkf_ = vio_nav_state_initial_seed.timestamp_;
   W_Pose_B_lkf_ = vio_nav_state_initial_seed.pose_;
@@ -239,9 +242,9 @@ void VioBackEnd::initStateAndSetPriors(
   new_values_.insert(gtsam::Symbol('b', curr_kf_id_), imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
-  optimize(vio_nav_state_initial_seed.timestamp_,
-           curr_kf_id_,
-           backend_params_.numOptimize_);
+  return optimize(vio_nav_state_initial_seed.timestamp_,
+                  curr_kf_id_,
+                  backend_params_.numOptimize_);
 }
 
 /* --------------------------------------------------------------------------
@@ -994,63 +997,64 @@ bool VioBackEnd::optimize(
   }
 
   /////////////////////////// BOOKKEEPING //////////////////////////////////////
-
-  // Reset everything for next round.
-  // TODO what about the old_smart_factors_?
-  VLOG(10) << "Clearing new_smart_factors_!";
-  new_smart_factors_.clear();
-
-  // Reset list of new imu, prior and other factors to be added.
-  // TODO could this be used to check whether we are repeating factors?
-  new_imu_prior_and_other_factors_.resize(0);
-
-  // Clear values.
-  new_values_.clear();
-
-  // Update slots of smart factors:.
-  VLOG(10) << "Starting to find smart factors slots.";
-#ifdef INCREMENTAL_SMOOTHER
-  updateNewSmartFactorsSlots(lmk_ids_of_new_smart_factors_tmp,
-                             &old_smart_factors_);
-#else
-  findSmartFactorsSlotsSlow(new_smart_factors_lmkID_tmp);
-#endif
-  VLOG(10) << "Finished to find smart factors slots.";
-
-  if (VLOG_IS_ON(5) || log_output_) {
-    debug_info_.updateSlotTime_ =
-        utils::Timer::toc<std::chrono::seconds>(start_time).count();
-    start_time = utils::Timer::tic();
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-
-  // Do some more optimization iterations.
-  for (size_t n_iter = 1; n_iter < max_extra_iterations && is_smoother_ok;
-       ++n_iter) {
-    VLOG(10) << "Doing extra iteration nr: " << n_iter;
-    is_smoother_ok = updateSmoother(&result);
-  }
-
-  if (VLOG_IS_ON(5) || log_output_) {
-    debug_info_.extraIterationsTime_ =
-        utils::Timer::toc<std::chrono::seconds>(start_time).count();
-    start_time = utils::Timer::tic();
-  }
-
-  // Update states we need for next iteration, if smoother is ok.
   if (is_smoother_ok) {
-    updateStates(cur_id);
+    // Reset everything for next round.
+    // TODO what about the old_smart_factors_?
+    VLOG(10) << "Clearing new_smart_factors_!";
+    new_smart_factors_.clear();
 
-    // TODO: Add Update latest covariance --> move flag
-    if (FLAGS_compute_state_covariance) {
-      computeStateCovariance();
+    // Reset list of new imu, prior and other factors to be added.
+    // TODO could this be used to check whether we are repeating factors?
+    new_imu_prior_and_other_factors_.resize(0);
+
+    // Clear values.
+    new_values_.clear();
+
+    // Update slots of smart factors:.
+    // TODO(Toni): shouldn't we be doing this after each updateSmoother call?
+    VLOG(10) << "Starting to find smart factors slots.";
+#ifdef INCREMENTAL_SMOOTHER
+    updateNewSmartFactorsSlots(lmk_ids_of_new_smart_factors_tmp,
+                               &old_smart_factors_);
+#else
+    findSmartFactorsSlotsSlow(new_smart_factors_lmkID_tmp);
+#endif
+    VLOG(10) << "Finished to find smart factors slots.";
+
+    if (VLOG_IS_ON(5) || log_output_) {
+      debug_info_.updateSlotTime_ =
+          utils::Timer::toc<std::chrono::seconds>(start_time).count();
+      start_time = utils::Timer::tic();
     }
 
-    // Debug.
-    postDebug(total_start_time, start_time);
-  }
+    //////////////////////////////////////////////////////////////////////////////
 
+    // Do some more optimization iterations.
+    for (size_t n_iter = 1; n_iter < max_extra_iterations && is_smoother_ok;
+         ++n_iter) {
+      VLOG(10) << "Doing extra iteration nr: " << n_iter;
+      is_smoother_ok = updateSmoother(&result);
+    }
+
+    if (VLOG_IS_ON(5) || log_output_) {
+      debug_info_.extraIterationsTime_ =
+          utils::Timer::toc<std::chrono::seconds>(start_time).count();
+      start_time = utils::Timer::tic();
+    }
+
+    // Update states we need for next iteration, if smoother is ok.
+    if (is_smoother_ok) {
+      updateStates(cur_id);
+
+      // TODO: Add Update latest covariance --> move flag
+      if (FLAGS_compute_state_covariance) {
+        computeStateCovariance();
+      }
+
+      // Debug.
+      postDebug(total_start_time, start_time);
+    }
+  }
   return is_smoother_ok;
 }
 
@@ -1426,7 +1430,7 @@ void VioBackEnd::updateNewSmartFactorsSlots(
   const gtsam::ISAM2Result& result = smoother_->getISAM2Result();
 
   // Simple version of find smart factors.
-  for (size_t i = 0; i < lmk_ids_of_new_smart_factors.size(); ++i) {
+  for (size_t i = 0u; i < lmk_ids_of_new_smart_factors.size(); ++i) {
     DCHECK(i < result.newFactorsIndices.size())
         << "There are more new smart factors than new factors added to the "
            "graph.";
@@ -1749,8 +1753,7 @@ void VioBackEnd::printSmootherInfo(
     //	s.second->print();
   }
 
-  LOG(INFO) << " =============== END: " << message
-            << " =============== " << std::endl;
+  LOG(INFO) << " =============== END: " << message << " =============== ";
 }
 
 /* --------------------------------------------------------------------------

@@ -34,8 +34,6 @@ class VioBackEndModule
   using SIMO = SIMOPipelineModule<BackendInput, BackendOutput>;
   using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
 
-  typedef std::function<void()> ShutdownPipelineCallback;
-
   /**
    * @brief VioBackEndModule
    * @param input_queue
@@ -45,29 +43,37 @@ class VioBackEndModule
    */
   VioBackEndModule(InputQueue* input_queue,
                    bool parallel_run,
-                   ShutdownPipelineCallback shutdown_pipeline_cb,
                    VioBackEnd::UniquePtr vio_backend)
       : SIMO(input_queue, "VioBackEnd", parallel_run),
-        shutdown_pipeline_cb_(shutdown_pipeline_cb),
         vio_backend_(std::move(vio_backend)) {
     CHECK(vio_backend_);
   }
   virtual ~VioBackEndModule() = default;
 
+  /**
+   * @brief spinOnce
+   * @param input
+   * @return
+   */
   virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input) {
     CHECK(input);
     CHECK(vio_backend_);
     OutputUniquePtr output = vio_backend_->spinOnce(*input);
-    if (!output && shutdown_pipeline_cb_) {
-      LOG(ERROR) << "Shutting down VIO pipeline because backend failed...";
-      shutdown_pipeline_cb_();
+    if (!output) {
+      LOG(ERROR) << "Backend did not return an output: shutting down backend.";
+      shutdown();
     }
-    return output;
+    return output ;
   }
 
  public:
-  void initializeBackend(const VioNavStateTimestamped& initial_seed) {
-    vio_backend_->initStateAndSetPriors(initial_seed);
+  /**
+   * @brief initializeBackend
+   * @param initial_seed
+   * @return False if something went wrong, true otherwise.
+   */
+  bool initializeBackend(const VioNavStateTimestamped& initial_seed) {
+    return vio_backend_->initStateAndSetPriors(initial_seed);
   }
 
   void registerImuBiasUpdateCallback(
@@ -96,7 +102,6 @@ class VioBackEndModule
 
  protected:
   const VioBackEnd::UniquePtr vio_backend_;
-  ShutdownPipelineCallback shutdown_pipeline_cb_;
 };
 
 }  // namespace VIO

@@ -43,6 +43,11 @@ class PipelineModuleBase {
   KIMERA_POINTER_TYPEDEFS(PipelineModuleBase);
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModuleBase);
 
+  //! Callback used to signal if the pipeline module failed.
+  //! TODO(Toni): return an error code perhaps.
+  using OnFailureCallback = std::function<void()>;
+
+ public:
   /**
    * @brief PipelineModuleBase
    * @param
@@ -60,7 +65,6 @@ class PipelineModuleBase {
    */
   virtual bool spin() = 0;
 
-  /* ------------------------------------------------------------------------ */
   virtual inline void shutdown() {
     LOG_IF(WARNING, shutdown_)
         << "Module: " << name_id_
@@ -71,15 +75,24 @@ class PipelineModuleBase {
     shutdown_ = true;
   }
 
-  /* ------------------------------------------------------------------------ */
   inline void restart() {
     VLOG(1) << "Module: " << name_id_
             << " - Resetting shutdown flag to false";
     shutdown_ = false;
   }
 
-  /* ------------------------------------------------------------------------ */
   inline bool isWorking() const { return is_thread_working_ || hasWork(); }
+
+  /**
+   * @brief registerOnFailureCallback Add an extra on-failure callback to the
+   * list of callbacks. This will be called every time the module does not
+   * return an output, potentially because of a failure.
+   * @param on_failure_callback actual callback to register.
+   */
+  virtual void registerOnFailureCallback(const OnFailureCallback& callback) {
+    CHECK(callback);
+    on_failure_callbacks_.push_back(callback);
+  }
 
  protected:
   // TODO(Toni) Pass the specific queue synchronizer at the ctor level
@@ -105,10 +118,23 @@ class PipelineModuleBase {
   //! Checks if the module has work to do (should check input queues are empty)
   virtual bool hasWork() const = 0;
 
+  virtual void notifyOnFailure() {
+    for (const auto& on_failure_callback: on_failure_callbacks_) {
+      if (on_failure_callback) {
+        on_failure_callback();
+      } else {
+        LOG(ERROR) << "Invalid OnFailureCallback for module: " << name_id_;
+      }
+    }
+  }
+
  protected:
   //! Properties
   std::string name_id_ = {"PipelineModule"};
   bool parallel_run_ = {true};
+
+  //! Callbacks to be called in case module does not return an output.
+  std::vector<OnFailureCallback> on_failure_callbacks_;
 
   //! Thread related members.
   std::atomic_bool shutdown_ = {false};
@@ -185,6 +211,8 @@ class PipelineModule : public PipelineModuleBase {
           }
         } else {
           VLOG(1) << "Module: " << name_id_ << "  - Skipped sending an output.";
+          // Notify interested parties about failure.
+          notifyOnFailure();
         }
         auto spin_duration = utils::Timer::toc(tic).count();
         timing_stats.AddSample(spin_duration);
@@ -281,7 +309,7 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
    * this module.
    * @param output_callback actual callback to register.
    */
-  virtual void registerCallback(const OutputCallback& output_callback) {
+  virtual void registerOutputCallback(const OutputCallback& output_callback) {
     CHECK(output_callback);
     output_callbacks_.push_back(output_callback);
   }
@@ -426,7 +454,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
-  void registerCallback(const typename MIMO::OutputCallback&) override {
+  void registerOutputCallback(const typename MIMO::OutputCallback&) override {
     LOG(WARNING) << "MISO Pipeline Module does not use callbacks.";
   }
 
@@ -490,7 +518,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
-  void registerCallback(const typename MISO::OutputCallback&) override {
+  void registerOutputCallback(const typename MISO::OutputCallback&) override {
     LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
   }
 

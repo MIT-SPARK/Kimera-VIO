@@ -95,6 +95,7 @@ class ThreadsafeQueueBase {
   virtual bool batchPop(InternalQueue* output_queue) = 0;
 
   void shutdown() {
+    VLOG(1) << "Shutting down queue: " << queue_id_;
     std::unique_lock<std::mutex> mlock(mutex_);
     // Even if the shared variable is atomic, it must be modified under the
     // mutex in order to correctly publish the modification to the waiting
