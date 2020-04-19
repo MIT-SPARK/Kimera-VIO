@@ -284,7 +284,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
 /* ************************************************************************* */
 // TODO(Sandro): Move this test to separate file!
-TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
+TEST(testVio, DISABLED_robotMovingWithConstantVelocityBundleAdjustment) {
   // Additional parameters
   BackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 100;  // we simulate points 30-40m away
