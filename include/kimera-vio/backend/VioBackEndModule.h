@@ -43,11 +43,7 @@ class VioBackEndModule
    */
   VioBackEndModule(InputQueue* input_queue,
                    bool parallel_run,
-                   VioBackEnd::UniquePtr vio_backend)
-      : SIMO(input_queue, "VioBackEnd", parallel_run),
-        vio_backend_(std::move(vio_backend)) {
-    CHECK(vio_backend_);
-  }
+                   VioBackEnd::UniquePtr vio_backend);
   virtual ~VioBackEndModule() = default;
 
   /**
@@ -55,16 +51,7 @@ class VioBackEndModule
    * @param input
    * @return
    */
-  virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input) {
-    CHECK(input);
-    CHECK(vio_backend_);
-    OutputUniquePtr output = vio_backend_->spinOnce(*input);
-    if (!output) {
-      LOG(ERROR) << "Backend did not return an output: shutting down backend.";
-      shutdown();
-    }
-    return output ;
-  }
+  virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input);
 
  public:
   /**
@@ -72,33 +59,18 @@ class VioBackEndModule
    * @param initial_seed
    * @return False if something went wrong, true otherwise.
    */
-  bool initializeBackend(const VioNavStateTimestamped& initial_seed) {
-    return vio_backend_->initStateAndSetPriors(initial_seed);
-  }
+  bool initializeBackend(const VioNavStateTimestamped& initial_seed);
 
+  /**
+   * @brief registerImuBiasUpdateCallback Register callback to be called
+   * whenever the backend has a new estimate of the IMU bias.
+   * The frontend needs to register this function for
+   * the IMU preintegration to be done wrt the latest IMU bias estimate.
+   * @param imu_bias_update_callback function that will be called on a new
+   * IMU bias update.
+   */
   void registerImuBiasUpdateCallback(
-      const VioBackEnd::ImuBiasCallback& imu_bias_update_callback) {
-    CHECK(vio_backend_);
-    vio_backend_->registerImuBiasUpdateCallback(imu_bias_update_callback);
-  }
-
- public:
-  // TODO(TONI): REMOVE CALLS BELOW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // Get valid 3D points and corresponding lmk id.
-  // Warning! it modifies old_smart_factors_!!
-  PointsWithIdMap getMapLmkIdsTo3dPointsInTimeHorizon(
-      LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map = nullptr,
-      const size_t& min_age = 2) {
-    return vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
-        lmk_id_to_lmk_type_map, min_age);
-  }
-  // TODO This call is unsafe, as we are sending a reference to something that
-  // will be modified by the backend thread.
-  // TODO send this via the output payload...
-  inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
-    CHECK(vio_backend_);
-    return vio_backend_->getFactorsUnsafe();
-  }
+      const VioBackEnd::ImuBiasCallback& imu_bias_update_callback);
 
  protected:
   const VioBackEnd::UniquePtr vio_backend_;

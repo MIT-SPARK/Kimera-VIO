@@ -476,12 +476,16 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     VLOG(20) << "SmartFactor: adding observation of lmk with id: " << lmk_id
              << " from frame with id: " << obs.first;
-
-    new_factor->add(obs.second, gtsam::Symbol('x', obs.first), stereo_cal_);
+    gtsam::Symbol pose_symbol ('x', obs.first);
+    if (smoother_->getFactors().exists(pose_symbol)) {
+      new_factor->add(obs.second, pose_symbol, stereo_cal_);
+    } else {
+      VLOG(10) << "Factor with lmk id " << lmk_id
+               << " is linking to a marginalized state!";
+    }
   }
 
   /////////////////////// BOOK KEEPING /////////////////////////////////////////
-
   // Add new factor to suitable structures.
   // TODO why do we need to store the new_factor in both structures??
   VLOG(10) << "Add lmk with id: " << lmk_id << " to new_smart_factors_";
@@ -704,9 +708,7 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
     CHECK(old_smart_factors->find(lmk_id) != old_smart_factors->end());
     VLOG(20) << "Erasing lmk with id " << lmk_id << " from old_smart_factors";
     old_smart_factors->erase(lmk_id);
-    CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
-    FeatureTrack& ft = feature_tracks_.at(lmk_id);
-    ft.in_ba_graph_ = false;
+    CHECK(deleteLmkFromFeatureTracks(lmk_id));
     ////////////////////////////////////////////////////////////////////////
 
     return true;

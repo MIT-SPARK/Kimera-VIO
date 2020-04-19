@@ -63,57 +63,6 @@ namespace VIO {
 // Forward-declarations
 class VioNavState;
 
-class FactorGraphBuilder {
-  KIMERA_POINTER_TYPEDEFS(FactorGraphBuilder);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(FactorGraphBuilder);
-  FactorGraphBuilder();
-  virtual ~FactorGraphBuilder() = default;
-
-  //! A container to hold all keys that belong to a ViNode.
-  struct VioNavStateKeys {
-    gtsam::Key pose_;
-    gtsam::Key velocity_;
-    gtsam::Key imu_bias_;
-  };
-
-  //! Symbols used
-  static constexpr unsigned char kSymbolPoseKey = 'x';
-  static constexpr unsigned char kSymbolVelocityKey = 'v';
-  static constexpr unsigned char kSymbolImuBiasKey = 'b';
-
-  // TODO(Toni): put here all adders/removers of factors and do bookkeeping
-  // of what is going on. Make it a virtual class so different factor graphs
-  // can be built. Implement our structureless vio, but leave room for other
-  // approaches.
-
-  /* ------------------------------------------------------------------------ */
-  // Store stereo frame info into landmarks table:
-  // returns landmarks observed in current frame.
-  void addStereoMeasurementsToFeatureTracks(
-      const int& frameNum,
-      const SmartStereoMeasurements& stereoMeasurements_kf,
-      LandmarkIds* landmarks_kf) {}
-
-  // Add imu factors:
-  void addImuFactor(const FrameId& from_id,
-                    const FrameId& to_id,
-                    const gtsam::PreintegratedImuMeasurements& pim){};
-
-  /* ------------------------------------------------------------------------ */
-  // Add no motion factors in case of low disparity.
-  void addZeroVelocityPrior(const FrameId& frame_id){};
-
-  /* ------------------------------------------------------------------------ */
-  void addNoMotionFactor(const FrameId& from_id, const FrameId& to_id){};
-
-  /* ------------------------------------------------------------------------ */
-  void addBetweenFactor(const FrameId& from_id,
-                        const FrameId& to_id,
-                        const gtsam::Pose3& from_id_POSE_to_id){};
-
- protected:
-};
-
 class VioBackEnd {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEnd);
@@ -210,8 +159,9 @@ class VioBackEnd {
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(const LandmarkId& lmk_id,
-                             const std::pair<FrameId, StereoPoint2>& newObs);
+  void updateLandmarkInGraph(
+      const LandmarkId& lmk_id,
+      const std::pair<FrameId, StereoPoint2>& new_measurement);
 
   /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
@@ -256,6 +206,9 @@ class VioBackEnd {
   /* ------------------------------------------------------------------------ */
   void cleanNullPtrsFromGraph(
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
+
+  /* ------------------------------------------------------------------------ */
+  bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
 
  private:
   /* ------------------------------------------------------------------------ */
@@ -328,9 +281,6 @@ class VioBackEnd {
       const gtsam::Key& key,
       const gtsam::NonlinearFactorGraph& graph,
       std::vector<size_t>* slots_of_factors_with_key);
-
-  /* ------------------------------------------------------------------------ */
-  bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
 
   /* ------------------------------------------------------------------------ */
   virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
@@ -488,8 +438,7 @@ class VioBackEnd {
   // Pose of the left camera wrt body
   const Pose3 B_Pose_leftCam_;
   // Stores calibration, baseline.
-  const gtsam::Cal3_S2Stereo::shared_ptr
-      stereo_cal_;
+  const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_;
 
   // State.
   //!< current state of the system.
@@ -504,8 +453,7 @@ class VioBackEnd {
 
   // Factors.
   //!< New factors to be added
-  gtsam::NonlinearFactorGraph
-      new_imu_prior_and_other_factors_;
+  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;
   //!< landmarkId -> {SmartFactorPtr}
   LandmarkIdSmartFactorMap new_smart_factors_;
   //!< landmarkId -> {SmartFactorPtr, SlotIndex}
