@@ -35,32 +35,6 @@ class DataProviderInterface {
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
 
-  /**
-   * @brief DataProviderInterface
-   * @param initial_k
-   * @param final_k
-   * @param parallel_run: if the pipeline should be run in parallel or
-   * sequential mode
-   * Params below are all paths.
-   * @param dataset_path
-   * @param left_cam_params_path
-   * @param right_cam_params_path
-   * @param imu_params_path
-   * @param backend_params_path
-   * @param frontend_params_path
-   * @param lcd_params_path
-   */
-  DataProviderInterface(const int& initial_k,
-                        const int& final_k,
-                        const bool& parallel_run,
-                        const std::string& dataset_path,
-                        const std::string& left_cam_params_path,
-                        const std::string& right_cam_params_path,
-                        const std::string& imu_params_path,
-                        const std::string& backend_params_path,
-                        const std::string& frontend_params_path,
-                        const std::string& lcd_params_path);
-  // Ctor from gflags. Calls regular ctor with gflags values.
   DataProviderInterface();
   virtual ~DataProviderInterface();
 
@@ -101,41 +75,12 @@ class DataProviderInterface {
   }
 
  protected:
-  void parseParams();
-
-  // TODO(Toni): Create a separate params only parser!
-  //! Helper functions to parse user-specified parameters.
-  //! These are agnostic to dataset type.
-  void parseBackendParams();
-  void parseFrontendParams();
-  void parseLCDParams();
-
-  //! Functions to parse dataset dependent parameters.
-  // Parse camera params for a given dataset
-  CameraParams parseCameraParams(const std::string& filename);
-  void parseImuParams();
-
- public:
-  // Init Vio parameters.
-  VioParams pipeline_params_;
-
- protected:
   // Vio callbacks. These functions should be called once data is available for
   // processing.
   ImuSingleInputCallback imu_single_callback_;
   ImuMultiInputCallback imu_multi_callback_;
   FrameInputCallback left_frame_callback_;
   FrameInputCallback right_frame_callback_;
-
-  FrameId initial_k_;  // start frame
-  FrameId final_k_;    // end frame
-  const std::string dataset_path_;
-  const std::string left_cam_params_path_;
-  const std::string right_cam_params_path_;
-  const std::string imu_params_path_;
-  const std::string backend_params_path_;
-  const std::string frontend_params_path_;
-  const std::string lcd_params_path_;
 
   // Shutdown switch to stop data provider.
   std::atomic_bool shutdown_ = {false};

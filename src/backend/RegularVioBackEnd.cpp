@@ -26,6 +26,7 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
+#include "kimera-vio/utils/UtilsNumerical.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
 
 DEFINE_int32(min_num_of_observations,
@@ -99,7 +100,7 @@ namespace VIO {
 RegularVioBackEnd::RegularVioBackEnd(
     const Pose3& B_Pose_leftCam,
     const StereoCalibPtr& stereo_calibration,
-    const VioBackEndParams& backend_params,
+    const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
     const bool& log_output)
@@ -162,7 +163,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   ++curr_kf_id_;
 
   VLOG(7) << "Processing keyframe " << curr_kf_id_
-          << " at timestamp: " << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
+          << " at timestamp: " << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec)\n";
 
   /////////////////// IMU FACTORS //////////////////////////////////////////////

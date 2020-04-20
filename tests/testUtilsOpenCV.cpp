@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 DECLARE_string(test_data_path);
@@ -226,8 +227,15 @@ TEST_F(UtilsOpenCVFixture, Cvmat2rot) {
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, Cvmat2Cal3S2) {
   // input CV Mat from MH_easy_01/cam0 (modified)
-  Mat M = (cv::Mat_<double>(3, 3) << 458.654, 0.01, 367.215, 0, 457.296,
-           248.375, 0, 0, 1);
+  Mat M = (cv::Mat_<double>(3, 3) << 458.654,
+           0.01,
+           367.215,
+           0,
+           457.296,
+           248.375,
+           0,
+           0,
+           1);
   // Expected output
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   // Actual output
@@ -238,8 +246,15 @@ TEST(testUtilsOpenCV, Cvmat2Cal3S2) {
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, Cal3S2ToCvmat) {
   // Expected output
-  Mat M = (cv::Mat_<double>(3, 3) << 458.654, 0.01, 367.215, 0, 457.296,
-           248.375, 0, 0, 1);
+  Mat M = (cv::Mat_<double>(3, 3) << 458.654,
+           0.01,
+           367.215,
+           0,
+           457.296,
+           248.375,
+           0,
+           0,
+           1);
   // actual output
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   Mat Mactual = UtilsOpenCV::Cal3_S2ToCvmat(cal_expected);
@@ -413,7 +428,7 @@ TEST(testUtilsOpenCV, ExtractCornersWhiteWall) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigit2digits) {
   double x_expected = 1.14;  // rounded to the 2nd decimal digit
-  double x_actual = UtilsOpenCV::RoundToDigit(x);
+  double x_actual = UtilsNumerical::RoundToDigit(x);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
@@ -442,35 +457,35 @@ TEST_F(UtilsOpenCVFixture, RoundUnit3) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigit3digits) {
   double x_expected = 1.142;  // rounded to the 3rd decimal digit
-  double x_actual = UtilsOpenCV::RoundToDigit(x, 3);
+  double x_actual = UtilsNumerical::RoundToDigit(x, 3);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigitNeg2digits) {
   double x_expected = -1.14;  // rounded to the 2nd decimal digit
-  double x_actual = UtilsOpenCV::RoundToDigit(-x, 2);
+  double x_actual = UtilsNumerical::RoundToDigit(-x, 2);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigitNeg3digits) {
   double x_expected = -1.142;  // rounded to the 3rd decimal digit!
-  double x_actual = UtilsOpenCV::RoundToDigit(-x, 3);
+  double x_actual = UtilsNumerical::RoundToDigit(-x, 3);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionPos4digits) {
   string str_expected("1.142");
-  string str_actual = UtilsOpenCV::To_string_with_precision(x, 4);
+  string str_actual = UtilsNumerical::To_string_with_precision(x, 4);
   EXPECT_EQ(str_expected.compare(str_actual), 0);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionNeg3digits) {
   string str_expected("-1.14");
-  string str_actual = UtilsOpenCV::To_string_with_precision(-x, 3);
+  string str_actual = UtilsNumerical::To_string_with_precision(-x, 3);
   EXPECT_EQ(str_expected.compare(str_actual), 0);
 }
 
@@ -478,14 +493,8 @@ TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionNeg3digits) {
 TEST_F(UtilsOpenCVFixture, NsecToSec) {
   int64_t timestamp = 12345678;
   double sec_expected = 0.012345678;
-  double sec_actual = UtilsOpenCV::NsecToSec(timestamp);
+  double sec_actual = UtilsNumerical::NsecToSec(timestamp);
   EXPECT_NEAR(sec_expected, sec_actual, tol_);
-}
-
-/* ************************************************************************** */
-TEST(testUtilsOpenCV, GetTimeInSeconds) {
-  // I have no idea how to write test for it...
-  SUCCEED();
 }
 
 /* ************************************************************************** */
@@ -570,10 +579,10 @@ TEST_F(UtilsOpenCVFixture, computeRTErrors_upToScale) {
 TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   // original image is already gray, hence it remains the same
   {
-    Mat chessboardImg;
-    vector<KeypointCV> keypoints_expected;
-    tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
-    Mat chessboardImgGray =
+    cv::Mat chessboardImg;
+    std::vector<KeypointCV> keypoints_expected;
+    std::tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
+    cv::Mat chessboardImgGray =
         UtilsOpenCV::ReadAndConvertToGrayScale("chessboard.png");
     EXPECT_EQ(chessboardImgGray.channels(), 1);
     EXPECT_TRUE(
@@ -581,22 +590,22 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   }
   // original image is in color and it is converted to gray
   {
-    Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(FLAGS_test_data_path) + "lena.png");
-    imwrite("lenaGrayScale.png", imageGray);
-    EXPECT_EQ(imageGray.channels(), 1);
+    cv::Mat img_gray = UtilsOpenCV::ReadAndConvertToGrayScale(
+        FLAGS_test_data_path + "/lena.png");
+    cv::imwrite("lenaGrayScale.png", img_gray);
+    EXPECT_EQ(img_gray.channels(), 1);
     // we read gray image we just wrote and make sure it is ok
-    Mat imgGrayWritten = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
-    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(imageGray, imgGrayWritten));
+    cv::Mat img_gray_written = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img_gray, img_gray_written));
   }
   // original image is already gray, hence it remains the same
   {
-    Mat img =
-        imread(string(FLAGS_test_data_path) + "testImage.png", IMREAD_ANYCOLOR);
-    Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(FLAGS_test_data_path) + "testImage.png");
-    EXPECT_EQ(imageGray.channels(), 1);
-    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, imageGray));
+    cv::Mat img =
+        cv::imread(FLAGS_test_data_path + "/testImage.png", IMREAD_ANYCOLOR);
+    cv::Mat img_gray = UtilsOpenCV::ReadAndConvertToGrayScale(
+        FLAGS_test_data_path + "/testImage.png");
+    EXPECT_EQ(img_gray.channels(), 1);
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, img_gray));
   }
 }
 
@@ -628,61 +637,6 @@ TEST(testUtilsOpenCV, covariancebvx2xvb) {
 
   gtsam::Matrix cov_actual_xvb = UtilsOpenCV::Covariance_bvx2xvb(cov_bvx);
   EXPECT_TRUE(assert_equal(expected_cov_xvb, cov_actual_xvb));
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
-  Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(chess_img_path_);
-  std::vector<KeypointCV> actualCorners, actualCorners2;
-  std::vector<double> actualScores;
-  std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::MyGoodFeaturesToTrackSubPix(
-      img, 100, 0.01, 10, Mat(), 3, false, 0.04, &corners_with_scores);
-
-  UtilsOpenCV::ExtractCorners(img, &actualCorners2);
-
-  int numCorners_expected = 7 * 9;
-  EXPECT_NEAR(numCorners_expected, actualCorners.size(), 1e-3);
-  EXPECT_NEAR(numCorners_expected, actualCorners2.size(), 1e-3);
-  EXPECT_NEAR(actualCorners.size(), actualScores.size(), 1e-3);
-
-  for (size_t i = 0; i < actualCorners2.size(); ++i) {
-    EXPECT_NEAR(actualCorners.at(i).x, actualCorners2.at(i).x, 1e-3);
-    EXPECT_NEAR(actualCorners.at(i).y, actualCorners2.at(i).y, 1e-3);
-    EXPECT_NEAR(0.333333, actualScores.at(i), 1e-3);
-  }
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
-  cv::Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(real_img_path_);
-
-  std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::MyGoodFeaturesToTrackSubPix(
-      img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
-
-  std::vector<KeypointCV> actualCorners2;
-  UtilsOpenCV::ExtractCorners(img, &actualCorners2);
-
-  EXPECT_NEAR(corners_with_scores.first.size(), actualCorners2.size(), 1e-3);
-  EXPECT_NEAR(corners_with_scores.first.size(),
-              corners_with_scores.second.size(), 1e-3);
-
-  for (size_t i = 0; i < actualCorners2.size(); ++i) {
-    EXPECT_NEAR(corners_with_scores.first.at(i).x, actualCorners2.at(i).x,
-                1e-3);
-    EXPECT_NEAR(corners_with_scores.first.at(i).y, actualCorners2.at(i).y,
-                1e-3);
-    if (i < actualCorners2.size() - 1) {
-      EXPECT_LE(
-          corners_with_scores.second.at(i + 1),
-          corners_with_scores.second.at(i));  // check that they are sorted
-    }
-  }
-  // check that smallest (last) score is greater than 0.01 (quality level) times
-  // the largest (first)
-  EXPECT_GE(corners_with_scores.second.at(actualCorners2.size() - 1),
-            0.01 * corners_with_scores.second.at(0));
 }
 
 /* ************************************************************************** */

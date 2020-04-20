@@ -47,18 +47,6 @@ find_package(KimeraRPGO REQUIRED)
 include(ExternalProject)
 
 ### Download and unzip the vocabularly file
-# TODO(marcus): cannot use this with 16.04 because cmake version is too low.
-# ExternalProject_Add(ORBvoc
-#     PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary
-#     URL http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
-#     CONFIGURE_COMMAND ""
-#     BUILD_COMMAND ""
-#     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
-#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
-#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ &&
-#       ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
-# )
-
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
   message(STATUS "Downloading vocabulary file from dropbox.")
   file(DOWNLOAD
@@ -69,7 +57,7 @@ if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
        TIMEOUT 60)
   if(orbvoc_download_success)
     message(STATUS "Unzipping vocabulary file.")
-    
+
     execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
                             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
     message(STATUS "Moving vocabulary file.")
@@ -85,7 +73,7 @@ else()
 endif()
 
 ### Compile the code
-add_library(kimera_vio SHARED "")
+add_library(${PROJECT_NAME} SHARED "")
 
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/dataprovider)
@@ -127,7 +115,7 @@ add_subdirectory(src/imu-frontend)
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
 
-target_link_libraries(kimera_vio
+target_link_libraries(${PROJECT_NAME}
   PRIVATE
     opengv
     DBoW2::DBoW2
@@ -140,7 +128,7 @@ target_link_libraries(kimera_vio
     gtsam
     gtsam_unstable
  )
-target_include_directories(kimera_vio
+target_include_directories(${PROJECT_NAME}
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}
@@ -150,13 +138,13 @@ target_include_directories(kimera_vio
     $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(kimera_vio
+target_compile_options(${PROJECT_NAME}
   PRIVATE -Wall -pipe
   PRIVATE -march=native
 )
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(kimera_vio PUBLIC
+target_compile_features(${PROJECT_NAME} PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
 
 # Add an alias so that library can be used inside the build tree,
@@ -207,14 +195,16 @@ if(BUILD_TESTS)
   include(CTest)
   add_executable(testKimeraVIO
     tests/testKimeraVIO.cpp
+    tests/testPipeline.cpp
+    tests/testVioParams.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp
-    tests/testFeatureSelector.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testImuFrontEnd.cpp
+    tests/testImuParams.cpp
     tests/testKittiDataProvider.cpp # TODO
     tests/testLoopClosureDetector.cpp
     tests/testLogger.cpp
@@ -235,9 +225,11 @@ if(BUILD_TESTS)
     tests/testInitializationFromImu.cpp
     tests/testVioBackEnd.cpp
     tests/testVioBackEndParams.cpp
-    tests/testVioFrontEndParams.cpp
+    tests/testVisionFrontEndParams.cpp
+    tests/testFeatureDetectorParams.cpp
     # tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
+    tests/testOpticalFlowPredictor.cpp
     )
   target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
 
@@ -275,13 +267,13 @@ configure_package_config_file(
 
 option(EXPORT_KIMERA "Export kimera_vio instead of installing it." OFF)
 if(EXPORT_KIMERA)
-  export(TARGETS kimera_vio
+  export(TARGETS ${PROJECT_NAME}
          FILE kimera_vioTargets.cmake)
-  export(PACKAGE kimera_vio)
+       export(PACKAGE ${PROJECT_NAME})
 else(EXPORT_KIMERA)
   include(GNUInstallDirs)
   ## First of all, we need to install the library itself.
-  install(TARGETS kimera_vio
+  install(TARGETS ${PROJECT_NAME}
       EXPORT kimera_vio-export
       LIBRARY DESTINATION lib
       ARCHIVE DESTINATION lib

@@ -41,18 +41,12 @@ namespace VIO {
 class EurocDataProvider : public DataProviderInterface {
  public:
   // Ctor with params.
-  EurocDataProvider(const bool& parallel_run,
+  EurocDataProvider(const std::string& dataset_path,
                     const int& initial_k,
                     const int& final_k,
-                    const std::string& dataset_path,
-                    const std::string& left_cam_params_path,
-                    const std::string& right_cam_params_path,
-                    const std::string& imu_params_path,
-                    const std::string& backend_params_path,
-                    const std::string& frontend_params_path,
-                    const std::string& lcd_params_path);
+                    const VioParams& vio_params);
   // Ctor from gflags
-  explicit EurocDataProvider();
+  explicit EurocDataProvider(const VioParams& vio_params);
   virtual ~EurocDataProvider();
 
  public:
@@ -96,11 +90,23 @@ class EurocDataProvider : public DataProviderInterface {
 
   //! Getters.
   std::string getDatasetName();
-  inline std::string getLeftImgName(const size_t& k) const {
-    return getImgName("cam0", k);
+  /**
+   * @brief getLeftImgName returns the img filename given the frame number
+   * @param[in] k frame number
+   * @param[out] img_name returned filename of the img
+   * @return if k is larger than the number of frames, returns false, otw true.
+   */
+  inline bool getLeftImgName(const size_t& k, std::string* img_name) const {
+    return getImgName("cam0", k, img_name);
   }
-  inline std::string getRightImgName(const size_t& k) const {
-    return getImgName("cam1", k);
+  /**
+   * @brief getLeftImgName returns the img filename given the frame number
+   * @param[in] k frame number
+   * @param[out] img_name returned filename of the img
+   * @return if k is larger than the number of frames, returns false, otw true.
+   */
+  inline bool getRightImgName(const size_t& k, std::string* img_name) const {
+    return getImgName("cam1", k, img_name);
   }
 
   // Retrieve relative pose between timestamps.
@@ -118,20 +124,18 @@ class EurocDataProvider : public DataProviderInterface {
       const VioNavState& init_nav_state,
       const gtsam::Vector3& init_gravity);
 
-  inline size_t getNumImages() const {
-    CHECK_GT(camera_names_.size(), 0u);
-    const std::string& camera_name = camera_names_.at(0);
-    const auto& iter = camera_image_lists_.find(camera_name);
-    CHECK(iter != camera_image_lists_.end());
-    return iter->second.getNumImages();
-  }
-  inline std::string getImgName(const std::string& id, const size_t& k) const {
-    CHECK_GT(camera_names_.size(), 0u);
-    const std::string& camera_name = camera_names_.at(0);
-    const auto& iter = camera_image_lists_.find(id);
-    CHECK(iter != camera_image_lists_.end());
-    return iter->second.img_lists_.at(k).second;
-  }
+  size_t getNumImages() const;
+  size_t getNumImagesForCamera(const std::string& camera_name) const;
+  /**
+   * @brief getImgName returns the img filename given the frame number
+   * @param[in] camera_name camera id such as "cam0"/"cam1"
+   * @param[in] k frame number
+   * @param[out] img_filename returned filename of the img
+   * @return if k is larger than the number of frames, returns false, otw true.
+   */
+  bool getImgName(const std::string& camera_name,
+                         const size_t& k,
+                         std::string* img_filename) const;
   // Retrieve absolute pose at timestamp.
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
     return getGroundTruthState(timestamp).pose_;
@@ -169,6 +173,8 @@ class EurocDataProvider : public DataProviderInterface {
   void clipFinalFrame();
 
  private:
+  VioParams pipeline_params_;
+
   /// Images data.
   // TODO(Toni): remove camera_names_ and camera_image_lists_...
   // This matches the names of the folders in the dataset
@@ -178,6 +184,14 @@ class EurocDataProvider : public DataProviderInterface {
 
   bool is_gt_available_;
   std::string dataset_name_;
+  std::string dataset_path_;
+
+  FrameId current_k_;
+  FrameId initial_k_;  // start frame
+  FrameId final_k_;    // end frame
+
+  //! Flag to signal when the dataset has been parsed.
+  bool dataset_parsed_ = false;
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";

@@ -23,14 +23,14 @@
 
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/utils/Timer.h"
 
 DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
 using namespace VIO;
-using namespace cv;
 
 // Data
 static const double tol = 1e-7;
@@ -51,7 +51,7 @@ class StereoFrameFixture : public ::testing::Test {
                                "/sensorRight.yaml");
 
     // construct stereo camera
-    VioFrontEndParams tp;  // only to get default stereo matching params
+    FrontendParams tp;  // only to get default stereo matching params
     sf = std::make_shared<StereoFrame>(
         id,
         timestamp,
@@ -86,7 +86,7 @@ class StereoFrameFixture : public ::testing::Test {
                                "/sensorRight.yaml");
 
     // construct stereo camera
-    VioFrontEndParams tp;
+    FrontendParams tp;
     sfnew = std::make_shared<StereoFrame>(
         id,
         timestamp,
@@ -100,9 +100,9 @@ class StereoFrameFixture : public ::testing::Test {
         cam_params_right,
         tp.stereo_matching_params_);
 
-    sfnew->getLeftFrameMutable()->extractCorners();
-    sfnew->getLeftFrameMutable()->versors_.reserve(
-        sfnew->getLeftFrame().keypoints_.size());
+    Frame* left_frame = sfnew->getLeftFrameMutable();
+    UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
+    left_frame->versors_.reserve(sfnew->getLeftFrame().keypoints_.size());
     int landmark_count_ = 0;
     for (size_t i = 0; i < sfnew->getLeftFrame().keypoints_.size(); i++) {
       sfnew->getLeftFrameMutable()->landmarks_.push_back(landmark_count_);
@@ -131,8 +131,8 @@ static cv::Mat cvTranslateImageX(cv::Mat img, double dist) {
   cv::Mat result = cv::Mat(img.rows, img.cols, img.type());
   cv::Mat translation_mat = cv::Mat::eye(3, 3, CV_64F);
   translation_mat.at<double>(0, 2) = dist;
-  cv::warpPerspective(img, result, translation_mat, img.size(),
-                      cv::INTER_NEAREST);
+  cv::warpPerspective(
+      img, result, translation_mat, img.size(), cv::INTER_NEAREST);
   return result;
 }
 
@@ -207,16 +207,16 @@ TEST_F(StereoFrameFixture, rectification) {
                                                 P2(cv::Rect(0, 0, 3, 3))));
 
   // Test projection using 3x4 (rectified) camera matrix
-  Mat P2_T_expect = P1(cv::Rect(0, 0, 3, 3)) *
-                    (cv::Mat_<double>(3, 1) << -baseline_expect, 0, 0);
+  cv::Mat P2_T_expect = P1(cv::Rect(0, 0, 3, 3)) *
+                        (cv::Mat_<double>(3, 1) << -baseline_expect, 0, 0);
   P2_T_expect = P2_T_expect.clone();
-  Mat P2_T_actual = P2(cv::Rect(3, 0, 1, 3)).clone();
+  cv::Mat P2_T_actual = P2(cv::Rect(3, 0, 1, 3)).clone();
   EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(P2_T_expect, P2_T_actual));
 }
 
 TEST_F(StereoFrameFixture, cloneRectificationParameters) {
   // construct stereo camera
-  VioFrontEndParams tp;
+  FrontendParams tp;
   StereoFrame* sf2 =
       new StereoFrame(id,
                       timestamp,
@@ -242,8 +242,9 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
   // Synthetic experiments for findMatchingKeypointRectified
 
   // Extract keypoints from the left img!
-  sf->getLeftFrameMutable()->extractCorners();
-  Mat left_img = sf->getLeftFrame().img_;
+  Frame* left_frame = sf->getLeftFrameMutable();
+  UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
+  cv::Mat left_img = sf->getLeftFrame().img_;
   const KeypointsCV& left_keypoints = sf->getLeftFrame().keypoints_;
   const int num_points = left_keypoints.size();
 
@@ -264,7 +265,7 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
   for (int i = 0; i < num_offset_test; i++) {
     // Getting right (rectified) images by translating left image
     double offset = offset_range[i];
-    Mat right_img = cvTranslateImageX(left_img, (int)offset);
+    cv::Mat right_img = cvTranslateImageX(left_img, (int)offset);
 
     for (auto left_pt : left_keypoints) {  // for each left keypoint
 
@@ -289,9 +290,16 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
         int stripe_rows = templ_rows + 4;
         double matchingVal_LR;
         // actual keypoint
-        tie(right_pt, matchingVal_LR) = sf->findMatchingKeypointRectified(
-            left_img, left_pt, right_img, templ_cols, templ_rows, stripe_cols,
-            stripe_rows, tol_corr, false);
+        tie(right_pt, matchingVal_LR) =
+            sf->findMatchingKeypointRectified(left_img,
+                                              left_pt,
+                                              right_img,
+                                              templ_cols,
+                                              templ_rows,
+                                              stripe_cols,
+                                              stripe_rows,
+                                              tol_corr,
+                                              false);
 
         // Judging the correctness of the matches.
         double y_left = left_pt.y;
@@ -334,7 +342,7 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
             right_corners.push_back(right_pt.second);
             std::vector<cv::DMatch> matches;
             matches.push_back(cv::DMatch(0, 0, 0));
-            Mat canvas = UtilsOpenCV::DrawCornersMatches(
+            cv::Mat canvas = UtilsOpenCV::DrawCornersMatches(
                 left_img, left_corners, right_img, right_corners, matches);
             // imshow("matched keypoints", canvas);
             // waitKey(0);
@@ -345,17 +353,17 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
   }
   // make sure that at least some keypoints were valid (these are the ones we
   // are interested in)
-  EXPECT_NEAR(84, countValid, 1e-5);
+  EXPECT_EQ(82, countValid);
   // 7 is the number of offsets we try
-  EXPECT_NEAR(num_points * 7, totalKeypointsTested, 1e-5);
+  EXPECT_EQ(num_points * 7, totalKeypointsTested);
 }
 
 /* ************************************************************************* */
 TEST_F(StereoFrameFixture, matchTemplate) {
-  Mat left_img = sf->getLeftFrame().img_;
+  cv::Mat left_img = sf->getLeftFrame().img_;
   // Getting right (rectified) images by translating left image
   double offset = 10;
-  Mat right_img = cvTranslateImageX(left_img, (int)offset);
+  cv::Mat right_img = cvTranslateImageX(left_img, (int)offset);
 
   // parameters used in findMatchingKeypointRectified
   // int templ_cols = 101, templ_rows = 11;
@@ -368,40 +376,40 @@ TEST_F(StereoFrameFixture, matchTemplate) {
   // template
   int temp_corner_x = 100;
   int temp_corner_y = 100;
-  Rect templ_selector =
-      Rect(temp_corner_x, temp_corner_y, templ_cols, templ_rows);
-  Mat templ(left_img, templ_selector);
+  cv::Rect templ_selector =
+      cv::Rect(temp_corner_x, temp_corner_y, templ_cols, templ_rows);
+  cv::Mat templ(left_img, templ_selector);
 
   // stripe
   int stripe_corner_x = 100;
   int stripe_corner_y = 100;
-  Rect stripe_selector =
-      Rect(stripe_corner_x, stripe_corner_y, stripe_cols, stripe_rows);
-  Mat stripe(right_img, stripe_selector);
+  cv::Rect stripe_selector =
+      cv::Rect(stripe_corner_x, stripe_corner_y, stripe_cols, stripe_rows);
+  cv::Mat stripe(right_img, stripe_selector);
 
   size_t nrTests = 100;
   ///////////////////////////////////////////////////////////////////////////////////////////////
-  double timeBefore = UtilsOpenCV::GetTimeInSeconds();
-  Mat result1;
+  auto tic = utils::Timer::tic();
+  cv::Mat result1;
   // cout << "templ \n" << templ << endl;
   // cout << "stripe \n" << stripe << endl;
   for (size_t i = 0; i < nrTests; i++) {
     matchTemplate(stripe, templ, result1, CV_TM_SQDIFF_NORMED);
   }
-  double timeMatching1 = UtilsOpenCV::GetTimeInSeconds() - timeBefore;
-  cout << "timeMatching 1: " << timeMatching1 / double(nrTests) << endl;
+  double timeMatching1 = utils::Timer::toc<std::chrono::seconds>(tic).count();
+  std::cout << "timeMatching 1: " << timeMatching1 / double(nrTests) << endl;
 
   ///////////////////////////////////////////////////////////////////////////////////////////////
-  timeBefore = UtilsOpenCV::GetTimeInSeconds();
-  Mat result2;
-  templ = Mat(left_img, templ_selector);
-  stripe = Mat(right_img, stripe_selector);
+  tic = utils::Timer::tic();
+  cv::Mat result2;
+  templ = cv::Mat(left_img, templ_selector);
+  stripe = cv::Mat(right_img, stripe_selector);
 
   for (size_t t = 0; t < nrTests; t++) {
     UtilsOpenCV::PlainMatchTemplate(stripe, templ, result2);
   }
-  double timeMatching2 = UtilsOpenCV::GetTimeInSeconds() - timeBefore;
-  cout << "timeMatching 2: " << timeMatching2 / double(nrTests) << endl;
+  double timeMatching2 = utils::Timer::toc<std::chrono::seconds>(tic).count();
+  std::cout << "timeMatching 2: " << timeMatching2 / double(nrTests) << endl;
 
   // check that results are the same
   // cout << result1 << "\n" << result2 << endl;
@@ -422,7 +430,7 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
       if ((r + c) % 2 == 0) {  // set some of them to NO_RIGHT_RECT
         st = KeypointStatus::NO_RIGHT_RECT;
       }
-      keypoints_rectified.push_back(make_pair(st, Point2f(x, y)));
+      keypoints_rectified.push_back(make_pair(st, cv::Point2f(x, y)));
     }
   }
 
@@ -431,7 +439,8 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
 
   tie(keypoints_unrectified, keypoints_status) =
       StereoFrame::distortUnrectifyPoints(
-          keypoints_rectified, sf->getLeftFrame().cam_param_.undistRect_map_x_,
+          keypoints_rectified,
+          sf->getLeftFrame().cam_param_.undistRect_map_x_,
           sf->getLeftFrame().cam_param_.undistRect_map_y_);
 
   // Manually compute the expected distorted/unrectified keypoints!
@@ -450,11 +459,12 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
 
     // if it is VALID, compare actual pixel value against manually computed
     // expected value
-    Mat pt = (cv::Mat_<double>(3, 1) << keypoints_rectified[i].second.x,
-              keypoints_rectified[i].second.y, 1);  // homogeneous pixel
-    Mat P1_inv = P1(cv::Rect(0, 0, 3, 3)).inv();
-    Mat R = sf->getLeftFrame().cam_param_.R_rectify_;
-    Mat xn = R.t() * P1_inv * pt;
+    cv::Mat pt = (cv::Mat_<double>(3, 1) << keypoints_rectified[i].second.x,
+                  keypoints_rectified[i].second.y,
+                  1);  // homogeneous pixel
+    cv::Mat P1_inv = P1(cv::Rect(0, 0, 3, 3)).inv();
+    cv::Mat R = sf->getLeftFrame().cam_param_.R_rectify_;
+    cv::Mat xn = R.t() * P1_inv * pt;
     Point2 pt_in = Point2(
         xn.at<double>(0, 0) / xn.at<double>(2, 0),
         xn.at<double>(1, 0) /
@@ -492,26 +502,28 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints) {
 
   // Actual value
   StatusKeypointsCV keypoints_rectified;
-  sf->undistortRectifyPoints(
-      keypoints_unrectified_gt, sf->getLeftFrame().cam_param_,
-      sf->getLeftUndistRectCamMat(), &keypoints_rectified);
+  sf->undistortRectifyPoints(keypoints_unrectified_gt,
+                             sf->getLeftFrame().cam_param_,
+                             sf->getLeftUndistRectCamMat(),
+                             &keypoints_rectified);
 
   // Map back!
   KeypointsCV keypoints_unrectified_actual;
   std::vector<KeypointStatus> status_unrectified;
   tie(keypoints_unrectified_actual, status_unrectified) =
       StereoFrame::distortUnrectifyPoints(
-          keypoints_rectified, sf->getLeftFrame().cam_param_.undistRect_map_x_,
+          keypoints_rectified,
+          sf->getLeftFrame().cam_param_.undistRect_map_x_,
           sf->getLeftFrame().cam_param_.undistRect_map_y_);
 
   // Comparision
   for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
     if (keypoints_rectified[i].first != KeypointStatus::VALID) continue;
     // compare pixel coordinates of valid points
-    EXPECT_NEAR(keypoints_unrectified_actual[i].x,
-                keypoints_unrectified_gt[i].x, 1);
-    EXPECT_NEAR(keypoints_unrectified_actual[i].y,
-                keypoints_unrectified_gt[i].y, 1);
+    EXPECT_NEAR(
+        keypoints_unrectified_actual[i].x, keypoints_unrectified_gt[i].x, 1);
+    EXPECT_NEAR(
+        keypoints_unrectified_actual[i].y, keypoints_unrectified_gt[i].y, 1);
   }
 }
 
@@ -556,18 +568,23 @@ TEST_F(StereoFrameFixture, getDepthFromRectifiedMatches) {
         double x_loc = x2depth * depth;
         double y_loc = y2depth * depth;
 
-        Mat pt_mat_left = P1 * (cv::Mat_<double>(4, 1) << x_loc, y_loc, depth,
-                                1);  // project to left
-        Mat pt_mat_right = P2 * (cv::Mat_<double>(4, 1) << x_loc, y_loc, depth,
-                                 1);  // project to right
+        cv::Mat pt_mat_left = P1 * (cv::Mat_<double>(4, 1) << x_loc,
+                                    y_loc,
+                                    depth,
+                                    1);  // project to left
+        cv::Mat pt_mat_right = P2 * (cv::Mat_<double>(4, 1) << x_loc,
+                                     y_loc,
+                                     depth,
+                                     1);  // project to right
         pt_mat_left =
             pt_mat_left / pt_mat_left.at<double>(2, 0);  // express as pixels
         pt_mat_right =
             pt_mat_right / pt_mat_right.at<double>(2, 0);  // express as pixels
-        Point2f pt_left(pt_mat_left.at<double>(0, 0),
-                        pt_mat_left.at<double>(1, 0));  // express as pixels
-        Point2f pt_right(pt_mat_right.at<double>(0, 0),
-                         pt_mat_right.at<double>(1, 0));  // express as pixels
+        cv::Point2f pt_left(pt_mat_left.at<double>(0, 0),
+                            pt_mat_left.at<double>(1, 0));  // express as pixels
+        cv::Point2f pt_right(
+            pt_mat_right.at<double>(0, 0),
+            pt_mat_right.at<double>(1, 0));  // express as pixels
         left_keypoints_rectified.push_back(
             make_pair(KeypointStatus::VALID, pt_left));
         right_keypoints_rectified.push_back(
@@ -579,28 +596,28 @@ TEST_F(StereoFrameFixture, getDepthFromRectifiedMatches) {
 
   // Add a few invalid keypoints to the test.
   left_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::VALID, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::VALID, cv::Point2f(1.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::NO_RIGHT_RECT, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::NO_RIGHT_RECT, cv::Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   left_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::NO_LEFT_RECT, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::NO_LEFT_RECT, cv::Point2f(1.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::VALID, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::VALID, cv::Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   left_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::NO_DEPTH, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::NO_DEPTH, cv::Point2f(1.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::FAILED_ARUN, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::FAILED_ARUN, cv::Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   // Add a test case with negative disparity
   left_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::NO_DEPTH, Point2f(3.0, 2.0)));
+      make_pair(KeypointStatus::NO_DEPTH, cv::Point2f(3.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(KeypointStatus::FAILED_ARUN, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::FAILED_ARUN, cv::Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   // Call StereoFrame::getDepthFromRectifiedMatches to get the actual depth!
@@ -623,8 +640,9 @@ TEST_F(StereoFrameFixture, getDepthFromRectifiedMatches) {
 /* ************************************************************************* */
 TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
   // Extract keypoints from the left img!
-  sf->getLeftFrameMutable()->extractCorners();
-  Mat left_img = sf->getLeftFrame().img_;
+  Frame* left_frame = sf->getLeftFrameMutable();
+  UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
+  cv::Mat left_img = sf->getLeftFrame().img_;
   const KeypointsCV& left_keypoints = sf->getLeftFrame().keypoints_;
   const int num_points = left_keypoints.size();
 
@@ -643,7 +661,7 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
   for (int i = 0; i < num_offset_test; i++) {
     // Getting right (rectified) images by translating left image
     double offset = offset_range[i];
-    Mat right_img = cvTranslateImageX(left_img, (int)offset);
+    cv::Mat right_img = cvTranslateImageX(left_img, (int)offset);
 
     double tol_corr;
     // create left keypoints with status
@@ -667,8 +685,10 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
 
       // get actual matches
       StatusKeypointsCV right_keypoints_rectified =
-          sf->getRightKeypointsRectified(left_img, right_img,
-                                         left_keypoints_rectified, 458.654,
+          sf->getRightKeypointsRectified(left_img,
+                                         right_img,
+                                         left_keypoints_rectified,
+                                         458.654,
                                          sf->getBaseline());
 
       for (size_t i = 0; i < left_keypoints_rectified.size();
@@ -719,7 +739,7 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
             right_corners.push_back(right_pt.second);
             std::vector<cv::DMatch> matches;
             matches.push_back(cv::DMatch(0, 0, 0));
-            Mat canvas = UtilsOpenCV::DrawCornersMatches(
+            cv::Mat canvas = UtilsOpenCV::DrawCornersMatches(
                 left_img, left_corners, right_img, right_corners, matches);
             // imshow("matched keypoints", canvas);
             // waitKey(0);
@@ -730,9 +750,9 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
   }
   // make sure that at least some keypoints were valid (these are the ones we
   // are interested in)
-  EXPECT_NEAR(858, countValid, 1e-5);
+  EXPECT_EQ(849, countValid);
   // 7 is the number of offsets we try
-  EXPECT_NEAR(900, totalKeypointsTested, 1e-5);
+  EXPECT_EQ(900, totalKeypointsTested);
 }
 
 /* ************************************************************************* */
@@ -744,13 +764,17 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
   // check that data is correctly populated:
   EXPECT_NEAR(0.110078, sfnew->getBaseline(), 1e-5);
   EXPECT_NEAR(100, sfnew->getRightFrame().keypoints_.size(), 1e-5);
-  EXPECT_NEAR(0, sfnew->getRightFrame().scores_.size(),
+  EXPECT_NEAR(0,
+              sfnew->getRightFrame().scores_.size(),
               1e-5);  // scores do not get populated
-  EXPECT_NEAR(0, sfnew->getRightFrame().landmarks_.size(),
+  EXPECT_NEAR(0,
+              sfnew->getRightFrame().landmarks_.size(),
               1e-5);  // landmarks_ do not get populated
-  EXPECT_NEAR(0, sfnew->getRightFrame().landmarks_age_.size(),
+  EXPECT_NEAR(0,
+              sfnew->getRightFrame().landmarks_age_.size(),
               1e-5);  // landmarksAges do not get populated
-  EXPECT_NEAR(0, sfnew->getRightFrame().versors_.size(),
+  EXPECT_NEAR(0,
+              sfnew->getRightFrame().versors_.size(),
               1e-5);  // landmarksAges do not get populated
   EXPECT_NEAR(100, sfnew->keypoints_depth_.size(), 1e-5);
   EXPECT_NEAR(100, sfnew->keypoints_3d_.size(), 1e-5);
@@ -792,7 +816,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
     }
   }
   // TODO(Toni): sometimes it is 68(lambda), sometimes 92 (Jenkins)?
-  EXPECT_NEAR(92, nrValid, 1e-5);
+  EXPECT_EQ(91, nrValid);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3D point reprojects correctly to the two cameras:
@@ -808,7 +832,8 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
           sfnew->getLeftFrame().cam_param_.calibration_.uncalibrate(
               Point2(versor_i(0), versor_i(1)));
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
-                               kp_i_distUnrect_gtsam, 1));
+                               kp_i_distUnrect_gtsam,
+                               1));
 
       // TEST: uncalibrateUndistRect(versor) = original distorted unrectified
       // point (CHECK UNDIST RECT CALIBRATION WORKS)
@@ -826,7 +851,8 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       Point2 kp_i_undistRect_gtsam =
           KundistRect.uncalibrate(Point2(versor_i(0), versor_i(1)));
       EXPECT_TRUE(assert_equal(Point2(kp_i_undistRect.x, kp_i_undistRect.y),
-                               kp_i_undistRect_gtsam, 1));
+                               kp_i_undistRect_gtsam,
+                               1));
 
       // TEST: distortUnrectify(undistRectified) = original distorted
       // unrectified point (CHECK UNDISTORTION WORKS)
@@ -835,18 +861,20 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       StatusKeypointsCV urp;
       urp.push_back(make_pair(KeypointStatus::VALID, kp_i_undistRect));
       tie(dup, statuses) = StereoFrame::distortUnrectifyPoints(
-          urp, sfnew->getLeftFrame().cam_param_.undistRect_map_x_,
+          urp,
+          sfnew->getLeftFrame().cam_param_.undistRect_map_x_,
           sfnew->getLeftFrame().cam_param_.undistRect_map_y_);
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
-                               Point2(dup.at(0).x, dup.at(0).y), 1));
+                               Point2(dup.at(0).x, dup.at(0).y),
+                               1));
 
       // TEST: projecting 3d point to left camera (undist and rectified) =
       // original undistorted rectified point (CHECK BACKPROJECTION WORKS)
       Point3 point3d = sfnew->keypoints_3d_.at(i);
       PinholeCamera<Cal3_S2> leftCam_undistRect(gtsam::Pose3(), KundistRect);
       Point2 p2_undistRect = leftCam_undistRect.project(point3d);
-      EXPECT_TRUE(assert_equal(Point2(kp_i_undistRect.x, kp_i_undistRect.y),
-                               p2_undistRect, 1));
+      EXPECT_TRUE(assert_equal(
+          Point2(kp_i_undistRect.x, kp_i_undistRect.y), p2_undistRect, 1));
 
       // TEST: projecting 3d point to left camera (distorted and unrectified) =
       // original distorted unrectified point (CHECK BACKPROJECTION WORKS)
@@ -855,20 +883,21 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       Cal3DS2 KdistUnrect = sfnew->getLeftFrame().cam_param_.calibration_;
       PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3(), KdistUnrect);
       Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unrect);
-      EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
-                               p2_distUnrect, 1));
+      EXPECT_TRUE(assert_equal(
+          Point2(kp_i_distUnrect.x, kp_i_distUnrect.y), p2_distUnrect, 1));
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
       // pixels
       Cal3_S2 sfnew_left_undist_rect_cam_mat_2 =
           sfnew->getLeftUndistRectCamMat();
-      Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
-          sfnew_left_undist_rect_cam_mat_2.fx(),
-          sfnew_left_undist_rect_cam_mat_2.fy(),
-          sfnew_left_undist_rect_cam_mat_2.skew(),
-          sfnew_left_undist_rect_cam_mat_2.px(),
-          sfnew_left_undist_rect_cam_mat_2.py(), sfnew->getBaseline()));
+      Cal3_S2Stereo::shared_ptr K(
+          new Cal3_S2Stereo(sfnew_left_undist_rect_cam_mat_2.fx(),
+                            sfnew_left_undist_rect_cam_mat_2.fy(),
+                            sfnew_left_undist_rect_cam_mat_2.skew(),
+                            sfnew_left_undist_rect_cam_mat_2.px(),
+                            sfnew_left_undist_rect_cam_mat_2.py(),
+                            sfnew->getBaseline()));
       // Note: camera pose is the identity (instead of
       // sfnew->getBPoseCamLRect()) since the 3D point is in the left camera
       // frame
@@ -877,7 +906,8 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       EXPECT_NEAR(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).x, 1);
       EXPECT_NEAR(sp2.v(), sfnew->left_keypoints_rectified_.at(i).y, 1);
       EXPECT_NEAR(sp2.uR(), sfnew->right_keypoints_rectified_.at(i).x, 1);
-      EXPECT_NEAR(sp2.v(), sfnew->right_keypoints_rectified_.at(i).y,
+      EXPECT_NEAR(sp2.v(),
+                  sfnew->right_keypoints_rectified_.at(i).y,
                   3);  // slightly larger errors
     }
   }
@@ -1058,17 +1088,22 @@ TEST(testStereoFrame, undistortFisheye) {
   // Undistort image using pinhole equidistant (fisheye) model
   if (cam_params_left_fisheye.distortion_model_ == "equidistant") {
     cv::fisheye::initUndistortRectifyMap(
-        cam_params_left_fisheye.camera_matrix_,
+        cam_params_left_fisheye.K_,
         cam_params_left_fisheye.distortion_coeff_,
         // not relevant here
         cv::Mat::eye(3, 3, CV_32F),
         // don't to use default identity!
-        cam_params_left_fisheye.camera_matrix_,
-        cam_params_left_fisheye.image_size_, CV_32FC1,
+        cam_params_left_fisheye.K_,
+        cam_params_left_fisheye.image_size_,
+        CV_32FC1,
         // output
-        map_x_fisheye_undist, map_y_fisheye_undist);
-    cv::remap(left_fisheye_image_dist, left_fisheye_image_undist,
-              map_x_fisheye_undist, map_y_fisheye_undist, cv::INTER_LINEAR);
+        map_x_fisheye_undist,
+        map_y_fisheye_undist);
+    cv::remap(left_fisheye_image_dist,
+              left_fisheye_image_undist,
+              map_x_fisheye_undist,
+              map_y_fisheye_undist,
+              cv::INTER_LINEAR);
   } else {
     LOG(ERROR) << "Distortion model is not pinhole equidistant.";
   }
@@ -1106,8 +1141,7 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
                                      // Right frame
                                      right_fisheye_image_dist,
                                      cam_params_right_fisheye,
-                                     // Relative pose
-                                     // Default, not used here
+                                     // Relative pose // Default, not used here
                                      StereoMatchingParams());
 
   // Get rectified images
@@ -1128,16 +1162,21 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
   StatusKeypointsCV left_keypoints_rectified;
   Frame left_frame_fish = sf->getLeftFrame();
   Frame right_frame_fish = sf->getRightFrame();
-  left_frame_fish.extractCorners();
-  sf->undistortRectifyPoints(
-      left_frame_fish.keypoints_, left_frame_fish.cam_param_,
-      left_undistRectCameraMatrix_fisheye, &left_keypoints_rectified);
+  UtilsOpenCV::ExtractCorners(left_frame_fish.img_,
+                              &left_frame_fish.keypoints_);
+  sf->undistortRectifyPoints(left_frame_fish.keypoints_,
+                             left_frame_fish.cam_param_,
+                             left_undistRectCameraMatrix_fisheye,
+                             &left_keypoints_rectified);
 
   // Get rectified right keypoints
   StatusKeypointsCV right_keypoints_rectified;
-  right_keypoints_rectified = sf->getRightKeypointsRectified(
-      left_image_rectified, right_image_rectified, left_keypoints_rectified,
-      left_undistRectCameraMatrix_fisheye.fx(), sf->getBaseline());
+  right_keypoints_rectified =
+      sf->getRightKeypointsRectified(left_image_rectified,
+                                     right_image_rectified,
+                                     left_keypoints_rectified,
+                                     left_undistRectCameraMatrix_fisheye.fx(),
+                                     sf->getBaseline());
 
   // Check corresponding features are on epipolar lines (visually and store)
   cv::Mat undist_sidebyside = UtilsOpenCV::ConcatenateTwoImages(
@@ -1149,9 +1188,11 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
                  cv::IMREAD_ANYCOLOR);
 
   // Get keypoints depth
-  std::vector<double> keypoints_depth = sf->getDepthFromRectifiedMatches(
-      left_keypoints_rectified, right_keypoints_rectified,
-      left_undistRectCameraMatrix_fisheye.fx(), sf->getBaseline());
+  std::vector<double> keypoints_depth =
+      sf->getDepthFromRectifiedMatches(left_keypoints_rectified,
+                                       right_keypoints_rectified,
+                                       left_undistRectCameraMatrix_fisheye.fx(),
+                                       sf->getBaseline());
 
   // Test distortion with image comparison --> uncomment
   EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(

@@ -16,10 +16,6 @@
 // TODO(Toni): put tracker in another folder.
 #pragma once
 
-#include <opencv2/highgui/highgui_c.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
 #include <gtsam/base/Matrix.h>
@@ -32,10 +28,17 @@
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
+
+// TODO(Toni): Fast-forwarding bcs of an issue wiht includes:
+// if you include here the display-definitions.h, a million errors appear, this
+// should go away after properly cleaning what each file includes.
+class VisualizerOutput;
+typedef ThreadsafeQueue<std::unique_ptr<VisualizerOutput>> DisplayQueue;
 
 class Tracker {
  public:
@@ -48,11 +51,12 @@ class Tracker {
    * @param tracker_params Parameters for feature tracking
    * @param camera_params Parameters for the camera used for tracking.
    */
-  Tracker(const VioFrontEndParams& tracker_params,
-          const CameraParams& camera_params);
+  Tracker(const FrontendParams& tracker_params,
+          const CameraParams& camera_params,
+          DisplayQueue* display_queue = nullptr);
 
   // Tracker parameters.
-  const VioFrontEndParams tracker_params_;
+  const FrontendParams tracker_params_;
 
   // Mask for features.
   cv::Mat cam_mask_;
@@ -62,25 +66,14 @@ class Tracker {
                        Frame* cur_frame,
                        const gtsam::Rot3& inter_frame_rotation);
 
-  // Get good features to track from image (wrapper for opencv
-  // goodFeaturesToTrack)
-  static void MyGoodFeaturesToTrackSubPix(
-      const cv::Mat& image,
-      const int& max_corners,
-      const double& quality_level,
-      const double& min_distance,  // Not const because modified dkwhy inside...
-      const cv::Mat& mask,
-      const int& blockSize,
-      const bool& useHarrisDetector,
-      const double& harrisK,
-      KeypointsWithScores* corners_with_scores);
-
-  void featureDetection(Frame* cur_frame);
-
+  // TODO(Toni): this function is almost a replica of the Stereo version,
+  // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
       Frame* ref_frame,
       Frame* cur_frame);
 
+  // TODO(Toni): this function is almost a replica of the Mono version,
+  // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionStereo(
       StereoFrame& ref_frame,
       StereoFrame& cur_frame);
@@ -97,19 +90,15 @@ class Tracker {
                                                StereoFrame& cur_stereoFrame,
                                                const gtsam::Rot3& R);
 
-  void removeOutliersMono(
-      Frame* ref_frame,
-      Frame* cur_frame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      const std::vector<int>& inliers,
-      const int iterations);
+  void removeOutliersMono(const std::vector<int>& inliers,
+                          Frame* ref_frame,
+                          Frame* cur_frame,
+                          KeypointMatches* matches_ref_cur);
 
-  void removeOutliersStereo(
-      StereoFrame& ref_stereoFrame,
-      StereoFrame& cur_stereoFrame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      const std::vector<int>& inliers,
-      const int iterations);
+  void removeOutliersStereo(const std::vector<int>& inliers,
+                            StereoFrame* ref_stereoFrame,
+                            StereoFrame* cur_stereoFrame,
+                            KeypointMatches* matches_ref_cur);
 
   void checkStatusRightKeypoints(
       const std::vector<KeypointStatus>& right_keypoints_status);
@@ -123,35 +112,29 @@ class Tracker {
       const KeypointsCV& extra_corners_blue = KeypointsCV()) const;
 
   /* ---------------------------- STATIC FUNCTIONS -------------------------- */
-  static void findOutliers(
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      std::vector<int> inliers,
-      std::vector<int>* outliers);
+  static void findOutliers(const KeypointMatches& matches_ref_cur,
+                           std::vector<int> inliers,
+                           std::vector<int>* outliers);
 
-  static void findMatchingKeypoints(
-      const Frame& ref_frame,
-      const Frame& cur_frame,
-      std::vector<std::pair<size_t, size_t>>* matches_ref_cur);
+  static void findMatchingKeypoints(const Frame& ref_frame,
+                                    const Frame& cur_frame,
+                                    KeypointMatches* matches_ref_cur);
 
   static void findMatchingStereoKeypoints(
       const StereoFrame& ref_stereoFrame,
       const StereoFrame& cur_stereoFrame,
-      std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo);
+      KeypointMatches* matches_ref_cur_stereo);
 
   static void findMatchingStereoKeypoints(
       const StereoFrame& ref_stereoFrame,
       const StereoFrame& cur_stereoFrame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono,
-      std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo);
+      const KeypointMatches& matches_ref_cur_mono,
+      KeypointMatches* matches_ref_cur_stereo);
 
-  static double computeMedianDisparity(const Frame& ref_frame,
-                                       const Frame& cur_frame);
-
-  // Returns landmark_count (updated from the new keypoints),
-  // and nr or extracted corners.
-  KeypointsWithScores featureDetection(const Frame& cur_frame,
-                                       const cv::Mat& cam_mask,
-                                       const int need_n_corners);
+  static bool computeMedianDisparity(const KeypointsCV& ref_frame_kpts,
+                                     const KeypointsCV& cur_frame_kpts,
+                                     const KeypointMatches& matches_ref_cur,
+                                     double* median_disparity);
 
   static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
       const StereoFrame& stereoFrame,
@@ -178,10 +161,19 @@ class Tracker {
   // Debug info.
   DebugTrackerInfo debug_info_;
 
+  // Display queue: push to this queue if you want to display an image.
+  DisplayQueue* display_queue_;
+
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
   std::string output_images_path_;
 
+  // Monocular RANSACs
+  opengv::sac::Ransac<ProblemMono> mono_ransac_;
+  opengv::sac::Ransac<ProblemMonoGivenRot> mono_ransac_given_rot_;
+
+  // Stereo RANSAC
+  opengv::sac::Ransac<ProblemStereo> stereo_ransac_;
 };
 
 }  // namespace VIO

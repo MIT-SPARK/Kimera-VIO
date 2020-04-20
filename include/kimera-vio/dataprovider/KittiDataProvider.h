@@ -81,6 +81,8 @@ class KittiDataProvider : public DataProviderInterface {
 
  private:
   KittiData kitti_data_;
+  FrameId initial_k_ = 0;
+  FrameId final_k_ = 1000;
 };
 
 }  // namespace VIO

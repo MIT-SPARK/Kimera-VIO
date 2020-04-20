@@ -442,14 +442,14 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
   polygon.resize(3);
 
   // Iterate over the 2d mesh triangles.
-  for (size_t i = 0; i < mesh_2d_pixels.size(); i++) {
+  for (size_t i = 0u; i < mesh_2d_pixels.size(); i++) {
     const cv::Vec6f& triangle_2d = mesh_2d_pixels.at(i);
 
     // Iterate over each vertex (pixel) of the triangle.
     // Triangle_2d.rows = 3.
-    for (size_t j = 0; j < triangle_2d.rows / 2; j++) {
+    for (size_t j = 0u; j < triangle_2d.rows / 2u; j++) {
       // Extract pixel.
-      const cv::Point2f pixel(triangle_2d[j * 2], triangle_2d[j * 2 + 1]);
+      const cv::Point2f pixel(triangle_2d[j * 2u], triangle_2d[j * 2u + 1u]);
 
       // Extract landmark id corresponding to this pixel.
       const LandmarkId& lmk_id(
@@ -473,7 +473,7 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
         if (mesh_2d != nullptr) {
           face.at(j) = Mesh2D::VertexType(lmk_id, pixel);
         }
-        static const size_t loop_end = triangle_2d.rows / 2 - 1;
+        static const size_t loop_end = triangle_2d.rows / 2u - 1u;
         if (j == loop_end) {
           // Last iteration.
           // Filter out bad polygons.
@@ -1375,8 +1375,7 @@ void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
 
   // Get points in stereo camera that are not in vio but have lmk id:
   PointsWithIdMap points_with_id_stereo;
-  // TODO(Toni): put this in mesher params, and allow for only seeing stereo
-  // mesh
+  // TODO(Toni): allow for only seeing stereo mesh
   if (FLAGS_add_extra_lmks_from_stereo) {
     // Append vio points.
     // WARNING some stereo and vio lmks share the same id, so adding order
@@ -1601,7 +1600,7 @@ void Mesher::createMesh2dVIO(
   LOG_IF(WARNING, pointsWithIdVIO.empty())
       << "List of Keypoints with associated Landmarks is empty.";
   for (const auto& point_with_id : pointsWithIdVIO) {
-    for (size_t j = 0; j < landmarks.size(); j++) {
+    for (size_t j = 0u; j < landmarks.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
       if (landmarks.at(j) == point_with_id.first &&
@@ -1617,7 +1616,7 @@ void Mesher::createMesh2dVIO(
 }
 
 /* -------------------------------------------------------------------------- */
-// Create a 2D mesh from 2D corners in an image, coded as a Frame class
+// Create a 2D mesh from 2D corners in an image
 // Returns the actual keypoints used to perform the triangulation.
 std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     const cv::Size& img_size,
@@ -1628,9 +1627,9 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
 
   // Rectangle to be used with Subdiv2D.
   // https://answers.opencv.org/question/180984/out-of-range-error-in-delaunay-triangulation/
-  static const cv::Rect rect(0, 0, img_size.width, img_size.height);
+  static const cv::Rect2f rect(0.0, 0.0, img_size.width, img_size.height);
   // subdiv has the delaunay triangulation function
-  static cv::Subdiv2D subdiv(rect);
+  cv::Subdiv2D subdiv(rect);
   subdiv.initDelaunay(rect);
   // subdiv.swapEdges()
 
@@ -1641,7 +1640,14 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   keypoints_inside_image.reserve(keypoints_to_triangulate->size());
   for (const KeypointCV& kp : *keypoints_to_triangulate) {
     if (rect.contains(kp)) {
-      keypoints_inside_image.push_back(kp);
+      // TODO(Toni): weirdly enough rect.contains does not quite work with
+      // (-0.0 - epsilon) values... it still considers them inside...
+      if (kp.x >= 0.0 && kp.y >= 0.0) {
+        keypoints_inside_image.push_back(kp);
+      } else {
+        LOG(ERROR) << "Keypoint with negative coords: \n"
+                   << "x: " << kp.x << ", y:" << kp.y;
+      }
     } else {
       VLOG(1) << "createMesh2D - error, keypoint out of image frame: \n"
               << "Keypoint 2D: " << kp
@@ -1650,11 +1656,10 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     }
   }
 
-  // Perform triangulation.
+  // Perform 2D Delaunay triangulation.
   try {
     subdiv.insert(keypoints_inside_image);
   } catch (...) {
-    // TODO(Toni): print the whole list of keypoints
     LOG(ERROR) << "Keypoints supposedly inside the image:";
     for (const KeypointCV& kp : keypoints_inside_image) {
       LOG(ERROR) << "x: " << kp.x << ", y: " << kp.y;
@@ -1676,17 +1681,24 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   subdiv.getTriangleList(triangulation2D);
 
   // Retrieve "good triangles" (all vertices are inside image).
-  for (auto it = triangulation2D.begin(); it != triangulation2D.end();) {
-    if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
-        !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
-        !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
-      it = triangulation2D.erase(it);
-      // Go backwards, otherwise it++ will jump one keypoint...
+  std::vector<cv::Vec6f> good_triangulation;
+  good_triangulation.reserve(triangulation2D.size());
+  for (const cv::Vec6f& tri : triangulation2D) {
+    if (rect.contains(cv::Point2f(tri[0], tri[1])) &&
+        rect.contains(cv::Point2f(tri[2], tri[3])) &&
+        rect.contains(cv::Point2f(tri[4], tri[5]))) {
+      // Triangle with all vertices inside image
+      good_triangulation.push_back(tri);
     } else {
-      it++;
+      VLOG(1) << "Delaunay Triangle out of image (size: x: " << rect.x
+                   << ", y: " << rect.y << ", height: " << rect.height
+                   << ", width "<< rect.width << "\n Triangle: x, y: \n"
+                   << tri[0] << ", " << tri[1] << '\n'
+                   << tri[2] << ", " << tri[3] << '\n'
+                   << tri[4] << ", " << tri[5];
     }
   }
-  return triangulation2D;
+  return good_triangulation;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1737,7 +1749,7 @@ void Mesher::createMesh2dStereo(
   // Create mesh including indices of keypoints with valid 3D
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
-  for (int i = 0; i < landmarks.size(); i++) {
+  for (size_t i = 0u; i < landmarks.size(); i++) {
     if (keypoints_status.at(i) == KeypointStatus::VALID &&
         landmarks.at(i) != -1) {
       // Add keypoints for mesh 2d.

@@ -18,24 +18,24 @@
 
 namespace VIO {
 
-VioBackEndParams::VioBackEndParams() : PipelineParams("Backend Parameters") {
+BackendParams::BackendParams() : PipelineParams("Backend Parameters") {
   // Trivial sanity checks.
   CHECK_GE(horizon_, 0);
   CHECK_GE(numOptimize_, 0);
 }
 
-bool VioBackEndParams::equals(const VioBackEndParams& vp2, double tol) const {
+bool BackendParams::equals(const BackendParams& vp2, double tol) const {
   return equalsVioBackEndParams(vp2, tol);
 }
 
-void VioBackEndParams::print() const { printVioBackEndParams(); }
+void BackendParams::print() const { printVioBackEndParams(); }
 
-bool VioBackEndParams::parseYAML(const std::string& filepath) {
+bool BackendParams::parseYAML(const std::string& filepath) {
   YamlParser yaml_parser(filepath);
   return parseYAMLVioBackEndParams(yaml_parser);
 }
 
-bool VioBackEndParams::parseYAMLVioBackEndParams(
+bool BackendParams::parseYAMLVioBackEndParams(
     const YamlParser& yaml_parser) {
   // INITIALIZATION
   yaml_parser.getYamlParam("autoInitialize", &autoInitialize_);
@@ -67,9 +67,9 @@ bool VioBackEndParams::parseYAMLVioBackEndParams(
       LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
   }
 
-  int degeneracyModeId;
-  yaml_parser.getYamlParam("degeneracyMode", &degeneracyModeId);
-  switch (degeneracyModeId) {
+  int degeneracy_mode_id;
+  yaml_parser.getYamlParam("degeneracyMode", &degeneracy_mode_id);
+  switch (degeneracy_mode_id) {
     case 0:
       degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
       break;
@@ -106,12 +106,13 @@ bool VioBackEndParams::parseYAMLVioBackEndParams(
   yaml_parser.getYamlParam("constantVelSigma", &constantVelSigma_);
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
   yaml_parser.getYamlParam("horizon", &horizon_);
+  yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
   yaml_parser.getYamlParam("useDogLeg", &useDogLeg_);
 
   return true;
 }
 
-bool VioBackEndParams::equalsVioBackEndParams(const VioBackEndParams& vp2,
+bool BackendParams::equalsVioBackEndParams(const BackendParams& vp2,
                                               double tol) const {
   return
       // INITIALIZATION
@@ -147,10 +148,11 @@ bool VioBackEndParams::equalsVioBackEndParams(const VioBackEndParams& vp2,
       (fabs(noMotionRotationSigma_ - vp2.noMotionRotationSigma_) <= tol) &&
       (fabs(constantVelSigma_ - vp2.constantVelSigma_) <= tol) &&
       (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
+      (wildfire_threshold_ == vp2.wildfire_threshold_) &&
       (useDogLeg_ == vp2.useDogLeg_);
 }
 
-void VioBackEndParams::printVioBackEndParams() const {
+void BackendParams::printVioBackEndParams() const {
   LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
             << "** INITIALIZATION parameters **\n"
             << "autoInitialize_: " << autoInitialize_ << '\n'
@@ -190,6 +192,7 @@ void VioBackEndParams::printVioBackEndParams() const {
             << "constantVelSigma_: " << constantVelSigma_ << '\n'
             << "numOptimize_: " << numOptimize_ << '\n'
             << "horizon_: " << horizon_ << '\n'
+            << "wildfire_threshold_: " << wildfire_threshold_ << '\n'
             << "useDogLeg_: " << useDogLeg_;
 }
 

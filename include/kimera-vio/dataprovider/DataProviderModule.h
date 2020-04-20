@@ -73,11 +73,11 @@ class DataProviderModule
   //! This is useful when parsing datasets files, since parsing is much faster
   //! than the pipeline. But this is not suitable for online scenarios where
   //! you should not block the sensor processing.
-  inline void fillLeftFrameQueueBlocking(Frame::UniquePtr&& left_frame) {
+  inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
     CHECK(left_frame);
     left_frame_queue_.pushBlockingIfFull(std::move(left_frame), 5u);
   }
-  inline void fillRightFrameQueueBlocking(Frame::UniquePtr&& right_frame) {
+  inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
     CHECK(right_frame);
     right_frame_queue_.pushBlockingIfFull(std::move(right_frame), 5u);
   }

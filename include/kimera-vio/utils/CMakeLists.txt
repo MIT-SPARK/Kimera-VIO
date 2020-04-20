@@ -14,6 +14,7 @@ target_sources(kimera_vio
     "${CMAKE_CURRENT_LIST_DIR}/UtilsGeometry.h"
     "${CMAKE_CURRENT_LIST_DIR}/UtilsGTSAM.h"
     "${CMAKE_CURRENT_LIST_DIR}/UtilsOpenCV.h"
+    "${CMAKE_CURRENT_LIST_DIR}/UtilsNumerical.h"
     "${CMAKE_CURRENT_LIST_DIR}/SerializationOpenCv.h"
     "${CMAKE_CURRENT_LIST_DIR}/YamlParser.h"
     "${CMAKE_CURRENT_LIST_DIR}/FilesystemUtils.h"
