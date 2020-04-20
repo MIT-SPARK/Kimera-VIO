@@ -52,4 +52,4 @@ void StereoVisionFrontEndModule::checkFrontendForOnlineAlignment() {
   vio_frontend_->checkFrontendForOnlineAlignment();
 }
 
-};  // namespace VIO
+} // namespace VIO

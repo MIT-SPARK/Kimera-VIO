@@ -63,57 +63,6 @@ namespace VIO {
 // Forward-declarations
 class VioNavState;
 
-class FactorGraphBuilder {
-  KIMERA_POINTER_TYPEDEFS(FactorGraphBuilder);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(FactorGraphBuilder);
-  FactorGraphBuilder();
-  virtual ~FactorGraphBuilder() = default;
-
-  //! A container to hold all keys that belong to a ViNode.
-  struct VioNavStateKeys {
-    gtsam::Key pose_;
-    gtsam::Key velocity_;
-    gtsam::Key imu_bias_;
-  };
-
-  //! Symbols used
-  static constexpr unsigned char kSymbolPoseKey = 'x';
-  static constexpr unsigned char kSymbolVelocityKey = 'v';
-  static constexpr unsigned char kSymbolImuBiasKey = 'b';
-
-  // TODO(Toni): put here all adders/removers of factors and do bookkeeping
-  // of what is going on. Make it a virtual class so different factor graphs
-  // can be built. Implement our structureless vio, but leave room for other
-  // approaches.
-
-  /* ------------------------------------------------------------------------ */
-  // Store stereo frame info into landmarks table:
-  // returns landmarks observed in current frame.
-  void addStereoMeasurementsToFeatureTracks(
-      const int& frameNum,
-      const SmartStereoMeasurements& stereoMeasurements_kf,
-      LandmarkIds* landmarks_kf) {}
-
-  // Add imu factors:
-  void addImuFactor(const FrameId& from_id,
-                    const FrameId& to_id,
-                    const gtsam::PreintegratedImuMeasurements& pim){};
-
-  /* ------------------------------------------------------------------------ */
-  // Add no motion factors in case of low disparity.
-  void addZeroVelocityPrior(const FrameId& frame_id){};
-
-  /* ------------------------------------------------------------------------ */
-  void addNoMotionFactor(const FrameId& from_id, const FrameId& to_id){};
-
-  /* ------------------------------------------------------------------------ */
-  void addBetweenFactor(const FrameId& from_id,
-                        const FrameId& to_id,
-                        const gtsam::Pose3& from_id_POSE_to_id){};
-
- protected:
-};
-
 class VioBackEnd {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEnd);
@@ -172,7 +121,7 @@ class VioBackEnd {
 
   /* ------------------------------------------------------------------------ */
   // Set initial state at given pose, velocity and bias.
-  void initStateAndSetPriors(
+  bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
 
  protected:
@@ -195,7 +144,7 @@ class VioBackEnd {
   // [in] timestamp_kf_nsec, keyframe timestamp.
   // [in] status_smart_stereo_measurements_kf, vision data.
   // [in] stereo_ransac_body_pose, inertial data.
-  virtual void addVisualInertialStateAndOptimize(
+  virtual bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
@@ -210,8 +159,9 @@ class VioBackEnd {
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(const LandmarkId& lmk_id,
-                             const std::pair<FrameId, StereoPoint2>& newObs);
+  void updateLandmarkInGraph(
+      const LandmarkId& lmk_id,
+      const std::pair<FrameId, StereoPoint2>& new_measurement);
 
   /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
@@ -236,8 +186,15 @@ class VioBackEnd {
                         const FrameId& to_id,
                         const gtsam::Pose3& from_id_POSE_to_id);
 
-  /* ------------------------------------------------------------------------ */
-  void optimize(const Timestamp& timestamp_kf_nsec,
+  /**
+   * @brief optimize
+   * @param timestamp_kf_nsec
+   * @param cur_id
+   * @param max_iterations
+   * @param extra_factor_slots_to_delete
+   * @return False if optimization failed, true otherwise
+   */
+  bool optimize(const Timestamp& timestamp_kf_nsec,
                 const FrameId& cur_id,
                 const size_t& max_iterations,
                 const gtsam::FactorIndices& extra_factor_slots_to_delete =
@@ -250,9 +207,12 @@ class VioBackEnd {
   void cleanNullPtrsFromGraph(
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
 
+  /* ------------------------------------------------------------------------ */
+  bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
+
  private:
   /* ------------------------------------------------------------------------ */
-  void addVisualInertialStateAndOptimize(const BackendInput& input);
+  bool addVisualInertialStateAndOptimize(const BackendInput& input);
 
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
@@ -266,8 +226,16 @@ class VioBackEnd {
   void updateStates(const FrameId& cur_id);
 
   /* ------------------------------------------------------------------------ */
-  // Update smoother.
-  void updateSmoother(
+  /**
+   * @brief updateSmoother
+   * @param result
+   * @param new_factors_tmp
+   * @param new_values
+   * @param timestamps
+   * @param delete_slots
+   * @return False if the update failed, true otw.
+   */
+  bool updateSmoother(
       Smoother::Result* result,
       const gtsam::NonlinearFactorGraph& new_factors_tmp =
           gtsam::NonlinearFactorGraph(),
@@ -313,9 +281,6 @@ class VioBackEnd {
       const gtsam::Key& key,
       const gtsam::NonlinearFactorGraph& graph,
       std::vector<size_t>* slots_of_factors_with_key);
-
-  /* ------------------------------------------------------------------------ */
-  bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
 
   /* ------------------------------------------------------------------------ */
   virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
@@ -470,28 +435,41 @@ class VioBackEnd {
   // Vision params.
   gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
-  const Pose3 B_Pose_leftCam_;  // pose of the left camera wrt body
-  const gtsam::Cal3_S2Stereo::shared_ptr
-      stereo_cal_;  // stores calibration, baseline
+  // Pose of the left camera wrt body
+  const Pose3 B_Pose_leftCam_;
+  // Stores calibration, baseline.
+  const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_;
 
   // State.
-  gtsam::Values state_;  //!< current state of the system.
+  //!< current state of the system.
+  gtsam::Values state_;
 
-  // GTSAM:
+  // ISAM2 smoother
   std::unique_ptr<Smoother> smoother_;
 
   // Values
-  gtsam::Values new_values_;  //!< new states to be added
+  //!< new states to be added
+  gtsam::Values new_values_;
 
   // Factors.
-  gtsam::NonlinearFactorGraph
-      new_imu_prior_and_other_factors_;  //!< new factors to be added
-  LandmarkIdSmartFactorMap
-      new_smart_factors_;  //!< landmarkId -> {SmartFactorPtr}
-  SmartFactorMap
-      old_smart_factors_;  //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+  //!< New factors to be added
+  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;
+  //!< landmarkId -> {SmartFactorPtr}
+  LandmarkIdSmartFactorMap new_smart_factors_;
+  //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+  SmartFactorMap old_smart_factors_;
   // if SlotIndex is -1, means that the factor has not been inserted yet in the
   // graph
+
+  // Data:
+  // TODO grows unbounded currently, but it should be limited to time horizon.
+  FeatureTracks feature_tracks_;
+
+  // Counters.
+  //! Last keyframe id.
+  int last_kf_id_;
+  //! Current keyframe id.
+  int curr_kf_id_;
 
   // Imu Bias update callback. To be called as soon as we have a new IMU bias
   // update so that the frontend performs preintegration with the newest bias.
@@ -502,15 +480,6 @@ class VioBackEnd {
 
   // To print smoother info, useful when looking for optimization bugs.
   bool debug_smoother_ = false;
-
-  // Data:
-  // TODO grows unbounded currently, but it should be limited to time horizon.
-  FeatureTracks feature_tracks_;
-
-  /// Counters.
-  int last_kf_id_;
-  // Id of current keyframe, increases from 0 to inf.
-  int curr_kf_id_;
 
  private:
   //! No motion factors settings.

@@ -151,7 +151,7 @@ Pipeline::Pipeline(const VioParams& params)
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
-  vio_frontend_module_->registerCallback(
+  vio_frontend_module_->registerOutputCallback(
       [&backend_input_queue](const FrontendOutput::Ptr& output) {
         if (output->is_keyframe_) {
           //! Only push to backend input queue if it is a keyframe!
@@ -185,6 +185,8 @@ Pipeline::Pipeline(const VioParams& params)
                                     imu_params_,
                                     backend_output_params,
                                     FLAGS_log_output));
+  vio_backend_module_->registerOnFailureCallback(
+        std::bind(&Pipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
@@ -200,11 +202,11 @@ Pipeline::Pipeline(const VioParams& params)
             MesherParams(stereo_camera_->getLeftCamPose(),
                          params.camera_params_.at(0u).image_size_)));
     //! Register input callbacks
-    vio_backend_module_->registerCallback(
+    vio_backend_module_->registerOutputCallback(
         std::bind(&MesherModule::fillBackendQueue,
                   std::ref(*CHECK_NOTNULL(mesher_module_.get())),
                   std::placeholders::_1));
-    vio_frontend_module_->registerCallback(
+    vio_frontend_module_->registerOutputCallback(
         std::bind(&MesherModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(mesher_module_.get())),
                   std::placeholders::_1));
@@ -221,16 +223,16 @@ Pipeline::Pipeline(const VioParams& params)
             static_cast<VisualizationType>(FLAGS_viz_type),
             backend_type_));
     //! Register input callbacks
-    vio_backend_module_->registerCallback(
+    vio_backend_module_->registerOutputCallback(
         std::bind(&VisualizerModule::fillBackendQueue,
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
-    vio_frontend_module_->registerCallback(
+    vio_frontend_module_->registerOutputCallback(
         std::bind(&VisualizerModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
     if (mesher_module_) {
-      mesher_module_->registerCallback(
+      mesher_module_->registerOutputCallback(
           std::bind(&VisualizerModule::fillMesherQueue,
                     std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                     std::placeholders::_1));
@@ -251,11 +253,11 @@ Pipeline::Pipeline(const VioParams& params)
                               params.lcd_params_,
                               FLAGS_log_output));
     //! Register input callbacks
-    vio_backend_module_->registerCallback(
+    vio_backend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillBackendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
-    vio_frontend_module_->registerCallback(
+    vio_frontend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
@@ -294,9 +296,11 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
       // but not using it for initialization, because accumulated and actual IMU
       // data at init is the same...
       if (initialize(*stereo_imu_sync_packet)) {
-        LOG(INFO) << "Before launching threads.";
-        launchRemainingThreads();
-        LOG(INFO) << " launching threads.";
+        if (parallel_run_) {
+          LOG(INFO) << "Before launching threads.";
+          launchRemainingThreads();
+          LOG(INFO) << " launching threads.";
+        }
         is_initialized_ = true;
       } else {
         LOG(INFO) << "Not yet initialized...";
@@ -353,7 +357,6 @@ void Pipeline::spinSequential() {
 }
 
 // TODO(Toni): Adapt this function to be able to cope with new initialization
-/* -------------------------------------------------------------------------- */
 bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
@@ -372,9 +375,10 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   CHECK(vio_backend_module_);
 
   while (
-      !shutdown_ &&         // Loop while not explicitly shutdown.
+      !shutdown_ && // Loop while not explicitly shutdown.
+         is_backend_ok_ &&  // Loop while backend is fine.
       (!is_initialized_ ||  // Loop while not initialized
-                            // Or, once init, data is not yet consumed.
+                            // Or, once initialized, data is not yet consumed.
        !(!data_provider_module_->isWorking() &&
          (stereo_frontend_input_queue_.isShutdown() ||
           stereo_frontend_input_queue_.empty()) &&
@@ -576,10 +580,8 @@ bool Pipeline::initializeFromGroundTruth(
 
   // Initialize Backend using ground-truth.
   CHECK(vio_backend_module_);
-  vio_backend_module_->initializeBackend(VioNavStateTimestamped(
+  return vio_backend_module_->initializeBackend(VioNavStateTimestamped(
       stereo_frame_lkf.getTimestamp(), initial_ground_truth_state));
-
-  return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -605,10 +607,8 @@ bool Pipeline::initializeFromIMU(
 
   // Initialize Backend using IMU data.
   CHECK(vio_backend_module_);
-  vio_backend_module_->initializeBackend(VioNavStateTimestamped(
+  return vio_backend_module_->initializeBackend(VioNavStateTimestamped(
       stereo_frame_lkf.getTimestamp(), initial_state_estimate));
-
-  return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -653,7 +653,7 @@ bool Pipeline::initializeOnline(
         stereo_imu_sync_init->getStereoFrame());
 
     //! Register frontend output queue for the initializer.
-    vio_frontend_module_->registerCallback([&frontend_output](
+    vio_frontend_module_->registerOutputCallback([&frontend_output](
         const FrontendOutput::ConstPtr& output) { frontend_output = output; });
     return false;
   } else {
@@ -750,13 +750,10 @@ bool Pipeline::initializeOnline(
                                       ImuBias(gtsam::Vector3(), gyro_bias));
         // Initialize Backend using IMU data.
         CHECK(vio_backend_module_);
-        vio_backend_module_->initializeBackend(VioNavStateTimestamped(
+        return vio_backend_module_->initializeBackend(VioNavStateTimestamped(
             frontend_output->stereo_frame_lkf_.getTimestamp(),
             initial_state_OGA));
         LOG(INFO) << "Initialization finalized.";
-
-        // TODO(Sandro): Create check-return for function
-        return true;
       } else {
         // Reset initialization
         LOG(ERROR) << "Bundle adjustment or alignment failed!";
@@ -767,13 +764,6 @@ bool Pipeline::initializeOnline(
       }
     }
   }
-}
-
-/* -------------------------------------------------------------------------- */
-void Pipeline::launchThreads() {
-  LOG(INFO) << "Launching threads.";
-  launchFrontendThread();
-  launchRemainingThreads();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -828,15 +818,6 @@ void Pipeline::resume() {
 
   LOG(INFO) << "Restarting backend workers and queues...";
   backend_input_queue_.resume();
-
-  // Re-launch threads
-  /*if (parallel_run_) {
-    launchThreads();
-  } else {
-    LOG(INFO) << "Running in sequential mode (parallel_run set to "
-              << parallel_run_<< ").";
-  }
-  is_launched_ = true; */
 }
 
 /* -------------------------------------------------------------------------- */

@@ -65,7 +65,12 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
   CHECK(viz_output);
   if (viz_output->visualization_type_ != VisualizationType::kNone) {
     if (window_data_.window_.wasStopped()) {
-      // Shutdown the pipeline!
+      // Shutdown the pipeline! This works because display is running in the
+      // main thread, otherwise you would get a nasty:
+      // ```
+      // terminate called after throwing an instance of 'std::system_error'
+      // what():  Resource deadlock avoided
+      // ```
       shutdown_pipeline_cb_();
     }
     // viz_output.window_->spinOnce(1, true);
