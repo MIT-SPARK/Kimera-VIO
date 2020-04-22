@@ -51,15 +51,37 @@ class OfstreamWrapper {
 
  public:
   std::ofstream ofstream_;
-
- private:
-  void openLogFile(const std::string& output_file_name,
-                   bool open_file_in_append_mode = false);
-
- private:
   const std::string filename_;
   const std::string output_path_;
   const bool open_file_in_append_mode = false;
+
+ protected:
+  void openLogFile(const std::string& output_file_name,
+                   bool open_file_in_append_mode = false);
+};
+
+/**
+ * @brief Logs ground-truth info from Euroc dataset, just copy-paste
+ * ground-truth csv file.
+ */
+class EurocGtLogger {
+ public:
+  KIMERA_POINTER_TYPEDEFS(EurocGtLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(EurocGtLogger);
+  EurocGtLogger();
+  virtual ~EurocGtLogger() = default;
+
+  /**
+   * @brief logGtData Simply copy-pastes the file given as input to the
+   * file output_gt_poses.csv inside the output folder.
+   * @param gt_file file where the data.csv file in Euroc is located.
+   * Usually inside `mav0/state_groundtruth_estimate0/data.csv`.
+   */
+  void logGtData(const std::string& gt_file);
+
+ private:
+  // Filenames to be saved in the output folder.
+  OfstreamWrapper output_gt_poses_csv_;
 };
 
 class BackendLogger {

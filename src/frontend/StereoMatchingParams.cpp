@@ -12,8 +12,6 @@
  * @author Antoni Rosinol
  */
 
-#pragma once
-
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 
 #include <glog/logging.h>

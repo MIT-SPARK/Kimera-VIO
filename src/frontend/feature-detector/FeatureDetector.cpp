@@ -191,10 +191,10 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
 
   VLOG(1) << "Need n corners: " << need_n_corners;
   // Tolerance of the number of returned points in percentage.
-  std::vector<cv::KeyPoint>& max_suppressed_keypoints = keypoints;
+  std::vector<cv::KeyPoint>& max_keypoints = keypoints;
   if (non_max_suppression_) {
     static constexpr float tolerance = 0.1;
-    max_suppressed_keypoints =
+    max_keypoints =
       non_max_suppression_->suppressNonMax(keypoints,
                                            need_n_corners,
                                            tolerance,
@@ -207,8 +207,8 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // Find new features.
   // TODO(Toni): we should be using cv::KeyPoint... not cv::Point2f...
   KeypointsCV new_corners;
-  new_corners.reserve(max_suppressed_keypoints.size());
-  for (const cv::KeyPoint& kp : max_suppressed_keypoints) {
+  new_corners.reserve(max_keypoints.size());
+  for (const cv::KeyPoint& kp : max_keypoints) {
     new_corners.push_back(kp.pt);
   }
   // if (need_n_corners > 0) {
