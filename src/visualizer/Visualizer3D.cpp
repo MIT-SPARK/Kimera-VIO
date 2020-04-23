@@ -92,6 +92,10 @@ Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
   }
 }
 
+Visualizer3D::~Visualizer3D() {
+  LOG(INFO) << "Visualizer3D destructor";
+}
+
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
 // TODO(Toni): Put all flags inside spinOnce into Visualizer3DParams!
@@ -131,7 +135,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
         const ImageToDisplay& mesh_display = ImageToDisplay(
             "Mesh 2D",
             visualizeMesh2DStereo(input.mesher_output_->mesh_2d_for_viz_,
-                                  left_stereo_keyframe));
+              left_stereo_keyframe));
         if (FLAGS_visualize_mesh_2d) {
           output->images_to_display_.push_back(mesh_display);
         }
@@ -825,6 +829,7 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
   CHECK_NOTNULL(widgets_map);
 
   if (trajectory_poses_3d_.size() == 0) {  // no points to visualize
+    LOG(WARNING) << "Trajectory empty, not visualizing.";
     return;
   }
 
@@ -1058,9 +1063,9 @@ void Visualizer3D::removePlane(const PlaneId& plane_index,
 
 /* -------------------------------------------------------------------------- */
 // Add pose to the previous trajectory.
-void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
+void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& pose) {
   trajectory_poses_3d_.push_back(
-      UtilsOpenCV::gtsamPose3ToCvAffine3d(current_pose_gtsam));
+      UtilsOpenCV::gtsamPose3ToCvAffine3d(pose));
   if (FLAGS_displayed_trajectory_length > 0) {
     while (trajectory_poses_3d_.size() > FLAGS_displayed_trajectory_length) {
       trajectory_poses_3d_.pop_front();

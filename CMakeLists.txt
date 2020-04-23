@@ -78,6 +78,9 @@ add_library(${PROJECT_NAME} SHARED "")
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/dataprovider)
 add_subdirectory(src/dataprovider)
+### Add source code for data provider.
+add_subdirectory(include/kimera-vio/playground)
+add_subdirectory(src/playground)
 ### Add source code for frontend.
 add_subdirectory(include/kimera-vio/frontend)
 add_subdirectory(src/frontend)
@@ -197,6 +200,7 @@ if(BUILD_TESTS)
     tests/testKimeraVIO.cpp
     tests/testPipeline.cpp
     tests/testVioParams.cpp
+    tests/testEurocPlayground.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp

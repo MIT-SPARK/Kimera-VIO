@@ -223,7 +223,10 @@ MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
       // the same info as mesh_2d_
       &(mesher_output_payload->mesh_2d_for_viz_));
   // Serialize 2D/3D Mesh if requested
-  if (serialize_meshes_) serializeMeshes();
+  if (serialize_meshes_) {
+    LOG_FIRST_N(WARNING, 1) << "Mesh serialization enabled.";
+    serializeMeshes();
+  }
   // TODO(Toni): remove these calls, since all info is in mesh_3d_...
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));

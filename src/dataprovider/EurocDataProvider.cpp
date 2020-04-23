@@ -272,12 +272,12 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
-                                    const std::string& gtSensorName) {
+                                    const std::string& gt_sensor_name) {
   CHECK(!input_dataset_path.empty());
-  CHECK(!gtSensorName.empty());
+  CHECK(!gt_sensor_name.empty());
 
   std::string filename_sensor =
-      input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/sensor.yaml";
 
   // Make sure that each YAML file has %YAML:1.0 as first line.
   cv::FileStorage fs;
@@ -310,7 +310,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   // b_w_RS_S_x [rad s^-1], b_w_RS_S_y [rad s^-1], b_w_RS_S_z [rad s^-1],
   // b_a_RS_S_x [m s^-2], b_a_RS_S_y [m s^-2], b_a_RS_S_z [m s^-2]
   std::string filename_data =
-      input_dataset_path + "/mav0/" + gtSensorName + "/data.csv";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/data.csv";
   std::ifstream fin(filename_data.c_str());
   CHECK(fin.is_open()) << "Cannot open file: " << filename_data << '\n'
                        << "Assuming dataset has no ground truth...";

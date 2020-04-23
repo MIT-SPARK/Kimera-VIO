@@ -41,13 +41,19 @@ namespace VIO {
  */
 class EurocDataProvider : public DataProviderInterface {
  public:
-  // Ctor with params.
+  KIMERA_DELETE_COPY_CONSTRUCTORS(EurocDataProvider);
+  KIMERA_POINTER_TYPEDEFS(EurocDataProvider);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Ctors
+  //! Ctor from params.
   EurocDataProvider(const std::string& dataset_path,
                     const int& initial_k,
                     const int& final_k,
                     const VioParams& vio_params);
-  // Ctor from gflags
+  //! Ctor from gflags
   explicit EurocDataProvider(const VioParams& vio_params);
+
   virtual ~EurocDataProvider();
 
  public:
@@ -59,16 +65,23 @@ class EurocDataProvider : public DataProviderInterface {
    */
   bool spin() override;
 
-  // Print info about dataset.
+  /**
+   * @brief print Print info about dataset.
+   */
   void print() const;
+
+
+  /**
+   * @brief parse Parses Euroc dataset. This is done already in spin() and
+   * does not need to be called by the user. Left in public for experimentation.
+   */
+  void parse();
 
  public:
   // Ground truth data.
   GroundTruthData gt_data_;
 
  private:
-  // Parses EuRoC data
-  void parse();
 
   /**
    * @brief spinOnce Send data to VIO pipeline on a per-frame basis
@@ -76,7 +89,11 @@ class EurocDataProvider : public DataProviderInterface {
    */
   bool spinOnce();
 
-  // Parse camera, gt, and imu data if using different Euroc format.
+  /**
+   * @brief parseDataset Parse camera, gt, and imu data if using
+   * different Euroc format.
+   * @return
+   */
   bool parseDataset();
 
   //! Parsers
