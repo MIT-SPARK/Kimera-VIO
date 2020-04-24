@@ -34,7 +34,6 @@
 
 #include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 
-
 // TODO(Toni): remove visualizer gflags! There are far too many, use a
 // yaml params class (aka inherit from PipelineParams.
 DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
@@ -92,9 +91,7 @@ Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
   }
 }
 
-Visualizer3D::~Visualizer3D() {
-  LOG(INFO) << "Visualizer3D destructor";
-}
+Visualizer3D::~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; }
 
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
@@ -357,12 +354,19 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
   }
 
   // Visualize trajectory.
+  // First, add current pose to trajectory
   VLOG(10) << "Starting trajectory visualization...";
-  addPoseToTrajectory(input.backend_output_->W_State_Blkf_.pose_.compose(
-      input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect()));
-  visualizeTrajectory3D(
+  addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
+      input.backend_output_->W_State_Blkf_.pose_.compose(
+          input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect())));
+  // Generate line through all poses
+  visualizeTrajectory3D(&output->widgets_);
+  // Generate frustums for the last 10 poses.
+  visualizeTrajectoryWithFrustums(&output->widgets_, 10u);
+  // Generate frustum with an image inside it for the current pose.
+  visualizePoseWithImgInFrustum(
       FLAGS_visualize_mesh_in_frustum ? mesh_2d_img : left_stereo_keyframe.img_,
-      &output->frustum_pose_,
+      trajectory_poses_3d_.back().pose_,
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
 
@@ -822,10 +826,7 @@ void Visualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
 
 /* -------------------------------------------------------------------------- */
 // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
-void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
-                                         cv::Affine3d* frustum_pose,
-                                         WidgetsMap* widgets_map) {
-  CHECK_NOTNULL(frustum_pose);
+void Visualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
   CHECK_NOTNULL(widgets_map);
 
   if (trajectory_poses_3d_.size() == 0) {  // no points to visualize
@@ -833,7 +834,44 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
     return;
   }
 
-  // Show current camera pose.
+  // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
+  std::vector<cv::Affine3f> trajectory;
+  trajectory.reserve(trajectory_poses_3d_.size());
+  for (const auto& pose_with_image : trajectory_poses_3d_) {
+    trajectory.push_back(pose_with_image.pose_);
+  }
+  (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(
+      trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
+}
+
+/* -------------------------------------------------------------------------- */
+// Visualize trajectory with frustums.
+void Visualizer3D::visualizeTrajectoryWithFrustums(
+    WidgetsMap* widgets_map,
+    const size_t& n_last_frustums) {
+  CHECK_NOTNULL(widgets_map);
+  static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
+  std::vector<cv::Affine3f> trajectory_frustums;
+  trajectory_frustums.reserve(n_last_frustums);
+  for (auto rit = trajectory_poses_3d_.rbegin();
+       rit != trajectory_poses_3d_.rend() &&
+       trajectory_frustums.size() < n_last_frustums;
+       ++rit) {
+    trajectory_frustums.push_back(rit->pose_);
+  }
+  (*widgets_map)["Trajectory Frustums"] =
+      VIO::make_unique<cv::viz::WTrajectoryFrustums>(
+          trajectory_frustums, K, 0.2, cv::viz::Color::red());
+}
+
+/* -------------------------------------------------------------------------- */
+// Visualize camera pose with image inside frustum.
+void Visualizer3D::visualizePoseWithImgInFrustum(
+    const cv::Mat& frustum_image,
+    const cv::Affine3d& frustum_pose,
+    WidgetsMap* widgets_map,
+    const std::string& widget_id) {
+  CHECK_NOTNULL(widgets_map);
   static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
   std::unique_ptr<cv::viz::WCameraPosition> cam_widget_ptr = nullptr;
   if (frustum_image.empty()) {
@@ -844,50 +882,8 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
         K, frustum_image, 1.0, cv::viz::Color::white());
   }
   CHECK(cam_widget_ptr);
-  // Normally you would use Widget3D.setPose(), or updatePose(), but it does not
-  // seem to work, so we send the pose to the display module, which then calls
-  // the window_.setWidgetPose()...
-  *frustum_pose = trajectory_poses_3d_.back();
-  (*widgets_map)["Camera Pose with Frustum"] = std::move(cam_widget_ptr);
-
-  // Option A: This does not work very well.
-  // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");
-  // Viewer is our viewpoint, camera the pose estimate (frustum).
-  static constexpr bool follow_camera = false;
-  if (follow_camera) {
-    cv::Affine3f camera_in_world_coord = trajectory_poses_3d_.back();
-    // Option B: specify viewer wrt camera. Works, but motion is non-smooth.
-    // cv::Affine3f viewer_in_camera_coord (Vec3f(
-    //                                       -0.3422019, -0.3422019, 1.5435732),
-    //                                     Vec3f(3.0, 0.0, -4.5));
-    // cv::Affine3f viewer_in_world_coord =
-    //    viewer_in_camera_coord.concatenate(camera_in_world_coord);
-
-    // Option C: use "look-at" camera parametrization.
-    // Works, but motion is non-smooth as well.
-    cv::Vec3d cam_pos(-6.0, 0.0, 6.0);
-    cv::Vec3d cam_focal_point(camera_in_world_coord.translation());
-    cv::Vec3d cam_y_dir(0.0, 0.0, -1.0);
-    cv::Affine3f cam_pose =
-        cv::viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-    // window_data_.window_.setViewerPose(cam_pose);
-    // window_data_.window_.setViewerPose(viewer_in_world_coord);
-  }
-
-  // Create a Trajectory frustums widget.
-  std::vector<cv::Affine3f> trajectory_frustums(
-      trajectory_poses_3d_.end() -
-          std::min(trajectory_poses_3d_.size(), size_t(10u)),
-      trajectory_poses_3d_.end());
-  (*widgets_map)["Trajectory Frustums"] =
-      VIO::make_unique<cv::viz::WTrajectoryFrustums>(
-          trajectory_frustums, K, 0.2, cv::viz::Color::red());
-
-  // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
-  std::vector<cv::Affine3f> trajectory(trajectory_poses_3d_.begin(),
-                                       trajectory_poses_3d_.end());
-  (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(
-      trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
+  cam_widget_ptr->setPose(frustum_pose);
+  (*widgets_map)[widget_id] = std::move(cam_widget_ptr);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -983,7 +979,8 @@ void Visualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Remove line widgets from plane to lmks, for lines that are not pointing
 // to any lmk_id in lmk_ids.
 void Visualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
@@ -1012,7 +1009,8 @@ void Visualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Remove line widgets from plane to lmks.
 void Visualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
@@ -1038,7 +1036,8 @@ void Visualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Remove plane widget.
 void Visualizer3D::removePlane(const PlaneId& plane_index,
                                const bool& remove_plane_label) {
@@ -1061,11 +1060,15 @@ void Visualizer3D::removePlane(const PlaneId& plane_index,
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Add pose to the previous trajectory.
-void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& pose) {
-  trajectory_poses_3d_.push_back(
-      UtilsOpenCV::gtsamPose3ToCvAffine3d(pose));
+void Visualizer3D::addPoseToTrajectory(const cv::Affine3d& pose,
+                                       const cv::Mat& img) {
+  PoseWithImage pose_with_image;
+  pose_with_image.pose_ = pose;
+  pose_with_image.img_ = img;
+  trajectory_poses_3d_.push_back(pose_with_image);
   if (FLAGS_displayed_trajectory_length > 0) {
     while (trajectory_poses_3d_.size() > FLAGS_displayed_trajectory_length) {
       trajectory_poses_3d_.pop_front();
@@ -1193,7 +1196,8 @@ void Visualizer3D::logMesh(const cv::Mat& map_points_3d,
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Input the mesh points and triangle clusters, and
 // output colors matrix for mesh visualizer.
 // This will color the point with the color of the last plane having it.
@@ -1227,7 +1231,8 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Decide color of the cluster depending on its id.
 void Visualizer3D::getColorById(const size_t& id, cv::viz::Color* color) const {
   CHECK_NOTNULL(color);
@@ -1251,7 +1256,8 @@ void Visualizer3D::getColorById(const size_t& id, cv::viz::Color* color) const {
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Draw a line from lmk to plane center.
 void Visualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
                                             const double& plane_n_x,
@@ -1268,7 +1274,8 @@ void Visualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
   drawLine(line_id, center, point, widgets);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Update line from lmk to plane center.
 void Visualizer3D::updateLineFromPlaneToPoint(const std::string& line_id,
                                               const double& plane_n_x,

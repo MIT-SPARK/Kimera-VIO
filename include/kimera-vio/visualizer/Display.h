@@ -35,12 +35,19 @@ class DisplayBase {
   virtual void spinOnce(VisualizerOutput::UniquePtr&& viz_output) = 0;
 };
 
+struct OpenCv3dDisplayParams {
+  //! Spins the 3D window and 2D image display indefinitely, until user closes
+  //! the window.
+  bool hold_display_ = false;
+};
+
 class OpenCv3dDisplay : public DisplayBase {
  public:
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb);
+  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb,
+                  const OpenCv3dDisplayParams& params);
 
   // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;
@@ -59,7 +66,8 @@ class OpenCv3dDisplay : public DisplayBase {
   void setMeshProperties(WidgetsMap* widgets);
 
   //! Sets a 3D Widget Pose, because Widget3D::setPose() doesn't work;
-  void setFrustumPose(const cv::Affine3d& frustum_pose);
+  void setWidgetPose(const std::string& widget_id,
+                     const cv::Affine3d& widget_pose);
 
   // Keyboard callback.
   static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
@@ -106,6 +114,8 @@ class OpenCv3dDisplay : public DisplayBase {
   //! We use this callback to shutdown the pipeline gracefully if
   //! the visualization window is closed.
   ShutdownPipelineCallback shutdown_pipeline_cb_;
+
+  OpenCv3dDisplayParams params_;
 };
 
 }  // namespace VIO

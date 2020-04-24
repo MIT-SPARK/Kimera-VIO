@@ -21,14 +21,17 @@
 #include <opencv2/opencv.hpp>
 
 #include "kimera-vio/utils/FilesystemUtils.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 namespace VIO {
 
 OpenCv3dDisplay::OpenCv3dDisplay(
-    const ShutdownPipelineCallback& shutdown_pipeline_cb)
+    const ShutdownPipelineCallback& shutdown_pipeline_cb,
+    const OpenCv3dDisplayParams& params)
     : DisplayBase(),
       window_data_(),
-      shutdown_pipeline_cb_(shutdown_pipeline_cb) {
+      shutdown_pipeline_cb_(shutdown_pipeline_cb),
+      params_(params) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -43,7 +46,7 @@ OpenCv3dDisplay::OpenCv3dDisplay(
   // TODO(Toni): not sure if we need this...
   // See page 211:
   // Learning OpenCV 3: Computer Vision in C++ with the OpenCV Library
-  //LOG_IF(WARNING, cv::startWindowThread() == 0)
+  // LOG_IF(WARNING, cv::startWindowThread() == 0)
   //    << "Could not start OpenCV window thread.";
 
   // TODO(Toni): perhaps we want to use these in the future
@@ -75,12 +78,21 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     }
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
-    for (const auto& widget : viz_output->widgets_) {
-      CHECK(widget.second);
-      window_data_.window_.showWidget(widget.first, *(widget.second));
+    const WidgetsMap& widgets = viz_output->widgets_;
+    for (auto it = widgets.begin(); it != widgets.end(); ++it) {
+      CHECK(it->second);
+      // This is to go around opencv issue #10829, new opencv should have this
+      // fixed.
+      it->second->updatePose(cv::Affine3d());
+      window_data_.window_.showWidget(
+          it->first, *(it->second), it->second->getPose());
     }
-    setFrustumPose(viz_output->frustum_pose_);
-    window_data_.window_.spinOnce(1, true);
+    if (params_.hold_display_) {
+      // Spin forever until user closes window
+      window_data_.window_.spin();
+    } else {
+      window_data_.window_.spinOnce(1, true);
+    }
   }
 }
 
@@ -90,15 +102,22 @@ void OpenCv3dDisplay::spin2dWindow(const VisualizerOutput& viz_output) {
     cv::imshow(img_to_display.name_, img_to_display.image_);
   }
   VLOG(10) << "Spin Visualize 2D output.";
-  cv::waitKey(1);  // Not needed because we are using startWindowThread()
+  if (params_.hold_display_) {
+    // Spin forever until user closes window
+    cv::waitKey(0);
+  } else {
+    // Just spins once
+    cv::waitKey(1);  // Not needed because we are using startWindowThread()
+  }
 }
 
-void OpenCv3dDisplay::setFrustumPose(const cv::Affine3d& frustum_pose) {
-  static const std::string kFrustum = "Camera Pose with Frustum";
+void OpenCv3dDisplay::setWidgetPose(const std::string& widget_id,
+                                    const cv::Affine3d& widget_pose) {
   try {
-    window_data_.window_.setWidgetPose(kFrustum, frustum_pose);
+    LOG(ERROR) << "Widget pose rotation: " << widget_pose.rotation();
+    window_data_.window_.setWidgetPose(widget_id, widget_pose);
   } catch (...) {
-    LOG(ERROR) << "Setting widget pose for " << kFrustum << " failed.";
+    LOG(ERROR) << "Setting widget pose for " << widget_id << " failed.";
   }
 }
 
@@ -197,19 +216,16 @@ void OpenCv3dDisplay::setMeshRepresentation(const uchar& code,
                                             WindowData* window_data) {
   CHECK_NOTNULL(window_data);
   if (code == '0') {
-    LOG(WARNING) << "Pressing " << code
-                 << " sets mesh representation to "
-                    "a point cloud.";
+    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                           "a point cloud.";
     window_data->mesh_representation_ = 0u;
   } else if (code == '1') {
-    LOG(WARNING) << "Pressing " << code
-                 << " sets mesh representation to "
-                    "a mesh.";
+    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                           "a mesh.";
     window_data->mesh_representation_ = 1u;
   } else if (code == '2') {
-    LOG(WARNING) << "Pressing " << code
-                 << " sets mesh representation to "
-                    "a wireframe.";
+    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                           "a wireframe.";
     window_data->mesh_representation_ = 2u;
   }
 }
@@ -219,19 +235,16 @@ void OpenCv3dDisplay::setMeshShadingCallback(const uchar& code,
                                              WindowData* window_data) {
   CHECK_NOTNULL(window_data);
   if (code == '4') {
-    LOG(WARNING) << "Pressing " << code
-                 << " sets mesh shading to "
-                    "flat.";
+    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                           "flat.";
     window_data->mesh_shading_ = 0u;
   } else if (code == '5') {
-    LOG(WARNING) << "Pressing " << code
-                 << " sets mesh shading to "
-                    "Gouraud.";
+    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                           "Gouraud.";
     window_data->mesh_shading_ = 1u;
   } else if (code == '6') {
-    LOG(WARNING) << "Pressing " << code
-                 << " sets mesh shading to "
-                    "Phong.";
+    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                           "Phong.";
     window_data->mesh_shading_ = 2u;
   }
 }

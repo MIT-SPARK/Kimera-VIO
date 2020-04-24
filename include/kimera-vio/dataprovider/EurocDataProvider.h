@@ -71,12 +71,6 @@ class EurocDataProvider : public DataProviderInterface {
   void print() const;
 
 
-  /**
-   * @brief parse Parses Euroc dataset. This is done already in spin() and
-   * does not need to be called by the user. Left in public for experimentation.
-   */
-  void parse();
-
  public:
   // Ground truth data.
   GroundTruthData gt_data_;
@@ -88,6 +82,12 @@ class EurocDataProvider : public DataProviderInterface {
    * @return if the dataset finished or not
    */
   bool spinOnce();
+
+  /**
+   * @brief parse Parses Euroc dataset. This is done already in spin() and
+   * does not need to be called by the user. Left in public for experimentation.
+   */
+  void parse();
 
   /**
    * @brief parseDataset Parse camera, gt, and imu data if using

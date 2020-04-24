@@ -243,7 +243,8 @@ Pipeline::Pipeline(const VioParams& params)
         nullptr,
         parallel_run_,
         DisplayFactory::makeDisplay(DisplayType::kOpenCV,
-                                    std::bind(&Pipeline::shutdown, this)));
+                                    std::bind(&Pipeline::shutdown, this),
+                                    OpenCv3dDisplayParams()));
   }
 
   if (FLAGS_use_lcd) {

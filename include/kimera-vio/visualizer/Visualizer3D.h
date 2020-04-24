@@ -69,7 +69,7 @@ class Visualizer3D {
    */
   virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
 
-  public:
+ public:
   // Visualization calls are public in case the user wants to manually visualize
   // things, instead of running spinOnce and do it automatically.
 
@@ -81,21 +81,45 @@ class Visualizer3D {
   /**
    * @brief addPoseToTrajectory Add pose to the previous trajectory.
    * @param current_pose_gtsam Pose to be added
+   * @param img Optional img to be displayed at the pose's frustum.
    */
-  void addPoseToTrajectory(const gtsam::Pose3& pose);
+  void addPoseToTrajectory(const cv::Affine3d& pose,
+                           const cv::Mat& img = cv::Mat());
 
   /**
    * @brief visualizeTrajectory3D
    * Visualize currently stored 3D trajectory (user needs to add poses with
    * addPoseToTrajectory).
-   * Adds an image to the frustum of the last pose if cv::Mat is not empty.
    * @param frustum_image
-   * @param frustum_pose
    * @param widgets_map
    */
-  void visualizeTrajectory3D(const cv::Mat& frustum_image,
-                             cv::Affine3d* frustum_pose,
-                             WidgetsMap* widgets_map);
+  void visualizeTrajectory3D(WidgetsMap* widgets_map);
+
+  /**
+   * @brief visualizeTrajectoryWithFrustums
+   * Visualize trajectory with frustums, but unfortunately no image can be
+   * displayed inside it.
+   * @param widgets_map
+   * @param n_last_frustums
+   */
+  void visualizeTrajectoryWithFrustums(WidgetsMap* widgets_map,
+                                       const size_t& n_last_frustums = 10u);
+
+  /**
+ * @brief visualizePoseWithImgInFrustum
+ * Visualize a single camera pose with an image inside its frustum.
+   * Adds an image to the frustum of the last pose if cv::Mat is not empty.
+ * @param frustum_image
+ * @param frustum_pose
+ * @param widgets_map
+ * @param widget_id Keep this id the same if you want to update the widget pose
+ * and image, instead of adding a different instance.
+ */
+  void visualizePoseWithImgInFrustum(
+      const cv::Mat& frustum_image,
+      const cv::Affine3d& frustum_pose,
+      WidgetsMap* widgets_map,
+      const std::string& widget_id = "Camera Pose with Frustum");
 
   /**
    * @brief visualizePlyMesh Visualize a PLY from filename (absolute path).
@@ -103,7 +127,6 @@ class Visualizer3D {
    * @param widgets output
    */
   void visualizePlyMesh(const std::string& filename, WidgetsMap* widgets);
-
 
  private:
   /* ------------------------------------------------------------------------ */
@@ -254,7 +277,11 @@ class Visualizer3D {
   // Mesh 3d visualization properties setter callback.
   Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
 
-  std::deque<cv::Affine3d> trajectory_poses_3d_;
+  struct PoseWithImage {
+    cv::Affine3d pose_;
+    cv::Mat img_;
+  };
+  std::deque<PoseWithImage> trajectory_poses_3d_;
 
   std::map<PlaneId, LineNr> plane_to_line_nr_map_;
   PlaneIdMap plane_id_map_;
