@@ -366,7 +366,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
   // Generate frustum with an image inside it for the current pose.
   visualizePoseWithImgInFrustum(
       FLAGS_visualize_mesh_in_frustum ? mesh_2d_img : left_stereo_keyframe.img_,
-      trajectory_poses_3d_.back().pose_,
+      trajectory_poses_3d_.back(),
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
 
@@ -837,8 +837,8 @@ void Visualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
   // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
   std::vector<cv::Affine3f> trajectory;
   trajectory.reserve(trajectory_poses_3d_.size());
-  for (const auto& pose_with_image : trajectory_poses_3d_) {
-    trajectory.push_back(pose_with_image.pose_);
+  for (const auto& pose: trajectory_poses_3d_) {
+    trajectory.push_back(pose);
   }
   (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(
       trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
@@ -857,7 +857,7 @@ void Visualizer3D::visualizeTrajectoryWithFrustums(
        rit != trajectory_poses_3d_.rend() &&
        trajectory_frustums.size() < n_last_frustums;
        ++rit) {
-    trajectory_frustums.push_back(rit->pose_);
+    trajectory_frustums.push_back(*rit);
   }
   (*widgets_map)["Trajectory Frustums"] =
       VIO::make_unique<cv::viz::WTrajectoryFrustums>(
@@ -1063,12 +1063,8 @@ void Visualizer3D::removePlane(const PlaneId& plane_index,
 /* --------------------------------------------------------------------------
  */
 // Add pose to the previous trajectory.
-void Visualizer3D::addPoseToTrajectory(const cv::Affine3d& pose,
-                                       const cv::Mat& img) {
-  PoseWithImage pose_with_image;
-  pose_with_image.pose_ = pose;
-  pose_with_image.img_ = img;
-  trajectory_poses_3d_.push_back(pose_with_image);
+void Visualizer3D::addPoseToTrajectory(const cv::Affine3d& pose) {
+  trajectory_poses_3d_.push_back(pose);
   if (FLAGS_displayed_trajectory_length > 0) {
     while (trajectory_poses_3d_.size() > FLAGS_displayed_trajectory_length) {
       trajectory_poses_3d_.pop_front();

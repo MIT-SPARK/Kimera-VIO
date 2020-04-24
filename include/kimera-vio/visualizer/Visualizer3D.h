@@ -83,8 +83,7 @@ class Visualizer3D {
    * @param current_pose_gtsam Pose to be added
    * @param img Optional img to be displayed at the pose's frustum.
    */
-  void addPoseToTrajectory(const cv::Affine3d& pose,
-                           const cv::Mat& img = cv::Mat());
+  void addPoseToTrajectory(const cv::Affine3d& pose);
 
   /**
    * @brief visualizeTrajectory3D
@@ -277,11 +276,7 @@ class Visualizer3D {
   // Mesh 3d visualization properties setter callback.
   Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
 
-  struct PoseWithImage {
-    cv::Affine3d pose_;
-    cv::Mat img_;
-  };
-  std::deque<PoseWithImage> trajectory_poses_3d_;
+  std::deque<cv::Affine3d> trajectory_poses_3d_;
 
   std::map<PlaneId, LineNr> plane_to_line_nr_map_;
   PlaneIdMap plane_id_map_;

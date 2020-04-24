@@ -75,6 +75,11 @@ class EurocDataProvider : public DataProviderInterface {
   // Ground truth data.
   GroundTruthData gt_data_;
 
+  // Retrieve absolute gt pose at *approx* timestamp.
+  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
+    return getGroundTruthState(timestamp).pose_;
+  }
+
  private:
 
   /**
@@ -154,10 +159,6 @@ class EurocDataProvider : public DataProviderInterface {
   bool getImgName(const std::string& camera_name,
                          const size_t& k,
                          std::string* img_filename) const;
-  // Retrieve absolute pose at timestamp.
-  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
-    return getGroundTruthState(timestamp).pose_;
-  }
 
   //! Sanity checks
   bool sanityCheckCameraData(

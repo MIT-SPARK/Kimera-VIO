@@ -109,34 +109,43 @@ class EurocPlayground {
     output->visualization_type_ = VisualizationType::kPointcloud;
     if (viz_traj) {
       CHECK_GT(vio_params_.camera_params_.size(), 0);
-      const auto& K = vio_params_.camera_params_.at(0).K_;
+      const gtsam::Pose3& body_Pose_cam =
+          vio_params_.camera_params_.at(0).body_Pose_cam_;
       LOG_IF(ERROR, euroc_data_provider_->gt_data_.map_to_gt_.size() == 0)
           << "Empty ground-truth trajectory.";
-      Frame::UniquePtr left_frame = nullptr;
-      left_frame_queue_.pop(left_frame);
-      CHECK(left_frame);
       for (const auto& kv : euroc_data_provider_->gt_data_.map_to_gt_) {
         const VioNavState& state = kv.second;
         const cv::Affine3d& left_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
-            state.pose_.compose(euroc_data_provider_->gt_data_.body_Pose_cam_));
-        visualizer_3d_->addPoseToTrajectory(left_cam_pose, left_frame->img_);
+            state.pose_.compose(body_Pose_cam));
+        visualizer_3d_->addPoseToTrajectory(left_cam_pose);
+      }
+      visualizer_3d_->visualizeTrajectory3D(&output->widgets_);
+    }
 
-        if (viz_img_in_frustum &&
-            left_frame->timestamp_ == kv.first) {  // This might not be true...
+    if (viz_img_in_frustum) {
+      static const FrameId subsample_n = 50u;
+      CHECK_GT(vio_params_.camera_params_.size(), 0);
+      const auto& K = vio_params_.camera_params_.at(0).K_;
+      Frame::UniquePtr left_frame = nullptr;
+      while (left_frame_queue_.pop(left_frame)) {
+        CHECK(left_frame);
+        if ((left_frame->id_ % subsample_n) == 0u) {
           // Add frame to frustum
+          const cv::Affine3d& left_cam_pose =
+              UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                  euroc_data_provider_
+                      ->getGroundTruthPose(left_frame->timestamp_)
+                      .compose(left_frame->cam_param_.body_Pose_cam_));
+
+          cv::Mat smaller_img;
+          cv::resize(left_frame->img_, smaller_img, cv::Size(), 0.5, 0.5);
           visualizer_3d_->visualizePoseWithImgInFrustum(
-              left_frame->img_,
+              smaller_img,
               left_cam_pose,
               &output->widgets_,
               "Camera id: " + std::to_string(left_frame->id_));
-
-          // Get next frame
-          Frame::UniquePtr left_frame = nullptr;
-          left_frame_queue_.pop(left_frame);
-          CHECK(left_frame);
         }
       }
-      visualizer_3d_->visualizeTrajectory3D(&output->widgets_);
     }
 
     if (viz_pointcloud) {

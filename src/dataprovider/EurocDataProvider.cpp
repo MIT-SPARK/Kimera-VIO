@@ -294,11 +294,11 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
   std::vector<double> vector_pose;
   fs["T_BS"]["data"] >> vector_pose;
-  gt_data_.body_Pose_cam_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
+  gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame
-  CHECK(gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
+  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3()))
       << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
 
   fs.release();
@@ -371,8 +371,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
         << "(" << q(2) << "," << gt_data_raw[5] << ") "
         << "(" << q(3) << "," << gt_data_raw[6] << ").";
 
-    gt_curr.pose_ =
-        gtsam::Pose3(rot, position).compose(gt_data_.body_Pose_cam_);
+    gt_curr.pose_ = gtsam::Pose3(rot, position);
     gt_curr.velocity_ =
         gtsam::Vector3(gt_data_raw[7], gt_data_raw[8], gt_data_raw[9]);
     gtsam::Vector3 gyroBias =
