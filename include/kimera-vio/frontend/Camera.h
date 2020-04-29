@@ -92,6 +92,29 @@ class StereoCamera {
   }
   virtual ~StereoCamera() = default;
 
+ public:
+  /** NOT TESTED
+   * @brief project Lmks into images, doesn't do any check...
+   * @param lmks
+   * @param left_kpts
+   * @param right_kpts
+   */
+  void project(const LandmarksCV& lmks,
+               KeypointsCV* left_kpts,
+               KeypointsCV* right_kpts) const {
+    CHECK_NOTNULL(left_kpts)->clear();
+    CHECK_NOTNULL(right_kpts)->clear();
+    const auto& n_lmks = lmks.size();
+    left_kpts->reserve(n_lmks);
+    right_kpts->reserve(n_lmks);
+    for (const auto& lmk : lmks) {
+      const gtsam::StereoPoint2& kp =
+          stereo_camera_impl_.project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
+      left_kpts->push_back(KeypointCV(kp.uL_, kp.v_));
+      right_kpts->push_back(KeypointCV(kp.uR_, kp.v_));
+    }
+  }
+
   /**
    * @brief getStereoCalib
    * @return stereo camera calibration after undistortion and rectification.

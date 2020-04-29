@@ -50,6 +50,8 @@ using PlaneId = std::uint64_t;
 using LandmarkId = long int;  // -1 for invalid landmarks. // int would be too
                               // small if it is 16 bits!
 using LandmarkIds = std::vector<LandmarkId>;
+using LandmarkCV = cv::Point3d;
+using LandmarksCV = std::vector<LandmarkCV>;
 enum class LandmarkType { SMART, PROJECTION };
 using KeypointCV = cv::Point2f;
 using KeypointsCV = std::vector<KeypointCV>;
