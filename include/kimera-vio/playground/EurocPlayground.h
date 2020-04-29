@@ -149,13 +149,9 @@ class EurocPlayground {
     }
 
     if (viz_pointcloud) {
-      static bool visualize_ply_mesh_once = true;
       static const std::string pcl_ply_filename =
           dataset_path_ + "/mav0/pointcloud0/data.ply";
-      if (visualize_ply_mesh_once) {
-        visualizer_3d_->visualizePlyMesh(pcl_ply_filename, &output->widgets_);
-        visualize_ply_mesh_once = false;
-      }
+      visualizer_3d_->visualizePlyMesh(pcl_ply_filename, &output->widgets_);
     }
     display_module_->spinOnce(std::move(output));
   }
