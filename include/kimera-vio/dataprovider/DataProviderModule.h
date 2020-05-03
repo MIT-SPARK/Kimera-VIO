@@ -26,6 +26,7 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/imu-frontend/ImuData.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"

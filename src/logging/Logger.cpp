@@ -28,15 +28,35 @@
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
-DEFINE_string(output_path, "./", "Path where to store VIO's log output.");
-
 namespace VIO {
 
-/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+/**
+ * @brief checkIfDirectory Check if given path exists and is a directory
+ * @param file_path Path of the supposed directory
+ * @return True if the path exists and is a directory, false otherwise.
+ */
+static bool isDirectory(const std::string& file_path) {
+  try {
+    boost::filesystem::path path_obj(file_path);
+    if (boost::filesystem::exists(path_obj) &&
+        boost::filesystem::is_directory(path_obj))
+      return true;
+  } catch (boost::filesystem::filesystem_error& e) {
+    LOG(ERROR) << "Path " << file_path.c_str()
+               << " is either not a directory or it does not exist...\n"
+               << "Boost error code: " << e.what();
+  }
+  return false;
+}
+
 // This constructor will directly open the log file when called.
-OfstreamWrapper::OfstreamWrapper(const std::string& filename,
+OfstreamWrapper::OfstreamWrapper(const std::string& output_path,
+                                 const std::string& filename,
                                  const bool& open_file_in_append_mode)
-    : filename_(filename), output_path_(FLAGS_output_path) {
+    : output_path_(output_path),
+      filename_(filename),
+      open_file_in_append_mode_(open_file_in_append_mode) {
+  CHECK(isDirectory(output_path_));
   openLogFile(filename);
 }
 
@@ -62,7 +82,13 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-EurocGtLogger::EurocGtLogger() : output_gt_poses_csv_("traj_gt.csv") {}
+Logger::Logger(const std::string& output_path) : output_path_(output_path) {
+  CHECK(isDirectory(output_path_));
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+EurocGtLogger::EurocGtLogger(const std::string& output_path)
+    : Logger(output_path), output_gt_poses_csv_(output_path, "traj_gt.csv") {}
 
 void EurocGtLogger::logGtData(const std::string& file_path) {
   std::ifstream f_in(file_path.c_str());
@@ -83,12 +109,14 @@ void EurocGtLogger::logGtData(const std::string& file_path) {
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-BackendLogger::BackendLogger()
-    : output_poses_vio_csv_("traj_vio.csv"),
-      output_smart_factors_stats_csv_("output_smartFactors.csv"),
-      output_pim_navstates_csv_("output_pim_navstates.csv"),
-      output_backend_factors_stats_csv_("output_backendFactors.csv"),
-      output_backend_timing_csv_("output_backendTiming.csv") {}
+BackendLogger::BackendLogger(const std::string& output_path)
+    : Logger(output_path),
+      output_poses_vio_csv_(output_path, "traj_vio.csv"),
+      output_smart_factors_stats_csv_(output_path, "output_smartFactors.csv"),
+      output_pim_navstates_csv_(output_path, "output_pim_navstates.csv"),
+      output_backend_factors_stats_csv_(output_path,
+                                        "output_backendFactors.csv"),
+      output_backend_timing_csv_(output_path, "output_backendTiming.csv") {}
 
 void BackendLogger::logBackendOutput(const BackendOutput& output) {
   logBackendResultsCSV(output);
@@ -277,13 +305,14 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-
-MesherLogger::MesherLogger() : output_path_(FLAGS_output_path) {}
+MesherLogger::MesherLogger(const std::string& output_path)
+    : Logger(output_path) {}
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-VisualizerLogger::VisualizerLogger()
-    : output_mesh_("output_mesh.ply"),
-      output_landmarks_("output_landmarks.txt") {}
+VisualizerLogger::VisualizerLogger(const std::string& output_path)
+    : Logger(output_path),
+      output_mesh_(output_path, "output_mesh.ply"),
+      output_landmarks_(output_path, "output_landmarks.txt") {}
 
 void VisualizerLogger::logLandmarks(const PointsWithId& lmks) {
   // Absolute vio errors
@@ -369,11 +398,14 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-FrontendLogger::FrontendLogger()
-    : output_frontend_stats_("output_frontend_stats.csv"),
-      output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
-      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
-      output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
+FrontendLogger::FrontendLogger(const std::string& output_path)
+    : Logger(output_path),
+      output_frontend_stats_(output_path, "output_frontend_stats.csv"),
+      output_frontend_ransac_mono_(output_path,
+                                   "output_frontend_ransac_mono.csv"),
+      output_frontend_ransac_stereo_(output_path,
+                                     "output_frontend_ransac_stereo.csv"),
+      output_frontend_img_path_(output_path + "/frontend_images/") {
   // Create output directories for images.
   boost::filesystem::create_directory(
       boost::filesystem::path(output_frontend_img_path_.c_str()));
@@ -510,25 +542,28 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-PipelineLogger::PipelineLogger()
-    : output_pipeline_timing_("output_timingOverall.csv") {}
+PipelineLogger::PipelineLogger(const std::string& output_path)
+    : Logger(output_path),
+      output_pipeline_timing_(output_path, "output_timingOverall.csv") {}
 
 void PipelineLogger::logPipelineOverallTiming(
     const std::chrono::milliseconds& duration) {
   // Add header.
-  std::ofstream& outputFile_timingOverall_ = output_pipeline_timing_.ofstream_;
-  outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
-  outputFile_timingOverall_ << duration.count();
+  std::ofstream& overall_timing_file = output_pipeline_timing_.ofstream_;
+  overall_timing_file << "vio_overall_time [ms]" << std::endl;
+  overall_timing_file << duration.count();
 
-  VIO::utils::Statistics::WriteAllSamplesToCsvFile(FLAGS_output_path + '/' +
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile(output_path_ + '/' +
                                                    "StatisticsVIO.csv");
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-LoopClosureDetectorLogger::LoopClosureDetectorLogger()
-    : output_lcd_("output_lcd_result.csv"),
-      output_traj_("traj_pgo.csv"),
-      output_status_("output_lcd_status.csv"),
+LoopClosureDetectorLogger::LoopClosureDetectorLogger(
+    const std::string& output_path)
+    : Logger(output_path),
+      output_lcd_(output_path, "output_lcd_result.csv"),
+      output_traj_(output_path, "traj_pgo.csv"),
+      output_status_(output_path, "output_lcd_status.csv"),
       ts_map_() {}
 
 void LoopClosureDetectorLogger::logTimestampMap(

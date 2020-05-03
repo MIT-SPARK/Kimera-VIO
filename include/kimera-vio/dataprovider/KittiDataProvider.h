@@ -18,6 +18,7 @@
 #include <functional>
 #include <string>
 
+#include "kimera-vio/imu-frontend/ImuData.h"
 #include "kimera-vio/dataprovider/DataProviderInterface.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 

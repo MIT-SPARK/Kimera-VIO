@@ -59,6 +59,7 @@ VioParams::VioParams(const std::string& params_folder_path,
       frontend_type_(FrontendType::kStereoImu),
       backend_type_(BackendType::kStructuralRegularities),
       parallel_run_(true),
+      log_output_path_(""),
       // Filepaths, keep defaults unless you changed file names.
       pipeline_params_filename_(pipeline_params_filename),
       imu_params_filename_(imu_params_filename),
@@ -86,6 +87,7 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   yaml_parser.getYamlParam("frontend_type", &frontend_type);
   frontend_type_ = static_cast<FrontendType>(frontend_type);
   yaml_parser.getYamlParam("parallel_run", &parallel_run_);
+  yaml_parser.getYamlParam("log_output_path", &log_output_path_);
 
   // Parse IMU params
   parsePipelineParams(folder_path + '/' + imu_params_filename_, &imu_params_);
@@ -134,10 +136,11 @@ void VioParams::print() const {
   CHECK(backend_params_);
   backend_params_->print();
   lcd_params_.print();
-  LOG(INFO) << "Frontend Type: " << VIO::to_underlying(frontend_type_);
-  LOG(INFO) << "Backend Type: " << VIO::to_underlying(backend_type_);
-  LOG(INFO) << "Running VIO in " << (parallel_run_ ? "parallel" : "sequential")
-            << " mode.";
+  LOG(INFO) << "Frontend Type: " << VIO::to_underlying(frontend_type_) << '\n'
+            << "Backend Type: " << VIO::to_underlying(backend_type_) << '\n'
+            << "Running VIO in " << (parallel_run_ ? "parallel" : "sequential")
+            << " mode." << '\n'
+            << "Log output path: " << log_output_path_.c_str();
 }
 
 //! Helper function to parse camera params.

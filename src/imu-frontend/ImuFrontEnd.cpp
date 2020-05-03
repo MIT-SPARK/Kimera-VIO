@@ -17,21 +17,15 @@
 
 #include <glog/logging.h>
 
+#include <gtsam/navigation/AHRSFactor.h>
+#include <gtsam/navigation/CombinedImuFactor.h>  // Used if IMU combined is off.
+#include <gtsam/navigation/ImuFactor.h>
+
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
-
-/* -------------------------------------------------------------------------- */
-void ImuData::print() const {
-  LOG(INFO) << "------------ ImuData::print -------------\n"
-            << "\nnominal_imu_rate: " << nominal_imu_rate_ << '\n'
-            << "imu_rate: " << imu_rate_ << '\n'
-            << "imu_rate_std: " << imu_rate_std_ << '\n'
-            << "imu_rate_maxMismatch: " << imu_rate_maxMismatch_ << '\n'
-            << "nr of imu measurements: " << imu_buffer_.size();
-}
 
 ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
     : imu_params_(imu_params) {

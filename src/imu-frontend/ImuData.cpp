@@ -7,14 +7,20 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   MesherFactory.h
- * @brief  Build a Mesher
+ * @file   ImuData.cpp
+ * @brief  Class to store Inertial data
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/mesh/MesherFactory.h"
+#include "kimera-vio/imu-frontend/ImuData.h"
+
+#include <glog/logging.h>
 
 namespace VIO {
 
+void ImuData::print() const {
+  LOG(INFO) << "------------ ImuData::print -------------\n"
+            << "Number of IMU measurements: " << imu_buffer_.size();
+}
 
 }  // namespace VIO

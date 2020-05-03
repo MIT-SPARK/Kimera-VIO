@@ -38,6 +38,13 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <boost/foreach.hpp>
+
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/nonlinear/Marginals.h>
+
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
 #include "kimera-vio/utils/Statistics.h"
@@ -69,7 +76,7 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
                        const BackendParams& backend_params,
                        const ImuParams& imu_params,
                        const BackendOutputParams& backend_output_params,
-                       bool log_output)
+                       const std::string& log_output_path)
     : backend_params_(backend_params),
       imu_params_(imu_params),
       backend_output_params_(backend_output_params),
@@ -84,8 +91,10 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
       last_kf_id_(-1),
       curr_kf_id_(0),
       landmark_count_(0),
-      log_output_(log_output),
-      logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr) {
+      logger_(nullptr) {
+  if (!log_output_path.empty()){
+    logger_ = VIO::make_unique<BackendLogger>(log_output_path);
+  }
 // TODO the parsing of the params should be done inside here out from the
 // path to the params file, otherwise other derived VIO backends will be
 // stuck with the parameters used by vanilla VIO, as there is no polymorphic
@@ -950,7 +959,7 @@ bool VioBackEnd::optimize(
 
   //////////////////////////////////////////////////////////////////////////////
 
-  if (VLOG_IS_ON(10) || log_output_) {
+  if (VLOG_IS_ON(10) || logger_) {
     debug_info_.factorsAndSlotsTime_ =
         utils::Timer::toc<std::chrono::seconds>(start_time).count();
     start_time = utils::Timer::tic();
@@ -1000,7 +1009,7 @@ bool VioBackEnd::optimize(
   DCHECK_EQ(timestamps.size(), new_values_.size());
 
   // Store time before iSAM update.
-  if (VLOG_IS_ON(10) || log_output_) {
+  if (VLOG_IS_ON(10) || logger_) {
     debug_info_.updateTime_ =
         utils::Timer::toc<std::chrono::seconds>(start_time).count();
     start_time = utils::Timer::tic();
@@ -1017,7 +1026,7 @@ bool VioBackEnd::optimize(
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.
-  if (VLOG_IS_ON(10) || log_output_) {
+  if (VLOG_IS_ON(10) || logger_) {
     debug_info_.updateTime_ =
         utils::Timer::toc<std::chrono::seconds>(start_time).count();
     start_time = utils::Timer::tic();
@@ -1048,7 +1057,7 @@ bool VioBackEnd::optimize(
 #endif
     VLOG(10) << "Finished to find smart factors slots.";
 
-    if (VLOG_IS_ON(5) || log_output_) {
+    if (VLOG_IS_ON(5) || logger_) {
       debug_info_.updateSlotTime_ =
           utils::Timer::toc<std::chrono::seconds>(start_time).count();
       start_time = utils::Timer::tic();
@@ -1063,7 +1072,7 @@ bool VioBackEnd::optimize(
       is_smoother_ok = updateSmoother(&result);
     }
 
-    if (VLOG_IS_ON(5) || log_output_) {
+    if (VLOG_IS_ON(5) || logger_) {
       debug_info_.extraIterationsTime_ =
           utils::Timer::toc<std::chrono::seconds>(start_time).count();
       start_time = utils::Timer::tic();
@@ -1970,7 +1979,7 @@ void VioBackEnd::computeSparsityStatistics() {
 void VioBackEnd::postDebug(
     const std::chrono::high_resolution_clock::time_point& total_start_time,
     const std::chrono::high_resolution_clock::time_point& start_time) {
-  if (log_output_) {
+  if (logger_) {
     computeSparsityStatistics();
     computeSmartFactorStatistics();
   }

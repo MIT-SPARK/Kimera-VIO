@@ -183,7 +183,10 @@ Mesher::Mesher(const MesherParams& mesher_params, const bool& serialize_meshes)
       mesh_3d_(),
       mesher_logger_(nullptr),
       serialize_meshes_(serialize_meshes) {
-  mesher_logger_ = VIO::make_unique<MesherLogger>();
+  if (!mesher_params.log_output_path_.empty() && serialize_meshes_) {
+    mesher_logger_ =
+        VIO::make_unique<MesherLogger>(mesher_params.log_output_path_);
+  }
 
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
@@ -223,7 +226,9 @@ MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
       // the same info as mesh_2d_
       &(mesher_output_payload->mesh_2d_for_viz_));
   // Serialize 2D/3D Mesh if requested
-  if (serialize_meshes_) serializeMeshes();
+  if (serialize_meshes_ && mesher_logger_) {
+    serializeMeshes();
+  }
   // TODO(Toni): remove these calls, since all info is in mesh_3d_...
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
@@ -455,11 +460,11 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
       const LandmarkId& lmk_id(
           Frame::findLmkIdFromPixel(pixel, keypoints, landmarks));
       if (lmk_id == -1) {
-        //CHECK_NE(lmk_id, -1) << "Could not find lmk_id: " << lmk_id
+        // CHECK_NE(lmk_id, -1) << "Could not find lmk_id: " << lmk_id
         //  << " for pixel: " << pixel << " in keypoints:\n "
         //  << keypoints;
         LOG(ERROR) << "Could not find lmk_id: " << lmk_id
-          << " for pixel: " << pixel;
+                   << " for pixel: " << pixel;
         break;
       }
 
@@ -1160,8 +1165,9 @@ void Mesher::segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
                    << peak_it->pos_;
       peak_it = peaks.erase(peak_it);
       i--;
-    } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
-                            FLAGS_z_histogram_min_separation) {
+    } else if (i > 0 &&
+               std::fabs(previous_plane_distance - plane_distance) <
+                   FLAGS_z_histogram_min_separation) {
       // Not enough separation between planes, delete the one with less support.
       if (previous_peak_it->support_ < peak_it->support_) {
         // Delete previous_peak.
@@ -1325,9 +1331,8 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             }
           }
         } else {
-          VLOG(0) << "Plane "
-                  << gtsam::DefaultKeyFormatter(
-                         plane_backend.getPlaneSymbol().key())
+          VLOG(0) << "Plane " << gtsam::DefaultKeyFormatter(
+                                     plane_backend.getPlaneSymbol().key())
                   << " from backend not associated to new segmented plane "
                   << gtsam::DefaultKeyFormatter(
                          segmented_plane.getPlaneSymbol())
@@ -1696,11 +1701,11 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
       good_triangulation.push_back(tri);
     } else {
       VLOG(1) << "Delaunay Triangle out of image (size: x: " << rect.x
-                   << ", y: " << rect.y << ", height: " << rect.height
-                   << ", width "<< rect.width << "\n Triangle: x, y: \n"
-                   << tri[0] << ", " << tri[1] << '\n'
-                   << tri[2] << ", " << tri[3] << '\n'
-                   << tri[4] << ", " << tri[5];
+              << ", y: " << rect.y << ", height: " << rect.height << ", width "
+              << rect.width << "\n Triangle: x, y: \n"
+              << tri[0] << ", " << tri[1] << '\n'
+              << tri[2] << ", " << tri[3] << '\n'
+              << tri[4] << ", " << tri[5];
     }
   }
   return good_triangulation;

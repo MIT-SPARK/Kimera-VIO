@@ -103,14 +103,14 @@ RegularVioBackEnd::RegularVioBackEnd(
     const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
-    const bool& log_output)
+    const std::string& log_output_path)
     : regular_vio_params_(RegularVioBackEndParams::safeCast(backend_params)),
       VioBackEnd(B_Pose_leftCam,
                  stereo_calibration,
                  backend_params,
                  imu_params,
                  backend_output_params,
-                 log_output) {
+                 log_output_path) {
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.

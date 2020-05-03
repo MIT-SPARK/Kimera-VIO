@@ -33,13 +33,13 @@ InitializationBackEnd::InitializationBackEnd(
     const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
-    const bool log_output)
+    const std::string& log_output_path)
     : VioBackEnd(B_Pose_leftCam,
                  stereo_calibration,
                  backend_params,
                  imu_params,
                  backend_output_params,
-                 log_output) {}
+                 log_output_path) {}
 
 /* ------------------------------------------------------------------------ */
 // Perform Bundle-Adjustment and initial gravity alignment

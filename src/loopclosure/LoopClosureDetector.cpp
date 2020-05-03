@@ -52,9 +52,8 @@ namespace VIO {
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
-    bool log_output)
+    const std::string& log_output_path)
     : lcd_params_(lcd_params),
-      log_output_(log_output),
       set_intrinsics_(false),
       orb_feature_detector_(),
       orb_feature_matcher_(),
@@ -114,7 +113,9 @@ LoopClosureDetector::LoopClosureDetector(
                                   KimeraRPGO::Verbosity::QUIET);
   pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
 
-  if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
+  if (!log_output_path.empty()) {
+    logger_ = VIO::make_unique<LoopClosureDetectorLogger>(log_output_path);
+  }
 }
 
 LoopClosureDetector::~LoopClosureDetector() {

@@ -40,9 +40,6 @@ DEFINE_int64(final_k,
              10000,
              "Final frame to finish processing dataset, "
              "subsequent frames will not be used.");
-DEFINE_bool(log_euroc_gt_data,
-            false,
-            "Log Euroc ground-truth data to file for later evaluation.");
 
 namespace VIO {
 
@@ -57,8 +54,10 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       initial_k_(initial_k),
       final_k_(final_k),
       pipeline_params_(vio_params),
-      logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
-                                      : nullptr) {
+      logger_(nullptr) {
+  if (!vio_params.log_output_path_.empty()) {
+    logger_ = VIO::make_unique<EurocGtLogger>(vio_params.log_output_path_);
+  }
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);

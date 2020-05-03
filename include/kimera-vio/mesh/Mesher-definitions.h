@@ -63,15 +63,21 @@ struct MesherParams {
   KIMERA_POINTER_TYPEDEFS(MesherParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherParams() = default;
-  MesherParams(const gtsam::Pose3& B_Pose_camLrect, const cv::Size& img_size)
-      : B_Pose_camLrect_(B_Pose_camLrect), img_size_(img_size) {}
-  ~MesherParams() = default;
+  MesherParams(const gtsam::Pose3& B_Pose_camLrect,
+               const cv::Size& img_size,
+               const std::string& log_output_path = "")
+      : B_Pose_camLrect_(B_Pose_camLrect),
+        img_size_(img_size),
+        log_output_path_(log_output_path){}
+  virtual ~MesherParams() = default;
 
  public:
   //! B_Pose_camLrect pose of the rectified camera wrt body frame of ref.
   gtsam::Pose3 B_Pose_camLrect_;
   //! img_size size of the camera's images used for 2D triangulation.
   cv::Size img_size_;
+  //! Path where to log mesher output
+  std::string log_output_path_ = "";
 };
 
 struct MesherInput : public PipelinePayload {

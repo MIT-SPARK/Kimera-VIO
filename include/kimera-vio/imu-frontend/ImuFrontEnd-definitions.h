@@ -38,6 +38,9 @@ using ImuGyr = Eigen::Matrix<double, 3, 1>;
 using ImuAccGyrS = Eigen::Matrix<double, 6, Eigen::Dynamic>;
 using ImuBias = gtsam::imuBias::ConstantBias;
 
+/**
+ * @brief The ImuMeasurement struct One single IMU measurement
+ */
 struct ImuMeasurement {
   ImuMeasurement() = default;
   ImuMeasurement(const ImuStamp& timestamp, const ImuAccGyr& imu_data)
@@ -50,7 +53,10 @@ struct ImuMeasurement {
   ImuAccGyr acc_gyr_;
 };
 
-// Multiple Imu measurements, bundled in dynamic matrices.
+/**
+ * @brief The ImuMeasurements struct Multiple Imu measurements, bundled in
+ * dynamic matrices.
+ */
 struct ImuMeasurements {
  public:
   ImuMeasurements() = default;
@@ -64,6 +70,9 @@ struct ImuMeasurements {
   ImuAccGyrS acc_gyr_;
 };
 
+/**
+ * @brief The ImuPreintegrationType enum Types of supported IMU preintegration.
+ */
 enum class ImuPreintegrationType {
   kPreintegratedCombinedMeasurements = 0,
   kPreintegratedImuMeasurements = 1

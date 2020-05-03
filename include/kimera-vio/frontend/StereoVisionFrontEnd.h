@@ -58,7 +58,7 @@ class StereoVisionFrontEnd {
                        const FrontendParams& tracker_params,
                        const CameraParams& camera_params,
                        DisplayQueue* display_queue = nullptr,
-                       bool log_output = false);
+                       const std::string& log_output_path = "");
   virtual ~StereoVisionFrontEnd() {
     LOG(INFO) << "StereoVisionFrontEnd destructor called.";
   }

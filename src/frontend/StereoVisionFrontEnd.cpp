@@ -48,7 +48,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const FrontendParams& frontend_params,
     const CameraParams& camera_params,
     DisplayQueue* display_queue,
-    bool log_output)
+    const std::string& log_output_path)
     : stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
@@ -61,8 +61,8 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       output_images_path_("./outputImages/"),
       display_queue_(display_queue),
       logger_(nullptr) {  // Only for debugging and visualization.
-  if (log_output) {
-    logger_ = VIO::make_unique<FrontendLogger>();
+  if (!log_output_path.empty()) {
+    logger_ = VIO::make_unique<FrontendLogger>(log_output_path);
   }
 
   // Instantiate FeatureDetector

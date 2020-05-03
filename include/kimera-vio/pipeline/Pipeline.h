@@ -237,15 +237,12 @@ class Pipeline {
     is_backend_ok_ = false;
   }
 
-  // VIO parameters
-  BackendParams::ConstPtr backend_params_;
-  FrontendParams frontend_params_;
-  ImuParams imu_params_;
-  BackendType backend_type_;
-  bool parallel_run_;
+ public:
+  //! VIO parameters
+  VioParams vio_params_;
 
-  // TODO(Toni): Remove this?
-  int init_frame_id_;
+  //! TODO(TONI): remove this
+  FrameId init_frame_id_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;

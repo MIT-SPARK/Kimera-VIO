@@ -118,6 +118,9 @@ struct VioParams : public PipelineParams {
   FrontendType frontend_type_;
   BackendType backend_type_;
   bool parallel_run_;
+  //! Log output path where to store VIO's output in CSV files.
+  //! If empty, no output log will be generated.
+  std::string log_output_path_;
 
  protected:
   //! Helper function to parse camera params.
@@ -132,9 +135,9 @@ struct VioParams : public PipelineParams {
         lcd_params_ == rhs.lcd_params_ &&
         frontend_type_ == rhs.frontend_type_ &&
         backend_type_ == rhs.backend_type_ &&
-        parallel_run_ == rhs.parallel_run_;
+        parallel_run_ == rhs.parallel_run_ &&
+        log_output_path_ == rhs.log_output_path_;
   }
-
 
   //! Names of the YAML files with the parameters.
   std::string pipeline_params_filename_;

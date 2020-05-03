@@ -83,12 +83,13 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
-                           const BackendType& backend_type)
+                           const BackendType& backend_type,
+                           const std::string& log_output_path)
     : visualization_type_(viz_type),
       backend_type_(backend_type),
       logger_(nullptr) {
-  if (FLAGS_log_mesh) {
-    logger_ = VIO::make_unique<VisualizerLogger>();
+  if (!log_output_path.empty() && FLAGS_log_mesh) {
+    logger_ = VIO::make_unique<VisualizerLogger>(log_output_path);
   }
 }
 

@@ -213,8 +213,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                    stereo_calibration,
                                    vioParams,
                                    imu_params,
-                                   BackendOutputParams(false, 0, false),
-                                   false);
+                                   BackendOutputParams(false, 0, false));
   vio->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontEnd::updateBias, std::ref(imu_frontend), std::placeholders::_1));
   vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
