@@ -29,6 +29,12 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+DEFINE_string(output_path,
+              "",
+              "Path where to store VIO's log output. Usually this parameter is "
+              "parsed from the PipelineParams.yaml file, but, if this gflag is "
+              "non-empty, it will be overriden by this value.");
+
 namespace VIO {
 
 VioParams::VioParams(const std::string& params_folder_path)
@@ -59,7 +65,7 @@ VioParams::VioParams(const std::string& params_folder_path,
       frontend_type_(FrontendType::kStereoImu),
       backend_type_(BackendType::kStructuralRegularities),
       parallel_run_(true),
-      log_output_path_(""),
+      log_output_path_(FLAGS_output_path),
       // Filepaths, keep defaults unless you changed file names.
       pipeline_params_filename_(pipeline_params_filename),
       imu_params_filename_(imu_params_filename),
@@ -87,7 +93,12 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   yaml_parser.getYamlParam("frontend_type", &frontend_type);
   frontend_type_ = static_cast<FrontendType>(frontend_type);
   yaml_parser.getYamlParam("parallel_run", &parallel_run_);
-  yaml_parser.getYamlParam("log_output_path", &log_output_path_);
+  if (log_output_path_.empty()) {
+    // Unless gflag is passed, we parse from the yaml file.
+    yaml_parser.getYamlParam("log_output_path", &log_output_path_);
+  } else {
+    VLOG(1) << "Overriding log_output_path with given gflag...";
+  }
 
   // Parse IMU params
   parsePipelineParams(folder_path + '/' + imu_params_filename_, &imu_params_);
@@ -149,4 +160,5 @@ CameraParams VioParams::parseCameraParams(const std::string& filename) const {
   parsePipelineParams(filename, &camera_params);
   return camera_params;
 }
+
 }  // namespace VIO
