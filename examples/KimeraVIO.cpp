@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
   LOG(INFO) << "Pipeline successful? "
             << (is_pipeline_successful ? "Yes!" : "No!");
 
-  if (is_pipeline_successful) {
+  if (is_pipeline_successful && !vio_params.log_output_path_.empty()) {
     // Log overall time of pipeline run.
     VIO::PipelineLogger logger (vio_params.log_output_path_);
     logger.logPipelineOverallTiming(spin_duration);
