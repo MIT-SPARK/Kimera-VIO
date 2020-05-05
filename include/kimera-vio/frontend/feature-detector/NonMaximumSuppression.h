@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <opencv2/opencv.hpp>
+#include "opencv2/core/types_c.h"
 
 #include "kimera-vio/utils/Macros.h"
 

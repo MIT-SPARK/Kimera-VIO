@@ -63,7 +63,7 @@ class LoopClosureDetectorParams : public PipelineParams {
       bool use_mono_rot = true,
 
       double lowe_ratio = 0.7,
-      int matcher_type = 4,
+      cv::DescriptorMatcher::MatcherType matcher_type = cv::DescriptorMatcher::MatcherType::BRUTEFORCE_HAMMING,
 
       int nfeatures = 500,
       float scale_factor = 1.2f,
@@ -71,7 +71,7 @@ class LoopClosureDetectorParams : public PipelineParams {
       int edge_threshold = 31,
       int first_level = 0,
       int WTA_K = 2,
-      int score_type = cv::ORB::HARRIS_SCORE,
+      cv::ORB::ScoreType score_type = cv::ORB::HARRIS_SCORE,
       int patch_sze = 31,
       int fast_threshold = 20,
 
@@ -182,7 +182,7 @@ class LoopClosureDetectorParams : public PipelineParams {
 
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_;
-  int matcher_type_;
+  cv::DescriptorMatcher::MatcherType matcher_type_;
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature detector params ////////////////////////
@@ -192,7 +192,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   int edge_threshold_;
   int first_level_;
   int WTA_K_;
-  int score_type_;
+  cv::ORB::ScoreType score_type_;
   int patch_sze_;
   int fast_threshold_;
   //////////////////////////////////////////////////////////////////////////////
