@@ -44,16 +44,17 @@ class OfstreamWrapper {
  public:
   KIMERA_POINTER_TYPEDEFS(OfstreamWrapper);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OfstreamWrapper);
-  OfstreamWrapper(const std::string& filename,
+  OfstreamWrapper(const std::string& output_path,
+                  const std::string& filename,
                   const bool& open_file_in_append_mode = false);
   virtual ~OfstreamWrapper();
   void closeAndOpenLogFile();
 
  public:
   std::ofstream ofstream_;
-  const std::string filename_;
   const std::string output_path_;
-  const bool open_file_in_append_mode = false;
+  const std::string filename_;
+  const bool open_file_in_append_mode_ = false;
 
  protected:
   void openLogFile(const std::string& output_file_name,
@@ -61,14 +62,29 @@ class OfstreamWrapper {
 };
 
 /**
+ * @brief The Logger class: all loggers shall inherit from this class so that
+ * the output log path directory is correctly and coherently set.
+ */
+class Logger {
+ public:
+  KIMERA_POINTER_TYPEDEFS(Logger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Logger);
+  explicit Logger(const std::string& output_path);
+  virtual ~Logger() = default;
+
+ public:
+  std::string output_path_;
+};
+
+/**
  * @brief Logs ground-truth info from Euroc dataset, just copy-paste
  * ground-truth csv file.
  */
-class EurocGtLogger {
+class EurocGtLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(EurocGtLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(EurocGtLogger);
-  EurocGtLogger();
+  EurocGtLogger(const std::string& output_path);
   virtual ~EurocGtLogger() = default;
 
   /**
@@ -84,11 +100,11 @@ class EurocGtLogger {
   OfstreamWrapper output_gt_poses_csv_;
 };
 
-class BackendLogger {
+class BackendLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(BackendLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(BackendLogger);
-  BackendLogger();
+  BackendLogger(const std::string& output_path);
   virtual ~BackendLogger() = default;
 
   void logBackendOutput(const BackendOutput& output);
@@ -122,11 +138,11 @@ class BackendLogger {
   bool is_header_written_backend_timing_ = false;
 };
 
-class FrontendLogger {
+class FrontendLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(FrontendLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendLogger);
-  FrontendLogger();
+  FrontendLogger(const std::string& output_path);
   virtual ~FrontendLogger() = default;
 
   void logFrontendStats(const Timestamp& timestamp_lkf,
@@ -154,11 +170,11 @@ class FrontendLogger {
   bool is_header_written_ransac_stereo_ = false;
 };
 
-class MesherLogger {
+class MesherLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherLogger);
-  MesherLogger();
+  MesherLogger(const std::string& output_path);
   virtual ~MesherLogger() = default;
 
   /**
@@ -188,15 +204,14 @@ class MesherLogger {
   }
 
  protected:
-  std::string output_path_;
   bool is_header_written_ = false;
 };
 
-class VisualizerLogger {
+class VisualizerLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(VisualizerLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerLogger);
-  VisualizerLogger();
+  VisualizerLogger(const std::string& output_path);
   virtual ~VisualizerLogger() = default;
 
   void logLandmarks(const PointsWithId& lmks);
@@ -222,11 +237,11 @@ class VisualizerLogger {
   bool is_header_written_mesh_ = false;
 };
 
-class PipelineLogger {
+class PipelineLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(PipelineLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineLogger);
-  PipelineLogger();
+  PipelineLogger(const std::string& output_path);
   virtual ~PipelineLogger() = default;
 
   void logPipelineOverallTiming(const std::chrono::milliseconds& duration);
@@ -236,11 +251,11 @@ class PipelineLogger {
   OfstreamWrapper output_pipeline_timing_;
 };
 
-class LoopClosureDetectorLogger {
+class LoopClosureDetectorLogger : public Logger {
  public:
   KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorLogger);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorLogger);
-  LoopClosureDetectorLogger();
+  LoopClosureDetectorLogger(const std::string& output_path);
   virtual ~LoopClosureDetectorLogger() = default;
 
   void logTimestampMap(

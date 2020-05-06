@@ -10,4 +10,11 @@ frontend_type: 0
 backend_type: 1
 
 # Run VIO parallel or sequential
+# 0: Sequential
+# 1: Parallel
 parallel_run: 1
+
+# Path to the directory where to log the output.
+# This is mainly to compile VIO statistics.
+# If left empty, no statistics will be produced
+log_output_path: ""

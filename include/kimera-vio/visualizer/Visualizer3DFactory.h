@@ -30,10 +30,24 @@ class VisualizerFactory {
   VisualizerFactory() = delete;
   virtual ~VisualizerFactory() = default;
 
+ public:
+  template <typename... Ts>
   static Visualizer3D::UniquePtr createVisualizer(
-      const VisualizerType visualizer_type,
-      const VisualizationType& viz_type,
-      const BackendType& backend_type);
+      const VisualizerType& visualizer_type,
+      Ts&&... args) {
+    switch (visualizer_type) {
+      case VisualizerType::OpenCV: {
+        return VIO::make_unique<Visualizer3D>(std::forward<Ts>(args)...);
+      }
+      default: {
+        LOG(FATAL) << "Requested visualizer type is not supported.\n"
+                   << "Currently supported visualizer types:\n"
+                   << "0: OpenCV 3D viz\n 1: Pangolin (not supported yet)\n"
+                   << " but requested visualizer: "
+                   << static_cast<int>(visualizer_type);
+      }
+    }
+  }
 };
 
 }  // namespace VIO

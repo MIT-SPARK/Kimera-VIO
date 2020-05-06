@@ -70,7 +70,7 @@ class LCDFixture :public ::testing::Test {
         FLAGS_test_data_path +
         std::string("/ForLoopClosureDetector/small_voc.yml.gz");
 
-    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
+    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params);
 
     ref1_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),

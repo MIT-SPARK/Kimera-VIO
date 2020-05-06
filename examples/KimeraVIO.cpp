@@ -28,8 +28,10 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-DEFINE_int32(dataset_type, 0, "Type of parser to use:\n "
-                              "0: Euroc \n 1: Kitti (not supported).");
+DEFINE_int32(dataset_type,
+             0,
+             "Type of parser to use:\n "
+             "0: Euroc \n 1: Kitti (not supported).");
 DEFINE_string(
     params_folder_path,
     "../params/Euroc",
@@ -86,14 +88,14 @@ int main(int argc, char* argv[]) {
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
   if (vio_params.parallel_run_) {
-    auto handle = std::async(std::launch::async,
-                             &VIO::DataProviderInterface::spin,
-                             dataset_parser);
+    auto handle = std::async(
+        std::launch::async, &VIO::DataProviderInterface::spin, dataset_parser);
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
     auto handle_shutdown = std::async(std::launch::async,
                                       &VIO::Pipeline::shutdownWhenFinished,
-                                      &vio_pipeline, 500);
+                                      &vio_pipeline,
+                                      500);
     vio_pipeline.spinViz();
     is_pipeline_successful = !handle.get();
     handle_shutdown.get();
@@ -112,9 +114,9 @@ int main(int argc, char* argv[]) {
   LOG(INFO) << "Pipeline successful? "
             << (is_pipeline_successful ? "Yes!" : "No!");
 
-  if (is_pipeline_successful) {
+  if (is_pipeline_successful && !vio_params.log_output_path_.empty()) {
     // Log overall time of pipeline run.
-    VIO::PipelineLogger logger;
+    VIO::PipelineLogger logger (vio_params.log_output_path_);
     logger.logPipelineOverallTiming(spin_duration);
   }
 

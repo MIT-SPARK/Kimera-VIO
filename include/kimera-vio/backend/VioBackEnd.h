@@ -8,7 +8,11 @@
 
 /**
  * @file   VioBackEnd.h
- * @brief  Visual-Inertial Odometry pipeline, as described in these papers:
+ * @brief  Visual-Inertial backend, as described in these papers:
+ *
+ * A. Rosinol, M. Abate, Y. Chang, and L. Carlone.
+ * Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and
+ * Mapping. IEEE Intl. Conf. on Robotics and Automation (ICRA), 2020.
  *
  * C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza.
  * On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial
@@ -30,19 +34,11 @@
 #include <memory>
 #include <unordered_map>
 
-#include <boost/foreach.hpp>
-
-#include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3_S2.h>
-#include <gtsam/geometry/StereoCamera.h>
 #include <gtsam/geometry/StereoPoint2.h>
-#include <gtsam/navigation/CombinedImuFactor.h>
-#include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/LinearContainerFactor.h>
-#include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
@@ -51,10 +47,9 @@
 #include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/UtilsGTSAM.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
@@ -83,7 +78,7 @@ class VioBackEnd {
              const BackendParams& backend_params,
              const ImuParams& imu_params,
              const BackendOutputParams& backend_output_params,
-             bool log_output);
+             const std::string& log_output_path = "");
   virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; }
 
  public:
@@ -494,7 +489,6 @@ class VioBackEnd {
   size_t counter_of_exceptions_ = 0;
 
   //! Logger.
-  const bool log_output_ = {false};
   std::unique_ptr<BackendLogger> logger_;
 };
 

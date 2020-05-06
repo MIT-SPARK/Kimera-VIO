@@ -36,7 +36,7 @@ class RegularVioBackEnd : public VioBackEnd {
                     const BackendParams& backend_params,
                     const ImuParams& imu_params,
                     const BackendOutputParams& backend_output_params,
-                    const bool& log_output);
+                    const std::string& log_output_path = "");
 
   virtual ~RegularVioBackEnd() = default;
 

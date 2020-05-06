@@ -54,11 +54,11 @@ class LoopClosureDetector {
   /* ------------------------------------------------------------------------ */
   /** @brief Constructor: detects loop-closures and updates internal PGO.
    * @param[in] lcd_params Parameters for the instance of LoopClosureDetector.
-   * @param[in] log_output Output-logging flag. If set to true, the logger is
-   *  instantiated and output/statistics are logged at every spinOnce().
+   * @param[in] log_output_path Output-logging flag. If not empty, the logger
+   * is instantiated and output/statistics are logged at every spinOnce().
    */
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      bool log_output);
+                      const std::string& log_output_path = "");
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -374,9 +374,8 @@ class LoopClosureDetector {
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
-  gtsam::SharedNoiseModel
-      shared_noise_model_;  // TODO(marcus): make accurate
-                            // should also come in with input
+  gtsam::SharedNoiseModel shared_noise_model_;  // TODO(marcus): make accurate
+  // should also come in with input
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
@@ -408,10 +407,11 @@ class LcdFactory {
   static LoopClosureDetector::UniquePtr createLcd(
       const LoopClosureDetectorType& lcd_type,
       const LoopClosureDetectorParams& lcd_params,
-      bool log_output) {
+      const std::string& log_output_path) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
-        return VIO::make_unique<LoopClosureDetector>(lcd_params, log_output);
+        return VIO::make_unique<LoopClosureDetector>(lcd_params,
+                                                     log_output_path);
       }
       default: {
         LOG(FATAL) << "Requested loop closure detector type is not supported.\n"
@@ -457,10 +457,10 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
       queue_state = backend_queue_.pop(backend_payload);
     }
     if (!queue_state) {
-      LOG_IF(WARNING, PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Backend queue is down";
-      VLOG_IF(1, !PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Backend queue is empty or down";
+      LOG_IF(WARNING, PIO::parallel_run_) << "Module: " << name_id_
+                                          << " - Backend queue is down";
+      VLOG_IF(1, !PIO::parallel_run_) << "Module: " << name_id_
+                                      << " - Backend queue is empty or down";
       return nullptr;
     }
     CHECK(backend_payload);
