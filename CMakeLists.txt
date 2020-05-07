@@ -209,7 +209,7 @@ if(BUILD_TESTS)
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testImuFrontEnd.cpp
     tests/testImuParams.cpp
-    tests/testKittiDataProvider.cpp # TODO
+    # tests/testKittiDataProvider.cpp # TODO
     tests/testLoopClosureDetector.cpp
     tests/testLogger.cpp
     tests/testMesher.cpp # rotten

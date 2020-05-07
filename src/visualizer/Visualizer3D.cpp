@@ -132,7 +132,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
         const ImageToDisplay& mesh_display = ImageToDisplay(
             "Mesh 2D",
             visualizeMesh2DStereo(input.mesher_output_->mesh_2d_for_viz_,
-              left_stereo_keyframe));
+                                  left_stereo_keyframe));
         if (FLAGS_visualize_mesh_2d) {
           output->images_to_display_.push_back(mesh_display);
         }
@@ -667,6 +667,45 @@ void Visualizer3D::visualizePlyMesh(const std::string& filename,
   }
 }
 
+void Visualizer3D::visualizePointCloud(const cv::Mat& point_cloud,
+                                       WidgetsMap* widgets,
+                                       const cv::Affine3d& pose,
+                                       const cv::Mat& colors,
+                                       const cv::Mat& normals) {
+  CHECK_NOTNULL(widgets);
+  CHECK(!point_cloud.empty());
+  auto pcl_type = point_cloud.type();
+  CHECK(pcl_type == CV_32FC3 || pcl_type == CV_32FC4 || pcl_type == CV_64FC3 ||
+        pcl_type == CV_64FC4);
+
+  // Create cloud widget.
+  std::unique_ptr<cv::viz::WCloud> cloud_widget = nullptr;
+  if (!colors.empty() && !normals.empty()) {
+    cloud_widget =
+        VIO::make_unique<cv::viz::WCloud>(point_cloud, colors, normals);
+  } else if (!colors.empty()) {
+    cloud_widget = VIO::make_unique<cv::viz::WCloud>(point_cloud, colors);
+  } else {
+    cloud_widget = VIO::make_unique<cv::viz::WCloud>(point_cloud, cloud_color_);
+  }
+  CHECK(cloud_widget != nullptr);
+  cloud_widget->setPose(pose);
+  cloud_widget->setRenderingProperty(cv::viz::POINT_SIZE, 2);
+
+  // Send to maps
+  static size_t pcl_id = 0u;
+  (*widgets)["3D Point Cloud " + std::to_string(pcl_id)] =
+      std::move(cloud_widget);
+  pcl_id++;
+}
+
+void Visualizer3D::visualizeGlobalFrameOfReference(WidgetsMap* widgets,
+                                                   double scale) {
+  CHECK_NOTNULL(widgets);
+  (*widgets)["Global Frame of Reference"] =
+      VIO::make_unique<cv::viz::WCoordinateSystem>(scale);
+}
+
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 /// Each triangle is colored depending on the cluster it is in, or gray if it
@@ -837,7 +876,7 @@ void Visualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
   // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
   std::vector<cv::Affine3f> trajectory;
   trajectory.reserve(trajectory_poses_3d_.size());
-  for (const auto& pose: trajectory_poses_3d_) {
+  for (const auto& pose : trajectory_poses_3d_) {
     trajectory.push_back(pose);
   }
   (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(

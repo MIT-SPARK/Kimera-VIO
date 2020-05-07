@@ -127,6 +127,24 @@ class Visualizer3D {
    */
   void visualizePlyMesh(const std::string& filename, WidgetsMap* widgets);
 
+  /**
+   * @brief visualizePointCloud Given a cv::Mat with each col being
+   * @param[in] point_cloud A mat of type
+   * cv::Mat(1, points.size(), CV_32FC3);
+   * @param widgets modifies the widgets map, adds a new pointcloud.
+   * @param[in] colors (optional) If using colored point cloud:
+   * cv::Mat(1, points.size(), CV_8UC3);
+   * @param[in] normals (optional) If using normals:
+   * cv::Mat(1, points.size(), CV_32FC3);
+   */
+  void visualizePointCloud(const cv::Mat& point_cloud,
+                           WidgetsMap* widgets,
+                           const cv::Affine3d& pose = cv::Affine3d(),
+                           const cv::Mat& colors = cv::Mat(),
+                           const cv::Mat& normals = cv::Mat());
+
+  void visualizeGlobalFrameOfReference(WidgetsMap* widgets, double scale = 1.0);
+
  private:
   /* ------------------------------------------------------------------------ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class

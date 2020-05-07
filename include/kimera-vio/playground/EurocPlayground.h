@@ -37,61 +37,7 @@ class EurocPlayground {
   EurocPlayground(const std::string& dataset_path,
                   const std::string& params_path,
                   const int& initial_k = 20,
-                  const int& final_k = 10000)
-      : dataset_path_(dataset_path),
-        vio_params_(params_path),
-        feature_detector_(nullptr),
-        euroc_data_provider_(nullptr),
-        visualizer_3d_(nullptr),
-        display_module_(nullptr),
-        display_input_queue_("display_input_queue"),
-        imu_data_(),
-        left_frame_queue_("left_frame_queue"),
-        right_frame_queue_("right_frame_queue") {
-    // Set sequential mode
-    vio_params_.parallel_run_ = false;
-
-    // Create euroc data parser
-    euroc_data_provider_ = VIO::make_unique<EurocDataProvider>(
-        dataset_path, initial_k, final_k, vio_params_);
-
-    // Register Callbacks
-    euroc_data_provider_->registerImuSingleCallback(
-        std::bind(&EurocPlayground::fillImuQueue, this, std::placeholders::_1));
-    euroc_data_provider_->registerLeftFrameCallback(std::bind(
-        &EurocPlayground::fillLeftFrameQueue, this, std::placeholders::_1));
-    euroc_data_provider_->registerRightFrameCallback(std::bind(
-        &EurocPlayground::fillRightFrameQueue, this, std::placeholders::_1));
-
-    // Parse Euroc dataset.
-    // Since we run in sequential mode, we need to spin it till it finishes.
-    while (euroc_data_provider_->spin()) {
-    };  // Fill queues.
-
-    // Create 3D visualizer
-    VisualizationType viz_type = VisualizationType::kPointcloud;
-    BackendType backend_type = BackendType::kStereoImu;
-    visualizer_3d_ = VisualizerFactory::createVisualizer(
-        VisualizerType::OpenCV,
-        static_cast<VisualizationType>(viz_type),
-        backend_type);
-
-    // Create Displayer
-    OpenCv3dDisplayParams opencv_3d_display_params;
-    opencv_3d_display_params.hold_display_ = true;
-    display_module_ = VIO::make_unique<DisplayModule>(
-        &display_input_queue_,
-        nullptr,
-        vio_params_.parallel_run_,
-        VIO::make_unique<OpenCv3dDisplay>(nullptr, opencv_3d_display_params));
-
-    // Create Feature detector
-    FeatureDetectorParams feature_detector_params;
-    feature_detector_params.feature_detector_type_ = FeatureDetectorType::FAST;
-    feature_detector_ =
-        VIO::make_unique<FeatureDetector>(feature_detector_params);
-  }
-
+                  const int& final_k = 10000);
   ~EurocPlayground() = default;
 
  public:
@@ -104,76 +50,21 @@ class EurocPlayground {
    */
   void visualizeGtData(const bool& viz_traj,
                        const bool& viz_img_in_frustum,
-                       const bool& viz_pointcloud) {
-    VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
-    output->visualization_type_ = VisualizationType::kPointcloud;
-    if (viz_traj) {
-      CHECK_GT(vio_params_.camera_params_.size(), 0);
-      const gtsam::Pose3& body_Pose_cam =
-          vio_params_.camera_params_.at(0).body_Pose_cam_;
-      LOG_IF(ERROR, euroc_data_provider_->gt_data_.map_to_gt_.size() == 0)
-          << "Empty ground-truth trajectory.";
-      for (const auto& kv : euroc_data_provider_->gt_data_.map_to_gt_) {
-        const VioNavState& state = kv.second;
-        const cv::Affine3d& left_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
-            state.pose_.compose(body_Pose_cam));
-        visualizer_3d_->addPoseToTrajectory(left_cam_pose);
-      }
-      visualizer_3d_->visualizeTrajectory3D(&output->widgets_);
-    }
+                       const bool& viz_pointcloud);
 
-    if (viz_img_in_frustum) {
-      static const FrameId subsample_n = 50u;
-      CHECK_GT(vio_params_.camera_params_.size(), 0);
-      const auto& K = vio_params_.camera_params_.at(0).K_;
-      Frame::UniquePtr left_frame = nullptr;
-      while (left_frame_queue_.pop(left_frame)) {
-        CHECK(left_frame);
-        if ((left_frame->id_ % subsample_n) == 0u) {
-          // Add frame to frustum
-          const cv::Affine3d& left_cam_pose =
-              UtilsOpenCV::gtsamPose3ToCvAffine3d(
-                  euroc_data_provider_
-                      ->getGroundTruthPose(left_frame->timestamp_)
-                      .compose(left_frame->cam_param_.body_Pose_cam_));
-
-          cv::Mat smaller_img;
-          cv::resize(left_frame->img_, smaller_img, cv::Size(), 0.5, 0.5);
-          visualizer_3d_->visualizePoseWithImgInFrustum(
-              smaller_img,
-              left_cam_pose,
-              &output->widgets_,
-              "Camera id: " + std::to_string(left_frame->id_));
-        }
-      }
-    }
-
-    if (viz_pointcloud) {
-      static const std::string pcl_ply_filename =
-          dataset_path_ + "/mav0/pointcloud0/data.ply";
-      visualizer_3d_->visualizePlyMesh(pcl_ply_filename, &output->widgets_);
-    }
-    display_module_->spinOnce(std::move(output));
-  }
+  // Very naive!
+  void projectVisibleLandmarksToCam(const StereoCamera& stereo_cam,
+                                    const Landmarks& lmks);
 
  protected:
   //! Fill one IMU measurement only
-  inline void fillImuQueue(const ImuMeasurement& imu_measurement) {
-    imu_data_.imu_buffer_.addMeasurement(imu_measurement.timestamp_,
-                                         imu_measurement.acc_gyr_);
-  }
+  void fillImuQueue(const ImuMeasurement& imu_measurement);
 
   //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
-    CHECK(left_frame);
-    left_frame_queue_.push(std::move(left_frame));
-  }
+  void fillLeftFrameQueue(Frame::UniquePtr left_frame);
 
   //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillRightFrameQueue(Frame::UniquePtr left_frame) {
-    CHECK(left_frame);
-    right_frame_queue_.push(std::move(left_frame));
-  }
+  void fillRightFrameQueue(Frame::UniquePtr left_frame);
 
  protected:
   std::string dataset_path_;
@@ -183,6 +74,9 @@ class EurocPlayground {
 
   //! Feature Detector to extract features from the images.
   FeatureDetector::UniquePtr feature_detector_;
+
+  //! Stereo Camera to back/project and do stereo dense reconstruction.
+  StereoCamera::UniquePtr stereo_camera_;
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;
@@ -195,4 +89,5 @@ class EurocPlayground {
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
 };
+
 }
