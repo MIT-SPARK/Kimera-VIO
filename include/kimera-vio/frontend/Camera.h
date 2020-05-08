@@ -171,11 +171,55 @@ class Camera {
   KIMERA_DELETE_COPY_CONSTRUCTORS(Camera);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  Camera(const CameraParams& cam_params) {}
+  Camera(const CameraParams& cam_params)
+      : camera_impl_(),
+        calibration_(cam_params.intrinsics_.at(0),
+                     cam_params.intrinsics_.at(1),
+                     0.0,  // No skew
+                     cam_params.intrinsics_.at(2),
+                     cam_params.intrinsics_.at(3)),
+        cam_params_(cam_params) {}
 
   virtual ~Camera() = default;
 
  public:
+  /** NOT TESTED
+   * @brief project Lmks into images, doesn't do any check...
+   * @param lmks
+   * @param kpts
+   */
+  void project(const LandmarksCV& lmks, KeypointsCV* kpts) const {
+    CHECK_NOTNULL(kpts)->clear();
+    const auto& n_lmks = lmks.size();
+    kpts->reserve(n_lmks);
+    for (const auto& lmk : lmks) {
+      const gtsam::StereoPoint2& kp =
+          camera_impl_.project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
+      kpts->push_back(KeypointCV(kp.uL(), kp.v()));
+    }
+  }
+
+  /** NOT TESTED
+   * @brief backProject keypoints given depth
+   * @param kps
+   * @param disparity_img
+   */
+  void backProject(const KeypointsCV& kps,
+                   const double& depth,
+                   LandmarksCV* lmks) {
+    CHECK_NOTNULL(lmks)->clear();
+    lmks->reserve(kps.size());
+    for (const KeypointCV& kp : kps) {
+      gtsam::Point2 z(kp.x, kp.y);
+      gtsam::Point3 lmk = camera_impl_.backproject(z, depth);
+      lmks->push_back(LandmarkCV(lmk.x(), lmk.y(), lmk.z()));
+    }
+  }
+
+ private:
+  CameraParams cam_params_;
+  gtsam::Cal3_S2 calibration_;
+  gtsam::PinholeCamera<gtsam::Cal3_S2> camera_impl_;
 };
 
 // TODO inherits from a multi camera class
