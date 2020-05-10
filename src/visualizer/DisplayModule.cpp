@@ -18,18 +18,4 @@
 
 namespace VIO {
 
-DisplayModule::DisplayModule(DisplayQueue* input_queue,
-                             OutputQueue* output_queue,
-                             bool parallel_run,
-                             DisplayBase::UniquePtr&& display)
-    : SISO(input_queue, output_queue, "Display", parallel_run),
-      display_(std::move(display)) {}
-
-DisplayModule::OutputUniquePtr DisplayModule::spinOnce(
-    VisualizerOutput::UniquePtr input) {
-  CHECK(input);
-  display_->spinOnce(std::move(input));
-  return VIO::make_unique<NullPipelinePayload>();
-}
-
 }  // namespace VIO

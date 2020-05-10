@@ -31,20 +31,27 @@ namespace VIO {
  * DisplayModule should spin in the main thread to avoid errors.
  */
 class DisplayModule
-    : public SISOPipelineModule<VisualizerOutput, NullPipelinePayload> {
+    : public SISOPipelineModule<DisplayInputBase, NullPipelinePayload> {
  public:
   KIMERA_POINTER_TYPEDEFS(DisplayModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayModule);
 
-  using SISO = SISOPipelineModule<VisualizerOutput, NullPipelinePayload>;
+  using SISO = SISOPipelineModule<DisplayInputBase, NullPipelinePayload>;
 
   DisplayModule(DisplayQueue* input_queue,
                 OutputQueue* output_queue,
                 bool parallel_run,
-                DisplayBase::UniquePtr&& display);
+                DisplayBase::UniquePtr&& display)
+      : SISO(input_queue, output_queue, "Display", parallel_run),
+        display_(std::move(display)) {}
+
   virtual ~DisplayModule() = default;
 
-  virtual OutputUniquePtr spinOnce(VisualizerOutput::UniquePtr input);
+  virtual OutputUniquePtr spinOnce(InputUniquePtr input) {
+    CHECK(input);
+    display_->spinOnce(std::move(input));
+    return VIO::make_unique<NullPipelinePayload>();
+  }
 
  private:
   // The renderer used to display the visualizer output.

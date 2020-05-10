@@ -31,8 +31,12 @@ class DisplayBase {
   DisplayBase() = default;
   virtual ~DisplayBase() = default;
 
-  // Spins the display once to render the visualizer output.
-  virtual void spinOnce(VisualizerOutput::UniquePtr&& viz_output) = 0;
+  /**
+   * @brief spinOnce
+   * Spins the display once to render the visualizer output.
+   * @param viz_output Visualizer output, which is the display input.
+   */
+  virtual void spinOnce(DisplayInputBase::UniquePtr&& viz_output) = 0;
 };
 
 class OpenCv3dDisplay : public DisplayBase {
@@ -47,9 +51,29 @@ class OpenCv3dDisplay : public DisplayBase {
 
   // Spins renderers to display data using OpenCV imshow and viz3d
   // Displaying must be done in the main thread.
-  void spinOnce(VisualizerOutput::UniquePtr&& viz_output) override;
+  void spinOnce(DisplayInputBase::UniquePtr&& viz_output) override;
 
  private:
+  VisualizerOutput::UniquePtr safeCast(
+      DisplayInputBase::UniquePtr display_input_base) {
+    VisualizerOutput::UniquePtr viz_output;
+    VisualizerOutput* tmp = nullptr;
+    try {
+      tmp = dynamic_cast<VisualizerOutput*>(display_input_base.get());
+    } catch (const std::bad_cast& e) {
+      LOG(ERROR) << "Seems that you are casting DisplayInputBase to "
+                    "VisualizerOutput, but this object is not "
+                    "a VisualizerOutput!";
+      LOG(FATAL) << e.what();
+    } catch (...) {
+      LOG(FATAL) << "Exception caught when casting to VisualizerOutput.";
+    }
+    CHECK_NOTNULL(tmp);
+    display_input_base.release();
+    viz_output.reset(tmp);
+    return viz_output;
+  }
+
   // Adds 3D widgets to the window, and displays it.
   void spin3dWindow(VisualizerOutput::UniquePtr&& viz_output);
 

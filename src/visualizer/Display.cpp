@@ -52,8 +52,9 @@ OpenCv3dDisplay::OpenCv3dDisplay(
   // cv::setMouseCallback( "main2",on_mouse,NULL );
 }
 
-void OpenCv3dDisplay::spinOnce(VisualizerOutput::UniquePtr&& viz_output) {
-  CHECK(viz_output);
+void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
+  CHECK(display_input);
+  VisualizerOutput::UniquePtr viz_output = safeCast(std::move(display_input));
   // Display 2D images.
   spin2dWindow(*viz_output);
   // Display 3D window.
