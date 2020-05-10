@@ -54,7 +54,7 @@ class Visualizer3D {
    */
   Visualizer3D(const VisualizationType& viz_type,
                const BackendType& backend_type);
-  virtual ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
+  virtual ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; }
 
   /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(

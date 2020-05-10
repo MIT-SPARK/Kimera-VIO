@@ -60,11 +60,10 @@ struct WindowData {
 inline void displayImage(const std::string& title,
                          const cv::Mat& img,
                          DisplayQueue* display_queue) {
-  VisualizerOutput::UniquePtr visualizer_output =
-      VIO::make_unique<VisualizerOutput>();
+  DisplayInputBase::UniquePtr visualizer_output =
+      VIO::make_unique<DisplayInputBase>();
   ImageToDisplay img_to_display(title, img);
   visualizer_output->images_to_display_.push_back(img_to_display);
-  visualizer_output->visualization_type_ = VisualizationType::kNone;
   if (display_queue) {
     display_queue->push(std::move(visualizer_output));
   } else {

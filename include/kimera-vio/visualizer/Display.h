@@ -54,8 +54,15 @@ class OpenCv3dDisplay : public DisplayBase {
   void spinOnce(DisplayInputBase::UniquePtr&& viz_output) override;
 
  private:
+  /**
+   * @brief safeCast Try to cast display input base to the derived visualizer
+   * output, if unsuccessful, it will return a nullptr.
+   * @param display_input_base
+   * @return
+   */
   VisualizerOutput::UniquePtr safeCast(
       DisplayInputBase::UniquePtr display_input_base) {
+    if (!display_input_base) return nullptr;
     VisualizerOutput::UniquePtr viz_output;
     VisualizerOutput* tmp = nullptr;
     try {
@@ -63,12 +70,13 @@ class OpenCv3dDisplay : public DisplayBase {
     } catch (const std::bad_cast& e) {
       LOG(ERROR) << "Seems that you are casting DisplayInputBase to "
                     "VisualizerOutput, but this object is not "
-                    "a VisualizerOutput!";
-      LOG(FATAL) << e.what();
+                    "a VisualizerOutput!\n"
+                    "Error: " << e.what();
+      return nullptr;
     } catch (...) {
       LOG(FATAL) << "Exception caught when casting to VisualizerOutput.";
     }
-    CHECK_NOTNULL(tmp);
+    if(!tmp) return nullptr;
     display_input_base.release();
     viz_output.reset(tmp);
     return viz_output;
@@ -77,7 +85,7 @@ class OpenCv3dDisplay : public DisplayBase {
   // Adds 3D widgets to the window, and displays it.
   void spin3dWindow(VisualizerOutput::UniquePtr&& viz_output);
 
-  void spin2dWindow(const VisualizerOutput& viz_output);
+  void spin2dWindow(const DisplayInputBase& viz_output);
 
   //! Sets the visualization properties of the 3D mesh.
   void setMeshProperties(WidgetsMap* widgets);

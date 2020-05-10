@@ -30,11 +30,11 @@
 namespace VIO {
 
 class VisualizerModule
-    : public MISOPipelineModule<VisualizerInput, VisualizerOutput> {
+    : public MISOPipelineModule<VisualizerInput, DisplayInputBase> {
  public:
   KIMERA_POINTER_TYPEDEFS(VisualizerModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
-  using MISO = MISOPipelineModule<VisualizerInput, VisualizerOutput>;
+  using MISO = MISOPipelineModule<VisualizerInput, DisplayInputBase>;
 
   using VizFrontendInput = FrontendOutput::Ptr;
   using VizBackendInput = BackendOutput::Ptr;
