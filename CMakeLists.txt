@@ -134,7 +134,7 @@ target_include_directories(${PROJECT_NAME}
     ${GFLAGS_INCLUDE_DIRS}
     ${GLOG_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
@@ -260,7 +260,7 @@ write_basic_package_version_file(
 # This file is necessary to find_package the library kimera_vio.
 set(INSTALL_CONFIGDIR lib/cmake/kimera_vio)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/kimera_vioConfig.cmake.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/kimera_vioConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
@@ -289,7 +289,7 @@ else(EXPORT_KIMERA)
       ${INSTALL_CONFIGDIR}
   )
   # Install header files
-  install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h")
 
@@ -297,8 +297,8 @@ else(EXPORT_KIMERA)
   install(FILES
       ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfig.cmake
       ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfigVersion.cmake
-      ${CMAKE_CURRENT_LIST_DIR}/cmake/FindGflags.cmake
-      ${CMAKE_CURRENT_LIST_DIR}/cmake/FindGlog.cmake
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindGflags.cmake
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindGlog.cmake
       DESTINATION ${INSTALL_CONFIGDIR}
   )
 endif(EXPORT_KIMERA)
