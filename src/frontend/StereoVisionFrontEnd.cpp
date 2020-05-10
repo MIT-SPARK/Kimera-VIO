@@ -362,7 +362,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
     if (display_queue_ && FLAGS_visualize_feature_tracks) {
-      displayImage("Feature Tracks",
+      displayImage("feature_tracks",
                    tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
                                             stereoFrame_k_->getLeftFrame()),
                    display_queue_);

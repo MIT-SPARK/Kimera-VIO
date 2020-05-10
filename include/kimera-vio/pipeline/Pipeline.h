@@ -45,7 +45,13 @@ class Pipeline {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  explicit Pipeline(const VioParams& params);
+  /**
+     * @brief Pipeline
+     * @param params Vio parameters
+     * @param displayer Optional displayer for visualizing results
+     */
+  Pipeline(const VioParams& params,
+           DisplayBase::UniquePtr&& displayer = nullptr);
 
   virtual ~Pipeline();
 

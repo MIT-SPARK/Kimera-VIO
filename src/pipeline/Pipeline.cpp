@@ -93,7 +93,7 @@ DEFINE_bool(use_lcd,
 
 namespace VIO {
 
-Pipeline::Pipeline(const VioParams& params)
+Pipeline::Pipeline(const VioParams& params, DisplayBase::UniquePtr&& displayer)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
@@ -186,7 +186,7 @@ Pipeline::Pipeline(const VioParams& params)
                                     backend_output_params,
                                     FLAGS_log_output));
   vio_backend_module_->registerOnFailureCallback(
-        std::bind(&Pipeline::signalBackendFailure, this));
+      std::bind(&Pipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
@@ -242,8 +242,11 @@ Pipeline::Pipeline(const VioParams& params)
         &display_input_queue_,
         nullptr,
         parallel_run_,
-        DisplayFactory::makeDisplay(DisplayType::kOpenCV,
-                                    std::bind(&Pipeline::shutdown, this)));
+        // Use given displayer if any
+        displayer
+            ? std::move(displayer)
+            : DisplayFactory::makeDisplay(
+                  DisplayType::kOpenCV, std::bind(&Pipeline::shutdown, this)));
   }
 
   if (FLAGS_use_lcd) {
@@ -375,8 +378,8 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   CHECK(vio_backend_module_);
 
   while (
-      !shutdown_ && // Loop while not explicitly shutdown.
-         is_backend_ok_ &&  // Loop while backend is fine.
+      !shutdown_ &&         // Loop while not explicitly shutdown.
+      is_backend_ok_ &&     // Loop while backend is fine.
       (!is_initialized_ ||  // Loop while not initialized
                             // Or, once initialized, data is not yet consumed.
        !(!data_provider_module_->isWorking() &&
