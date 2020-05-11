@@ -41,6 +41,28 @@ class Visualizer3D {
   KIMERA_DELETE_COPY_CONSTRUCTORS(Visualizer3D);
   KIMERA_POINTER_TYPEDEFS(Visualizer3D);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  /**
+   * @brief Visualizer3D base constructor
+   * @param viz_type: type of 3D visualization
+   */
+  Visualizer3D(const VisualizationType& viz_type)
+      : visualization_type_(viz_type) {}
+  virtual ~Visualizer3D() = default;
+
+ public:
+  virtual VisualizerOutput::UniquePtr spinOnce(
+      const VisualizerInput& input) = 0;
+
+ public:
+  VisualizationType visualization_type_;
+};
+
+class OpenCvVisualizer3D : public Visualizer3D {
+ public:
+  KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCvVisualizer3D);
+  KIMERA_POINTER_TYPEDEFS(OpenCvVisualizer3D);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
   typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
@@ -52,9 +74,11 @@ class Visualizer3D {
    * @param viz_type: type of 3D visualization
    * @param backend_type backend used so that we display the right info
    */
-  Visualizer3D(const VisualizationType& viz_type,
-               const BackendType& backend_type);
-  virtual ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; }
+  OpenCvVisualizer3D(const VisualizationType& viz_type,
+                     const BackendType& backend_type);
+  virtual ~OpenCvVisualizer3D() {
+    LOG(INFO) << "OpenCvVisualizer3D destructor";
+  }
 
   /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(
@@ -67,7 +91,7 @@ class Visualizer3D {
    * The actual visualization must be done in the main thread, and as such,
    * it is not done here to separate visualization preparation from display.
    */
-  virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
+  VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input) override;
 
   // TODO(marcus): Is there any reason the following two methods must be
   // private?
@@ -212,9 +236,6 @@ class Visualizer3D {
                                              const cv::Mat& texture_image,
                                              const Mesh2D& mesh_2d,
                                              const Mesh3D& mesh_3d);
-
- public:
-  VisualizationType visualization_type_;
 
  private:
   // Flags for visualization behaviour.

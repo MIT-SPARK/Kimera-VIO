@@ -34,7 +34,6 @@
 
 #include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 
-
 // TODO(Toni): remove visualizer gflags! There are far too many, use a
 // yaml params class (aka inherit from PipelineParams.
 DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
@@ -82,9 +81,9 @@ DEFINE_int32(displayed_trajectory_length,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
+OpenCvVisualizer3D::OpenCvVisualizer3D(const VisualizationType& viz_type,
                            const BackendType& backend_type)
-    : visualization_type_(viz_type),
+    : Visualizer3D(viz_type),
       backend_type_(backend_type),
       logger_(nullptr) {
   if (FLAGS_log_mesh) {
@@ -95,7 +94,7 @@ Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
 // TODO(Toni): Put all flags inside spinOnce into Visualizer3DParams!
-VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
+VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
     const VisualizerInput& input) {
   DCHECK(input.frontend_output_);
   DCHECK(input.backend_output_);
@@ -327,7 +326,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
                                                 left_stereo_keyframe.img_,
                                                 input.mesher_output_->mesh_2d_,
                                                 input.mesher_output_->mesh_3d_)
-              : (FLAGS_texturize_3d_mesh ? Visualizer3D::texturizeMesh3D(
+              : (FLAGS_texturize_3d_mesh ? OpenCvVisualizer3D::texturizeMesh3D(
                                                left_stereo_keyframe.timestamp_,
                                                left_stereo_keyframe.img_,
                                                input.mesher_output_->mesh_2d_,
@@ -367,7 +366,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
 
 /* -------------------------------------------------------------------------- */
 // Create a 2D mesh from 2D corners in an image
-cv::Mat Visualizer3D::visualizeMesh2D(
+cv::Mat OpenCvVisualizer3D::visualizeMesh2D(
     const std::vector<cv::Vec6f>& triangulation2D,
     const cv::Mat& img,
     const KeypointsCV& extra_keypoints) {
@@ -404,7 +403,7 @@ cv::Mat Visualizer3D::visualizeMesh2D(
 
 /* -------------------------------------------------------------------------- */
 // Visualize 2d mesh.
-cv::Mat Visualizer3D::visualizeMesh2DStereo(
+cv::Mat OpenCvVisualizer3D::visualizeMesh2DStereo(
     const std::vector<cv::Vec6f>& triangulation_2D,
     const Frame& ref_frame) {
   static const cv::Scalar kDelaunayColor(0, 255, 0);          // Green
@@ -456,7 +455,7 @@ cv::Mat Visualizer3D::visualizeMesh2DStereo(
 
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks.
-void Visualizer3D::visualizePoints3D(
+void OpenCvVisualizer3D::visualizePoints3D(
     const PointsWithIdMap& points_with_id,
     const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     WidgetsMap* widgets_map) {
@@ -520,7 +519,7 @@ void Visualizer3D::visualizePoints3D(
 
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-void Visualizer3D::visualizePlane(const PlaneId& plane_index,
+void OpenCvVisualizer3D::visualizePlane(const PlaneId& plane_index,
                                   const double& n_x,
                                   const double& n_y,
                                   const double& n_z,
@@ -556,7 +555,7 @@ void Visualizer3D::visualizePlane(const PlaneId& plane_index,
 
 /* -------------------------------------------------------------------------- */
 // Draw a line in opencv.
-void Visualizer3D::drawLine(const std::string& line_id,
+void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                             const double& from_x,
                             const double& from_y,
                             const double& from_z,
@@ -570,7 +569,7 @@ void Visualizer3D::drawLine(const std::string& line_id,
 }
 
 /* -------------------------------------------------------------------------- */
-void Visualizer3D::drawLine(const std::string& line_id,
+void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                             const cv::Point3d& pt1,
                             const cv::Point3d& pt2,
                             WidgetsMap* widgets) {
@@ -580,7 +579,7 @@ void Visualizer3D::drawLine(const std::string& line_id,
 
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
+void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                    const cv::Mat& polygons_mesh,
                                    WidgetsMap* widgets) {
   cv::Mat colors(0, 1, CV_8UC3, cv::viz::Color::gray());  // Do not color mesh.
@@ -590,7 +589,7 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
 // and provide color for each polygon.
-void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
+void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                    const cv::Mat& colors,
                                    const cv::Mat& polygons_mesh,
                                    WidgetsMap* widgets,
@@ -632,7 +631,7 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
 
 /* -------------------------------------------------------------------------- */
 // Visualize a PLY from filename (absolute path).
-void Visualizer3D::visualizePlyMesh(const std::string& filename,
+void OpenCvVisualizer3D::visualizePlyMesh(const std::string& filename,
                                     WidgetsMap* widgets) {
   CHECK_NOTNULL(widgets);
   LOG(INFO) << "Showing ground truth mesh: " << filename;
@@ -672,7 +671,7 @@ void Visualizer3D::visualizePlyMesh(const std::string& filename,
 ///  n=3 for triangles.
 /// [in] color_mesh whether to color the mesh or not
 /// [in] timestamp to store the timestamp of the mesh when logging the mesh.
-void Visualizer3D::visualizeMesh3DWithColoredClusters(
+void OpenCvVisualizer3D::visualizeMesh3DWithColoredClusters(
     const std::vector<Plane>& planes,
     const cv::Mat& map_points_3d,
     const cv::Mat& polygons_mesh,
@@ -702,7 +701,7 @@ void Visualizer3D::visualizeMesh3DWithColoredClusters(
 /* -------------------------------------------------------------------------- */
 // Visualize convex hull in 2D for set of points in triangle cluster,
 // projected along the normal of the cluster.
-void Visualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
+void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
                                        const cv::Mat& map_points_3d,
                                        const cv::Mat& polygons_mesh,
                                        WidgetsMap* widgets_map) {
@@ -818,7 +817,7 @@ void Visualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
 
 /* -------------------------------------------------------------------------- */
 // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
-void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
+void OpenCvVisualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
                                          cv::Affine3d* frustum_pose,
                                          WidgetsMap* widgets_map) {
   CHECK_NOTNULL(frustum_pose);
@@ -887,7 +886,7 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
 
 /* -------------------------------------------------------------------------- */
 // Remove widget. True if successful, false if not.
-bool Visualizer3D::removeWidget(const std::string& widget_id) {
+bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
   try {
     // window_data_.window_.removeWidget(widget_id);
     return true;
@@ -906,7 +905,7 @@ bool Visualizer3D::removeWidget(const std::string& widget_id) {
 /* -------------------------------------------------------------------------- */
 // Visualize line widgets from plane to lmks.
 // Point key is required to avoid duplicated lines!
-void Visualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
+void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                              const gtsam::Point3& normal,
                                              const double& distance,
                                              const LandmarkId& lmk_id,
@@ -981,7 +980,7 @@ void Visualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
 /* -------------------------------------------------------------------------- */
 // Remove line widgets from plane to lmks, for lines that are not pointing
 // to any lmk_id in lmk_ids.
-void Visualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
+void OpenCvVisualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
   for (PlaneIdMap::value_type& plane_id_pair : plane_id_map_) {
     LmkIdToLineIdMap& lmk_id_to_line_id_map = plane_id_pair.second;
     for (LmkIdToLineIdMap::iterator lmk_id_to_line_id_it =
@@ -1009,7 +1008,7 @@ void Visualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
 
 /* -------------------------------------------------------------------------- */
 // Remove line widgets from plane to lmks.
-void Visualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
+void OpenCvVisualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
   if (plane_id_it != plane_id_map_.end()) {
     VLOG(0) << "Removing line constraints for plane with id: " << plane_id;
@@ -1035,7 +1034,7 @@ void Visualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
 
 /* -------------------------------------------------------------------------- */
 // Remove plane widget.
-void Visualizer3D::removePlane(const PlaneId& plane_index,
+void OpenCvVisualizer3D::removePlane(const PlaneId& plane_index,
                                const bool& remove_plane_label) {
   const std::string& plane_id_for_viz = "Plane " + std::to_string(plane_index);
   if (is_plane_id_in_window_.find(plane_index) !=
@@ -1058,7 +1057,7 @@ void Visualizer3D::removePlane(const PlaneId& plane_index,
 
 /* -------------------------------------------------------------------------- */
 // Add pose to the previous trajectory.
-void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
+void OpenCvVisualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
   trajectory_poses_3d_.push_back(
       UtilsOpenCV::gtsamPose3ToCvAffine3d(current_pose_gtsam));
   if (FLAGS_displayed_trajectory_length > 0) {
@@ -1069,7 +1068,7 @@ void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
 }
 
 /* ------------------------------------------------------------------------ */
-Mesh3DVizProperties Visualizer3D::texturizeMesh3D(
+Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
     const Timestamp& image_timestamp,
     const cv::Mat& texture_image,
     const Mesh2D& mesh_2d,
@@ -1169,7 +1168,7 @@ Mesh3DVizProperties Visualizer3D::texturizeMesh3D(
 
 /* -------------------------------------------------------------------------- */
 // Log mesh to ply file.
-void Visualizer3D::logMesh(const cv::Mat& map_points_3d,
+void OpenCvVisualizer3D::logMesh(const cv::Mat& map_points_3d,
                            const cv::Mat& colors,
                            const cv::Mat& polygons_mesh,
                            const Timestamp& timestamp,
@@ -1192,7 +1191,7 @@ void Visualizer3D::logMesh(const cv::Mat& map_points_3d,
 // Input the mesh points and triangle clusters, and
 // output colors matrix for mesh visualizer.
 // This will color the point with the color of the last plane having it.
-void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
+void OpenCvVisualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
                                        const cv::Mat& map_points_3d,
                                        const cv::Mat& polygons_mesh,
                                        cv::Mat* colors) const {
@@ -1224,7 +1223,7 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
 
 /* -------------------------------------------------------------------------- */
 // Decide color of the cluster depending on its id.
-void Visualizer3D::getColorById(const size_t& id, cv::viz::Color* color) const {
+void OpenCvVisualizer3D::getColorById(const size_t& id, cv::viz::Color* color) const {
   CHECK_NOTNULL(color);
   switch (id) {
     case 0: {
@@ -1248,7 +1247,7 @@ void Visualizer3D::getColorById(const size_t& id, cv::viz::Color* color) const {
 
 /* -------------------------------------------------------------------------- */
 // Draw a line from lmk to plane center.
-void Visualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
+void OpenCvVisualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
                                             const double& plane_n_x,
                                             const double& plane_n_y,
                                             const double& plane_n_z,
@@ -1265,7 +1264,7 @@ void Visualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
 
 /* -------------------------------------------------------------------------- */
 // Update line from lmk to plane center.
-void Visualizer3D::updateLineFromPlaneToPoint(const std::string& line_id,
+void OpenCvVisualizer3D::updateLineFromPlaneToPoint(const std::string& line_id,
                                               const double& plane_n_x,
                                               const double& plane_n_y,
                                               const double& plane_n_z,

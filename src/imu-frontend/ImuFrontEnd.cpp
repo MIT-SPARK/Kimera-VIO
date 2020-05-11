@@ -95,7 +95,8 @@ ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
   // measurement. Nevertheless the imu_stamps, should be shifted one step back
   // I would say.
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const gtsam::Vector3& measured_acc = imu_accgyr.block<3, 1>(0, i);
+    gtsam::Vector3 measured_acc = imu_accgyr.block<3, 1>(0, i);
+
     const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
     const double& delta_t =
         UtilsNumerical::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
@@ -123,9 +124,7 @@ ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
       return VIO::make_unique<gtsam::PreintegratedImuMeasurements>(
           safeCastToPreintegratedImuMeasurements(*pim_));
     }
-    default: {
-      LOG(FATAL) << "Unknown IMU Preintegration Type.";
-    }
+    default: { LOG(FATAL) << "Unknown IMU Preintegration Type."; }
   }
 }
 
