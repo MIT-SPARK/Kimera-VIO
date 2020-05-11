@@ -23,7 +23,7 @@ namespace VIO {
 
 VisualizerModule::VisualizerModule(OutputQueue* output_queue,
                                    bool parallel_run,
-                                   Visualizer3D::UniquePtr visualizer)
+                                   OpenCvVisualizer3D::UniquePtr visualizer)
     : MISOPipelineModule<VisualizerInput, DisplayInputBase>(output_queue,
                                                             "Visualizer",
                                                             parallel_run),

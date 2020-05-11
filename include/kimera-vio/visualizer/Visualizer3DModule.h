@@ -42,7 +42,7 @@ class VisualizerModule
 
   VisualizerModule(OutputQueue* output_queue,
                    bool parallel_run,
-                   Visualizer3D::UniquePtr visualizer);
+                   OpenCvVisualizer3D::UniquePtr visualizer);
   virtual ~VisualizerModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
@@ -78,7 +78,7 @@ class VisualizerModule
   ThreadsafeQueue<VizMesherInput>::UniquePtr mesher_queue_;
 
   //! Visualizer implementation
-  Visualizer3D::UniquePtr visualizer_;
+  OpenCvVisualizer3D::UniquePtr visualizer_;
 };
 
 }  // namespace VIO

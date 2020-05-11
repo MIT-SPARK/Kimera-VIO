@@ -34,6 +34,7 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/visualizer/DisplayFactory.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
@@ -93,7 +94,9 @@ DEFINE_bool(use_lcd,
 
 namespace VIO {
 
-Pipeline::Pipeline(const VioParams& params, DisplayBase::UniquePtr&& displayer)
+Pipeline::Pipeline(const VioParams& params,
+                   Visualizer3D::UniquePtr&& visualizer,
+                   DisplayBase::UniquePtr&& displayer)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
@@ -217,11 +220,14 @@ Pipeline::Pipeline(const VioParams& params, DisplayBase::UniquePtr&& displayer)
         //! Send ouput of visualizer to the display_input_queue_
         &display_input_queue_,
         parallel_run_,
-        VisualizerFactory::createVisualizer(
-            VisualizerType::OpenCV,
-            // TODO(Toni): bundle these three params in VisualizerParams...
-            static_cast<VisualizationType>(FLAGS_viz_type),
-            backend_type_));
+        // Use given visualizer if any
+        visualizer ? std::move(visualizer)
+                   : VisualizerFactory::createVisualizer(
+                         VisualizerType::OpenCV,
+                         // TODO(Toni): bundle these three params in
+                         // VisualizerParams...
+                         static_cast<VisualizationType>(FLAGS_viz_type),
+                         backend_type_));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
         std::bind(&VisualizerModule::fillBackendQueue,

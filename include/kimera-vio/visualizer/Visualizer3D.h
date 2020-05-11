@@ -36,10 +36,10 @@
 
 namespace VIO {
 
-class Visualizer3D {
+class OpenCvVisualizer3D {
  public:
-  KIMERA_DELETE_COPY_CONSTRUCTORS(Visualizer3D);
-  KIMERA_POINTER_TYPEDEFS(Visualizer3D);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCvVisualizer3D);
+  KIMERA_POINTER_TYPEDEFS(OpenCvVisualizer3D);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /**

@@ -16,7 +16,7 @@
 
 namespace VIO {
 
-Visualizer3D::UniquePtr VisualizerFactory::createVisualizer(
+OpenCvVisualizer3D::UniquePtr VisualizerFactory::createVisualizer(
     const VisualizerType visualizer_type,
     const VisualizationType& viz_type,
     const BackendType& backend_type) {

@@ -30,7 +30,7 @@ class VisualizerFactory {
   VisualizerFactory() = delete;
   virtual ~VisualizerFactory() = default;
 
-  static Visualizer3D::UniquePtr createVisualizer(
+  static OpenCvVisualizer3D::UniquePtr createVisualizer(
       const VisualizerType visualizer_type,
       const VisualizationType& viz_type,
       const BackendType& backend_type);

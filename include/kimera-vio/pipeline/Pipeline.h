@@ -33,7 +33,9 @@
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/visualizer/Display.h" // TODO(Toni): separate ocv display
 #include "kimera-vio/visualizer/DisplayModule.h"
+#include "kimera-vio/visualizer/Visualizer3D.h" // TODO(Toni): separate ocv viz
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {
@@ -48,9 +50,11 @@ class Pipeline {
   /**
      * @brief Pipeline
      * @param params Vio parameters
-     * @param displayer Optional displayer for visualizing results
+     * @param visualizer Optional visualizer for visualizing 3D results
+     * @param displayer Optional displayer for visualizing 2D results
      */
   Pipeline(const VioParams& params,
+           Visualizer3D::UniquePtr&& visualizer = nullptr,
            DisplayBase::UniquePtr&& displayer = nullptr);
 
   virtual ~Pipeline();
