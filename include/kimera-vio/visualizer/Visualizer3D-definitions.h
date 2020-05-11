@@ -89,6 +89,7 @@ struct DisplayInputBase {
   DisplayInputBase() = default;
   virtual ~DisplayInputBase() = default;
 
+  Timestamp timestamp_;
   std::vector<ImageToDisplay> images_to_display_;
 };
 typedef ThreadsafeQueue<DisplayInputBase::UniquePtr> DisplayQueue;
