@@ -22,10 +22,9 @@
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
-
-#include <opencv2/highgui/highgui_c.h>
 
 namespace VIO {
 
@@ -42,7 +41,7 @@ class VisualizerModule
 
   VisualizerModule(OutputQueue* output_queue,
                    bool parallel_run,
-                   OpenCvVisualizer3D::UniquePtr visualizer);
+                   Visualizer3D::UniquePtr visualizer);
   virtual ~VisualizerModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
@@ -60,15 +59,15 @@ class VisualizerModule
   //! then loop over the other queues until you get a payload that has exactly
   //! the same timestamp. Guaranteed to sync messages unless the assumption
   //! on the order of msg generation is broken.
-  virtual inline InputUniquePtr getInputPacket() override;
+  inline InputUniquePtr getInputPacket() override;
 
-  virtual OutputUniquePtr spinOnce(VisualizerInput::UniquePtr input) override;
+  OutputUniquePtr spinOnce(VisualizerInput::UniquePtr input) override;
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override;
+  void shutdownQueues() override;
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override;
+  bool hasWork() const override;
 
  private:
   //! Input Queues
@@ -78,7 +77,7 @@ class VisualizerModule
   ThreadsafeQueue<VizMesherInput>::UniquePtr mesher_queue_;
 
   //! Visualizer implementation
-  OpenCvVisualizer3D::UniquePtr visualizer_;
+  Visualizer3D::UniquePtr visualizer_;
 };
 
 }  // namespace VIO

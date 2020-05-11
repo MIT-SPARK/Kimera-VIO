@@ -17,13 +17,11 @@
 #include <string>
 #include <utility>
 
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-
 namespace VIO {
 
 VisualizerModule::VisualizerModule(OutputQueue* output_queue,
                                    bool parallel_run,
-                                   OpenCvVisualizer3D::UniquePtr visualizer)
+                                   Visualizer3D::UniquePtr visualizer)
     : MISOPipelineModule<VisualizerInput, DisplayInputBase>(output_queue,
                                                             "Visualizer",
                                                             parallel_run),

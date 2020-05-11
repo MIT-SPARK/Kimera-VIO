@@ -8,8 +8,8 @@
 
 /**
  * @file   Visualizer.h
- * @brief  Build and visualize 2D mesh from Frame
- * @author Antoni Rosinol, AJ Haeffner, Luca Carlone
+ * @brief  Build and visualize 3D data: 2D mesh from Frame for example.
+ * @author Antoni Rosinol
  */
 
 #pragma once
@@ -36,18 +36,17 @@
 
 namespace VIO {
 
-class OpenCvVisualizer3D {
+class Visualizer3D {
  public:
-  KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCvVisualizer3D);
-  KIMERA_POINTER_TYPEDEFS(OpenCvVisualizer3D);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Visualizer3D);
+  KIMERA_POINTER_TYPEDEFS(Visualizer3D);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /**
    * @brief Visualizer3D base constructor
    * @param viz_type: type of 3D visualization
    */
-  Visualizer3D(const VisualizationType& viz_type)
-      : visualization_type_(viz_type) {}
+  Visualizer3D(const VisualizationType& viz_type);
   virtual ~Visualizer3D() = default;
 
  public:
