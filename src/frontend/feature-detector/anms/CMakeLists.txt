@@ -2,5 +2,5 @@
 
 target_sources(kimera_vio
   PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/anms.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/anms.cpp"
 )
