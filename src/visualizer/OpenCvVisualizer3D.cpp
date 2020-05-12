@@ -12,7 +12,7 @@
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/visualizer/Visualizer3D.h"
+#include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 
 #include <algorithm>      // for min
 #include <memory>         // for shared_ptr<>
