@@ -31,81 +31,12 @@ class DisplayBase {
   DisplayBase() = default;
   virtual ~DisplayBase() = default;
 
-  // Spins the display once to render the visualizer output.
-  virtual void spinOnce(VisualizerOutput::UniquePtr&& viz_output) = 0;
-};
-
-class OpenCv3dDisplay : public DisplayBase {
- public:
-  KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
-
-  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb);
-
-  // TODO(Toni): consider using `unregisterAllWindows`
-  ~OpenCv3dDisplay() override = default;
-
-  // Spins renderers to display data using OpenCV imshow and viz3d
-  // Displaying must be done in the main thread.
-  void spinOnce(VisualizerOutput::UniquePtr&& viz_output) override;
-
- private:
-  // Adds 3D widgets to the window, and displays it.
-  void spin3dWindow(VisualizerOutput::UniquePtr&& viz_output);
-
-  void spin2dWindow(const VisualizerOutput& viz_output);
-
-  //! Sets the visualization properties of the 3D mesh.
-  void setMeshProperties(WidgetsMap* widgets);
-
-  //! Sets a 3D Widget Pose, because Widget3D::setPose() doesn't work;
-  void setFrustumPose(const cv::Affine3d& frustum_pose);
-
-  // Keyboard callback.
-  static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
-
-  // Keyboard callback to toggle freezing screen.
-  static void toggleFreezeScreenKeyboardCallback(const uchar& code,
-                                                 WindowData* window_data);
-
-  // Keyboard callback to set mesh representation.
-  static void setMeshRepresentation(const uchar& code, WindowData* window_data);
-
-  // Keyboard callback to set mesh shading.
-  static void setMeshShadingCallback(const uchar& code,
-                                     WindowData* window_data);
-
-  // Keyboard callback to set mesh ambient.
-  static void setMeshAmbientCallback(const uchar& code,
-                                     WindowData* window_data);
-
-  // Keyboard callback to set mesh lighting.
-  static void setMeshLightingCallback(const uchar& code,
-                                      WindowData* window_data);
-
-  // Keyboard callback to get current viewer pose.
-  static void getViewerPoseKeyboardCallback(const uchar& code,
-                                            WindowData* window_data);
-
-  // Keyboard callback to get current screen size.
-  static void getCurrentWindowSizeKeyboardCallback(const uchar& code,
-                                                   WindowData* window_data);
-
-  // Keyboard callback to get screenshot of current windodw.
-  static void getScreenshotCallback(const uchar& code, WindowData* window_data);
-
-  // Record video sequence at a hardcoded directory relative to executable.
-  void recordVideo();
-
-  // Useful for when testing on servers without display screen.
-  void setOffScreenRendering();
-
- private:
-  WindowData window_data_;
-
-  //! We use this callback to shutdown the pipeline gracefully if
-  //! the visualization window is closed.
-  ShutdownPipelineCallback shutdown_pipeline_cb_;
+  /**
+   * @brief spinOnce
+   * Spins the display once to render the visualizer output.
+   * @param viz_output Visualizer output, which is the display input.
+   */
+  virtual void spinOnce(DisplayInputBase::UniquePtr&& viz_output) = 0;
 };
 
 }  // namespace VIO

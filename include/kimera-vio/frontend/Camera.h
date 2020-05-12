@@ -258,8 +258,9 @@ class StereoCamera {
     // Relative pose after rectification
     gtsam::Pose3 camLrect_Pose_calRrect =
         B_Pose_camLrect->between(B_Pose_camRrect);
-    // get baseline
+    // Get baseline (this is after rectification).
     *baseline = camLrect_Pose_calRrect.translation().x();
+    CHECK_GT(*baseline, 0u);
 
     // Sanity check.
     LOG_IF(FATAL,
