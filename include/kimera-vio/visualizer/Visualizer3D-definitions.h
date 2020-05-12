@@ -56,6 +56,18 @@ struct ImageToDisplay {
   cv::Mat image_;
 };
 
+struct DisplayInputBase {
+  KIMERA_POINTER_TYPEDEFS(DisplayInputBase);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayInputBase);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  DisplayInputBase() = default;
+  virtual ~DisplayInputBase() = default;
+
+  Timestamp timestamp_;
+  std::vector<ImageToDisplay> images_to_display_;
+};
+typedef ThreadsafeQueue<DisplayInputBase::UniquePtr> DisplayQueue;
+
 struct VisualizerInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInput);
@@ -81,18 +93,6 @@ struct VisualizerInput : public PipelinePayload {
   const BackendOutput::ConstPtr backend_output_;
   const FrontendOutput::ConstPtr frontend_output_;
 };
-
-struct DisplayInputBase {
-  KIMERA_POINTER_TYPEDEFS(DisplayInputBase);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayInputBase);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  DisplayInputBase() = default;
-  virtual ~DisplayInputBase() = default;
-
-  Timestamp timestamp_;
-  std::vector<ImageToDisplay> images_to_display_;
-};
-typedef ThreadsafeQueue<DisplayInputBase::UniquePtr> DisplayQueue;
 
 struct VisualizerOutput : public DisplayInputBase {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutput);

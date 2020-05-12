@@ -13,10 +13,11 @@
  */
 
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
+#include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 
 namespace VIO {
 
-OpenCvVisualizer3D::UniquePtr VisualizerFactory::createVisualizer(
+Visualizer3D::UniquePtr VisualizerFactory::createVisualizer(
     const VisualizerType visualizer_type,
     const VisualizationType& viz_type,
     const BackendType& backend_type) {
