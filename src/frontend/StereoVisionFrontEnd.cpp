@@ -78,6 +78,13 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 /* -------------------------------------------------------------------------- */
 FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
+  // For timing
+  utils::StatsCollector timing_stats_frame_rate("VioFrontEnd Frame Rate [ms]");
+  utils::StatsCollector timing_stats_keyframe_rate(
+      "VioFrontEnd Keyframe Rate [ms]");
+  auto start_time = utils::Timer::tic();
+
+  // Get stereo info
   const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
   VLOG(1) << "------------------- Processing frame k = " << k
@@ -102,8 +109,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
 
   auto full_preint_duration =
       utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();
-  utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
-  stats_full_preint.AddSample(full_preint_duration);
+  // Don't add them because they are confusing
+  // utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
+  // stats_full_preint.AddSample(full_preint_duration);
   VLOG_IF(1, full_preint_duration != 0.0)
       << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
       << " Hz. (" << full_preint_duration << " us).";
@@ -165,6 +173,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     VLOG(10) << "Reset IMU preintegration with latest IMU bias.";
     imu_frontend_->resetIntegrationWithCachedBias();
 
+    // Record keyframe rate timing
+    timing_stats_keyframe_rate.AddSample(utils::Timer::toc(start_time).count());
+
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<FrontendOutput>(
@@ -177,6 +188,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
         feature_tracks,
         getTrackerInfo());
   } else {
+    // Record frame rate timing
+    timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());
+
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
     return VIO::make_unique<FrontendOutput>(false,
