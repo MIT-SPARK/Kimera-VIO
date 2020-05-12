@@ -48,10 +48,7 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
   // Create 3D visualizer
   VisualizationType viz_type = VisualizationType::kPointcloud;
   BackendType backend_type = BackendType::kStereoImu;
-  visualizer_3d_ = VisualizerFactory::createVisualizer(
-      VisualizerType::OpenCV,
-      static_cast<VisualizationType>(viz_type),
-      backend_type);
+  visualizer_3d_ = VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
 
   // Create Displayer
   OpenCv3dDisplayParams opencv_3d_display_params;
@@ -172,7 +169,7 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat_<cv::Point3f> valid_depth = cv::Mat(1, 0, CV_32FC3);
         cv::Mat_<cv::Vec3b> valid_color =
             cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
-        static constexpr float kMaxZ = 5.0; // 5 meters
+        static constexpr float kMaxZ = 5.0;  // 5 meters
         for (int32_t u = 0; u < depth.rows; ++u) {
           for (int32_t v = 0; v < depth.cols; ++v) {
             const cv::Point3f& xyz = depth(u, v);

@@ -88,7 +88,10 @@ OpenCvVisualizer3D::OpenCvVisualizer3D(const VisualizationType& viz_type,
   }
 }
 
-/* -------------------------------------------------------------------------- */
+OpenCvVisualizer3D::~OpenCvVisualizer3D() {
+  LOG(INFO) << "OpenCvVisualizer3D destructor called.";
+}
+
 // Returns true if visualization is ready, false otherwise.
 // TODO(Toni): Put all flags inside spinOnce into Visualizer3DParams!
 VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(

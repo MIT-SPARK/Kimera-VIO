@@ -28,6 +28,7 @@
 #include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/DisplayModule.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
+#include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 namespace VIO {
@@ -80,7 +81,7 @@ class EurocPlayground {
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;
-  Visualizer3D::UniquePtr visualizer_3d_;
+  OpenCvVisualizer3D::UniquePtr visualizer_3d_;
   DisplayModule::UniquePtr display_module_;
   DisplayModule::InputQueue display_input_queue_;
 

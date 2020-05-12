@@ -325,11 +325,33 @@ void OpenCv3dDisplay::recordVideo() {
   LOG(WARNING) << "Recording video sequence for 3d Viz, "
                << "current frame saved in: " + screenshot_path;
   // window_data_.window_.saveScreenshot(screenshot_path);
-  LOG(ERROR) << "WTF";
 }
 
 void OpenCv3dDisplay::setOffScreenRendering() {
   window_data_.window_.setOffScreenRendering();
+}
+
+VisualizerOutput::UniquePtr OpenCv3dDisplay::safeCast(
+    DisplayInputBase::UniquePtr display_input_base) {
+  if (!display_input_base) return nullptr;
+  VisualizerOutput::UniquePtr viz_output;
+  VisualizerOutput* tmp = nullptr;
+  try {
+    tmp = dynamic_cast<VisualizerOutput*>(display_input_base.get());
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting DisplayInputBase to "
+                  "VisualizerOutput, but this object is not "
+                  "a VisualizerOutput!\n"
+                  "Error: "
+               << e.what();
+    return nullptr;
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when casting to VisualizerOutput.";
+  }
+  if (!tmp) return nullptr;
+  display_input_base.release();
+  viz_output.reset(tmp);
+  return viz_output;
 }
 
 }  // namespace VIO
