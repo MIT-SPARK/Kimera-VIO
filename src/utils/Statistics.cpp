@@ -265,9 +265,9 @@ void Statistics::Print(std::ostream& out) {  // NOLINT
   out << "-----------";
   out.width(7);
   out.setf(std::ios::right, std::ios::adjustfield);
-  out << "#\t";
-  out << "Hz\t";
-  out << "(avg     +- std    )\t";
+  out << "#    ";
+  out << "Log Hz\t";
+  out << "{avg     +- std    }\t";
   out << "[min,max]\n";
 
   for (const typename map_t::value_type& t : tag_map) {
@@ -283,8 +283,8 @@ void Statistics::Print(std::ostream& out) {  // NOLINT
       out << GetHz(i) << "\t";
       double mean = GetMean(i);
       double stddev = sqrt(GetVariance(i));
-      out << "(" << mean << " +- ";
-      out << stddev << ")\t";
+      out << "{" << mean << " +- ";
+      out << stddev << "}\t";
 
       double min_value = GetMin(i);
       double max_value = GetMax(i);
