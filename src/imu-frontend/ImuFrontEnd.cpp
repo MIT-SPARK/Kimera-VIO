@@ -95,8 +95,7 @@ ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
   // measurement. Nevertheless the imu_stamps, should be shifted one step back
   // I would say.
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    gtsam::Vector3 measured_acc = imu_accgyr.block<3, 1>(0, i);
-
+    const gtsam::Vector3& measured_acc = imu_accgyr.block<3, 1>(0, i);
     const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
     const double& delta_t =
         UtilsNumerical::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
@@ -135,20 +134,20 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
   std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-  gtsam::PreintegratedAhrsMeasurements pimRot(latest_imu_bias_.gyroscope(),
+  gtsam::PreintegratedAhrsMeasurements pim_rot(latest_imu_bias_.gyroscope(),
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
     const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
     const double& delta_t =
         UtilsNumerical::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
-    pimRot.integrateMeasurement(measured_omega, delta_t);
+    pim_rot.integrateMeasurement(measured_omega, delta_t);
   }
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Finished preintegration for gyro aided: ";
-    pimRot.print();
+    pim_rot.print();
   }
-  return pimRot.deltaRij();
+  return pim_rot.deltaRij();
 }
 
 /* -------------------------------------------------------------------------- */
