@@ -25,6 +25,7 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/Statistics.h"
 
@@ -142,7 +143,6 @@ class ThreadsafeQueueBase {
   InternalQueue data_queue_;
   std::condition_variable data_cond_;
   std::atomic_bool shutdown_;  //! flag for signaling queue shutdown.
-  utils::StatsCollector queue_size_stats_; //! Stats on how full the queue gets.
 };
 
 template <typename T>
@@ -151,7 +151,8 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
   using TQB = ThreadsafeQueueBase<T>;
   KIMERA_POINTER_TYPEDEFS(ThreadsafeQueue);
   KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueue);
-  explicit ThreadsafeQueue(const std::string& queue_id);
+  explicit ThreadsafeQueue(const std::string& queue_id,
+                           const bool& log_queue_size = true);
   virtual ~ThreadsafeQueue() = default;
 
   /** \brief Push by value. Returns false if the queue has been shutdown.
@@ -226,6 +227,9 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
   using TQB::data_queue_;
   using TQB::mutex_;
   using TQB::shutdown_;
+
+  //! Stats on how full the queue gets.
+  std::unique_ptr<utils::StatsCollector> queue_size_stats_;
 };
 
 /**
@@ -257,12 +261,15 @@ ThreadsafeQueueBase<T>::ThreadsafeQueueBase(const std::string& queue_id)
       queue_id_(queue_id),
       data_queue_(),
       data_cond_(),
-      shutdown_(false),
-      queue_size_stats_(queue_id) {}
+      shutdown_(false) {}
 
 template <typename T>
-ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id)
-    : ThreadsafeQueueBase<T>(queue_id) {}
+ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id,
+                                    const bool& log_queue_size)
+    : ThreadsafeQueueBase<T>(queue_id),
+      queue_size_stats_(log_queue_size
+                            ? VIO::make_unique<utils::StatsCollector>(queue_id)
+                            : nullptr) {}
 
 template <typename T>
 bool ThreadsafeQueue<T>::push(T new_value) {
@@ -274,7 +281,7 @@ bool ThreadsafeQueue<T>::push(T new_value) {
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
   // Thread-safe so doesn't need external mutex.
-  TQB::queue_size_stats_.AddSample(queue_size);
+  if (queue_size_stats_) queue_size_stats_->AddSample(queue_size);
   VLOG_IF(1, queue_size > 1u) << "Queue with id: " << queue_id_
                               << " is getting full, size: " << queue_size;
   return true;
@@ -296,7 +303,7 @@ bool ThreadsafeQueue<T>::pushBlockingIfFull(T new_value,
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
   // Thread-safe so doesn't need external mutex.
-  TQB::queue_size_stats_.AddSample(queue_size);
+  if (queue_size_stats_) queue_size_stats_->AddSample(queue_size);
   VLOG_IF(1, queue_size > 1u) << "Queue with id: " << queue_id_
                               << " is getting full, size: " << queue_size;
   return true;
