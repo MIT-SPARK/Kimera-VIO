@@ -146,9 +146,8 @@ void Tracker::featureTracking(Frame* ref_frame,
     const size_t& lmk_age = ref_frame->landmarks_age_[idx_valid_lmk];
     const LandmarkId& lmk_id = ref_frame->landmarks_[idx_valid_lmk];
 
-   // if we tracked keypoint and feature track is not too long
-    if (!status[i] ||
-        lmk_age > tracker_params_.maxFeatureAge_) {
+    // if we tracked keypoint and feature track is not too long
+    if (!status[i] || lmk_age > tracker_params_.maxFeatureAge_) {
       // we are marking this bad in the ref_frame since features
       // in the ref frame guide feature detection later on
       ref_frame->landmarks_[idx_valid_lmk] = -1;
@@ -174,7 +173,8 @@ void Tracker::featureTracking(Frame* ref_frame,
            << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_ << ")";
   // Display feature tracks together with predicted points.
   if (display_queue_ && FLAGS_visualize_feature_predictions) {
-    displayImage("Feature Tracks With Predicted Keypoints",
+    displayImage(cur_frame->timestamp_,
+                 "feature_tracks_with_predicted_keypoints",
                  getTrackerImage(*ref_frame, *cur_frame, px_predicted, px_ref),
                  display_queue_);
   }

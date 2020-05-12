@@ -16,13 +16,13 @@
 
 namespace VIO {
 
-Visualizer3D::UniquePtr VisualizerFactory::createVisualizer(
+OpenCvVisualizer3D::UniquePtr VisualizerFactory::createVisualizer(
     const VisualizerType visualizer_type,
     const VisualizationType& viz_type,
     const BackendType& backend_type) {
   switch (visualizer_type) {
     case VisualizerType::OpenCV: {
-      return VIO::make_unique<Visualizer3D>(viz_type, backend_type);
+      return VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
     }
     default: {
       LOG(FATAL) << "Requested visualizer type is not supported.\n"

@@ -8,8 +8,8 @@
 
 /**
  * @file   Visualizer.h
- * @brief  Build and visualize 2D mesh from Frame
- * @author Antoni Rosinol, AJ Haeffner, Luca Carlone
+ * @brief  Build and visualize 3D data: 2D mesh from Frame for example.
+ * @author Antoni Rosinol
  */
 
 #pragma once
@@ -41,6 +41,27 @@ class Visualizer3D {
   KIMERA_DELETE_COPY_CONSTRUCTORS(Visualizer3D);
   KIMERA_POINTER_TYPEDEFS(Visualizer3D);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  /**
+   * @brief Visualizer3D base constructor
+   * @param viz_type: type of 3D visualization
+   */
+  Visualizer3D(const VisualizationType& viz_type);
+  virtual ~Visualizer3D() = default;
+
+ public:
+  virtual VisualizerOutput::UniquePtr spinOnce(
+      const VisualizerInput& input) = 0;
+
+ public:
+  VisualizationType visualization_type_;
+};
+
+class OpenCvVisualizer3D : public Visualizer3D {
+ public:
+  KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCvVisualizer3D);
+  KIMERA_POINTER_TYPEDEFS(OpenCvVisualizer3D);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
   typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
@@ -52,9 +73,9 @@ class Visualizer3D {
    * @param viz_type: type of 3D visualization
    * @param backend_type backend used so that we display the right info
    */
-  Visualizer3D(const VisualizationType& viz_type,
-               const BackendType& backend_type);
-  virtual ~Visualizer3D();
+  OpenCvVisualizer3D(const VisualizationType& viz_type,
+                     const BackendType& backend_type);
+  virtual ~OpenCvVisualizer3D() = default;
 
   /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(
@@ -67,7 +88,7 @@ class Visualizer3D {
    * The actual visualization must be done in the main thread, and as such,
    * it is not done here to separate visualization preparation from display.
    */
-  virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
+  VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input) override;
 
  public:
   // Visualization calls are public in case the user wants to manually visualize
@@ -282,9 +303,6 @@ class Visualizer3D {
   /* ------------------------------------------------------------------------ */
   // Record video sequence at a hardcoded directory relative to executable.
   void recordVideo();
-
- public:
-  VisualizationType visualization_type_;
 
  private:
   // Flags for visualization behaviour.

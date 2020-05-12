@@ -8,7 +8,7 @@
 
 /**
  * @file   StereoVisionFrontEnd-definitions.h
- * @brief  Definitions for VioBackEnd
+ * @brief  Definitions for StereoVisionFrontEnd
  * @author Antoni Rosinol
  */
 
@@ -64,7 +64,7 @@ struct FrontendOutput : public PipelinePayload {
   const DebugTrackerInfo debug_tracker_info_;
   const cv::Mat feature_tracks_;
 
-  inline DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
+  inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
 
 }  // namespace VIO

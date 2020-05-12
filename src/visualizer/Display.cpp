@@ -55,17 +55,19 @@ OpenCv3dDisplay::OpenCv3dDisplay(
   // cv::setMouseCallback( "main2",on_mouse,NULL );
 }
 
-void OpenCv3dDisplay::spinOnce(VisualizerOutput::UniquePtr&& viz_output) {
-  CHECK(viz_output);
+void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
+  CHECK(display_input);
   // Display 2D images.
-  spin2dWindow(*viz_output);
+  spin2dWindow(*display_input);
   // Display 3D window.
-  spin3dWindow(std::move(viz_output));
+  spin3dWindow(safeCast(std::move(display_input)));
 }
 
 // Adds 3D widgets to the window, and displays it.
 void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
-  CHECK(viz_output);
+  // Only display if we have a valid pointer.
+  if (!viz_output) return;
+
   if (viz_output->visualization_type_ != VisualizationType::kNone) {
     if (window_data_.window_.wasStopped()) {
       // Shutdown the pipeline! This works because display is running in the
@@ -96,7 +98,7 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
   }
 }
 
-void OpenCv3dDisplay::spin2dWindow(const VisualizerOutput& viz_output) {
+void OpenCv3dDisplay::spin2dWindow(const DisplayInputBase& viz_output) {
   for (const ImageToDisplay& img_to_display : viz_output.images_to_display_) {
     cv::namedWindow(img_to_display.name_);
     cv::imshow(img_to_display.name_, img_to_display.image_);

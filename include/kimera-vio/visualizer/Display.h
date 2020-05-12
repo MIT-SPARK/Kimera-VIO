@@ -31,8 +31,12 @@ class DisplayBase {
   DisplayBase() = default;
   virtual ~DisplayBase() = default;
 
-  // Spins the display once to render the visualizer output.
-  virtual void spinOnce(VisualizerOutput::UniquePtr&& viz_output) = 0;
+  /**
+   * @brief spinOnce
+   * Spins the display once to render the visualizer output.
+   * @param viz_output Visualizer output, which is the display input.
+   */
+  virtual void spinOnce(DisplayInputBase::UniquePtr&& viz_output) = 0;
 };
 
 struct OpenCv3dDisplayParams {
@@ -54,13 +58,41 @@ class OpenCv3dDisplay : public DisplayBase {
 
   // Spins renderers to display data using OpenCV imshow and viz3d
   // Displaying must be done in the main thread.
-  void spinOnce(VisualizerOutput::UniquePtr&& viz_output) override;
+  void spinOnce(DisplayInputBase::UniquePtr&& viz_output) override;
 
  private:
+  /**
+   * @brief safeCast Try to cast display input base to the derived visualizer
+   * output, if unsuccessful, it will return a nullptr.
+   * @param display_input_base
+   * @return
+   */
+  VisualizerOutput::UniquePtr safeCast(
+      DisplayInputBase::UniquePtr display_input_base) {
+    if (!display_input_base) return nullptr;
+    VisualizerOutput::UniquePtr viz_output;
+    VisualizerOutput* tmp = nullptr;
+    try {
+      tmp = dynamic_cast<VisualizerOutput*>(display_input_base.get());
+    } catch (const std::bad_cast& e) {
+      LOG(ERROR) << "Seems that you are casting DisplayInputBase to "
+                    "VisualizerOutput, but this object is not "
+                    "a VisualizerOutput!\n"
+                    "Error: " << e.what();
+      return nullptr;
+    } catch (...) {
+      LOG(FATAL) << "Exception caught when casting to VisualizerOutput.";
+    }
+    if(!tmp) return nullptr;
+    display_input_base.release();
+    viz_output.reset(tmp);
+    return viz_output;
+  }
+
   // Adds 3D widgets to the window, and displays it.
   void spin3dWindow(VisualizerOutput::UniquePtr&& viz_output);
 
-  void spin2dWindow(const VisualizerOutput& viz_output);
+  void spin2dWindow(const DisplayInputBase& viz_output);
 
   //! Sets the visualization properties of the 3D mesh.
   void setMeshProperties(WidgetsMap* widgets);
