@@ -26,6 +26,7 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/Statistics.h"
 
 namespace VIO {
 
@@ -141,6 +142,7 @@ class ThreadsafeQueueBase {
   InternalQueue data_queue_;
   std::condition_variable data_cond_;
   std::atomic_bool shutdown_;  //! flag for signaling queue shutdown.
+  utils::StatsCollector queue_size_stats_; //! Stats on how full the queue gets.
 };
 
 template <typename T>
@@ -255,7 +257,8 @@ ThreadsafeQueueBase<T>::ThreadsafeQueueBase(const std::string& queue_id)
       queue_id_(queue_id),
       data_queue_(),
       data_cond_(),
-      shutdown_(false) {}
+      shutdown_(false),
+      queue_size_stats_(queue_id) {}
 
 template <typename T>
 ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id)
@@ -266,12 +269,14 @@ bool ThreadsafeQueue<T>::push(T new_value) {
   if (shutdown_) return false;  // atomic, no lock needed.
   std::shared_ptr<T> data(std::make_shared<T>(std::move(new_value)));
   std::unique_lock<std::mutex> lk(mutex_);
-  size_t queue_size = data_queue_.size();
-  VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
-                              << " is getting full, size: " << queue_size;
   data_queue_.push(data);
+  size_t queue_size = data_queue_.size();
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
+  // Thread-safe so doesn't need external mutex.
+  TQB::queue_size_stats_.AddSample(queue_size);
+  VLOG_IF(1, queue_size > 1u) << "Queue with id: " << queue_id_
+                              << " is getting full, size: " << queue_size;
   return true;
 }
 
@@ -281,17 +286,19 @@ bool ThreadsafeQueue<T>::pushBlockingIfFull(T new_value,
   if (shutdown_) return false;  // atomic, no lock needed.
   std::shared_ptr<T> data(std::make_shared<T>(std::move(new_value)));
   std::unique_lock<std::mutex> lk(mutex_);
-  size_t queue_size = data_queue_.size();
-  VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
-                              << " is getting full, size: " << queue_size;
   // Wait until the queue has space or shutdown requested.
   data_cond_.wait(lk, [this, max_queue_size] {
     return data_queue_.size() < max_queue_size || shutdown_;
   });
   if (shutdown_) return false;
   data_queue_.push(data);
+  size_t queue_size = data_queue_.size();
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
+  // Thread-safe so doesn't need external mutex.
+  TQB::queue_size_stats_.AddSample(queue_size);
+  VLOG_IF(1, queue_size > 1u) << "Queue with id: " << queue_id_
+                              << " is getting full, size: " << queue_size;
   return true;
 }
 
