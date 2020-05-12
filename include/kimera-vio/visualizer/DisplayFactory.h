@@ -18,6 +18,7 @@
 
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Display.h"
+#include "kimera-vio/visualizer/OpenCvDisplay.h"
 
 namespace VIO {
 

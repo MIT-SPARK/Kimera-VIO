@@ -80,7 +80,7 @@ class EurocPlayground {
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;
-  OpenCvVisualizer3D::UniquePtr visualizer_3d_;
+  Visualizer3D::UniquePtr visualizer_3d_;
   DisplayModule::UniquePtr display_module_;
   DisplayModule::InputQueue display_input_queue_;
 
