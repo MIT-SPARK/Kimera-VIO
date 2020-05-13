@@ -297,9 +297,10 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
-  // is at the body frame
+  // is at the body frame: aka body_Pose_prism_ == body_Pose_cam_
   CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3()))
-      << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
+      << "parseGTdata: we expected identity body_Pose_prism_: is everything "
+         "ok?";
 
   fs.release();
 
