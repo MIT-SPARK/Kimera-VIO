@@ -118,7 +118,7 @@ Pipeline::Pipeline(const VioParams& params,
       parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
-          "initialization_frontend_output_queue"),
+          "initialization_frontend_output_queue", false),
       backend_input_queue_("backend_input_queue"),
       display_input_queue_("display_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();

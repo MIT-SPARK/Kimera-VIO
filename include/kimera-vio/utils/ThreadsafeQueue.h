@@ -25,7 +25,9 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/Statistics.h"
 
 namespace VIO {
 
@@ -149,7 +151,8 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
   using TQB = ThreadsafeQueueBase<T>;
   KIMERA_POINTER_TYPEDEFS(ThreadsafeQueue);
   KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueue);
-  explicit ThreadsafeQueue(const std::string& queue_id);
+  explicit ThreadsafeQueue(const std::string& queue_id,
+                           const bool& log_queue_size = true);
   virtual ~ThreadsafeQueue() = default;
 
   /** \brief Push by value. Returns false if the queue has been shutdown.
@@ -224,6 +227,9 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
   using TQB::data_queue_;
   using TQB::mutex_;
   using TQB::shutdown_;
+
+  //! Stats on how full the queue gets.
+  std::unique_ptr<utils::StatsCollector> queue_size_stats_;
 };
 
 /**
@@ -258,20 +264,27 @@ ThreadsafeQueueBase<T>::ThreadsafeQueueBase(const std::string& queue_id)
       shutdown_(false) {}
 
 template <typename T>
-ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id)
-    : ThreadsafeQueueBase<T>(queue_id) {}
+ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id,
+                                    const bool& log_queue_size)
+    : ThreadsafeQueueBase<T>(queue_id),
+      queue_size_stats_(
+          log_queue_size
+              ? VIO::make_unique<utils::StatsCollector>(queue_id + " Size [#]")
+              : nullptr) {}
 
 template <typename T>
 bool ThreadsafeQueue<T>::push(T new_value) {
   if (shutdown_) return false;  // atomic, no lock needed.
   std::shared_ptr<T> data(std::make_shared<T>(std::move(new_value)));
   std::unique_lock<std::mutex> lk(mutex_);
-  size_t queue_size = data_queue_.size();
-  VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
-                              << " is getting full, size: " << queue_size;
   data_queue_.push(data);
+  size_t queue_size = data_queue_.size();
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
+  // Thread-safe so doesn't need external mutex.
+  if (queue_size_stats_) queue_size_stats_->AddSample(queue_size);
+  VLOG_IF(1, queue_size > 1u) << "Queue with id: " << queue_id_
+                              << " is getting full, size: " << queue_size;
   return true;
 }
 
@@ -281,17 +294,19 @@ bool ThreadsafeQueue<T>::pushBlockingIfFull(T new_value,
   if (shutdown_) return false;  // atomic, no lock needed.
   std::shared_ptr<T> data(std::make_shared<T>(std::move(new_value)));
   std::unique_lock<std::mutex> lk(mutex_);
-  size_t queue_size = data_queue_.size();
-  VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
-                              << " is getting full, size: " << queue_size;
   // Wait until the queue has space or shutdown requested.
   data_cond_.wait(lk, [this, max_queue_size] {
     return data_queue_.size() < max_queue_size || shutdown_;
   });
   if (shutdown_) return false;
   data_queue_.push(data);
+  size_t queue_size = data_queue_.size();
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
+  // Thread-safe so doesn't need external mutex.
+  if (queue_size_stats_) queue_size_stats_->AddSample(queue_size);
+  VLOG_IF(1, queue_size > 1u) << "Queue with id: " << queue_id_
+                              << " is getting full, size: " << queue_size;
   return true;
 }
 

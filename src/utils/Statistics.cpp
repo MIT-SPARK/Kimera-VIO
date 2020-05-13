@@ -32,6 +32,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <ostream>
 #include <sstream>
 
@@ -136,7 +137,7 @@ std::vector<double> Statistics::GetAllSamples(size_t handle) {
   std::lock_guard<std::mutex> lock(Instance().mutex_);
   return Instance().stats_collectors_[handle].GetAllValues();
 }
-std::vector<double> Statistics::GetAllSamples(std::string const &tag) {
+std::vector<double> Statistics::GetAllSamples(std::string const& tag) {
   return GetAllSamples(GetHandle(tag));
 }
 double Statistics::GetVariance(size_t handle) {
@@ -164,21 +165,21 @@ double Statistics::GetMedian(size_t handle) {
   std::lock_guard<std::mutex> lock(Instance().mutex_);
   return Instance().stats_collectors_[handle].Median();
 }
-double Statistics::GetMedian(std::string const &tag) {
+double Statistics::GetMedian(std::string const& tag) {
   return GetMedian(GetHandle(tag));
 }
 double Statistics::GetQ1(size_t handle) {
   std::lock_guard<std::mutex> lock(Instance().mutex_);
   return Instance().stats_collectors_[handle].Q1();
 }
-double Statistics::GetQ1(std::string const &tag) {
+double Statistics::GetQ1(std::string const& tag) {
   return GetQ1(GetHandle(tag));
 }
 double Statistics::GetQ3(size_t handle) {
   std::lock_guard<std::mutex> lock(Instance().mutex_);
   return Instance().stats_collectors_[handle].Q1();
 }
-double Statistics::GetQ3(std::string const &tag) {
+double Statistics::GetQ3(std::string const& tag) {
   return GetQ3(GetHandle(tag));
 }
 double Statistics::GetHz(size_t handle) {
@@ -233,7 +234,8 @@ std::string Statistics::SecondsToTimeString(double seconds) {
   minutes = minutes - (hours * 60);
 
   char buffer[256];
-  snprintf(buffer, sizeof(buffer),
+  snprintf(buffer,
+           sizeof(buffer),
 #ifdef SM_TIMING_SHOW_HOURS
            "%02d:"
 #endif
@@ -266,36 +268,39 @@ void Statistics::Print(std::ostream& out) {  // NOLINT
   out.width(7);
   out.setf(std::ios::right, std::ios::adjustfield);
   out << "#\t";
-  out << "Hz\t";
-  out << "(avg     +- std    )\t";
+  out << "Log Hz\t";
+  out << "{avg     +- std    }\t";
   out << "[min,max]\n";
 
   for (const typename map_t::value_type& t : tag_map) {
     size_t i = t.second;
     out.width((std::streamsize)Instance().max_tag_length_);
     out.setf(std::ios::left, std::ios::adjustfield);
+    // Print Name of tag
     out << t.first << "\t";
-    out.width(7);
 
     out.setf(std::ios::right, std::ios::adjustfield);
-    out << GetNumSamples(i) << "\t";
+    // Print #
+    out << std::setw(5) << GetNumSamples(i) << "\t";
     if (GetNumSamples(i) > 0) {
-      out << GetHz(i) << "\t";
+      out << std::showpoint << GetHz(i) << "\t";
       double mean = GetMean(i);
       double stddev = sqrt(GetVariance(i));
-      out << "(" << mean << " +- ";
-      out << stddev << ")\t";
+      out << "{" << std::showpoint << mean;
+      out << " +- ";
+      out << std::showpoint << stddev << "}\t";
 
       double min_value = GetMin(i);
       double max_value = GetMax(i);
 
-      out << "[" << min_value << "," << max_value << "]";
+      //out.width(5);
+      out << std::noshowpoint << "[" << min_value << "," << max_value << "]";
     }
     out << std::endl;
   }
 }
 
-void Statistics::WriteAllSamplesToCsvFile(const std::string &path) {
+void Statistics::WriteAllSamplesToCsvFile(const std::string& path) {
   const map_t& tag_map = Instance().tag_map_;
   if (tag_map.empty()) {
     return;
@@ -308,17 +313,17 @@ void Statistics::WriteAllSamplesToCsvFile(const std::string &path) {
   }
 
   VLOG(1) << "Writing statistics to file: " << path;
-  for (const map_t::value_type &tag : tag_map) {
-    const size_t &index = tag.second;
+  for (const map_t::value_type& tag : tag_map) {
+    const size_t& index = tag.second;
     if (GetNumSamples(index) > 0) {
-      const std::string &label = tag.first;
+      const std::string& label = tag.first;
 
       // Add header to csv file. tag.first is the stats label.
       output_file << label;
 
       // Each row has all samples.
-      const std::vector<double> &samples = GetAllSamples(index);
-      for (const auto &sample : samples) {
+      const std::vector<double>& samples = GetAllSamples(index);
+      for (const auto& sample : samples) {
         output_file << ',' << sample;
       }
       output_file << '\n';
@@ -326,7 +331,7 @@ void Statistics::WriteAllSamplesToCsvFile(const std::string &path) {
   }
 }
 
-void Statistics::WriteToYamlFile(const std::string &path) {
+void Statistics::WriteToYamlFile(const std::string& path) {
   std::ofstream output_file(path);
 
   if (!output_file) {
@@ -334,7 +339,7 @@ void Statistics::WriteToYamlFile(const std::string &path) {
     return;
   }
 
-  const map_t &tag_map = Instance().tag_map_;
+  const map_t& tag_map = Instance().tag_map_;
   if (tag_map.empty()) {
     return;
   }
