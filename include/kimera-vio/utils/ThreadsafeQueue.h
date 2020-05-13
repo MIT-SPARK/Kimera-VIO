@@ -267,9 +267,10 @@ template <typename T>
 ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id,
                                     const bool& log_queue_size)
     : ThreadsafeQueueBase<T>(queue_id),
-      queue_size_stats_(log_queue_size
-                            ? VIO::make_unique<utils::StatsCollector>(queue_id)
-                            : nullptr) {}
+      queue_size_stats_(
+          log_queue_size
+              ? VIO::make_unique<utils::StatsCollector>(queue_id + " Size [#]")
+              : nullptr) {}
 
 template <typename T>
 bool ThreadsafeQueue<T>::push(T new_value) {
