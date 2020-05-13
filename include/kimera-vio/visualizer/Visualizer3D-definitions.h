@@ -16,19 +16,19 @@
 
 #include <memory>
 #include <string>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
 
 #include <opencv2/viz/widgets.hpp>
 
-#include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/pipeline/PipelinePayload.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
+#include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
@@ -56,6 +56,18 @@ struct ImageToDisplay {
   cv::Mat image_;
 };
 
+struct DisplayInputBase {
+  KIMERA_POINTER_TYPEDEFS(DisplayInputBase);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayInputBase);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  DisplayInputBase() = default;
+  virtual ~DisplayInputBase() = default;
+
+  Timestamp timestamp_;
+  std::vector<ImageToDisplay> images_to_display_;
+};
+typedef ThreadsafeQueue<DisplayInputBase::UniquePtr> DisplayQueue;
+
 struct VisualizerInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInput);
@@ -82,22 +94,20 @@ struct VisualizerInput : public PipelinePayload {
   const FrontendOutput::ConstPtr frontend_output_;
 };
 
-struct VisualizerOutput {
+struct VisualizerOutput : public DisplayInputBase {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerOutput()
-      : visualization_type_(VisualizationType::kNone),
-        images_to_display_(),
+      : DisplayInputBase(),
+        visualization_type_(VisualizationType::kNone),
         widgets_(),
         frustum_pose_(cv::Affine3d::Identity()) {}
   ~VisualizerOutput() = default;
 
   VisualizationType visualization_type_;
-  std::vector<ImageToDisplay> images_to_display_;
   WidgetsMap widgets_;
   cv::Affine3d frustum_pose_;
 };
-typedef ThreadsafeQueue<VisualizerOutput::UniquePtr> DisplayQueue;
 
 }  // namespace VIO
