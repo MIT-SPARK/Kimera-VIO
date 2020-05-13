@@ -277,7 +277,9 @@ void StereoCamera::computeRectificationParameters(
       UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse());
 
   // kAlpha is -1 by default, here we set to 0 so we get only valid pixels...
-  static constexpr int kAlpha = 0;
+  // CHECK ALSO: https://github.com/opencv/opencv/issues/7240 for issues with
+  // alpha
+  static constexpr int kAlpha = -1;
   switch (left_cam_params.distortion_model_) {
     case DistortionModel::RADTAN: {
       cv::stereoRectify(
