@@ -135,6 +135,7 @@ target_include_directories(${PROJECT_NAME}
     ${GLOG_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
     ${OPENGV_INCLUDE_DIR}
+    ${DBoW2_INCLUDE_DIRS}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
