@@ -23,6 +23,7 @@
 
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayFactory.h"

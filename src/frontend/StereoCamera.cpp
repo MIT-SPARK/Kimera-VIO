@@ -7,27 +7,28 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   Camera.h
- * @brief  Class describing a camera and derivatives: MonoCamera, StereoCamera.
+ * @file   StereoCamera.cpp
+ * @brief  Class describing a stereo camera.
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 
 #include <Eigen/Core>
 
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
-//#include <opencv2/ximgproc.hpp>
 
 #include <boost/utility.hpp>  // for tie
 
+#include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Cal3_S2Stereo.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
 #include <glog/logging.h>
 
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
@@ -276,9 +277,11 @@ void StereoCamera::computeRectificationParameters(
   boost::tie(camL_Rot_camR, camL_Tran_camR) =
       UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse());
 
-  // kAlpha is -1 by default, here we set to 0 so we get only valid pixels...
-  // CHECK ALSO: https://github.com/opencv/opencv/issues/7240 for issues with
-  // alpha
+  // kAlpha is -1 by default, but that introduces invalid keypoints!
+  // here we should use kAlpha = 0 so we get only valid pixels...
+  // But that has an issue that it removes large part of the image, check:
+  // https://github.com/opencv/opencv/issues/7240 for this issue with kAlpha
+  // Setting to -1 to make it easy, but it should NOT be -1!
   static constexpr int kAlpha = -1;
   switch (left_cam_params.distortion_model_) {
     case DistortionModel::RADTAN: {

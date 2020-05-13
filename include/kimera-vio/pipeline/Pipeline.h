@@ -26,6 +26,7 @@
 #include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/DataProviderModule.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
