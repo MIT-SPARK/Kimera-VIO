@@ -151,13 +151,17 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
 
         // I think this is the perfect container for mesh optimization
         // since it encodes in (u, v) => (x, y, z).
-        cv::Mat_<cv::Point3f> depth;
+        cv::Mat_<cv::Point3f> depth_map;
         // Need to move all points according to pose of stereo camera!
-        stereo_camera_->backProjectDisparityTo3D(disp_img, &depth);
-        CHECK_EQ(depth.type(), CV_32FC3);
+        stereo_camera_->backProjectDisparityTo3D(disp_img, &depth_map);
+        CHECK_EQ(depth_map.type(), CV_32FC3);
         // Would that work? interpret xyz as rgb?
-        cv::imshow("Depth Image", depth);
+        cv::imshow("Depth Image", depth_map);
         cv::waitKey(0);
+
+        // Store depth maps for mesh optimization.
+        cam_pose_depth_maps_.depth_maps_[left_frame->timestamp_] = depth_map;
+        cam_pose_depth_maps_.cam_poses_[left_frame->timestamp_] = left_cam_pose;
 
         LOG(INFO) << "Converting depth to pcl.";
         // Reshape as a list of 3D points, same channels,
@@ -170,9 +174,9 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat_<cv::Vec3b> valid_color =
             cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
         static constexpr float kMaxZ = 5.0;  // 5 meters
-        for (int32_t u = 0; u < depth.rows; ++u) {
-          for (int32_t v = 0; v < depth.cols; ++v) {
-            const cv::Point3f& xyz = depth(u, v);
+        for (int32_t u = 0; u < depth_map.rows; ++u) {
+          for (int32_t v = 0; v < depth_map.cols; ++v) {
+            const cv::Point3f& xyz = depth_map(u, v);
             if (isValidPoint(xyz) && xyz.z <= kMaxZ) {
               valid_depth.push_back(xyz);
               auto grey_value = left_frame->img_.at<int8_t>(u, v);

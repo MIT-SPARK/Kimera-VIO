@@ -193,9 +193,9 @@ class Camera {
     const auto& n_lmks = lmks.size();
     kpts->reserve(n_lmks);
     for (const auto& lmk : lmks) {
-      const gtsam::StereoPoint2& kp =
+      const gtsam::Point2& kp =
           camera_impl_.project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
-      kpts->push_back(KeypointCV(kp.uL(), kp.v()));
+      kpts->push_back(KeypointCV(kp.x(), kp.y()));
     }
   }
 

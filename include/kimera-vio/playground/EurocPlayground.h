@@ -27,11 +27,24 @@
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/DisplayModule.h"
-#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 namespace VIO {
+
+//! Data for mesh optimization
+using DepthMap = cv::Mat_<cv::Point3f>;
+using DepthMaps = std::map<Timestamp, DepthMap>;
+using CamPoses = std::map<Timestamp, cv::Affine3d>;
+/**
+ * @brief The CamPoseDepthMaps struct
+ * Stores with id timestamp the depth map and pose of a given camera.
+ */
+struct CamPoseDepthMaps {
+  DepthMaps depth_maps_;
+  CamPoses cam_poses_;
+};
 
 class EurocPlayground {
  public:
@@ -70,6 +83,9 @@ class EurocPlayground {
  protected:
   std::string dataset_path_;
 
+  //! Mesh Optimization stuff
+  CamPoseDepthMaps cam_pose_depth_maps_;
+
   //! Params
   VioParams vio_params_;
 
@@ -90,5 +106,4 @@ class EurocPlayground {
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
 };
-
 }
