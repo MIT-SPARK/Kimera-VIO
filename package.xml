@@ -9,7 +9,7 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <depend>KimeraRPGO</depend>
+  <depend>kimera_rpgo</depend>
   <depend>GTSAM</depend>
   <depend>gflags</depend>
   <depend>glog</depend>
