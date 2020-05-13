@@ -172,7 +172,52 @@ We also provide a `.clang-format` file with the style rules that the repo uses, 
 Also, check [tips for development](./docs/tips_development.md) and our **[developer guide](./docs/developer_guide.md)**.
 
 # 5. FAQ
+
+### Issues
   If you have problems building or running the pipeline and/or issues with dependencies, you might find useful information in our [FAQ](./docs/faq.md) or in the issue tracker.
+
+### How to interpret console output
+
+```
+I0512 21:05:55.136549 21233 Pipeline.cpp:449] Statistics
+-----------                                  #	Log Hz	{avg     +- std    }	[min,max]
+Data Provider [ms]                      	    0	
+Display [ms]                            	  146	36.5421	{8.28082 +- 2.40370}	[3,213]
+VioBackEnd [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
+VioFrontEnd Frame Rate [ms]             	  222	59.3276	{5.77027 +- 1.51571}	[3,12]
+VioFrontEnd Keyframe Rate [ms]          	   73	19.6235	{31.4110 +- 7.29504}	[24,62]
+VioFrontEnd [ms]                        	  295	77.9727	{12.1593 +- 10.7279}	[3,62]
+Visualizer [ms]                         	   73	19.4639	{3.82192 +- 0.805234}	[2,7]
+backend_input_queue Size [#]            	   73	18.3878	{1.00000 +- 0.00000}	[1,1]
+data_provider_left_frame_queue Size (#) 	  663	165.202	{182.265 +- 14.5110}	[1,359]
+data_provider_right_frame_queue Size (#)	  663	165.084	{182.029 +- 14.5150}	[1,359]
+display_input_queue Size [#]            	  146	36.5428	{1.68493 +- 0.00000}	[1,12]
+stereo_frontend_input_queue Size [#]    	  301	75.3519	{4.84718 +- 0.219043}	[1,5]
+visualizer_backend_queue Size [#]       	   73	18.3208	{1.00000 +- 0.00000}	[1,1]
+visualizer_frontend_queue Size [#]      	  295	73.9984	{4.21695 +- 1.24381}	[1,7]
+```
+
+- `#` number of samples taken.
+- `Log Hz` average number of samples taken per second in Hz.
+- `avg` average of the actual value logged. Same unit as the logged quantity.
+- `std` standard deviation of the value logged.
+- `[min,max]` minimum and maximum values that the logged value took.
+
+There are two main things logged: the time it takes for the pipeline modules to run (i.e. `VioBackEnd`, `Visualizer` etc), and the size of the queues between pipeline modules (i.e. `backend_input_queue`).
+
+For example:
+```
+VioBackEnd [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
+```
+
+Shows that the backend runtime got sampled `73` times, at a rate of `19.48`Hz (which accounts for both the time the backend waits for input to consume and the time it takes to process it). That it takes `15.21`ms to consume its input with a standard deviation of `9.75`ms and that the least it took to run for one input was `0`ms and the most it took so far is `39`ms.
+
+For the queues, for example:
+```
+stereo_frontend_input_queue Size [#]    	  301	75.3519	{4.84718 +- 0.219043}	[1,5]
+```
+
+Shows that the frontend input queue got sampled `301` times, at a rate of `75.38`Hz. That it stores an average of `4.84` elements, with a standard deviation of `0.21` elements, and that the min size it had was `1` element, and the max size it stored was of `5` elements.
 
 # 6. Chart
 
