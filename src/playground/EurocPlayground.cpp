@@ -118,6 +118,9 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         const cv::Affine3d& left_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
             euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
                 .compose(left_frame->cam_param_.body_Pose_cam_));
+        const cv::Affine3d& right_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
+            euroc_data_provider_->getGroundTruthPose(right_frame->timestamp_)
+                .compose(right_frame->cam_param_.body_Pose_cam_));
 
         cv::Mat smaller_img;
         cv::resize(left_frame->img_, smaller_img, cv::Size(), 0.5, 0.5);
@@ -157,11 +160,16 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         CHECK_EQ(depth_map.type(), CV_32FC3);
         // Would that work? interpret xyz as rgb?
         cv::imshow("Depth Image", depth_map);
-        cv::waitKey(0);
+        cv::waitKey(1);
 
         // Store depth maps for mesh optimization.
-        cam_pose_depth_maps_.depth_maps_[left_frame->timestamp_] = depth_map;
-        cam_pose_depth_maps_.cam_poses_[left_frame->timestamp_] = left_cam_pose;
+        MeshPacket mesh_packet_;
+        mesh_packet_.depth_map_ = depth_map;
+        mesh_packet_.left_cam_pose_ = left_cam_pose;
+        mesh_packet_.left_image_ = left_frame->img_;
+        mesh_packet_.right_cam_pose_ = right_cam_pose;
+        mesh_packet_.right_image_ = right_frame->img_;
+        mesh_packets_[left_frame->timestamp_] = mesh_packet_;
 
         LOG(INFO) << "Converting depth to pcl.";
         // Reshape as a list of 3D points, same channels,

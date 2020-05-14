@@ -14,6 +14,8 @@
  * @author Antoni Rosinol
  */
 
+#pragma once
+
 #include <future>
 #include <limits>
 #include <utility>
@@ -36,16 +38,20 @@ namespace VIO {
 
 //! Data for mesh optimization
 using DepthMap = cv::Mat_<cv::Point3f>;
-using DepthMaps = std::map<Timestamp, DepthMap>;
-using CamPoses = std::map<Timestamp, cv::Affine3d>;
+using CamPose = cv::Affine3d;
 /**
  * @brief The CamPoseDepthMaps struct
  * Stores with id timestamp the depth map and pose of a given camera.
  */
-struct CamPoseDepthMaps {
-  DepthMaps depth_maps_;
-  CamPoses cam_poses_;
+struct MeshPacket {
+  Timestamp timestamp_;
+  DepthMap depth_map_;
+  CamPose left_cam_pose_;
+  CamPose right_cam_pose_;
+  cv::Mat left_image_;
+  cv::Mat right_image_;
 };
+using MeshPackets = std::map<Timestamp, MeshPacket>;
 
 class EurocPlayground {
  public:
@@ -71,6 +77,10 @@ class EurocPlayground {
   void projectVisibleLandmarksToCam(const StereoCamera& stereo_cam,
                                     const Landmarks& lmks);
 
+public:
+  //! Mesh Optimization stuff
+  MeshPackets mesh_packets_;
+
  protected:
   //! Fill one IMU measurement only
   void fillImuQueue(const ImuMeasurement& imu_measurement);
@@ -84,8 +94,6 @@ class EurocPlayground {
  protected:
   std::string dataset_path_;
 
-  //! Mesh Optimization stuff
-  CamPoseDepthMaps cam_pose_depth_maps_;
 
   //! Params
   VioParams vio_params_;
@@ -104,6 +112,7 @@ class EurocPlayground {
 
   //! Data
   ImuData imu_data_;
+  // These are empty after visualizing because we pop...
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
 };
