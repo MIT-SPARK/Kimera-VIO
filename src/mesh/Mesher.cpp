@@ -458,11 +458,11 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
       const LandmarkId& lmk_id(
           Frame::findLmkIdFromPixel(pixel, keypoints, landmarks));
       if (lmk_id == -1) {
-        //CHECK_NE(lmk_id, -1) << "Could not find lmk_id: " << lmk_id
+        // CHECK_NE(lmk_id, -1) << "Could not find lmk_id: " << lmk_id
         //  << " for pixel: " << pixel << " in keypoints:\n "
         //  << keypoints;
         LOG(ERROR) << "Could not find lmk_id: " << lmk_id
-          << " for pixel: " << pixel;
+                   << " for pixel: " << pixel;
         break;
       }
 
@@ -1163,8 +1163,9 @@ void Mesher::segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
                    << peak_it->pos_;
       peak_it = peaks.erase(peak_it);
       i--;
-    } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
-                            FLAGS_z_histogram_min_separation) {
+    } else if (i > 0 &&
+               std::fabs(previous_plane_distance - plane_distance) <
+                   FLAGS_z_histogram_min_separation) {
       // Not enough separation between planes, delete the one with less support.
       if (previous_peak_it->support_ < peak_it->support_) {
         // Delete previous_peak.
@@ -1328,9 +1329,8 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             }
           }
         } else {
-          VLOG(0) << "Plane "
-                  << gtsam::DefaultKeyFormatter(
-                         plane_backend.getPlaneSymbol().key())
+          VLOG(0) << "Plane " << gtsam::DefaultKeyFormatter(
+                                     plane_backend.getPlaneSymbol().key())
                   << " from backend not associated to new segmented plane "
                   << gtsam::DefaultKeyFormatter(
                          segmented_plane.getPlaneSymbol())
@@ -1620,7 +1620,7 @@ void Mesher::createMesh2dVIO(
   }
 
   // Get a triangulation for all valid keypoints.
-  *triangulation_2D = createMesh2dImpl(img_size, &keypoints_for_mesh);
+  *triangulation_2D = createMesh2dImpl(img_size, keypoints_for_mesh);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1628,10 +1628,10 @@ void Mesher::createMesh2dVIO(
 // Returns the actual keypoints used to perform the triangulation.
 std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     const cv::Size& img_size,
-    KeypointsCV* keypoints_to_triangulate) {
-  CHECK_NOTNULL(keypoints_to_triangulate);
+    const KeypointsCV& keypoints_to_triangulate,
+    std::vector<cv::Vec3f>* vtx_indices) {
   // Nothing to triangulate.
-  if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
+  if (keypoints_to_triangulate.size() == 0) return std::vector<cv::Vec6f>();
 
   // Rectangle to be used with Subdiv2D.
   // https://answers.opencv.org/question/180984/out-of-range-error-in-delaunay-triangulation/
@@ -1642,11 +1642,11 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   // subdiv.swapEdges()
 
   // TODO Luca: there are kpts outside image, probably from tracker. This
-  // check should be in the tracker.
+  // check should be in the tracker. Actually seems to be issue in subdiv...
   // -> Make sure we only pass keypoints inside the image!
   KeypointsCV keypoints_inside_image;
-  keypoints_inside_image.reserve(keypoints_to_triangulate->size());
-  for (const KeypointCV& kp : *keypoints_to_triangulate) {
+  keypoints_inside_image.reserve(keypoints_to_triangulate.size());
+  for (const KeypointCV& kp : keypoints_to_triangulate) {
     if (rect.contains(kp)) {
       // TODO(Toni): weirdly enough rect.contains does not quite work with
       // (-0.0 - epsilon) values... it still considers them inside...
@@ -1677,7 +1677,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
                << "Rectangle size (x, y, height, width): " << rect.x << ", "
                << rect.y << ", " << rect.height << ", " << rect.width << '\n'
                << "Keypoints to triangulate: "
-               << keypoints_to_triangulate->size() << '\n'
+               << keypoints_to_triangulate.size() << '\n'
                << "Keypoints inside image: " << keypoints_inside_image.size();
   }
 
@@ -1685,13 +1685,41 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   // image
   // TODO I think that the spurious triangles are due to ourselves sending
   // keypoints out of the image... Compute actual triangulation.
-  std::vector<cv::Vec6f> triangulation2D;
-  subdiv.getTriangleList(triangulation2D);
+  std::vector<cv::Vec6f> tri_2d;
+  subdiv.getTriangleList(tri_2d);
+
+  // If requested, also return the unique ids of the vertices of each triangle.
+  // subdiv.locate has a bug, let us just use hashes of vertices...
+  if (vtx_indices) {
+    vtx_indices->clear();
+    vtx_indices->reserve(tri_2d.size());
+    // Iterate over each triangle in the triangulation.
+    for (size_t i = 0u; i < tri_2d.size(); i++) {
+      const cv::Vec6f& tri = tri_2d.at(i);
+      cv::Vec3f tri_vtx_indices;
+      // Iterate over each vertex (pixel) of the triangle.
+      for (size_t j = 0u; j < tri.rows / 2u; j++) {
+        // Extract vertex == pixel.
+        const cv::Point2f pixel(tri[j * 2u], tri[j * 2u + 1u]);
+        // Find vertex id
+        int vertex_id;
+        // This does not work on opencv 3.3.1
+        // int edge_id;
+        // int result = subdiv.locate(pixel, edge_id, vertex_id);
+        // CHECK_EQ(result, cv::Subdiv2D::PTLOC_VERTEX);
+        static const hash_pair hasher;
+        vertex_id = hasher(std::make_pair(pixel.x, pixel.y));
+        tri_vtx_indices[j] = vertex_id;
+      }
+      vtx_indices->push_back(tri_vtx_indices);
+    }
+    CHECK_EQ(vtx_indices->size(), tri_2d.size());
+  }
 
   // Retrieve "good triangles" (all vertices are inside image).
   std::vector<cv::Vec6f> good_triangulation;
-  good_triangulation.reserve(triangulation2D.size());
-  for (const cv::Vec6f& tri : triangulation2D) {
+  good_triangulation.reserve(tri_2d.size());
+  for (const cv::Vec6f& tri : tri_2d) {
     if (rect.contains(cv::Point2f(tri[0], tri[1])) &&
         rect.contains(cv::Point2f(tri[2], tri[3])) &&
         rect.contains(cv::Point2f(tri[4], tri[5]))) {
@@ -1699,11 +1727,11 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
       good_triangulation.push_back(tri);
     } else {
       VLOG(1) << "Delaunay Triangle out of image (size: x: " << rect.x
-                   << ", y: " << rect.y << ", height: " << rect.height
-                   << ", width "<< rect.width << "\n Triangle: x, y: \n"
-                   << tri[0] << ", " << tri[1] << '\n'
-                   << tri[2] << ", " << tri[3] << '\n'
-                   << tri[4] << ", " << tri[5];
+              << ", y: " << rect.y << ", height: " << rect.height << ", width "
+              << rect.width << "\n Triangle: x, y: \n"
+              << tri[0] << ", " << tri[1] << '\n'
+              << tri[2] << ", " << tri[3] << '\n'
+              << tri[4] << ", " << tri[5];
     }
   }
   return good_triangulation;
@@ -1735,7 +1763,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2D(
       keypoints_to_triangulate.push_back(keypoint_i);
     }
   }
-  return createMesh2dImpl(frame_size, &keypoints_to_triangulate);
+  return createMesh2dImpl(frame_size, keypoints_to_triangulate);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1775,7 +1803,7 @@ void Mesher::createMesh2dStereo(
   }
 
   // Get a triangulation for all valid keypoints.
-  *triangulation_2D = createMesh2dImpl(img_size, &keypoints_for_mesh);
+  *triangulation_2D = createMesh2dImpl(img_size, keypoints_for_mesh);
 }
 
 }  // namespace VIO

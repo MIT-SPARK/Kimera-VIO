@@ -107,6 +107,9 @@ class Mesh {
     inline const VertexNormal& getVertexNormal() const {
       return vertex_normal_;
     }
+    inline const VertexColorRGB& getVertexColor() const {
+      return vertex_color_;
+    }
     inline const LandmarkId& getLmkId() const { return lmk_id_; }
     /// Setters.
     inline void setVertexPosition(const VertexPosition& position) {
@@ -276,5 +279,32 @@ typedef Mesh<Vertex2D> Mesh2D;
 typedef cv::Point3f Vertex3D;
 // A 3D Mesh of landmarks.
 typedef Mesh<Vertex3D> Mesh3D;
+
+inline Mesh3D::VertexType convertVertex2dTo3d(
+    const Mesh2D::VertexType& vtx_2d,
+    const float& z = 1.0f) {
+  Vertex2D vtx_position_2d = vtx_2d.getVertexPosition();
+  Vertex3D vtx_position_3d (vtx_position_2d.x, vtx_position_2d.y, z);
+  return Mesh3D::VertexType(vtx_2d.getLmkId(),
+                            vtx_2d.getVertexNormal(),
+                            vtx_position_3d,
+                            vtx_2d.getVertexColor());
+}
+
+inline Mesh3D convertMesh2dTo3d(const Mesh2D& mesh_2d,
+                                const float& z = 1.0f) {
+  Mesh2D::Polygon polygon_2d;
+  Mesh3D::Polygon polygon_3d;
+  Mesh3D mesh_3d;
+  for (size_t tri_idx = 0; tri_idx < mesh_2d.getNumberOfPolygons(); tri_idx++) {
+    CHECK(mesh_2d.getPolygon(tri_idx, &polygon_2d));
+    CHECK_EQ(polygon_2d.size(), 3);
+    polygon_3d[0] = convertVertex2dTo3d(polygon_2d[0], z);
+    polygon_3d[1] = convertVertex2dTo3d(polygon_2d[1], z);
+    polygon_3d[2] = convertVertex2dTo3d(polygon_2d[2], z);
+    mesh_3d.addPolygonToMesh(polygon_3d);
+  }
+  return mesh_3d;
+}
 
 }  // namespace VIO

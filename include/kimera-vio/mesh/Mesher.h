@@ -16,7 +16,7 @@
 
 #include <stdlib.h>
 #include <atomic>
-#include <limits>  // for numeric_limits<>
+#include <limits>   // for numeric_limits<>
 #include <utility>  // for move
 #include <vector>
 
@@ -42,6 +42,7 @@ class Mesher {
                   const bool& serialize_meshes = false);
   virtual ~Mesher() = default;
 
+ public:
   /**
    * @brief Mesher::spinOnce Process only one minimal packet of information.
    * @param input Minimal input for the Mesher to do its work.
@@ -49,7 +50,7 @@ class Mesher {
    */
   virtual MesherOutput::UniquePtr spinOnce(const MesherInput& input);
 
-  /* ------------------------------------------------------------------------ */
+ public:
   // Update mesh: update structures keeping memory of the map before
   // visualization. It also returns a mesh_2d which represents the triangulation
   // in the 2d image.
@@ -111,6 +112,45 @@ class Mesher {
   static std::vector<cv::Vec6f> createMesh2D(
       const Frame& frame,
       const std::vector<size_t>& selected_indices);
+
+  /**
+   * @brief createMesh2D Creates a 2D Mesh out of given keypoints inside the
+   * given image size. It effectively calls Delaunay triangulation over the
+   * 2D keypoints and returns a Mesh2D (without lmk ids).
+   * @param keypoints
+   * @param image_size
+   * @param mesh_2d 2D mesh that is delaunay triangulation of the given
+   * keypoints.
+   */
+  static void createMesh2D(const KeypointsCV& keypoints,
+                           const cv::Size& image_size,
+                           Mesh2D* mesh_2d) {
+    CHECK_NOTNULL(mesh_2d);
+    CHECK_EQ(mesh_2d->getNumberOfPolygons(), 0u);
+    CHECK_EQ(mesh_2d->getNumberOfUniqueVertices(), 0u);
+    std::vector<cv::Vec3f> vtx_indices;
+    std::vector<cv::Vec6f> tri =
+        Mesher::createMesh2dImpl(image_size, keypoints, &vtx_indices);
+
+    // Iterate over the 2d mesh triangles.
+    LandmarkId vtx_idx = 0u;
+    for (size_t i = 0u; i < tri.size(); i++) {
+      const cv::Vec6f& triangle_2d = tri.at(i);
+      const cv::Vec3f& tri_indices = vtx_indices.at(i);
+
+      // Iterate over each vertex (pixel) of the triangle.
+      Mesh2D::Polygon polygon_2d;
+      for (size_t j = 0u; j < triangle_2d.rows / 2u; j++) {
+        const cv::Point2f vtx(triangle_2d[j * 2u], triangle_2d[j * 2u + 1u]);
+        // const size_t& vtx_idx = tri_indices[j];
+        polygon_2d.push_back(Mesh2D::VertexType(LandmarkId(vtx_idx), vtx));
+        vtx_idx++;
+      }
+
+      // Finally, add polygon to mesh
+      mesh_2d->addPolygonToMesh(polygon_2d);
+    }
+  }
 
  private:
   // Provide Mesh 3D in read-only mode.
@@ -363,10 +403,18 @@ class Mesher {
   void getVerticesMesh(cv::Mat* vertices_mesh) const;
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
-  /* ------------------------------------------------------------------------ */
+  /**
+   * @brief createMesh2dImpl
+   * @param img_size
+   * @param keypoints_to_triangulate
+   * @param vtx_indices Returns each vertex id of the vertices of the triangles
+   * in order
+   * @return
+   */
   static std::vector<cv::Vec6f> createMesh2dImpl(
       const cv::Size& img_size,
-      std::vector<cv::Point2f>* keypoints_to_triangulate);
+      const KeypointsCV& keypoints_to_triangulate,
+      std::vector<cv::Vec3f>* vtx_indices = nullptr);
 
   static void createMesh2dVIO(
       std::vector<cv::Vec6f>* triangulation_2D,
