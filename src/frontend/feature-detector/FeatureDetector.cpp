@@ -24,7 +24,7 @@ FeatureDetector::FeatureDetector(
   // Right now we asume we want anms not bucketing...
   if (feature_detector_params.enable_non_max_suppression_) {
     non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
-                             feature_detector_params.non_max_suppression_type_);
+        feature_detector_params.non_max_suppression_type_);
   }
 
   // TODO(Toni): find a way to pass params here using args lists
@@ -147,6 +147,15 @@ void FeatureDetector::featureDetection(Frame* cur_frame) {
   }
 }
 
+std::vector<cv::KeyPoint> FeatureDetector::rawFeatureDetection(
+    const cv::Mat& img,
+    const cv::Mat& mask) {
+  std::vector<cv::KeyPoint> keypoints;
+  CHECK(feature_detector_);
+  feature_detector_->detect(img, keypoints, mask);
+  return keypoints;
+}
+
 KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
                                               const int& need_n_corners) {
   // TODO(TONI) need to do grid based approach!
@@ -174,9 +183,9 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
     }
   }
 
-  std::vector<cv::KeyPoint> keypoints;  // vector to keep detected KeyPoints
-  CHECK(feature_detector_);
-  feature_detector_->detect(cur_frame.img_, keypoints, mask);
+  // Actual raw feature detection
+  std::vector<cv::KeyPoint> keypoints =
+      rawFeatureDetection(cur_frame.img_, mask);
   VLOG(1) << "Number of points detected : " << keypoints.size();
 
   // cv::Mat fastDetectionResults;  // draw FAST detections
@@ -194,12 +203,11 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   std::vector<cv::KeyPoint>& max_keypoints = keypoints;
   if (non_max_suppression_) {
     static constexpr float tolerance = 0.1;
-    max_keypoints =
-      non_max_suppression_->suppressNonMax(keypoints,
-                                           need_n_corners,
-                                           tolerance,
-                                           cur_frame.img_.cols,
-                                           cur_frame.img_.rows);
+    max_keypoints = non_max_suppression_->suppressNonMax(keypoints,
+                                                         need_n_corners,
+                                                         tolerance,
+                                                         cur_frame.img_.cols,
+                                                         cur_frame.img_.rows);
   }
   // NOTE: if we don't use max_suppression we may end with more corners than
   // requested...
@@ -207,10 +215,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // Find new features.
   // TODO(Toni): we should be using cv::KeyPoint... not cv::Point2f...
   KeypointsCV new_corners;
-  new_corners.reserve(max_keypoints.size());
-  for (const cv::KeyPoint& kp : max_keypoints) {
-    new_corners.push_back(kp.pt);
-  }
+  cv::KeyPoint::convert(max_keypoints, new_corners);
   // if (need_n_corners > 0) {
   //  UtilsOpenCV::ExtractCorners(cur_frame.img_,
   //                              &new_corners,

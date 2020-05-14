@@ -37,6 +37,15 @@ class FeatureDetector {
  public:
   void featureDetection(Frame* cur_frame);
 
+  /**
+   * @brief rawFeatureDetection Raw feature detection: in image, out keypoints
+   * @param img
+   * @return keypoints
+   */
+  std::vector<cv::KeyPoint> rawFeatureDetection(
+      const cv::Mat& img,
+      const cv::Mat& mask = cv::Mat());
+
  private:
   // Returns landmark_count (updated from the new keypoints),
   // and nr or extracted corners.
