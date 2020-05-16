@@ -1,4 +1,4 @@
-﻿/* ----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -28,6 +28,7 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/utils/YamlParser.h"
 
 DEFINE_string(dataset_path,
               "/Users/Luca/data/MH_01_easy",
@@ -278,30 +279,24 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
 
   std::string filename_sensor =
       input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
-
-  // Make sure that each YAML file has %YAML:1.0 as first line.
-  cv::FileStorage fs;
-  UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor, false);
-  if (!fs.isOpened()) {
-    LOG(WARNING) << "Cannot open file in parseGTYAML: " << filename_sensor
-                 << "\nAssuming dataset has no ground truth...";
-    return false;
-  }
+  YamlParser yaml_parser(filename_sensor);
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
+  // int n_rows = 0;
+  // yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  // CHECK_EQ(n_rows, 4u);
+  // int n_cols = 0;
+  // yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  // CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
-  fs["T_BS"]["data"] >> vector_pose;
+  yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   gt_data_.body_Pose_cam_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame
   CHECK(gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
       << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
-
-  fs.release();
 
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp, p_RS_R_x [m], p_RS_R_y [m], p_RS_R_z [m],
