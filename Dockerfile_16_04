@@ -27,12 +27,12 @@ RUN apt-get update && apt-get install -y \
 
 RUN git clone https://github.com/opencv/opencv.git
 RUN cd opencv && \
-      git checkout tags/3.3.1 && \
+      git checkout tags/4.2.0 && \
       mkdir build
 
 RUN git clone https://github.com/opencv/opencv_contrib.git
 RUN cd opencv_contrib && \
-      git checkout tags/3.3.1
+      git checkout tags/4.2.0
 
 RUN cd opencv/build && \
       cmake -DCMAKE_BUILD_TYPE=Release \
