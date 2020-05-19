@@ -35,7 +35,7 @@ pipeline {
             stage('Build Release') {
               steps {
                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen \
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
                             -DCMAKE_CXX_FLAGS="\
                             -Wno-comment \
                             -Wno-maybe-uninitialized \
@@ -143,7 +143,7 @@ pipeline {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen \
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
                             -DCMAKE_CXX_FLAGS="\
                             -Wno-comment \
                             -Wno-maybe-uninitialized \
