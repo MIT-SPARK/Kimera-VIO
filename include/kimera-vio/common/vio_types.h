@@ -57,6 +57,8 @@ using StatusKeypointCV = std::pair<KeypointStatus, KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
 using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
+
+// TODO(Toni): move make unique and  to underlying to another file...
 // Add compatibility for c++11's lack of make_unique.
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args&&... args) {

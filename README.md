@@ -25,15 +25,14 @@ Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation 
 
 We kindly ask to cite our paper if you find this library useful:
 
- - A. Rosinol, M. Abate, Y. Chang, L. Carlone. [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). arXiv preprint [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
+- A. Rosinol, M. Abate, Y. Chang, L. Carlone, [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). IEEE Intl. Conf. on Robotics and Automation (ICRA), 2020. [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
+ 
  ```bibtex
- @misc{Rosinol19arxiv-Kimera,
+ @InProceedings{Rosinol20icra-Kimera,
    title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
    author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
-   year = {2019},
-   eprint = {1910.02490},
-   archiveprefix = {arXiv},
-   primaryclass = {cs.RO},
+   year = {2020},
+   booktitle = {IEEE Intl. Conf. on Robotics and Automation (ICRA)},
    url = {https://github.com/MIT-SPARK/Kimera},
    pdf = {https://arxiv.org/pdf/1910.02490.pdf}
  }
@@ -70,14 +69,15 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
+- [ANMS](https://github.com/BAILOOL/ANMS-Codes) (source files in `src/frontend/feature-detector/anms`, used for adaptive non-max suppression).
 
-> Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimeravio_installation.md](./docs/kimeravio_installation.md).
+> Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimera_vio_install.md](./docs/kimera_vio_install.md).
 
 > Note 2: if you use ROS, then [Kimera-VIO-ROS](https://github.com/MIT-SPARK/Kimera-VIO-ROS) can install all dependencies and Kimera inside a catkin workspace.
 
 ## Installation Instructions
 
-Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimeravio_installation.md)**.
+Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimera_vio_install.md)**.
 
 # 2. Usage
 
@@ -134,9 +134,20 @@ We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
-## iii. Evalation and Debugging
+## iii. Evaluation and Debugging
 
-For more information on tools for debugging and evaluating the pipeline, see [our documentation](/docs/kimeravio_debug_evaluation.md)
+For more information on tools for debugging and evaluating the pipeline, see [our documentation](/docs/kimera_vio_debug_evaluation.md)
+
+## iv. Unit Testing
+
+We use [gtest](https://github.com/google/googletest) for unit testing.
+To run the unit tests: build the code, navigate inside the `build` folder and run `testKimeraVIO`:
+```bash
+cd build
+./testKimeraVIO
+```
+
+A useful flag is `./testKimeraVIO --gtest_filter=foo` to only run the test you are interested in (regex is also valid).
 
 # 3. Parameters
 Kimera-VIO accepts two independent sources of parameters:
@@ -155,13 +166,58 @@ We strongly encourage you to submit issues, feedback and potential improvements.
 We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
-To enable these checks you will need to [install linter](./docs/linter_installation.md).
+To enable these checks you will need to [install linter](./docs/linter_install.md).
 We also provide a `.clang-format` file with the style rules that the repo uses, so that you can use [`clang-format`](https://clang.llvm.org/docs/ClangFormat.html) to reformat your code.
 
 Also, check [tips for development](./docs/tips_development.md) and our **[developer guide](./docs/developer_guide.md)**.
 
 # 5. FAQ
+
+### Issues
   If you have problems building or running the pipeline and/or issues with dependencies, you might find useful information in our [FAQ](./docs/faq.md) or in the issue tracker.
+
+### How to interpret console output
+
+```
+I0512 21:05:55.136549 21233 Pipeline.cpp:449] Statistics
+-----------                                  #	Log Hz	{avg     +- std    }	[min,max]
+Data Provider [ms]                      	    0	
+Display [ms]                            	  146	36.5421	{8.28082 +- 2.40370}	[3,213]
+VioBackEnd [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
+VioFrontEnd Frame Rate [ms]             	  222	59.3276	{5.77027 +- 1.51571}	[3,12]
+VioFrontEnd Keyframe Rate [ms]          	   73	19.6235	{31.4110 +- 7.29504}	[24,62]
+VioFrontEnd [ms]                        	  295	77.9727	{12.1593 +- 10.7279}	[3,62]
+Visualizer [ms]                         	   73	19.4639	{3.82192 +- 0.805234}	[2,7]
+backend_input_queue Size [#]            	   73	18.3878	{1.00000 +- 0.00000}	[1,1]
+data_provider_left_frame_queue Size (#) 	  663	165.202	{182.265 +- 14.5110}	[1,359]
+data_provider_right_frame_queue Size (#)	  663	165.084	{182.029 +- 14.5150}	[1,359]
+display_input_queue Size [#]            	  146	36.5428	{1.68493 +- 0.00000}	[1,12]
+stereo_frontend_input_queue Size [#]    	  301	75.3519	{4.84718 +- 0.219043}	[1,5]
+visualizer_backend_queue Size [#]       	   73	18.3208	{1.00000 +- 0.00000}	[1,1]
+visualizer_frontend_queue Size [#]      	  295	73.9984	{4.21695 +- 1.24381}	[1,7]
+```
+
+- `#` number of samples taken.
+- `Log Hz` average number of samples taken per second in Hz.
+- `avg` average of the actual value logged. Same unit as the logged quantity.
+- `std` standard deviation of the value logged.
+- `[min,max]` minimum and maximum values that the logged value took.
+
+There are two main things logged: the time it takes for the pipeline modules to run (i.e. `VioBackEnd`, `Visualizer` etc), and the size of the queues between pipeline modules (i.e. `backend_input_queue`).
+
+For example:
+```
+VioBackEnd [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
+```
+
+Shows that the backend runtime got sampled `73` times, at a rate of `19.48`Hz (which accounts for both the time the backend waits for input to consume and the time it takes to process it). That it takes `15.21`ms to consume its input with a standard deviation of `9.75`ms and that the least it took to run for one input was `0`ms and the most it took so far is `39`ms.
+
+For the queues, for example:
+```
+stereo_frontend_input_queue Size [#]    	  301	75.3519	{4.84718 +- 0.219043}	[1,5]
+```
+
+Shows that the frontend input queue got sampled `301` times, at a rate of `75.38`Hz. That it stores an average of `4.84` elements, with a standard deviation of `0.21` elements, and that the min size it had was `1` element, and the max size it stored was of `5` elements.
 
 # 6. Chart
 

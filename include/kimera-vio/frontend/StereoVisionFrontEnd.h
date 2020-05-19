@@ -16,13 +16,13 @@
 
 #include <memory>
 
-#include <boost/shared_ptr.hpp> // used for opengv
+#include <boost/shared_ptr.hpp>  // used for opengv
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/highgui/highgui_c.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
@@ -30,6 +30,7 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
@@ -37,27 +38,32 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/visualizer/Display-definitions.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 #include "kimera-vio/pipeline/PipelineModule.h"
 
 namespace VIO {
 
 class StereoVisionFrontEnd {
-public:
- KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEnd);
- KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
- EIGEN_MAKE_ALIGNED_OPERATOR_NEW
- using StereoFrontEndInputPayload = StereoImuSyncPacket;
- // using StereoFrontEndOutputPayload = VioBackEndInputPayload;
+ public:
+  KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEnd);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  using StereoFrontEndInputPayload = StereoImuSyncPacket;
 
-public:
- StereoVisionFrontEnd(
-     const ImuParams& imu_params,
-     const ImuBias& imu_initial_bias,
-     const VioFrontEndParams& tracker_params = VioFrontEndParams(),
-     bool log_output = false);
+ public:
+  StereoVisionFrontEnd(const ImuParams& imu_params,
+                       const ImuBias& imu_initial_bias,
+                       const FrontendParams& tracker_params,
+                       const CameraParams& camera_params,
+                       DisplayQueue* display_queue = nullptr,
+                       bool log_output = false);
+  virtual ~StereoVisionFrontEnd() {
+    LOG(INFO) << "StereoVisionFrontEnd destructor called.";
+  }
 
-public:
+ public:
   /* ------------------------------------------------------------------------ */
   // Update Imu Bias. This is thread-safe as imu_frontend_->updateBias is
   // thread-safe.
@@ -75,7 +81,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Update Imu Bias and reset pre-integration during initialization.
   // This is not thread-safe! (no multi-thread during initialization)
-  inline void updateAndResetImuBias(const ImuBias &imu_bias) const {
+  inline void updateAndResetImuBias(const ImuBias& imu_bias) const {
     imu_frontend_->updateBias(imu_bias);
     imu_frontend_->resetIntegrationWithCachedBias();
   }
@@ -89,22 +95,22 @@ public:
     resetGravity(Vector3::Zero());
     forceFiveThreePointMethod(true);
     CHECK(force_53point_ransac_);
-    CHECK_DOUBLE_EQ(getGravity().norm(),0.0);
-    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(),0.0);
+    CHECK_DOUBLE_EQ(getGravity().norm(), 0.0);
+    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), 0.0);
   }
 
   /* ------------------------------------------------------------------------ */
   // Check values in frontend for initial bundle adjustment for online alignment
   void checkFrontendForOnlineAlignment() {
     CHECK(force_53point_ransac_);
-    CHECK_DOUBLE_EQ(getGravity().norm(),0.0);
-    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(),0.0);
+    CHECK_DOUBLE_EQ(getGravity().norm(), 0.0);
+    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), 0.0);
   }
 
   /* ------------------------------------------------------------------------ */
   // Reset frontend after initial bundle adjustment for online alignment
-  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3 &gravity,
-                                      gtsam::Vector3 &gyro_bias) {
+  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3& gravity,
+                                         gtsam::Vector3& gyro_bias) {
     LOG(WARNING) << "Resetting frontend after online alignment!\n";
     forceFiveThreePointMethod(false);
     resetGravity(gravity);
@@ -113,10 +119,6 @@ public:
     CHECK_DOUBLE_EQ(getGravity().norm(), gravity.norm());
     CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), gyro_bias.norm());
   }
-
-  /* ************************************************************************ */
-  // NOT THREAD-SAFE METHODS
-  /* ************************************************************************ */
 
   /* ------------------------------------------------------------------------ */
   // Frontend initialization.
@@ -153,11 +155,24 @@ public:
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
+      const gtsam::Rot3& keyframe_R_ref_frame_,
+      cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
-  inline static void logTrackingStatus(const TrackingStatus& status,
-                                       const std::string& type = "mono") {
+  void outlierRejectionMono(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+                            Frame* left_frame_lkf,
+                            Frame* left_frame_k,
+                            TrackingStatusPose* status_pose_mono);
+
+  /* ------------------------------------------------------------------------ */
+  void outlierRejectionStereo(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+                              const StereoFrame::Ptr& left_frame_lkf,
+                              const StereoFrame::Ptr& left_frame_k,
+                              TrackingStatusPose* status_pose_stereo);
+
+  /* ------------------------------------------------------------------------ */
+  inline static void printTrackingStatus(const TrackingStatus& status,
+                                         const std::string& type = "mono") {
     LOG(INFO) << "Status " << type << ": "
               << TrackerStatusSummary::asString(status);
   }
@@ -167,35 +182,24 @@ public:
   static void printStatusStereoMeasurements(
       const StatusStereoMeasurements& statusStereoMeasurements);
 
-  // verbosity_ explanation (TODO: include this)
-  /*
-   * 0: no display
-   * 1: show images
-   * 2: write images (at each keyframe)
-   * 3: write video
-   * 4: write an image for each feature matched between left and right
-   */
   /* ------------------------------------------------------------------------ */
-  // Visualize quality of temporal and stereo matching
-  void displayStereoTrack(const int& verbosity) const;
+  // Log, visualize and/or save the feature tracks on the current left frame
+  void sendFeatureTracksToLogger() const;
+
+  cv::Mat displayFeatureTracks() const;
+
+  // Log, visualize and/or save quality of temporal and stereo matching
+  void sendStereoMatchesToLogger() const;
 
   /* ------------------------------------------------------------------------ */
-  // Visualize quality of temporal and stereo matching
-  void displayMonoTrack(const int& verbosity) const;
-
-  /* ------------------------------------------------------------------------ */
-  void displaySaveImage(
-      const cv::Mat& img_left,
-      const std::string& text_on_img = "",
-      const std::string& imshow_name = "mono tracking visualization (1 frame)",
-      const std::string& folder_name_append = "-monoMatching1frame",
-      const std::string& img_name_prepend = "monoTrackerDisplay1Keyframe_",
-      const int verbosity = 0) const;
+  // Log, visualize and/or save quality of temporal and stereo matching
+  void sendMonoTrackingToLogger() const;
 
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
-  // This is thread-safe as imu_frontend_->resetPreintegrationGravity is thread-safe.
-  void resetGravity(const gtsam::Vector3 &reset_value) const {
+  // This is thread-safe as imu_frontend_->resetPreintegrationGravity is
+  // thread-safe.
+  void resetGravity(const gtsam::Vector3& reset_value) const {
     imu_frontend_->resetPreintegrationGravity(reset_value);
   }
 
@@ -222,7 +226,7 @@ public:
     return tracker_.getTrackerDebugInfo();
   }
 
-private:
+ private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
   // owners, instead they should be passed around.
   // Stereo Frames
@@ -233,15 +237,19 @@ private:
   // Last keyframe
   std::shared_ptr<StereoFrame> stereoFrame_lkf_;
 
+  // Rotation from last keyframe to reference frame
+  // We use this to calculate the rotation btw reference frame and current frame
+  gtsam::Rot3 keyframe_R_ref_frame_;
+
   // Counters.
-  // Frame counte.
   int frame_count_;
-  // keyframe counte.
   int keyframe_count_;
-  // Previous number of landmarks (used for what is new landmark.
-  int last_landmark_count_;
+
   // Timestamp of last keyframe.
   Timestamp last_keyframe_timestamp_;
+
+  // Create the feature detector
+  FeatureDetector::UniquePtr feature_detector_;
 
   // Set of functionalities for tracking.
   Tracker tracker_;
@@ -260,13 +268,11 @@ private:
   // where we like
   std::string output_images_path_;
 
-  // Thread related members.
-  std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_thread_working_ = {false};
+  // Display queue
+  DisplayQueue* display_queue_;
 
   // Frontend logger.
   std::unique_ptr<FrontendLogger> logger_;
 };
 
-} // namespace VIO
-
+}  // namespace VIO

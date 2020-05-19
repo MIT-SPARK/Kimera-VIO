@@ -27,9 +27,9 @@
 #include <gtsam/navigation/ImuBias.h>
 
 #include "kimera-vio/backend/VioBackEnd.h"
+#include "kimera-vio/backend/VioBackEndFactory.h"
+#include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
-// only for gtNavState...
-#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/initial/InitializationBackEnd.h"
@@ -38,7 +38,6 @@
 DECLARE_string(test_data_path);
 
 namespace VIO {
-
 static const double tol = 1e-7;
 
 /* ************************************************************************* */
@@ -125,7 +124,7 @@ void CreateImuBuffer(VIO::utils::ThreadsafeImuBuffer& imu_buf,
 /* ************************************************************************* */
 TEST(testVio, robotMovingWithConstantVelocity) {
   // Additional parameters
-  VioBackEndParams vioParams;
+  BackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
   vioParams.horizon_ = 100;
 
@@ -285,9 +284,9 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
 /* ************************************************************************* */
 // TODO(Sandro): Move this test to separate file!
-TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
+TEST(testVio, DISABLED_robotMovingWithConstantVelocityBundleAdjustment) {
   // Additional parameters
-  VioBackEndParams vioParams;
+  BackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 100;  // we simulate points 30-40m away
   vioParams.horizon_ = 100;
   vioParams.smartNoiseSigma_ = 0.001;

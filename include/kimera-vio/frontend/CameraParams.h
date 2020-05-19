@@ -49,27 +49,30 @@ class CameraParams : public PipelineParams {
         frame_rate_(),
         image_size_(),
         calibration_(),
-        camera_matrix_(),
+        K_(),
         distortion_model_(),
         distortion_coeff_(),
         undistRect_map_x_(),
         undistRect_map_y_(),
         R_rectify_(),
         P_(),
-        is_stereo_with_camera_ids_() {}
+        is_stereo_with_camera_ids_() {
+  }
   virtual ~CameraParams() = default;
 
-  /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.
-  virtual bool parseYAML(const std::string& filepath) override;
+  bool parseYAML(const std::string& filepath) override;
 
-  /* ------------------------------------------------------------------------ */
   // Display all params.
-  virtual void print() const override;
+  void print() const override;
 
-  /* ------------------------------------------------------------------------ */
   // Assert equality up to a tolerance.
   bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
+
+ protected:
+  bool equals(const PipelineParams& rhs) const override {
+    return equals(static_cast<const CameraParams&>(rhs), 1e-9);
+  }
 
  public:
   // Id of the camera
@@ -77,21 +80,22 @@ class CameraParams : public PipelineParams {
 
   // fu, fv, cu, cv
   Intrinsics intrinsics_;
+  // OpenCV structures: needed to compute the undistortion map.
+  // 3x3 camera matrix K (last row is {0,0,1})
+  cv::Mat K_;
 
-  // Sensor extrinsics wrt. body-frame
+  // Sensor extrinsics wrt body-frame
   gtsam::Pose3 body_Pose_cam_;
 
   // Image info.
   double frame_rate_;
   cv::Size image_size_;
 
-  // GTSAM structures to calibrate points.
+  // GTSAM structures to calibrate points:
+  // Contains intrinsics and distortion parameters.
   gtsam::Cal3DS2 calibration_;
 
-  // OpenCV structures: For radial distortion and rectification.
-  // needed to compute the undistorsion map.
-  cv::Mat camera_matrix_;
-
+  // For radial distortion and rectification.
   // 5 parameters (last is zero): distortion_model: radial-tangential.
   // TODO(Toni): USE ENUM CLASS, not std::string...
   std::string distortion_model_;  // define default
@@ -101,6 +105,8 @@ class CameraParams : public PipelineParams {
   cv::Mat undistRect_map_x_;
   cv::Mat undistRect_map_y_;
 
+  // TODO(Toni): why do we have rectification stuff here? This should be
+  // for stereo cameras only...
   // Rotation resulting from rectification.
   cv::Mat R_rectify_;
 
@@ -110,15 +116,7 @@ class CameraParams : public PipelineParams {
   //! List of Cameras which share field of view with this one: i.e. stereo.
   std::vector<CameraId> is_stereo_with_camera_ids_;
 
- private:
-  void parseDistortion(const YamlParser& yaml_parser);
-  static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
-  static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
-  static void parseBodyPoseCam(const YamlParser& yaml_parser,
-                               gtsam::Pose3* body_Pose_cam);
-  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                    Intrinsics* intrinsics_);
-  // Convert distortion coefficients to OpenCV Format
+ public:
   static void convertDistortionVectorToMatrix(
       const std::vector<double>& distortion_coeffs,
       cv::Mat* distortion_coeffs_mat);
@@ -127,6 +125,15 @@ class CameraParams : public PipelineParams {
   static void createGtsamCalibration(const std::vector<double>& distortion,
                                      const Intrinsics& intrinsics,
                                      gtsam::Cal3DS2* calibration);
+
+ private:
+  void parseDistortion(const YamlParser& yaml_parser);
+  static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
+  static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
+  static void parseBodyPoseCam(const YamlParser& yaml_parser,
+                               gtsam::Pose3* body_Pose_cam);
+  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
+                                    Intrinsics* intrinsics_);
 };
 // TODO(Toni): this should be a base class, so that stereo camera is a specific
 // type of a multi camera sensor rig, or something along these lines.

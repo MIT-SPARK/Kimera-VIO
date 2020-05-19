@@ -20,81 +20,6 @@
 
 namespace VIO {
 
-VioNavState::VioNavState(const gtsam::Pose3& pose,
-                         const gtsam::Vector3& velocity,
-                         const gtsam::imuBias::ConstantBias& imu_bias)
-    : pose_(pose), velocity_(velocity), imu_bias_(imu_bias) {}
-
-VioNavState::VioNavState(const gtsam::NavState& nav_state,
-                         const gtsam::imuBias::ConstantBias& imu_bias)
-    : pose_(nav_state.pose()),
-      velocity_(nav_state.velocity()),
-      imu_bias_(imu_bias) {}
-
-void VioNavState::print(const std::string& message) const {
-  LOG(INFO) << "--- " << message << "--- ";
-  pose_.print("\n pose: \n");
-  LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
-  imu_bias_.print("\n imuBias: \n");
-}
-
-void VioNavStateTimestamped::print(const std::string& message) const {
-  LOG(INFO) << "--- " << message << "--- \n"
-            << "Timestamp: " << timestamp_;
-  VioNavState::print();
-}
-
-bool VioNavStateTimestamped::equals(const VioNavStateTimestamped& rhs) const {
-  return timestamp_ == rhs.timestamp_ && VioNavState::equals(rhs);
-}
-
-bool VioNavState::equals(const VioNavState& rhs) const {
-  return pose_.equals(rhs.pose_) && imu_bias_.equals(rhs.imu_bias_) &&
-         velocity_.isApprox(rhs.velocity_);
-}
-
-bool CameraImageLists::parseCamImgList(const std::string& folderpath,
-                                       const std::string& filename) {
-  CHECK(!folderpath.empty());
-  CHECK(!filename.empty());
-  image_folder_path_ = folderpath;  // stored, only for debug
-  const std::string fullname = folderpath + "/" + filename;
-  std::ifstream fin(fullname.c_str());
-  CHECK(fin.is_open()) << "Cannot open file: " << fullname;
-
-  // Skip the first line, containing the header.
-  std::string item;
-  std::getline(fin, item);
-
-  // Read/store list of image names.
-  while (std::getline(fin, item)) {
-    // Print the item!
-    int idx = item.find_first_of(',');
-    Timestamp timestamp = std::stoll(item.substr(0, idx));
-    std::string image_filename =
-        folderpath + "/data/" + item.substr(0, idx) + ".png";
-    // Strangely, on mac, it does not work if we use: item.substr(idx + 1);
-    // maybe different string termination characters???
-    img_lists_.push_back(make_pair(timestamp, image_filename));
-  }
-  fin.close();
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void CameraImageLists::print() const {
-  LOG(INFO) << "------------ CameraImageLists::print -------------\n"
-            << "image_folder_path: " << image_folder_path_ << '\n'
-            << "img_lists size: " << img_lists_.size();
-}
-
-void GroundTruthData::print() const {
-  LOG(INFO) << "------------ GroundTruthData::print -------------";
-  body_Pose_cam_.print("body_Pose_cam_: \n");
-  LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
-            << "nr of gtStates: " << map_to_gt_.size();
-}
-
 InitializationPerformance::InitializationPerformance(
     const Timestamp& init_timestamp,
     const int& init_n_frames,
@@ -141,6 +66,48 @@ void InitializationPerformance::print() const {
             << "\n(initial body frame gravity estimate)\n"
             << init_gravity_ << "\n(initial body frame gravity GT)\n"
             << gt_gravity_;
+}
+
+bool CameraImageLists::parseCamImgList(const std::string& folderpath,
+                                       const std::string& filename) {
+  CHECK(!folderpath.empty());
+  CHECK(!filename.empty());
+  image_folder_path_ = folderpath;  // stored, only for debug
+  const std::string fullname = folderpath + "/" + filename;
+  std::ifstream fin(fullname.c_str());
+  CHECK(fin.is_open()) << "Cannot open file: " << fullname;
+
+  // Skip the first line, containing the header.
+  std::string item;
+  std::getline(fin, item);
+
+  // Read/store list of image names.
+  while (std::getline(fin, item)) {
+    // Print the item!
+    auto idx = item.find_first_of(',');
+    Timestamp timestamp = std::stoll(item.substr(0, idx));
+    std::string image_filename =
+        folderpath + "/data/" + item.substr(0, idx) + ".png";
+    // Strangely, on mac, it does not work if we use: item.substr(idx + 1);
+    // maybe different string termination characters???
+    img_lists_.push_back(make_pair(timestamp, image_filename));
+  }
+  fin.close();
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+void CameraImageLists::print() const {
+  LOG(INFO) << "------------ CameraImageLists::print -------------\n"
+            << "image_folder_path: " << image_folder_path_ << '\n'
+            << "img_lists size: " << img_lists_.size();
+}
+
+void GroundTruthData::print() const {
+  LOG(INFO) << "------------ GroundTruthData::print -------------";
+  body_Pose_cam_.print("body_Pose_cam_: \n");
+  LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
+            << "nr of gtStates: " << map_to_gt_.size();
 }
 
 }  // namespace VIO

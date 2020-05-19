@@ -32,7 +32,7 @@
 
 namespace VIO {
 
-class RegularVioBackEndParams : public VioBackEndParams {
+class RegularVioBackEndParams : public BackendParams {
  public:
   KIMERA_POINTER_TYPEDEFS(RegularVioBackEndParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -42,19 +42,19 @@ class RegularVioBackEndParams : public VioBackEndParams {
  public:
   virtual bool parseYAML(const std::string& filepath) override;
 
-  virtual bool equals(const VioBackEndParams& vp2,
+  virtual bool equals(const BackendParams& vp2,
                       double tol = 1e-8) const override;
 
   virtual void print() const override;
 
   // Use this to safely cast VioBackEndParams to RegularVioBackEndParams.
-  static RegularVioBackEndParams safeCast(const VioBackEndParams& params);
+  static RegularVioBackEndParams safeCast(const BackendParams& params);
 
  protected:
   // Parse params YAML file
   bool parseYAMLRegularVioBackEndParams(const YamlParser& yaml_parser);
 
-  bool equalsRegularVioBackEndParams(const VioBackEndParams& vp2,
+  bool equalsRegularVioBackEndParams(const BackendParams& vp2,
                                      double tol = 1e-8) const;
 
   void printRegularVioBackEndParams() const {}

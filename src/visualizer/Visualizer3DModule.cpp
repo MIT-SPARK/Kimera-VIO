@@ -14,38 +14,59 @@
 
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <string>
+#include <utility>
 
 namespace VIO {
 
-VisualizerModule::VisualizerModule(bool parallel_run,
+VisualizerModule::VisualizerModule(OutputQueue* output_queue,
+                                   bool parallel_run,
                                    Visualizer3D::UniquePtr visualizer)
-    : MIMOPipelineModule<VisualizerInput, VisualizerOutput>("Visualizer",
+    : MISOPipelineModule<VisualizerInput, DisplayInputBase>(output_queue,
+                                                            "Visualizer",
                                                             parallel_run),
       frontend_queue_("visualizer_frontend_queue"),
       backend_queue_("visualizer_backend_queue"),
-      mesher_queue_("visualizer_mesher_queue"),
-      visualizer_(std::move(visualizer)){};
+      mesher_queue_(nullptr),
+      visualizer_(std::move(visualizer)) {
+  if (visualizer_->visualization_type_ ==
+      VisualizationType::kMesh2dTo3dSparse) {
+    // Activate mesher queue if we are going to visualize the mesh.
+    mesher_queue_ = VIO::make_unique<ThreadsafeQueue<VizMesherInput>>(
+        "visualizer_mesher_queue");
+  }
+}
+
+void VisualizerModule::fillMesherQueue(const VizMesherInput& mesher_payload) {
+  CHECK(mesher_queue_)
+      << "Filling mesher queue without mesher_queue_ being "
+         "initialized... Make sure you tell the visualizer that"
+         "you want to viz the 3D mesh...";
+  mesher_queue_->push(mesher_payload);
+}
 
 VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   bool queue_state = false;
-  VizMesherInput mesher_payload = nullptr;
+  VizBackendInput backend_payload = nullptr;
   if (PIO::parallel_run_) {
-    queue_state = mesher_queue_.popBlocking(mesher_payload);
+    // TODO(Toni): if the mesher_ is not running (it is optional) then there is
+    // no module filling this queue, and the visualizer gets stuck at this
+    // pop blocking :(
+    queue_state = backend_queue_.popBlocking(backend_payload);
   } else {
-    queue_state = mesher_queue_.pop(mesher_payload);
+    queue_state = backend_queue_.pop(backend_payload);
   }
 
   if (!queue_state) {
-    LOG_IF(WARNING, PIO::parallel_run_)
-        << "Module: " << name_id_ << " - Mesher queue is down";
-    VLOG_IF(1, !PIO::parallel_run_)
-        << "Module: " << name_id_ << " - Mesher queue is empty or down";
+    std::string msg = "Module: " + name_id_ + " - " + backend_queue_.queue_id_ +
+                      " queue is down";
+    LOG_IF(WARNING, PIO::parallel_run_) << msg;
+    VLOG_IF(1, !PIO::parallel_run_) << msg;
     return nullptr;
   }
 
-  CHECK(mesher_payload);
-  const Timestamp& timestamp = mesher_payload->timestamp_;
+  CHECK(backend_payload);
+  const Timestamp& timestamp = backend_payload->timestamp_;
 
   // Look for the synchronized packet in frontend payload queue
   // This should always work, because it should not be possible to have
@@ -55,9 +76,12 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   CHECK(frontend_payload);
   CHECK(frontend_payload->is_keyframe_);
 
-  VizBackendInput backend_payload = nullptr;
-  PIO::syncQueue(timestamp, &backend_queue_, &backend_payload);
-  CHECK(backend_payload);
+  VizMesherInput mesher_payload = nullptr;
+  if (mesher_queue_) {
+    // Mesher output is optional, only sync if callback registered.
+    CHECK(PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload));
+    CHECK(mesher_payload);
+  }
 
   // Push the synced messages to the visualizer's input queue
   return VIO::make_unique<VisualizerInput>(
@@ -74,17 +98,21 @@ void VisualizerModule::shutdownQueues() {
   LOG(INFO) << "Shutting down queues for: " << name_id_;
   frontend_queue_.shutdown();
   backend_queue_.shutdown();
-  mesher_queue_.shutdown();
-};
+  if (mesher_queue_) mesher_queue_->shutdown();
+  // This shutdowns the output queue as well.
+  MISO::shutdownQueues();
+}
 
 //! Checks if the module has work to do (should check input queues are empty)
 bool VisualizerModule::hasWork() const {
-  LOG_IF(WARNING, mesher_queue_.empty() && !backend_queue_.empty())
-      << "Mesher queue is empty, yet backend queue is not!"
+  LOG_IF(WARNING,
+         (mesher_queue_ ? mesher_queue_->empty() : false) &&
+             (!backend_queue_.empty() || !frontend_queue_.empty()))
+      << "Mesher queue is empty, yet backend or frontend queue is not!"
          "This should not happen since Mesher runs at Backend pace!";
   // We don't check frontend queue because it runs faster than the other two
   // queues.
-  return !mesher_queue_.empty();
-};
+  return mesher_queue_ ? !mesher_queue_->empty() : !backend_queue_.empty();
+}
 
 }  // namespace VIO

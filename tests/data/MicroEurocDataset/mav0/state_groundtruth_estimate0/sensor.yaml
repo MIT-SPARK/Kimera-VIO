@@ -1,0 +1,14 @@
+%YAML:1.0
+# General sensor definitions.
+sensor_type: visual-inertial
+comment: The nonlinear least-squares batch solution over the Vicon pose and IMU measurements including time offset estimation.
+
+# Sensor extrinsics wrt. the body-frame. This is the transformation of the
+# tracking prima to the body frame.
+T_BS:
+  cols: 4
+  rows: 4
+  data: [1.0, 0.0, 0.0, 0.0,
+         0.0, 1.0, 0.0, 0.0,
+         0.0, 0.0, 1.0, 0.0,
+         0.0, 0.0, 0.0, 1.0]

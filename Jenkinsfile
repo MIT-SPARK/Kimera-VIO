@@ -1,16 +1,18 @@
 /* Jenkinsfile for Jenkins running in a server using docker.
+ * THIS IS ONLY MEANT TO BE RUN ON THE SERVER HAVING JENKINS.
  * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
  * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v \
   jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock \
   --env JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=\"default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src \
   'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';\"" \
   jenkinsci/blueocean
- * Periodically, you might need to clean disk space, run: `docker system prune -a` while running jenkins (but stop all jobs).
- * Also, backup: `docker cp <jenkins-container-name>:/var/jenkins_home ./jenkins_home`
+ * Periodically backup: `docker cp <jenkins-container-name>:/var/jenkins_home ./jenkins_home`
+ * Also, you might need to clean disk space, run (WARNING will wipe up everything unless jenkins already runs):
+ * `docker system prune -a` while running jenkins (but stop all jobs).
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
- * TODO(Toni): change all spark_vio_evaluation/website/data into a Groovy String.
+ * TODO(Toni): change all Kimera-VIO-Evaluation/website/data into a Groovy String.
  */
 
 
@@ -27,7 +29,7 @@ pipeline {
               }
           }
           environment {
-            evaluator="/root/spark_vio_evaluation"
+            evaluator="/root/Kimera-VIO-Evaluation"
           }
           stages {
             stage('Build Release') {
@@ -40,38 +42,40 @@ pipeline {
             }
             stage('Test') {
               steps {
-                wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                  wrap([$class: 'Xvfb']) {
+                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+
+                    // Process the CTest xml output
+                    junit 'build/testresults.xml'
+                  }
                 }
               }
             }
             stage('Euroc Performance') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  // Copy params to Workspace
-                  sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
-                  sh 'cp -r $evaluator/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
-
                   // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/website/data
+                  // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
+                  // 1. Configure evo plotting: all plots in plots.pdf
+                  sh 'evo_config set plot_export_format pdf'
+                  sh 'evo_config set plot_split false'
+                  // 2. Run evaluation
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
-                    --save_plots --save_boxplots --save_results \
+                    --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
                   sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
-                    spark_vio_evaluation/website/data/V1_01_easy/S/results_vio.yaml \
-                    spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv'
-
-                  // Copy performance website to Workspace
-                  sh 'cp -r $evaluator/website $WORKSPACE/spark_vio_evaluation/'
+                    $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
+                    $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }
               }
               post {
                 success {
                     // Plot VIO performance.
                     plot csvFileName: 'plot-vio-performance-per-build.csv',
-                         csvSeries: [[file: 'spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv']],
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/vio_performance.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -80,26 +84,26 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'spark_vio_evaluation/website/data/V1_01_easy/S/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
                          title: 'VIO Timing',
                          yaxis: 'Time [ms]'
 
-                    // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+                    // Publish HTML website with plotly and pdfs of VIO performance
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, detailed_performance.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
 
                     // Archive the website
                     archiveArtifacts (
-                        artifacts: 'spark_vio_evaluation/website/data/**/*.*',
+                        artifacts: 'website/data/**/*.*',
                         fingerprint: true
                         )
 
                     // Archive the params used in evaluation (if these are used is determined
-                    // by the experiments yaml file in spark_vio_evaluation)
+                    // by the experiments yaml file in Kimera-VIO-Evaluation)
                     archiveArtifacts (
-                        artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
+                        artifacts: 'params/**/*.*',
                         fingerprint: true
                     )
                 }
@@ -135,6 +139,9 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+
+                  // Process the CTest xml output
+                  junit 'build/testresults.xml'
                 }
               }
             }
@@ -148,11 +155,9 @@ pipeline {
       node(null) {
         echo 'Jenkins Finished'
 
-        // Process the CTest xml output
-        junit 'build/testresults.xml'
 
         // Clear the source and build dirs before the next run
-        deleteDir()
+        // deleteDir()
       }
     }
     success {
@@ -178,7 +183,7 @@ pipeline {
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
       node(null) {
-        cleanWs()
+        // cleanWs()
       }
     }
   }

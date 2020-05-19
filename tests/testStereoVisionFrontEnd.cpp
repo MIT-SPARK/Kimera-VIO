@@ -73,7 +73,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         id_cur, timestamp_cur, cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
-    VioFrontEndParams tp;
+    FrontendParams tp;
 
     ref_stereo_frame = std::make_shared<StereoFrame>(
         id_ref,
@@ -111,7 +111,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   void clearFrame(Frame* f) {
     f->keypoints_.clear();
     f->landmarks_.clear();
-    f->landmarksAge_.clear();
+    f->landmarks_age_.clear();
     f->versors_.clear();
   }
 
@@ -327,7 +327,8 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
 
-  StereoVisionFrontEnd st(imu_params_, ImuBias{});
+  StereoVisionFrontEnd st(
+      imu_params_, ImuBias{}, FrontendParams(), CameraParams());
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -443,9 +444,9 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   EXPECT_NEAR(0, baseline(1), 1e-4);
   EXPECT_NEAR(0, baseline(2), 1e-4);
 
-  VioFrontEndParams p = VioFrontEndParams();  // default
-  p.min_distance_ = 0.05;
-  p.quality_level_ = 0.1;
+  FrontendParams p = FrontendParams();  // default
+  p.feature_detector_params_.min_distance_btw_tracked_and_detected_features_ = 0.05;
+  p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
 
   StereoFrame first_stereo_frame(
@@ -474,7 +475,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
       loadCorners(synthetic_stereo_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
-  StereoVisionFrontEnd st(imu_params_, ImuBias(), p);
+  StereoVisionFrontEnd st(imu_params_, ImuBias(), p, cam_params_left);
   const StereoFrame &sf = st.processFirstStereoFrame(first_stereo_frame);
 
   // Check the following results:
@@ -485,10 +486,10 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // landmarks_, landmarksAge_, keypoints_, versors_
   const Frame &left_frame = sf.getLeftFrame();
   const int num_corners = left_frame.landmarks_.size();
-  EXPECT_EQ(num_corners, left_frame.landmarksAge_.size());
+  EXPECT_EQ(num_corners, left_frame.landmarks_age_.size());
   EXPECT_EQ(num_corners, left_frame.keypoints_.size());
   EXPECT_EQ(num_corners, left_frame.versors_.size());
-  for (auto lm : left_frame.landmarksAge_) {
+  for (auto lm : left_frame.landmarks_age_) {
     EXPECT_EQ(lm, 1);
   }
   for (auto lid : left_frame.landmarks_) {

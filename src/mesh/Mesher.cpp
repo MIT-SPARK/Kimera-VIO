@@ -23,93 +23,120 @@
 #include <algorithm>
 #include <opencv2/imgproc.hpp>
 
+// For serialization of meshes
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
 // General functionality for the mesher.
-DEFINE_bool(add_extra_lmks_from_stereo, false,
+DEFINE_bool(add_extra_lmks_from_stereo,
+            false,
             "Add extra landmarks that are stereo triangulated to the mesh. "
             "WARNING this is computationally expensive.");
-DEFINE_bool(reduce_mesh_to_time_horizon, true,
+DEFINE_bool(reduce_mesh_to_time_horizon,
+            true,
             "Reduce mesh vertices to the "
             "landmarks available in current optimization's time horizon.");
-DEFINE_bool(compute_per_vertex_normals, false,
+DEFINE_bool(compute_per_vertex_normals,
+            false,
             "Compute per-vertex normals,"
             "this is for visualization in RVIZ, it is costly!");
 
 // Mesh 2D return, for semantic segmentation.
 // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
-DEFINE_bool(return_mesh_2d, false,
+DEFINE_bool(return_mesh_2d,
+            false,
             "Return mesh 2d with pixel positions, i.e."
             " for semantic segmentation");
 
 // Visualization.
 DEFINE_bool(visualize_histogram_1D, false, "Visualize 1D histogram.");
-DEFINE_bool(log_histogram_1D, false,
+DEFINE_bool(log_histogram_1D,
+            false,
             "Log 1D histogram to file."
             " It logs the raw and smoothed histogram.");
 DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
-DEFINE_bool(log_histogram_2D, false,
+DEFINE_bool(log_histogram_2D,
+            false,
             "Log 2D histogram to file."
             " It logs the raw and smoothed histogram.");
 
 // Mesh filters.
-DEFINE_double(max_grad_in_triangle, -1,
+DEFINE_double(max_grad_in_triangle,
+              -1,
               "Maximum allowed gradient inside a triangle.");
-DEFINE_double(min_ratio_btw_largest_smallest_side, 0.5,
+DEFINE_double(min_ratio_btw_largest_smallest_side,
+              0.5,
               "Minimum ratio between largest and smallest "
               "side of a triangle.");  // TODO: this check should be improved
-DEFINE_double(min_elongation_ratio, 0.5,
+DEFINE_double(min_elongation_ratio,
+              0.5,
               "Minimum allowed elongation "
               "ratio for a triangle.");  // TODO: this check should be improved
-DEFINE_double(max_triangle_side, 0.5,
+DEFINE_double(max_triangle_side,
+              0.5,
               "Maximum allowed side for "
               "a triangle.");
 
 // Association.
-DEFINE_double(normal_tolerance_polygon_plane_association, 0.011,
+DEFINE_double(normal_tolerance_polygon_plane_association,
+              0.011,
               "Tolerance for a polygon's normal and a plane's normal to be "
               "considered equal (0.087 === 10 deg. aperture).");
-DEFINE_double(distance_tolerance_polygon_plane_association, 0.10,
+DEFINE_double(distance_tolerance_polygon_plane_association,
+              0.10,
               "Tolerance for a polygon vertices to be considered close to a "
               "plane.");
-DEFINE_double(normal_tolerance_plane_plane_association, 0.011,
+DEFINE_double(normal_tolerance_plane_plane_association,
+              0.011,
               "Normal tolerance for a plane to be associated to another plane "
               "(0.087 === 10 deg. aperture).");
-DEFINE_double(distance_tolerance_plane_plane_association, 0.20,
+DEFINE_double(distance_tolerance_plane_plane_association,
+              0.20,
               "Distance tolerance for a plane to be associated to another "
               "plane.");
-DEFINE_bool(do_double_association, true,
+DEFINE_bool(do_double_association,
+            true,
             "Do double plane association of backend plane with multiple "
             "segmented planes. Otherwise search for another possible "
             "backend plane for the segmented plane.");
-DEFINE_bool(only_associate_a_polygon_to_a_single_plane, true,
+DEFINE_bool(only_associate_a_polygon_to_a_single_plane,
+            true,
             "Limit association of a particular polygon to a single plane. "
             "Otherwise, a polygon can be associated to different planes "
             " depending on the tolerance given by the thresholds set for "
             "association.");
 
 // Segmentation.
-DEFINE_double(normal_tolerance_horizontal_surface, 0.011,
+DEFINE_double(normal_tolerance_horizontal_surface,
+              0.011,
               "Normal tolerance for a polygon to be considered parallel to the "
               "ground (0.087 === 10 deg. aperture).");
-DEFINE_double(normal_tolerance_walls, 0.0165,
+DEFINE_double(normal_tolerance_walls,
+              0.0165,
               "Normal tolerance for a polygon to be considered perpendicular to"
               " the vertical direction.");
-DEFINE_bool(only_use_non_clustered_points, true,
+DEFINE_bool(only_use_non_clustered_points,
+            true,
             "Only use points that have not been clustered in a plane already "
             "when filling both histograms.");
 
 // Histogram 2D.
-DEFINE_int32(hist_2d_gaussian_kernel_size, 3,
+DEFINE_int32(hist_2d_gaussian_kernel_size,
+             3,
              "Kernel size for gaussian blur of 2D histogram.");
-DEFINE_int32(hist_2d_nr_of_local_max, 2,
+DEFINE_int32(hist_2d_nr_of_local_max,
+             2,
              "Number of local maximums to extract in 2D histogram.");
-DEFINE_int32(hist_2d_min_support, 20,
+DEFINE_int32(hist_2d_min_support,
+             20,
              "Minimum number of votes to consider a local maximum in 2D "
              "histogram a valid peak.");
 DEFINE_int32(
-    hist_2d_min_dist_btw_local_max, 5,
+    hist_2d_min_dist_btw_local_max,
+    5,
     "Minimum distance between local maximums to be considered different.");
 DEFINE_int32(hist_2d_theta_bins, 40, ".");
 DEFINE_int32(hist_2d_distance_bins, 40, ".");
@@ -122,30 +149,42 @@ DEFINE_double(hist_2d_distance_range_max, 6.0, ".");
 DEFINE_int32(z_histogram_bins, 512, "Number of bins for z histogram.");
 DEFINE_double(z_histogram_min_range, -0.75, "Minimum z value for z histogram.");
 DEFINE_double(z_histogram_max_range, 3.0, "Maximum z value for z histogram.");
-DEFINE_int32(z_histogram_window_size, 3,
+DEFINE_int32(z_histogram_window_size,
+             3,
              "Window size of z histogram to "
              "calculate derivatives, not sure in fact.");
-DEFINE_double(z_histogram_peak_per, 0.5,
+DEFINE_double(z_histogram_peak_per,
+              0.5,
               "Extra peaks in the z histogram will be only considered if it "
               "has a value of peak_per (< 1) times the value of the max peak"
               " in the histogram.");
-DEFINE_double(z_histogram_min_support, 50,
+DEFINE_double(z_histogram_min_support,
+              50,
               "Minimum number of votes for a value in the z histogram to be "
               "considered a peak.");
-DEFINE_double(z_histogram_min_separation, 0.1,
+DEFINE_double(z_histogram_min_separation,
+              0.1,
               "If two peaks in the z histogram lie within min_separation "
               ", only the one with maximum support will be taken "
               "(sisable by setting < 0).");
-DEFINE_int32(z_histogram_gaussian_kernel_size, 5,
+DEFINE_int32(z_histogram_gaussian_kernel_size,
+             5,
              "Kernel size for gaussian blur of z histogram (should be odd).");
-DEFINE_int32(z_histogram_max_number_of_peaks_to_select, 3,
+DEFINE_int32(z_histogram_max_number_of_peaks_to_select,
+             3,
              "Maximum number of peaks to select in z histogram.");
 
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-Mesher::Mesher(const MesherParams& mesher_params)
-    : mesher_params_(mesher_params), mesh_3d_() {
+Mesher::Mesher(const MesherParams& mesher_params, const bool& serialize_meshes)
+    : mesher_params_(mesher_params),
+      mesh_2d_(),
+      mesh_3d_(),
+      mesher_logger_(nullptr),
+      serialize_meshes_(serialize_meshes) {
+  mesher_logger_ = VIO::make_unique<MesherLogger>();
+
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
   // We cannot use an array of doubles here bcs the function cv::calcHist asks
@@ -169,8 +208,8 @@ Mesher::Mesher(const MesherParams& mesher_params)
       static_cast<float>(FLAGS_hist_2d_distance_range_max)};
   std::vector<std::array<float, 2>> ranges_2d = {theta_range, distance_range};
   std::vector<int> channels_2d = {0, 1};
-  hist_2d_ = Histogram(1, channels_2d, cv::Mat(), 2, hist_2d_size, ranges_2d,
-                       true, false);
+  hist_2d_ = Histogram(
+      1, channels_2d, cv::Mat(), 2, hist_2d_size, ranges_2d, true, false);
 }
 
 MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
@@ -183,6 +222,8 @@ MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
       // These are more or less
       // the same info as mesh_2d_
       &(mesher_output_payload->mesh_2d_for_viz_));
+  // Serialize 2D/3D Mesh if requested
+  if (serialize_meshes_) serializeMeshes();
   // TODO(Toni): remove these calls, since all info is in mesh_3d_...
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
@@ -194,7 +235,9 @@ MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
 // For a triangle defined by the 3d points p1, p2, and p3
 // compute ratio between largest side and smallest side (how elongated it is).
 double Mesher::getRatioBetweenSmallestAndLargestSide(
-    const double& d12, const double& d23, const double& d31,
+    const double& d12,
+    const double& d23,
+    const double& d31,
     boost::optional<double&> minSide_out,
     boost::optional<double&> maxSide_out) const {
   // Measure sides.
@@ -217,7 +260,9 @@ double Mesher::getRatioBetweenSmallestAndLargestSide(
 // mapPoints3d_.at(rowId_pt2), mapPoints3d_.at(rowId_pt3), compute ratio between
 // largest side and smallest side (how elongated it is)
 double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
-    const Vertex3D& p1, const Vertex3D& p2, const Vertex3D& p3,
+    const Vertex3D& p1,
+    const Vertex3D& p2,
+    const Vertex3D& p3,
     const gtsam::Pose3& leftCameraPose) const {
   std::vector<gtsam::Point3> points;
 
@@ -261,9 +306,11 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
     CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
     // Check if triangle is good.
-    if (!isBadTriangle(polygon, leftCameraPose,
+    if (!isBadTriangle(polygon,
+                       leftCameraPose,
                        minRatioBetweenLargestAnSmallestSide,
-                       min_elongation_ratio, maxTriangleSide)) {
+                       min_elongation_ratio,
+                       maxTriangleSide)) {
       mesh_output.addPolygonToMesh(polygon);
     }
   }
@@ -395,19 +442,26 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
   polygon.resize(3);
 
   // Iterate over the 2d mesh triangles.
-  for (size_t i = 0; i < mesh_2d_pixels.size(); i++) {
+  for (size_t i = 0u; i < mesh_2d_pixels.size(); i++) {
     const cv::Vec6f& triangle_2d = mesh_2d_pixels.at(i);
 
     // Iterate over each vertex (pixel) of the triangle.
     // Triangle_2d.rows = 3.
-    for (size_t j = 0; j < triangle_2d.rows / 2; j++) {
+    for (size_t j = 0u; j < triangle_2d.rows / 2u; j++) {
       // Extract pixel.
-      const cv::Point2f pixel(triangle_2d[j * 2], triangle_2d[j * 2 + 1]);
+      const cv::Point2f pixel(triangle_2d[j * 2u], triangle_2d[j * 2u + 1u]);
 
       // Extract landmark id corresponding to this pixel.
       const LandmarkId& lmk_id(
           Frame::findLmkIdFromPixel(pixel, keypoints, landmarks));
-      CHECK_NE(lmk_id, -1);
+      if (lmk_id == -1) {
+        //CHECK_NE(lmk_id, -1) << "Could not find lmk_id: " << lmk_id
+        //  << " for pixel: " << pixel << " in keypoints:\n "
+        //  << keypoints;
+        LOG(ERROR) << "Could not find lmk_id: " << lmk_id
+          << " for pixel: " << pixel;
+        break;
+      }
 
       // Try to find this landmark id in points_with_id_map.
       const auto& lmk_it = points_with_id_map.find(lmk_id);
@@ -424,7 +478,7 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
         if (mesh_2d != nullptr) {
           face.at(j) = Mesh2D::VertexType(lmk_id, pixel);
         }
-        static const size_t loop_end = triangle_2d.rows / 2 - 1;
+        static const size_t loop_end = triangle_2d.rows / 2u - 1u;
         if (j == loop_end) {
           // Last iteration.
           // Filter out bad polygons.
@@ -501,7 +555,9 @@ void Mesher::updatePolygonMeshToTimeHorizon(
     if (save_polygon) {
       // Refilter polygons, as the updated vertices might make it unvalid.
       if (!isBadTriangle(
-              polygon, leftCameraPose, min_ratio_largest_smallest_side,
+              polygon,
+              leftCameraPose,
+              min_ratio_largest_smallest_side,
               -1.0,  // elongation test is invalid, no per-frame concept
               max_triangle_side)) {
         // Finally add the polygon to the mesh.
@@ -554,7 +610,8 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 /* -------------------------------------------------------------------------- */
 // Calculate normal of a triangle, and return whether it was possible or not.
 // Calculating the normal of aligned points in 3D is not possible...
-bool Mesher::calculateNormal(const Vertex3D& p1, const Vertex3D& p2,
+bool Mesher::calculateNormal(const Vertex3D& p1,
+                             const Vertex3D& p2,
                              const Vertex3D& p3,
                              // Make this a cv::vector3f
                              cv::Point3f* normal) const {
@@ -630,8 +687,10 @@ bool Mesher::isNormalAroundAxis(const cv::Point3f& axis,
 // and a tolerance. The result is a vector of indices of the given set of
 // normals that are in the cluster.
 void Mesher::clusterNormalsPerpendicularToAxis(
-    const cv::Point3f& axis, const std::vector<cv::Point3f>& normals,
-    const double& tolerance, std::vector<int>* cluster_normals_idx) {
+    const cv::Point3f& axis,
+    const std::vector<cv::Point3f>& normals,
+    const double& tolerance,
+    std::vector<int>* cluster_normals_idx) {
   size_t idx = 0;
   static constexpr bool log_normals = false;
   std::vector<cv::Point3f> cluster_normals;
@@ -659,13 +718,17 @@ bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
 /* -------------------------------------------------------------------------- */
 // Checks whether all points in polygon are closer than tolerance to the plane.
 bool Mesher::isPolygonAtDistanceFromPlane(
-    const Mesh3D::Polygon& polygon, const double& plane_distance,
-    const cv::Point3f& plane_normal, const double& distance_tolerance) const {
+    const Mesh3D::Polygon& polygon,
+    const double& plane_distance,
+    const cv::Point3f& plane_normal,
+    const double& distance_tolerance) const {
   CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05);  // Expect unit norm.
   DCHECK_GE(distance_tolerance, 0.0);
   for (const Mesh3D::VertexType& vertex : polygon) {
-    if (!isPointAtDistanceFromPlane(vertex.getVertexPosition(), plane_distance,
-                                    plane_normal, distance_tolerance)) {
+    if (!isPointAtDistanceFromPlane(vertex.getVertexPosition(),
+                                    plane_distance,
+                                    plane_normal,
+                                    distance_tolerance)) {
       return false;
     }
   }
@@ -676,8 +739,10 @@ bool Mesher::isPolygonAtDistanceFromPlane(
 /* -------------------------------------------------------------------------- */
 // Checks whether the point is closer than tolerance to the plane.
 bool Mesher::isPointAtDistanceFromPlane(
-    const Vertex3D& point, const double& plane_distance,
-    const cv::Point3f& plane_normal, const double& distance_tolerance) const {
+    const Vertex3D& point,
+    const double& plane_distance,
+    const cv::Point3f& plane_normal,
+    const double& distance_tolerance) const {
   CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05);  // Expect unit norm.
   DCHECK_GE(distance_tolerance, 0.0);
   // The lmk is closer to the plane than given tolerance.
@@ -695,7 +760,9 @@ void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes,
   // Segment planes in the mesh, using seeds.
   VLOG(10) << "Starting plane segmentation...";
   std::vector<Plane> new_planes;
-  segmentPlanesInMesh(planes, &new_planes, points_with_id_vio,
+  segmentPlanesInMesh(planes,
+                      &new_planes,
+                      points_with_id_vio,
                       FLAGS_normal_tolerance_polygon_plane_association,
                       FLAGS_distance_tolerance_polygon_plane_association,
                       FLAGS_normal_tolerance_horizontal_surface,
@@ -704,7 +771,9 @@ void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes,
   // Do data association between the planes given and the ones segmented.
   VLOG(10) << "Starting plane association...";
   std::vector<Plane> new_non_associated_planes;
-  associatePlanes(new_planes, *planes, &new_non_associated_planes,
+  associatePlanes(new_planes,
+                  *planes,
+                  &new_non_associated_planes,
                   FLAGS_normal_tolerance_plane_plane_association,
                   FLAGS_distance_tolerance_plane_plane_association);
   VLOG(10) << "Finished plane association.";
@@ -719,11 +788,13 @@ void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes,
     updatePlanesLmkIdsFromMesh(
         &new_non_associated_planes,
         FLAGS_normal_tolerance_polygon_plane_association,
-        FLAGS_distance_tolerance_polygon_plane_association, points_with_id_vio);
+        FLAGS_distance_tolerance_polygon_plane_association,
+        points_with_id_vio);
     VLOG(10) << "Finished update plane lmk ids for new non-associated planes.";
 
     // Append new planes that where not associated to original planes.
-    planes->insert(planes->end(), new_non_associated_planes.begin(),
+    planes->insert(planes->end(),
+                   new_non_associated_planes.begin(),
                    new_non_associated_planes.end());
   } else {
     VLOG(10)
@@ -778,9 +849,13 @@ void Mesher::segmentPlanesInMesh(
       // Update seed_planes lmk_ids field with ids of vertices of polygon if the
       // polygon is on the plane.
       bool is_polygon_on_a_plane = updatePlanesLmkIdsFromPolygon(
-          seed_planes, polygon, i, triangle_normal,
+          seed_planes,
+          polygon,
+          i,
+          triangle_normal,
           normal_tolerance_polygon_plane_association,
-          distance_tolerance_polygon_plane_association, points_with_id_vio,
+          distance_tolerance_polygon_plane_association,
+          points_with_id_vio,
           FLAGS_only_associate_a_polygon_to_a_single_plane);
 
       ////////////////// Build Histogram for new planes ////////////////////////
@@ -791,8 +866,8 @@ void Mesher::segmentPlanesInMesh(
       static const cv::Point3f vertical(0, 0, 1);
       if ((FLAGS_only_use_non_clustered_points ? !is_polygon_on_a_plane
                                                : true) &&
-          isNormalAroundAxis(vertical, triangle_normal,
-                             normal_tolerance_horizontal_surface)) {
+          isNormalAroundAxis(
+              vertical, triangle_normal, normal_tolerance_horizontal_surface)) {
         // We have a triangle with a normal aligned with gravity, which is not
         // already clustered in a plane.
         // Store z components to build histogram.
@@ -803,8 +878,8 @@ void Mesher::segmentPlanesInMesh(
         z_components.push_back(p3.z);
       } else if ((FLAGS_only_use_non_clustered_points ? !is_polygon_on_a_plane
                                                       : true) &&
-                 isNormalPerpendicularToAxis(vertical, triangle_normal,
-                                             normal_tolerance_walls)) {
+                 isNormalPerpendicularToAxis(
+                     vertical, triangle_normal, normal_tolerance_walls)) {
         /// Values for walls Histogram./////////////////////////////////////////
         // WARNING if we do not normalize, we'll have two peaks for the same
         // plane, no?
@@ -886,8 +961,13 @@ void Mesher::updatePlanesLmkIdsFromMesh(
       // Loop over newly segmented planes, and update lmk ids field if
       // the current polygon is on the plane.
       updatePlanesLmkIdsFromPolygon(
-          planes, polygon, i, triangle_normal, normal_tolerance,
-          distance_tolerance, points_with_id_vio,
+          planes,
+          polygon,
+          i,
+          triangle_normal,
+          normal_tolerance,
+          distance_tolerance,
+          points_with_id_vio,
           FLAGS_only_associate_a_polygon_to_a_single_plane);
     }
   }
@@ -912,10 +992,12 @@ bool Mesher::updatePlanesLmkIdsFromPolygon(
     // Only cluster if normal and distance of polygon are close to plane.
     // WARNING: same polygon is being possibly clustered in multiple planes.
     // Break loop when polygon is in a plane?
-    if (isNormalAroundAxis(seed_plane.normal_, triangle_normal,
-                           normal_tolerance) &&
-        isPolygonAtDistanceFromPlane(polygon, seed_plane.distance_,
-                                     seed_plane.normal_, distance_tolerance)) {
+    if (isNormalAroundAxis(
+            seed_plane.normal_, triangle_normal, normal_tolerance) &&
+        isPolygonAtDistanceFromPlane(polygon,
+                                     seed_plane.distance_,
+                                     seed_plane.normal_,
+                                     distance_tolerance)) {
       // I guess we can comment out the check below since it can happen that
       // a poygon is segmented in two very close planes? Better we enable
       // it again!
@@ -958,8 +1040,8 @@ void Mesher::segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
   // Segment horizontal planes.
   static size_t plane_id = 0;
   static const Plane::Normal vertical(0, 0, 1);
-  segmentHorizontalPlanes(new_segmented_planes, &plane_id, vertical,
-                          z_components);
+  segmentHorizontalPlanes(
+      new_segmented_planes, &plane_id, vertical, z_components);
 
   // Segment vertical planes.
   segmentWalls(new_segmented_planes, &plane_id, walls);
@@ -969,7 +1051,8 @@ void Mesher::segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
 // Segment wall planes.
 // plane_id, starting id for new planes, it gets increased every time we add a
 // new plane.
-void Mesher::segmentWalls(std::vector<Plane>* wall_planes, size_t* plane_id,
+void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
+                          size_t* plane_id,
                           const cv::Mat& walls) {
   CHECK_NOTNULL(wall_planes);
   CHECK_NOTNULL(plane_id);
@@ -985,10 +1068,13 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes, size_t* plane_id,
   std::vector<Histogram::PeakInfo2D> peaks2;
   static const cv::Size kernel_size_2d(FLAGS_hist_2d_gaussian_kernel_size,
                                        FLAGS_hist_2d_gaussian_kernel_size);
-  hist_2d_.getLocalMaximum2D(
-      &peaks2, kernel_size_2d, FLAGS_hist_2d_nr_of_local_max,
-      FLAGS_hist_2d_min_support, FLAGS_hist_2d_min_dist_btw_local_max,
-      FLAGS_visualize_histogram_2D, FLAGS_log_histogram_2D);
+  hist_2d_.getLocalMaximum2D(&peaks2,
+                             kernel_size_2d,
+                             FLAGS_hist_2d_nr_of_local_max,
+                             FLAGS_hist_2d_min_support,
+                             FLAGS_hist_2d_min_dist_btw_local_max,
+                             FLAGS_visualize_histogram_2D,
+                             FLAGS_log_histogram_2D);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
   VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
@@ -1015,7 +1101,9 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes, size_t* plane_id,
              << "\t distance: " << plane_distance << "\n\t plane id: "
              << gtsam::DefaultKeyFormatter(plane_symbol.key())
              << "\n\t cluster id: " << cluster_id;
-    wall_planes->push_back(Plane(plane_symbol, plane_normal, plane_distance,
+    wall_planes->push_back(Plane(plane_symbol,
+                                 plane_normal,
+                                 plane_distance,
                                  // Currently filled after this function...
                                  LandmarkIds(),  // We should fill this!!!
                                  cluster_id));
@@ -1042,10 +1130,13 @@ void Mesher::segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
 
   VLOG(10) << "Starting get local maximum for 1D.";
   static const cv::Size kernel_size(1, FLAGS_z_histogram_gaussian_kernel_size);
-  std::vector<Histogram::PeakInfo> peaks = z_hist_.getLocalMaximum1D(
-      kernel_size, FLAGS_z_histogram_window_size, FLAGS_z_histogram_peak_per,
-      FLAGS_z_histogram_min_support, FLAGS_visualize_histogram_1D,
-      FLAGS_log_histogram_1D);
+  std::vector<Histogram::PeakInfo> peaks =
+      z_hist_.getLocalMaximum1D(kernel_size,
+                                FLAGS_z_histogram_window_size,
+                                FLAGS_z_histogram_peak_per,
+                                FLAGS_z_histogram_min_support,
+                                FLAGS_visualize_histogram_1D,
+                                FLAGS_log_histogram_1D);
   VLOG(10) << "Finished get local maximum for 1D.";
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
@@ -1100,7 +1191,8 @@ void Mesher::segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
   }
 
   for (int peak_nr = 0;
-       peak_nr < FLAGS_z_histogram_max_number_of_peaks_to_select; peak_nr++) {
+       peak_nr < FLAGS_z_histogram_max_number_of_peaks_to_select;
+       peak_nr++) {
     // Get the peaks in order of max support.
     std::vector<Histogram::PeakInfo>::iterator it =
         std::max_element(peaks.begin(), peaks.end());
@@ -1117,7 +1209,9 @@ void Mesher::segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
                << gtsam::DefaultKeyFormatter(plane_symbol.key())
                << "\n\t cluster id: " << cluster_id;
       horizontal_planes->push_back(
-          Plane(plane_symbol, normal, plane_distance,
+          Plane(plane_symbol,
+                normal,
+                plane_distance,
                 // Currently filled after this function...
                 LandmarkIds(),  // We should fill this!!!
                 cluster_id));
@@ -1176,8 +1270,8 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
         // Check if normals are close or 180 degrees apart.
         // Check if distance is similar in absolute value.
         // TODO check distance given the difference in normals.
-        if (plane_backend.geometricEqual(segmented_plane, normal_tolerance,
-                                         distance_tolerance)) {
+        if (plane_backend.geometricEqual(
+                segmented_plane, normal_tolerance, distance_tolerance)) {
           // We found a plane association
           uint64_t backend_plane_index = plane_backend.getPlaneSymbol().index();
           // Check that it was not associated before.
@@ -1286,8 +1380,7 @@ void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
 
   // Get points in stereo camera that are not in vio but have lmk id:
   PointsWithIdMap points_with_id_stereo;
-  // TODO(Toni): put this in mesher params, and allow for only seeing stereo
-  // mesh
+  // TODO(Toni): allow for only seeing stereo mesh
   if (FLAGS_add_extra_lmks_from_stereo) {
     // Append vio points.
     // WARNING some stereo and vio lmks share the same id, so adding order
@@ -1401,8 +1494,8 @@ void Mesher::extractLmkIdsFromVectorOfTriangleClusters(
   lmk_ids->resize(0);
 
   for (const TriangleCluster& triangle_cluster : triangle_clusters) {
-    extractLmkIdsFromTriangleCluster(triangle_cluster, points_with_id_vio,
-                                     lmk_ids);
+    extractLmkIdsFromTriangleCluster(
+        triangle_cluster, points_with_id_vio, lmk_ids);
   }
   VLOG(10) << "Finished extract lmk ids for vector of triangle cluster.";
 }
@@ -1476,6 +1569,18 @@ void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
   mesh_3d_.convertPolygonsMeshToMat(polygons_mesh);
 }
 
+void Mesher::serializeMeshes() {
+  CHECK(mesher_logger_);
+  mesher_logger_->serializeMesh(mesh_3d_, "mesh_3d");
+  mesher_logger_->serializeMesh(mesh_2d_, "mesh_2d");
+}
+
+void Mesher::deserializeMeshes() {
+  CHECK(mesher_logger_);
+  mesher_logger_->deserializeMesh("mesh_3d", &mesh_3d_);
+  mesher_logger_->deserializeMesh("mesh_2d", &mesh_2d_);
+}
+
 /* -------------------------------------------------------------------------- */
 void Mesher::createMesh2dVIO(
     std::vector<cv::Vec6f>* triangulation_2D,
@@ -1500,7 +1605,7 @@ void Mesher::createMesh2dVIO(
   LOG_IF(WARNING, pointsWithIdVIO.empty())
       << "List of Keypoints with associated Landmarks is empty.";
   for (const auto& point_with_id : pointsWithIdVIO) {
-    for (size_t j = 0; j < landmarks.size(); j++) {
+    for (size_t j = 0u; j < landmarks.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
       if (landmarks.at(j) == point_with_id.first &&
@@ -1516,41 +1621,61 @@ void Mesher::createMesh2dVIO(
 }
 
 /* -------------------------------------------------------------------------- */
-// Create a 2D mesh from 2D corners in an image, coded as a Frame class
+// Create a 2D mesh from 2D corners in an image
 // Returns the actual keypoints used to perform the triangulation.
 std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     const cv::Size& img_size,
-    std::vector<cv::Point2f>* keypoints_to_triangulate) {
+    KeypointsCV* keypoints_to_triangulate) {
   CHECK_NOTNULL(keypoints_to_triangulate);
   // Nothing to triangulate.
   if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
 
   // Rectangle to be used with Subdiv2D.
-  cv::Rect2f rect(0, 0, img_size.width, img_size.height);
+  // https://answers.opencv.org/question/180984/out-of-range-error-in-delaunay-triangulation/
+  static const cv::Rect2f rect(0.0, 0.0, img_size.width, img_size.height);
   // subdiv has the delaunay triangulation function
   cv::Subdiv2D subdiv(rect);
+  subdiv.initDelaunay(rect);
+  // subdiv.swapEdges()
 
   // TODO Luca: there are kpts outside image, probably from tracker. This
   // check should be in the tracker.
   // -> Make sure we only pass keypoints inside the image!
-  for (auto it = keypoints_to_triangulate->begin();
-       it != keypoints_to_triangulate->end();) {
-    if (!rect.contains(*it)) {
-      VLOG(1) << "createMesh2D - error, keypoint out of image frame.";
-      it = keypoints_to_triangulate->erase(it);
-      // Go backwards, otherwise it++ will jump one keypoint...
+  KeypointsCV keypoints_inside_image;
+  keypoints_inside_image.reserve(keypoints_to_triangulate->size());
+  for (const KeypointCV& kp : *keypoints_to_triangulate) {
+    if (rect.contains(kp)) {
+      // TODO(Toni): weirdly enough rect.contains does not quite work with
+      // (-0.0 - epsilon) values... it still considers them inside...
+      if (kp.x >= 0.0 && kp.y >= 0.0) {
+        keypoints_inside_image.push_back(kp);
+      } else {
+        LOG(ERROR) << "Keypoint with negative coords: \n"
+                   << "x: " << kp.x << ", y:" << kp.y;
+      }
     } else {
-      it++;
+      VLOG(1) << "createMesh2D - error, keypoint out of image frame: \n"
+              << "Keypoint 2D: " << kp
+              << "Rectangle Image size (x, y, height, width): " << rect.x
+              << ", " << rect.y << ", " << rect.height << ", " << rect.width;
     }
   }
 
-  // Perform triangulation.
+  // Perform 2D Delaunay triangulation.
   try {
-    subdiv.insert(*keypoints_to_triangulate);
+    subdiv.insert(keypoints_inside_image);
   } catch (...) {
-    LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2).\n Keypoints to "
-                  "triangulate: "
-               << keypoints_to_triangulate->size();
+    LOG(ERROR) << "Keypoints supposedly inside the image:";
+    for (const KeypointCV& kp : keypoints_inside_image) {
+      LOG(ERROR) << "x: " << kp.x << ", y: " << kp.y;
+    }
+    LOG(ERROR) << "CreateMesh2D: subdiv.insert error (2). "
+               << "A point is outside of the triangulation specified rect...\n"
+               << "Rectangle size (x, y, height, width): " << rect.x << ", "
+               << rect.y << ", " << rect.height << ", " << rect.width << '\n'
+               << "Keypoints to triangulate: "
+               << keypoints_to_triangulate->size() << '\n'
+               << "Keypoints inside image: " << keypoints_inside_image.size();
   }
 
   // getTriangleList returns some spurious triangle with vertices outside
@@ -1561,17 +1686,24 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   subdiv.getTriangleList(triangulation2D);
 
   // Retrieve "good triangles" (all vertices are inside image).
-  for (auto it = triangulation2D.begin(); it != triangulation2D.end();) {
-    if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
-        !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
-        !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
-      it = triangulation2D.erase(it);
-      // Go backwards, otherwise it++ will jump one keypoint...
+  std::vector<cv::Vec6f> good_triangulation;
+  good_triangulation.reserve(triangulation2D.size());
+  for (const cv::Vec6f& tri : triangulation2D) {
+    if (rect.contains(cv::Point2f(tri[0], tri[1])) &&
+        rect.contains(cv::Point2f(tri[2], tri[3])) &&
+        rect.contains(cv::Point2f(tri[4], tri[5]))) {
+      // Triangle with all vertices inside image
+      good_triangulation.push_back(tri);
     } else {
-      it++;
+      VLOG(1) << "Delaunay Triangle out of image (size: x: " << rect.x
+                   << ", y: " << rect.y << ", height: " << rect.height
+                   << ", width "<< rect.width << "\n Triangle: x, y: \n"
+                   << tri[0] << ", " << tri[1] << '\n'
+                   << tri[2] << ", " << tri[3] << '\n'
+                   << tri[4] << ", " << tri[5];
     }
   }
-  return triangulation2D;
+  return good_triangulation;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1622,7 +1754,7 @@ void Mesher::createMesh2dStereo(
   // Create mesh including indices of keypoints with valid 3D
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
-  for (int i = 0; i < landmarks.size(); i++) {
+  for (size_t i = 0u; i < landmarks.size(); i++) {
     if (keypoints_status.at(i) == KeypointStatus::VALID &&
         landmarks.at(i) != -1) {
       // Add keypoints for mesh 2d.

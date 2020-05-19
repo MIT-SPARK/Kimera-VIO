@@ -73,64 +73,11 @@ class Frame : public PipelinePayload {
         keypoints_(frame.keypoints_),
         scores_(frame.scores_),
         landmarks_(frame.landmarks_),
-        landmarksAge_(frame.landmarksAge_),
+        landmarks_age_(frame.landmarks_age_),
         versors_(frame.versors_),
         descriptors_(frame.descriptors_) {}
 
  public:
-  /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
-  // ExtractCorners using goodFeaturesToTrack
-  // This is only used for testing purposes.
-  // TODO, define it in the tests, rather than here, as it distracts coders,
-  // since it is not actually used by the VIO pipeline.
-  void extractCorners(const double qualityLevel = 0.01,
-                      const double minDistance = 10,
-                      const int blockSize = 3,
-                      const bool useHarrisDetector = false,
-                      const double k = 0.04) {
-    UtilsOpenCV::ExtractCorners(img_,
-                                &keypoints_,
-                                qualityLevel,
-                                minDistance,
-                                blockSize,
-                                k,
-                                useHarrisDetector);
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // NOT TESTED:
-  void setLandmarksToMinus1(const LandmarkIds& lmkIds) {
-    // TODO: this has quadratic complexity
-    for (const LandmarkId& lmkId : lmkIds) {
-      // For each landmark we want to discard.
-      bool found = false;
-      for (size_t ind = 0; ind < landmarks_.size(); ind++) {
-        // We look for it among landmarks_.
-        if (landmarks_.at(ind) == lmkId) {
-          // We found it, so we set it to -1.
-          landmarks_.at(ind) = -1;
-          found = true;
-          break;
-        }
-      }
-      CHECK(found) << "setLandmarksToMinus1: lmk not found";
-    }
-  }
-
-  /* ----------------------- CONST FUNCTIONS -------------------------------- */
-  // NOT TESTED: undistort and return
-  //  cv::Mat undistortImage() const {
-  //    cv::Mat undistortedImage,
-  //    undistortedCameraMatrix,undist_map_x,undist_map_y; cv::Size imageSize;
-  //    cv::initUndistortRectifyMap(cam_param_.camera_matrix_,
-  //    cam_param_.distortion_coeff_, cv::Mat(),
-  //        undistortedCameraMatrix, imageSize, CV_16SC2, undist_map_x,
-  //        undist_map_y);
-  //
-  //    cv::remap(img_, undistortedImage, undist_map_x, undist_map_y,
-  //    cv::INTER_LINEAR); return undistortedImage;
-  //  }
-
   /* ------------------------------------------------------------------------ */
   size_t getNrValidKeypoints() const {
     // TODO: can we cache this value?
@@ -160,12 +107,13 @@ class Frame : public PipelinePayload {
       const KeypointCV& px,
       const KeypointsCV& keypoints,
       const LandmarkIds& landmarks,
-      boost::optional<int&> idx_in_keypoints = boost::none) {
+      size_t* idx_in_keypoints = nullptr) {
     // Iterate over all current keypoints_.
-    for (int i = 0; i < keypoints.size(); i++) {
+    for (size_t i = 0; i < keypoints.size(); i++) {
       // If we have found the pixel px in the set of keypoints, return the
       // landmark id of the keypoint and return the index of it at keypoints_.
-      if (keypoints.at(i).x == px.x && keypoints.at(i).y == px.y) {
+      const KeypointCV& keypoint = keypoints.at(i);
+      if (keypoint.x == px.x && keypoint.y == px.y) {
         if (idx_in_keypoints) {
           *idx_in_keypoints = i;  // Return index.
         }
@@ -173,7 +121,6 @@ class Frame : public PipelinePayload {
       }
     }
     // We did not find the keypoint.
-    if (idx_in_keypoints) idx_in_keypoints = boost::optional<int&>();
     return -1;
   }
 
@@ -204,13 +151,13 @@ class Frame : public PipelinePayload {
       // something I hope.
       cv::undistortPoints(uncalibrated_px,
                           calibrated_px,
-                          cam_param.camera_matrix_,
+                          cam_param.K_,
                           cam_param.distortion_coeff_);
     } else if ((cam_param.distortion_model_ == "equidistant")) {
       // TODO: Create unit test for fisheye / equidistant model
       cv::fisheye::undistortPoints(uncalibrated_px,
                                    calibrated_px,
-                                   cam_param.camera_matrix_,
+                                   cam_param.K_,
                                    cam_param.distortion_coeff_);
     } else {
       LOG(ERROR) << "Camera distortion model not found in CalibratePixel()!";
@@ -261,7 +208,7 @@ class Frame : public PipelinePayload {
   std::vector<double> scores_;  // quality of extracted keypoints
   LandmarkIds landmarks_;
   //! How many consecutive *keyframes* saw the keypoint
-  std::vector<int> landmarksAge_;
+  std::vector<size_t> landmarks_age_;
   //! in the ref frame of the UNRECTIFIED left frame
   BearingVectors versors_;
   //! Not currently used

@@ -22,6 +22,7 @@
 #include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
@@ -33,11 +34,29 @@ template <class T>
 class QueueSynchronizerBase {
  public:
   KIMERA_POINTER_TYPEDEFS(QueueSynchronizerBase);
+  /**
+   * @brief Utility function to synchronize threadsafe queues.
+   *
+   * @param[in] timestamp Timestamp of the payload we want to retrieve from the
+   * queue
+   * @param[in] queue Threadsafe queue templated on a POINTER to a class that
+   * is derived from PipelinePayload (otw we cannot query what is its timestamp)
+   * @param[out] pipeline_payload Returns payload to be found in the given queue
+   * at the given timestamp.
+   * @param[in] max_iterations Number of times we try to find the payload at the
+   * given timestamp in the given queue.
+   * @param[in] callback User defined function to be called on each successful
+   * retrieval of a payload in the queue, the callback should be lighting fast!
+   * @return a boolean indicating whether the synchronizing was successful (i.e.
+   * we found a payload with the requested timestamp) or we failed because a
+   * payload with an older timestamp was retrieved.
+   */
   virtual bool syncQueue(const Timestamp& timestamp,
                          ThreadsafeQueue<T>* queue,
                          T* pipeline_payload,
                          std::string name_id,
-                         int max_iterations = 10) = 0;
+                         int max_iterations = 10,
+                         std::function<void(const T&)>* callback = nullptr) = 0;
   virtual ~QueueSynchronizerBase() = default;
 };
 
@@ -71,6 +90,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
    * at the given timestamp.
    * @param[in] max_iterations Number of times we try to find the payload at the
    * given timestamp in the given queue.
+   * @param[in] callback User defined function to be called on each successful
+   * retrieval of a payload in the queue, the callback should be lighting fast!
    * @return a boolean indicating whether the synchronizing was successful (i.e.
    * we found a payload with the requested timestamp) or we failed because a
    * payload with an older timestamp was retrieved.
@@ -79,7 +100,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
                  std::string name_id,
-                 int max_iterations = 10) {
+                 int max_iterations = 10,
+                 std::function<void(const T&)>* callback = nullptr) {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
     static_assert(
@@ -91,19 +113,26 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     // Loop over payload timestamps until we reach the query timestamp
     // or we are past the asked timestamp (in which case, we failed).
     int i = 0;
+    static constexpr size_t timeout_ms = 100000u;  // Wait 1500ms at most!
     for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
       // TODO(Toni): add a timer to avoid waiting forever...
-      if (!queue->popBlocking(*pipeline_payload)) {
-        LOG(ERROR) << name_id << "'s " << queue->queue_id_ << " is empty or "
-                   << "has been shutdown.";
+      if (!queue->popBlockingWithTimeout(*pipeline_payload, timeout_ms)) {
+        LOG(ERROR) << "Queu sync failed for module: " << name_id
+                   << " with queue: " << queue->queue_id_ << "\n Reason: \n"
+                   << "Queue status: "
+                   << (queue->isShutdown() ? "Shutdown..." : "Timeout...");
         return false;
       } else {
         VLOG(5) << "Popping from: " << queue->queue_id_;
       }
       if (*pipeline_payload) {
         payload_timestamp = (*pipeline_payload)->timestamp_;
+        // Call any user defined callback at this point (should be fast!!).
+        if (callback) (*callback)(*pipeline_payload);
       } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id;
+        LOG(WARNING)
+            << "Payload synchronization failed. Missing payload for Module: "
+            << name_id;
       }
     }
     CHECK_EQ(timestamp, payload_timestamp)
@@ -111,9 +140,10 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
         << " failed;\n Could not retrieve exact timestamp requested: \n"
         << " - Requested timestamp: " << timestamp << '\n'
         << " - Actual timestamp:    " << payload_timestamp << '\n'
-        << (i >= max_iterations ? "Reached max number of sync attempts: " +
-                                      std::to_string(max_iterations)
-                                : "");
+        << (i >= max_iterations
+                ? "Reached max number of sync attempts: " +
+                      std::to_string(max_iterations)
+                : "");
     CHECK(*pipeline_payload);
     return true;
   }

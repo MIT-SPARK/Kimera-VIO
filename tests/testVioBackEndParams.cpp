@@ -26,7 +26,7 @@ namespace VIO {
 /* ************************************************************************* */
 TEST(testVioBackEndParams, VioParseYAML) {
   // Test parseYAML
-  VioBackEndParams vp;
+  BackendParams vp;
   vp.parseYAML(std::string(FLAGS_test_data_path) +
                "/ForVIO/vioParameters.yaml");
 
@@ -62,15 +62,16 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT_DOUBLE_EQ(1.4, vp.constantVelSigma_);
   EXPECT_DOUBLE_EQ(0, vp.numOptimize_);
   EXPECT_DOUBLE_EQ(2, vp.horizon_);
+  EXPECT_DOUBLE_EQ(0.001, vp.wildfire_threshold_);
   EXPECT_DOUBLE_EQ(1, vp.useDogLeg_);
 }
 
 /* ************************************************************************* */
 TEST(testVioBackEndParams, equals) {
-  VioBackEndParams vp = VioBackEndParams();
+  BackendParams vp = BackendParams();
   EXPECT_TRUE(vp.equals(vp));
 
-  VioBackEndParams vp2 = VioBackEndParams();
+  BackendParams vp2 = BackendParams();
   vp2.smartNoiseSigma_ += 1e-5;  // small perturbation
 
   EXPECT_TRUE(!vp.equals(vp2));

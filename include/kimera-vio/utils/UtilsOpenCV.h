@@ -16,6 +16,7 @@
 #pragma once
 
 #include <iostream>
+#include <string>
 
 #include <glog/logging.h>
 
@@ -65,7 +66,6 @@ typedef Eigen::Matrix<double,3,4> transformation_t;
 
 // TODO remove most of these definitions...
 namespace VIO {
-
 // Holds the ids of the mesh triangles that should be clustered together.
 struct TriangleCluster {
   // Ids of the triangles in the cluster.
@@ -135,6 +135,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam translation to a opencv mat.
   static cv::Mat gtsamVector3ToCvMat(const gtsam::Vector3& tran);
+  static cv::Point3d gtsamVector3ToCvPoint3(const gtsam::Vector3& tran);
 
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam pose3 to a opencv Affine3d
@@ -177,32 +178,12 @@ public:
   // goodFeaturesToTrack)
   static bool ExtractCorners(const cv::Mat& img,
                              std::vector<cv::Point2f>* corners,
+                             const int& max_n_corners = 100,
                              const double& qualityLevel = 0.01,
                              const double& minDistance = 10,
                              const int& blockSize = 3,
                              const double& k = 0.04,
                              const bool& useHarrisDetector = false);
-
-  /* -------------------------------------------------------------------------- */
-  template<typename T> struct myGreaterThanPtr {
-    bool operator() (const std::pair<const T*, T> a,
-                     const std::pair<const T*, T> b) const;
-  };
-
-  /* ------------------------------------------------------------------------ */
-  // Get good features to track from image
-  // (wrapper for opencv goodFeaturesToTrack)
-  static void MyGoodFeaturesToTrackSubPix(
-      const cv::Mat& image,
-      const int& maxCorners,
-      const double& qualityLevel,
-      double minDistance,  // Not const because modified dkwhy inside...
-      const cv::Mat& mask,
-      const int& blockSize,
-      const bool& useHarrisDetector,
-      const double& harrisK,
-      std::pair<std::vector<cv::Point2f>, std::vector<double>>*
-          corners_with_scores);
 
   /* -------------------------------------------------------------------------- */
   // creates pose by aligning initial gravity vector estimates
@@ -216,37 +197,12 @@ public:
   static gtsam::Unit3 RoundUnit3(const gtsam::Unit3& x);
 
   /* ------------------------------------------------------------------------ */
-  // rounds number to a specified number of decimal digits
-  // (digits specifies the number of digits to keep AFTER the decimal point)
-  static double RoundToDigit(const double x, const int digits = 2);
-
-  /* ------------------------------------------------------------------------ */
-  // Generate random float using random number generator between -sigma and sigma
-  static double RandomFloatGenerator(const double sigma);
-
-  /* ------------------------------------------------------------------------ */
   // Generate random vector using random number generator between -sigma and sigma
   static gtsam::Vector3 RandomVectorGenerator(const double sigma);
 
   /* ------------------------------------------------------------------------ */
   // Generates random noisy pose around identity with rad_sigma and pos_sigma
   static gtsam::Pose3 RandomPose3(const double rad_sigma, const double pos_sigma);
-
-  /* ------------------------------------------------------------------------ */
-  // converts doulbe to sting with desired number of digits (total number of digits)
-  static std::string To_string_with_precision(const double a_value,
-                                              const int n = 3);
-  /* ------------------------------------------------------------------------ */
-  // converts time from nanoseconds to seconds
-  static double NsecToSec(const std::int64_t& timestamp);
-
-  /* ------------------------------------------------------------------------ */
-  // (NOT TESTED): converts time from seconds to nanoseconds
-  static std::int64_t SecToNsec(const double timeInSec);
-
-  /* ------------------------------------------------------------------------ */
-  // (NOT TESTED): get current time in seconds
-  static double GetTimeInSeconds();
 
   /* ------------------------------------------------------------------------ */
   // given two gtsam::Pose3 computes the relative rotation and translation errors: rotError,tranError
@@ -390,6 +346,16 @@ public:
   static void safeOpenCVFileStorage(cv::FileStorage* fs,
                                     const std::string& filename,
                                     const bool check_opened = true);
+};
+
+/* -------------------------------------------------------------------------- */
+// TODO(Toni): remove this aberration
+template <typename T>
+struct myGreaterThanPtr {
+  bool operator()(const std::pair<const T*, T> a,
+                  const std::pair<const T*, T> b) const {
+    return *(a.first) > *(b.first);
+  }
 };
 
 /* -------------------------------------------------------------------------- */

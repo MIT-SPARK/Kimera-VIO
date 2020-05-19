@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <random>
 #include <boost/algorithm/string.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -37,7 +36,7 @@ DECLARE_string(output_path);
 namespace VIO {
 
 static const double tol = 1e-7;
-using csv_mat = std::vector<std::vector<std::string>>;
+using CsvMat = std::vector<std::vector<std::string>>;
 
 void checkHeader(std::vector<std::string> actual,
     std::vector<std::string> expected) {
@@ -52,9 +51,9 @@ class CSVReader {
  public:
   CSVReader(std::string sep = ",") : sep_(sep) {}
 
-  csv_mat getData(std::string filename) {
+  CsvMat getData(std::string filename) {
     std::ifstream file(filename);
-    csv_mat dataList;
+    CsvMat dataList;
     std::string line = "";
 
     while (std::getline(file, line)) {
@@ -83,7 +82,7 @@ class LoggerFixture : public ::testing::Test {
  protected:
   std::string logger_FLAGS_test_data_path;
   CSVReader csv_reader_;
-  boost::random::mt19937 rng_;
+  std::mt19937 rng_;
   std::default_random_engine random_eng_;
 };
 
@@ -136,8 +135,6 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   gtsam::Pose3 W_Pose_Blkf = gtsam::Pose3(
       gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
   gtsam::Vector3 W_Vel_Blkf = gtsam::Vector3::Random();
-  gtsam::Pose3 B_Pose_leftCam = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
   ImuBias imu_bias;
   FrameId cur_kf_id = random_eng_();
   int landmark_count = random_eng_();
@@ -155,8 +152,8 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
                                           LmkIdToLmkTypeMap()));
 
   // First check the output_posesVIO.csv results file.
-  std::string results_csv = FLAGS_output_path + "output_posesVIO.csv";
-  csv_mat results = csv_reader_.getData(results_csv);
+  std::string results_csv = FLAGS_output_path + "traj_vio.csv";
+  CsvMat results = csv_reader_.getData(results_csv);
 
   // Check that only header and one line were logged.
   EXPECT_EQ(results.size(), 2);
@@ -209,7 +206,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Next we check the output_smartFactors.csv results file.
   std::string smart_factors_csv = FLAGS_output_path + "output_smartFactors.csv";
-  csv_mat smart_factors = csv_reader_.getData(smart_factors_csv);
+  CsvMat smart_factors = csv_reader_.getData(smart_factors_csv);
 
   // Check that only the header and one line were logged.
   EXPECT_EQ(smart_factors.size(), 2);
@@ -227,7 +224,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Next we check the output_pim_navstates.csv results file.
   std::string pim_csv = FLAGS_output_path + "output_pim_navstates.csv";
-  csv_mat pim = csv_reader_.getData(pim_csv);
+  CsvMat pim = csv_reader_.getData(pim_csv);
 
   // Check that only the header and one line were logged.
   EXPECT_EQ(pim.size(), 2);
@@ -242,7 +239,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Next we check the output_backendFactors.csv results file.
   std::string factor_stats_csv = FLAGS_output_path+"output_backendFactors.csv";
-  csv_mat factor_stats = csv_reader_.getData(factor_stats_csv);
+  CsvMat factor_stats = csv_reader_.getData(factor_stats_csv);
 
   // Check that only the header and one line were logged.
   EXPECT_EQ(factor_stats.size(), 2);
@@ -259,7 +256,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Next we check the output_backendTiming.csv results file.
   std::string timing_csv = FLAGS_output_path + "output_backendTiming.csv";
-  csv_mat timing = csv_reader_.getData(timing_csv);
+  CsvMat timing = csv_reader_.getData(timing_csv);
 
   // Check that only the header and one line were logged.
   EXPECT_EQ(timing.size(), 2);
@@ -287,7 +284,7 @@ TEST_F(FrontendLoggerFixture, logFrontendStats) {
 
   // First check the output_frontend_stats.csv results file.
   std::string stats_csv = FLAGS_output_path + "output_frontend_stats.csv";
-  csv_mat stats = csv_reader_.getData(stats_csv);
+  CsvMat stats = csv_reader_.getData(stats_csv);
 
   // Check that only header and one line were logged.
   EXPECT_EQ(stats.size(), 2);
@@ -340,7 +337,7 @@ TEST_F(FrontendLoggerFixture, logFrontendRansac) {
   // First check the output_frontend_ransac_mono.csv results file.
   std::string ransac_mono_csv = FLAGS_output_path +
       "output_frontend_ransac_mono.csv";
-  csv_mat ransac_mono = csv_reader_.getData(ransac_mono_csv);
+  CsvMat ransac_mono = csv_reader_.getData(ransac_mono_csv);
 
   // Check that only header and one line were logged.
   EXPECT_EQ(ransac_mono.size(), 2);
@@ -374,7 +371,7 @@ TEST_F(FrontendLoggerFixture, logFrontendRansac) {
   // Lastly do the same checks for the stereo file.
   std::string ransac_stereo_csv = FLAGS_output_path +
       "output_frontend_ransac_stereo.csv";
-  csv_mat ransac_stereo = csv_reader_.getData(ransac_stereo_csv);
+  CsvMat ransac_stereo = csv_reader_.getData(ransac_stereo_csv);
 
   EXPECT_EQ(ransac_stereo.size(), 2);
 
@@ -438,8 +435,8 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
 
   // First check the output_frontend_ransac_mono.csv results file.
   std::string opt_traj_csv = FLAGS_output_path +
-      "output_lcd_optimized_traj.csv";
-  csv_mat opt_traj = csv_reader_.getData(opt_traj_csv);
+      "traj_pgo.csv";
+  CsvMat opt_traj = csv_reader_.getData(opt_traj_csv);
 
   // Check that only header and one line were logged.
   EXPECT_EQ(opt_traj.size(), 2);

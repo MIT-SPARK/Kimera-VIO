@@ -6,11 +6,15 @@ klt_max_level: 2
 klt_eps: 0.001
 maxFeatureAge: 10
 maxFeaturesPerFrame: 200
+
+feature_detector_type: 0
 quality_level: 0.5
 min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
+fast_thresh: 52
+
 equalizeImage: 1
 nominalBaseline: 110
 toleranceTemplateMatching: 0.17
@@ -20,6 +24,16 @@ stripe_extra_rows: 2
 minPointDist: 0.1
 maxPointDist: 150
 bidirectionalMatching: 1
+
+# Subpixel corner refinement for the monocular case
+enable_non_max_suppression: 1
+non_max_suppression_type: 4
+enable_subpixel_corner_finder: 1
+max_iters: 42
+epsilon_error: 0.201
+window_size: 12
+zero_zone: 2
+
 subpixelRefinementStereo: 1
 featureSelectionCriterion: 2
 featureSelectionHorizon: 1
@@ -44,3 +58,7 @@ minNumberFeatures: 100
 useStereoTracking: 1
 display_time: 100
 disparityThreshold: 1
+# Type of optical flow predictor to aid feature tracking:
+# 0: Static - assumes no optical flow between images (aka static camera).
+# 1: Rotational - use IMU gyro to estimate optical flow.
+optical_flow_predictor_type: 0

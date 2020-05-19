@@ -8,7 +8,7 @@
 
 /**
  * @file   StereoVisionFrontEnd-definitions.h
- * @brief  Definitions for VioBackEnd
+ * @brief  Definitions for StereoVisionFrontEnd
  * @author Antoni Rosinol
  */
 
@@ -25,7 +25,7 @@ namespace VIO {
 
 enum class FrontendType {
   //! Frontend that works with Stereo camera and Imu
-  StereoImu = 0
+  kStereoImu = 0
 };
 
 struct FrontendOutput : public PipelinePayload {
@@ -40,6 +40,7 @@ struct FrontendOutput : public PipelinePayload {
                  const StereoFrame& stereo_frame_lkf,
                  // Use rvalue reference: FrontendOutput owns pim now.
                  const ImuFrontEnd::PimPtr& pim,
+                 const cv::Mat& feature_tracks,
                  const DebugTrackerInfo& debug_tracker_info)
       : PipelinePayload(stereo_frame_lkf.getTimestamp()),
         is_keyframe_(is_keyframe),
@@ -48,6 +49,7 @@ struct FrontendOutput : public PipelinePayload {
         relative_pose_body_stereo_(relative_pose_body_stereo),
         stereo_frame_lkf_(stereo_frame_lkf),
         pim_(pim),
+        feature_tracks_(feature_tracks),
         debug_tracker_info_(debug_tracker_info) {}
 
   virtual ~FrontendOutput() = default;
@@ -60,8 +62,9 @@ struct FrontendOutput : public PipelinePayload {
   const StereoFrame stereo_frame_lkf_;
   const ImuFrontEnd::PimPtr pim_;
   const DebugTrackerInfo debug_tracker_info_;
+  const cv::Mat feature_tracks_;
 
-  inline DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
+  inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
 
 }  // namespace VIO
