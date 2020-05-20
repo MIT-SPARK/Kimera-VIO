@@ -34,6 +34,7 @@
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 #include <gtsam/linear/GaussianFactorGraph.h>
+#include <gtsam/nonlinear/Marginals.h>
 
 namespace VIO {
 
@@ -366,7 +367,7 @@ class MeshOptimization {
     Mesh3D reconstructed_mesh;
 
     // Create empty graph
-    gtsam::GaussianFactorGraph fg;
+    gtsam::GaussianFactorGraph factor_graph;
 
     // For each triangle in 2d Mesh (as long as non-degenerate).
     Mesh2D::Polygon polygon_2d;
@@ -439,7 +440,7 @@ class MeshOptimization {
       // Build factor graph
       switch (mesh_optimizer_type_) {
         case MeshOptimizerType::kGtsamMesh: {
-          for (size_t i = 0; i < triangle_pixels.size(); i++) {
+          for (size_t i = 0u; i < triangle_pixels.size(); i++) {
             const KeypointCV& pixel = triangle_pixels[i];
             const cv::Point3f& lmk = triangle_datapoints[i];
             float inv_depth_meas = 1.0 / std::sqrt(lmk.dot(lmk));
@@ -465,11 +466,22 @@ class MeshOptimization {
             gtsam::Matrix11 A3(b2);  //! barycentric coordinates of vtx 2
             //! Inverse depth of datapoint
             gtsam::Vector1 b(inv_depth_meas);
-            gtsam::SharedDiagonal model =
+            gtsam::SharedDiagonal noise_model_input =
                 gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
 
+            // double norm_type_parameter = 0.1;
+            // gtsam::SharedDiagonal model = gtsam::noiseModel::Robust::Create(
+            //     gtsam::noiseModel::mEstimator::Huber::Create(
+            //         norm_type_parameter,
+            //         gtsam::noiseModel::mEstimator::Huber::Scalar),  //
+            //         Default
+            //                                                         // is
+            //                                                         // Block
+            //     noise_model_input);
+
             //! one per data point influencing three variables
-            fg += gtsam::JacobianFactor(i1, A1, i2, A2, i3, A3, b, model);
+            factor_graph += gtsam::JacobianFactor(
+                i1, A1, i2, A2, i3, A3, b, noise_model_input);
           }
           break;
         }
@@ -597,8 +609,10 @@ class MeshOptimization {
         // Solve linear factor graph Ax=b...
         // optimize the graph
         gtsam::VectorValues actual =
-            fg.optimize(boost::none, gtsam::EliminateQR);
+            factor_graph.optimize(boost::none, gtsam::EliminateQR);
         actual.print("Values after optimization");
+
+        gtsam::VectorValues hessian = factor_graph.hessianDiagonal();
 
         // Add new polygons to reconstructed mesh
         Mesh2D::Polygon poly_2d;
@@ -611,13 +625,44 @@ class MeshOptimization {
             const LandmarkId& lmk_id = vtx_2d.getLmkId();
             Mesh2D::VertexId vtx_id;
             CHECK(mesh_2d.getVtxIdForLmkId(lmk_id, &vtx_id));
-            if (actual.find(gtsam::Key(vtx_id)) == actual.end()) {
+            if (!actual.exists(gtsam::Key(vtx_id))) {
               add_poly = false;
               break;
             }
-            const float& depth = 1.0 / actual.at(gtsam::Key(vtx_id))[0];
+
+            const float& inv_depth = actual.at(gtsam::Key(vtx_id))[0];
+
+            //! Calculate depth estimation variance
+            // TODO(Toni): check that these divisions are not on 0;
+            const float& inv_variance_of_inv_depth =
+                hessian.at(gtsam::Key(vtx_id))[0];
+            const float& variance_of_inv_depth =
+                1.0 / inv_variance_of_inv_depth;
+            const float& variance_of_depth =
+                variance_of_inv_depth * (1.0 / std::pow(inv_depth, 2));
+
+            //! Calculate depth estimation
+            const float& depth = 1.0 / inv_depth;
             const Vertex3D& lmk = depth * vtx_ids_to_bearing_vectors[vtx_id];
+
+            //! Plot confidence intervals on pixel rays.
+            const float& std_deviation = std::sqrt(variance_of_depth);
+            const Vertex3D& lmk_max =
+                (depth + std_deviation) * vtx_ids_to_bearing_vectors[vtx_id];
+            const Vertex3D& lmk_min =
+                (depth - std_deviation) * vtx_ids_to_bearing_vectors[vtx_id];
+            //! Display cylinder oriented with ray (the width is irrelevant)
+            //! only the distance along the ray is meaningful!
+            //! TODO(Toni): this is in world coordinates!! Not in cam coords!
+            //! But right-now everything is the same...
+            drawCylinder("Variance for Lmk: " + std::to_string(lmk_id),
+                         lmk_max,
+                         lmk_min,
+                         0.05);
+
+            //! Add new vertex to polygon
             poly_3d.push_back(Mesh3D::VertexType(lmk_id, lmk));
+
           }
           if (add_poly) {
             reconstructed_mesh.addPolygonToMesh(poly_3d);
@@ -625,6 +670,11 @@ class MeshOptimization {
             LOG(WARNING) << "Non-reconstructed poly: " << k;
           }
         }
+
+        // Display as well marginal covariances.
+        // gtsam::KeyVector variables;
+        // fg.marginal(variables);
+
         break;
       }
       case MeshOptimizerType::kConnectedMesh: {
@@ -764,6 +814,26 @@ class MeshOptimization {
     cv::viz::WCloud cloud(pointcloud, cv::viz::Color::red());
     cloud.setRenderingProperty(cv::viz::POINT_SIZE, 6);
     window_.showWidget(id, cloud);
+  }
+
+  /**
+   * @brief drawCylinder
+   * @param id
+   * @param axis_point1 A point1 on the axis of the cylinder.
+   * @param axis_point2 A point2 on the axis of the cylinder.
+   * @param radius Radius of the cylinder.
+   * @param numsides Resolution of the cylinder.
+   * @param color Color of the cylinder.
+   */
+  void drawCylinder(const std::string& id,
+                    const cv::Point3d& axis_point1,
+                    const cv::Point3d& axis_point2,
+                    const double& radius,
+                    const int& numsides = 30,
+                    const cv::viz::Color& color = cv::viz::Color::red()) {
+    cv::viz::WCylinder cylinder(
+        axis_point1, axis_point2, radius, numsides, color);
+    window_.showWidget(id, cylinder);
   }
 
   void drawScene(const gtsam::Pose3& extrinsics,

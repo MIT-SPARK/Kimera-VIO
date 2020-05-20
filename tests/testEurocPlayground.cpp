@@ -37,7 +37,7 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
   EurocPlayground euroc_playground(FLAGS_test_data_path + "/V1_01_easy/",
                                    FLAGS_test_data_path + "/EurocParams",
                                    50,
-                                   51);
+                                   100);
   if (FLAGS_display) {
     euroc_playground.visualizeGtData(true, true, true);
 
@@ -56,9 +56,15 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       KeypointsCV keypoints;
       cv::KeyPoint::convert(corners, keypoints);
 
+      const cv::Size& img_size = it->second.left_image_.size();
+      keypoints.push_back(KeypointCV(1u, 1u));
+      keypoints.push_back(KeypointCV(1u, img_size.width - 1u));
+      keypoints.push_back(KeypointCV(img_size.height - 1u, 0u));
+      keypoints.push_back(KeypointCV(img_size.height - 1u, img_size.width - 1u));
+
       // Build 2D Mesh out of image keypoints using delaunay triangulation
       Mesh2D mesh_2d;
-      Mesher::createMesh2D(keypoints, it->second.left_image_.size(), &mesh_2d);
+      Mesher::createMesh2D(keypoints, img_size, &mesh_2d);
 
       // Visualize 2D mesh
       cv::Mat mesh_2d_viz;
@@ -122,9 +128,6 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
 
       LOG(INFO) << pcl;
       LOG(INFO) << connect;
-
-      // Only do one image for now...
-      break;
     }
   }
 }

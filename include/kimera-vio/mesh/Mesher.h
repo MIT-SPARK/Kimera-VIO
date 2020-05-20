@@ -149,7 +149,6 @@ class Mesher {
         Mesher::computeDelaunayTriangulation(keypoints, &vtx_indices);
 
     // Iterate over the 2d mesh triangles.
-    LandmarkId id = 0;
     for (size_t i = 0u; i < tri.size(); i++) {
       const cv::Vec6f& triangle_2d = tri.at(i);
       const TriVtxIndices& tri_vtx_indices = vtx_indices.at(i);
