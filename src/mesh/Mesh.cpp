@@ -92,10 +92,14 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
   for (const VertexType& vertex : polygon) {
     // Add or update vertex in the mesh, and encode its connectivity in the
     // mesh.
-    updateMeshDataStructures(vertex.getLmkId(), vertex.getVertexPosition(),
-                             &vertex_to_lmk_id_map_, &lmk_id_to_vertex_map_,
-                             &vertices_mesh_, &vertices_mesh_normal_,
-                             &vertices_mesh_color_, &polygons_mesh_);
+    updateMeshDataStructures(vertex.getLmkId(),
+                             vertex.getVertexPosition(),
+                             &vertex_to_lmk_id_map_,
+                             &lmk_id_to_vertex_map_,
+                             &vertices_mesh_,
+                             &vertices_mesh_normal_,
+                             &vertices_mesh_color_,
+                             &polygons_mesh_);
   }
 }
 
@@ -109,22 +113,22 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     const LandmarkId& lmk_id,
     const VertexPositionType& lmk_position,
     std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
-    std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+    std::map<LandmarkId, VertexId>* lmk_id_to_vertex_id_map,
     cv::Mat* vertices_mesh,
     VertexNormals* vertices_mesh_normal,
     cv::Mat* vertices_mesh_color,
     cv::Mat* polygon_mesh,
     const VertexColorRGB& vertex_color) const {
   CHECK_NOTNULL(vertex_to_lmk_id_map);
-  CHECK_NOTNULL(lmk_id_to_vertex_map);
+  CHECK_NOTNULL(lmk_id_to_vertex_id_map);
   CHECK_NOTNULL(vertices_mesh);
   CHECK_NOTNULL(vertices_mesh_normal);
   CHECK_NOTNULL(vertices_mesh_color);
   CHECK_NOTNULL(polygon_mesh);
   DCHECK(!normals_computed_) << "Normals should be invalidated before...";
 
-  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
-  const auto& vertex_it = lmk_id_to_vertex_map->find(lmk_id);
+  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_id_map->end();
+  const auto& vertex_it = lmk_id_to_vertex_id_map->find(lmk_id);
 
   int row_id_vertex;
   // Check whether this landmark is already in the set of vertices of the
@@ -138,7 +142,7 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     row_id_vertex = vertices_mesh->rows - 1;
     // Book-keeping.
     // Store the row in the vertices structure of this new landmark id.
-    (*lmk_id_to_vertex_map)[lmk_id] = row_id_vertex;
+    (*lmk_id_to_vertex_id_map)[lmk_id] = row_id_vertex;
     (*vertex_to_lmk_id_map)[row_id_vertex] = lmk_id;
   } else {
     // Update old landmark with new position.
@@ -180,8 +184,8 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
     polygon->at(j) = Vertex<VertexPositionType>(
         vertex_to_lmk_id_map_.at(row_id_pt_j),
         vertices_mesh_.at<VertexPositionType>(row_id_pt_j),
-        vertices_mesh_normal_.at(row_id_pt_j),
-        vertices_mesh_color_.at<VertexColorRGB>(row_id_pt_j));
+        vertices_mesh_color_.at<VertexColorRGB>(row_id_pt_j),
+        vertices_mesh_normal_.at(row_id_pt_j));
   }
   return true;
 }
@@ -213,8 +217,8 @@ bool Mesh<VertexPosition>::getVertex(const LandmarkId& lmk_id,
       *vertex = Vertex<VertexPosition>(
           vertex_to_lmk_id_map_.at(vtx_id),
           vertices_mesh_.at<VertexPosition>(vtx_id),
-          vertices_mesh_normal_.at(vtx_id),
-          vertices_mesh_color_.at<VertexColorRGB>(vtx_id));
+          vertices_mesh_color_.at<VertexColorRGB>(vtx_id),
+          vertices_mesh_normal_.at(vtx_id));
     return true;  // Meaning we found the vertex.
   }
 }
@@ -299,7 +303,8 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
 // NOT THREADSAFE.
 template <typename VertexPositionType>
 bool Mesh<VertexPositionType>::setVertexColor(
-    const LandmarkId& lmk_id, const VertexColorRGB& vertex_color) {
+    const LandmarkId& lmk_id,
+    const VertexColorRGB& vertex_color) {
   const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map_.end();
   const auto& vertex_it = lmk_id_to_vertex_map_.find(lmk_id);
   if (vertex_it == lmk_id_to_vertex_map_end) {
@@ -311,6 +316,40 @@ bool Mesh<VertexPositionType>::setVertexColor(
     vertices_mesh_color_.at<VertexColorRGB>(vertex_it->second) = vertex_color;
     return true;  // Meaning we found the vertex.
   }
+}
+
+/* -------------------------------------------------------------------------- */
+template <typename VertexPositionType>
+bool Mesh<VertexPositionType>::setVertexPosition(
+    const LandmarkId& lmk_id,
+    const VertexPositionType& vertex) {
+  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map_.end();
+  const auto& vertex_it = lmk_id_to_vertex_map_.find(lmk_id);
+  if (vertex_it == lmk_id_to_vertex_map_end) {
+    // We didn't find the lmk id!
+    VLOG(100) << "Lmk id: " << lmk_id << " not found in mesh.";
+    return false;
+  } else {
+    // Change the vertex position.
+    vertices_mesh_.at<VertexPositionType>(vertex_it->second) = vertex;
+    return true;  // Meaning we found the vertex.
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Get a list of all lmk ids in the mesh.
+template <typename VertexPositionType>
+LandmarkIds Mesh<VertexPositionType>::getLandmarkIds() const {
+  LandmarkIds lmk_ids(lmk_id_to_vertex_map_.size());
+  size_t i = 0;
+  for (LmkIdToVertexMap::const_iterator it = lmk_id_to_vertex_map_.begin();
+       it != lmk_id_to_vertex_map_.end();
+       ++it) {
+    lmk_ids[i] = it->first;
+    i++;
+  }
+  CHECK_EQ(i, lmk_id_to_vertex_map_.size());
+  return lmk_ids;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -327,6 +366,13 @@ void Mesh<VertexPositionType>::convertPolygonsMeshToMat(
     cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   *polygons_mesh = polygons_mesh_.clone();
+}
+
+/* -------------------------------------------------------------------------- */
+template <typename VertexPositionType>
+void Mesh<VertexPositionType>::setTopology(
+    const cv::Mat& polygons_mesh) {
+  polygons_mesh_ = polygons_mesh.clone();
 }
 
 /* -------------------------------------------------------------------------- */

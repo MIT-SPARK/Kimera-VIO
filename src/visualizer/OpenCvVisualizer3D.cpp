@@ -1148,7 +1148,7 @@ Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
 
     // Returns indices of points in the 3D mesh corresponding to the vertices
     // in the 2D mesh.
-    int p0_id, p1_id, p2_id;
+    Mesh3D::VertexId p0_id, p1_id, p2_id;
     if (mesh_3d.getVertex(lmk0, nullptr, &p0_id) &&
         mesh_3d.getVertex(lmk1, nullptr, &p1_id) &&
         mesh_3d.getVertex(lmk2, nullptr, &p2_id)) {

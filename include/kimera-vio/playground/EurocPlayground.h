@@ -81,6 +81,11 @@ public:
   //! Mesh Optimization stuff
   MeshPackets mesh_packets_;
 
+  //! Params
+  VioParams vio_params_;
+
+  OpenCvVisualizer3D::UniquePtr visualizer_3d_;
+
  protected:
   //! Fill one IMU measurement only
   void fillImuQueue(const ImuMeasurement& imu_measurement);
@@ -95,8 +100,6 @@ public:
   std::string dataset_path_;
 
 
-  //! Params
-  VioParams vio_params_;
 
   //! Feature Detector to extract features from the images.
   FeatureDetector::UniquePtr feature_detector_;
@@ -106,7 +109,6 @@ public:
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;
-  OpenCvVisualizer3D::UniquePtr visualizer_3d_;
   DisplayModule::UniquePtr display_module_;
   DisplayModule::InputQueue display_input_queue_;
 

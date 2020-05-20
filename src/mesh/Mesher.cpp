@@ -1629,7 +1629,7 @@ void Mesher::createMesh2dVIO(
 std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     const cv::Size& img_size,
     const KeypointsCV& keypoints_to_triangulate,
-    std::vector<cv::Vec3f>* vtx_indices) {
+    MeshIndices* vtx_indices) {
   // Nothing to triangulate.
   if (keypoints_to_triangulate.size() == 0) return std::vector<cv::Vec6f>();
 
@@ -1643,6 +1643,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
 
   // TODO Luca: there are kpts outside image, probably from tracker. This
   // check should be in the tracker. Actually seems to be issue in subdiv...
+  // IT IS OPENCV subdiv that is messing up...
   // -> Make sure we only pass keypoints inside the image!
   KeypointsCV keypoints_inside_image;
   keypoints_inside_image.reserve(keypoints_to_triangulate.size());
@@ -1693,27 +1694,6 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   if (vtx_indices) {
     vtx_indices->clear();
     vtx_indices->reserve(tri_2d.size());
-    // Iterate over each triangle in the triangulation.
-    for (size_t i = 0u; i < tri_2d.size(); i++) {
-      const cv::Vec6f& tri = tri_2d.at(i);
-      cv::Vec3f tri_vtx_indices;
-      // Iterate over each vertex (pixel) of the triangle.
-      for (size_t j = 0u; j < tri.rows / 2u; j++) {
-        // Extract vertex == pixel.
-        const cv::Point2f pixel(tri[j * 2u], tri[j * 2u + 1u]);
-        // Find vertex id
-        int vertex_id;
-        // This does not work on opencv 3.3.1
-        // int edge_id;
-        // int result = subdiv.locate(pixel, edge_id, vertex_id);
-        // CHECK_EQ(result, cv::Subdiv2D::PTLOC_VERTEX);
-        static const hash_pair hasher;
-        vertex_id = hasher(std::make_pair(pixel.x, pixel.y));
-        tri_vtx_indices[j] = vertex_id;
-      }
-      vtx_indices->push_back(tri_vtx_indices);
-    }
-    CHECK_EQ(vtx_indices->size(), tri_2d.size());
   }
 
   // Retrieve "good triangles" (all vertices are inside image).
@@ -1725,13 +1705,28 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
         rect.contains(cv::Point2f(tri[4], tri[5]))) {
       // Triangle with all vertices inside image
       good_triangulation.push_back(tri);
+
+      // Find vertex ids!
+      if (vtx_indices) {
+        TriVtxIndices tri_vtx_indices;
+        // Iterate over each vertex (pixel) of the triangle.
+        for (size_t j = 0u; j < tri.rows / 2u; j++) {
+          // Extract vertex == pixel.
+          const cv::Point2f pixel(tri[j * 2u], tri[j * 2u + 1u]);
+          // Find vertex ids
+          tri_vtx_indices[j] =
+              UtilsNumerical::hashPair(std::make_pair(pixel.x, pixel.y));
+        }
+        vtx_indices->push_back(tri_vtx_indices);
+      }
+
     } else {
-      VLOG(1) << "Delaunay Triangle out of image (size: x: " << rect.x
-              << ", y: " << rect.y << ", height: " << rect.height << ", width "
-              << rect.width << "\n Triangle: x, y: \n"
-              << tri[0] << ", " << tri[1] << '\n'
-              << tri[2] << ", " << tri[3] << '\n'
-              << tri[4] << ", " << tri[5];
+      LOG(ERROR) << "Delaunay Triangle out of image (size: x: " << rect.x
+                 << ", y: " << rect.y << ", height: " << rect.height
+                 << ", width " << rect.width << "\n Triangle: x, y: \n"
+                 << tri[0] << ", " << tri[1] << '\n'
+                 << tri[2] << ", " << tri[3] << '\n'
+                 << tri[4] << ", " << tri[5];
     }
   }
   return good_triangulation;

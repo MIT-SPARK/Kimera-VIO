@@ -305,29 +305,6 @@ class UtilsOpenCV {
       const std::vector<cv::Point2f>& corners2,
       const std::vector<cv::DMatch>& matches);
 
-  /* --------------------------------------------------------------------------
-   */
-  //  print standard vector with header:
-  // TODO I don't know why I have a compiler error when I try to move this
-  // function definition to the cpp file!
-  template <typename T>
-  static void PrintVector(const std::vector<T>& vect,
-                          const std::string& vectorName) {
-    std::cout << vectorName << std::endl;
-    for (auto si : vect) std::cout << " " << si;
-    std::cout << std::endl;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  //  sort vector and remove duplicate elements
-  template <typename T>
-  static void VectorUnique(std::vector<T>& v) {
-    // e.g.: std::vector<int> v{1,2,3,1,2,3,3,4,5,4,5,6,7};
-    std::sort(v.begin(), v.end());  // 1 1 2 2 3 3 3 4 4 5 5 6 7
-    auto last = std::unique(v.begin(), v.end());
-    // v now holds {1 2 3 4 5 6 7 x x x x x x}, where 'x' is indeterminate
-    v.erase(last, v.end());
-  }
 
   /* ------------------------------------------------------------------------ */
   //  find max absolute value of matrix entry

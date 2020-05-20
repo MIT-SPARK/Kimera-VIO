@@ -43,7 +43,8 @@ FeatureDetector::FeatureDetector(
       static constexpr int first_level = 0;
       static constexpr int WTA_K = 0;  // We don't use descriptors (yet).
       static constexpr int score_type = cv::ORB::HARRIS_SCORE;
-      static constexpr int patch_size = 0;  // We don't use descriptors (yet).
+      // Needs to be larger than 2
+      static constexpr int patch_size = 2;  // We don't use descriptors (yet).
       feature_detector_ =
           cv::ORB::create(feature_detector_params_.max_features_per_frame_,
                           scale_factor,

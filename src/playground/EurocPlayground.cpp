@@ -61,7 +61,7 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
 
   // Create Feature detector
   FeatureDetectorParams feature_detector_params;
-  feature_detector_params.feature_detector_type_ = FeatureDetectorType::FAST;
+  feature_detector_params.feature_detector_type_ = FeatureDetectorType::ORB;
   feature_detector_ =
       VIO::make_unique<FeatureDetector>(feature_detector_params);
 
@@ -164,12 +164,10 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
 
         // Store depth maps for mesh optimization.
         MeshPacket mesh_packet_;
-        mesh_packet_.depth_map_ = depth_map;
         mesh_packet_.left_cam_pose_ = left_cam_pose;
         mesh_packet_.left_image_ = left_frame->img_;
         mesh_packet_.right_cam_pose_ = right_cam_pose;
         mesh_packet_.right_image_ = right_frame->img_;
-        mesh_packets_[left_frame->timestamp_] = mesh_packet_;
 
         LOG(INFO) << "Converting depth to pcl.";
         // Reshape as a list of 3D points, same channels,
@@ -193,6 +191,8 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
             }
           }
         }
+        mesh_packet_.depth_map_ = valid_depth;
+        mesh_packets_[left_frame->timestamp_] = mesh_packet_;
 
         LOG(INFO) << "Send pcl to viz.";
         visualizer_3d_->visualizePointCloud(

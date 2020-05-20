@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
-project(kimera_vio VERSION 1.0 LANGUAGES CXX)
+project(kimera_vio VERSION 1.0 LANGUAGES CXX C)
 
 # Make sure that custom modules like FindXXXX are found
 # Prefer to use system installation of gflags/glog
@@ -117,6 +117,9 @@ add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
+### Add source code for third_party
+add_subdirectory(include/kimera-vio/third_party/triangle)
+add_subdirectory(src/third_party/triangle)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
@@ -226,6 +229,7 @@ if(BUILD_TESTS)
     tests/testTimer.cpp
     tests/testTracker.cpp
     tests/testUtilsOpenCV.cpp
+    tests/testUtilsNumerical.cpp
     tests/testInitializationFromImu.cpp
     tests/testVioBackEnd.cpp
     tests/testVioBackEndParams.cpp

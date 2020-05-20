@@ -29,6 +29,16 @@
 #include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/Macros.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "kimera-vio/third_party/triangle/triangle.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 namespace VIO {
 
 class Mesher {
@@ -36,6 +46,11 @@ class Mesher {
   KIMERA_POINTER_TYPEDEFS(Mesher);
   KIMERA_DELETE_COPY_CONSTRUCTORS(Mesher);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  // Vector of triplets of vertex indices, each element corresponds to 3
+  // triangle vertices ids.
+  using VertexIdx = size_t;  //! A hash value (can be very large!).
+  using TriVtxIndices = std::array<VertexIdx, 3>;
+  using MeshIndices = std::vector<TriVtxIndices>;
 
  public:
   explicit Mesher(const MesherParams& mesher_params,
@@ -128,28 +143,105 @@ class Mesher {
     CHECK_NOTNULL(mesh_2d);
     CHECK_EQ(mesh_2d->getNumberOfPolygons(), 0u);
     CHECK_EQ(mesh_2d->getNumberOfUniqueVertices(), 0u);
-    std::vector<cv::Vec3f> vtx_indices;
+    MeshIndices vtx_indices;
     std::vector<cv::Vec6f> tri =
-        Mesher::createMesh2dImpl(image_size, keypoints, &vtx_indices);
+        // Mesher::createMesh2dImpl(image_size, keypoints, &vtx_indices);
+        Mesher::computeDelaunayTriangulation(keypoints, &vtx_indices);
 
     // Iterate over the 2d mesh triangles.
-    LandmarkId vtx_idx = 0u;
+    LandmarkId id = 0;
     for (size_t i = 0u; i < tri.size(); i++) {
       const cv::Vec6f& triangle_2d = tri.at(i);
-      const cv::Vec3f& tri_indices = vtx_indices.at(i);
+      const TriVtxIndices& tri_vtx_indices = vtx_indices.at(i);
 
       // Iterate over each vertex (pixel) of the triangle.
       Mesh2D::Polygon polygon_2d;
       for (size_t j = 0u; j < triangle_2d.rows / 2u; j++) {
         const cv::Point2f vtx(triangle_2d[j * 2u], triangle_2d[j * 2u + 1u]);
-        // const size_t& vtx_idx = tri_indices[j];
-        polygon_2d.push_back(Mesh2D::VertexType(LandmarkId(vtx_idx), vtx));
-        vtx_idx++;
+        polygon_2d.push_back(Mesh2D::VertexType(tri_vtx_indices[j], vtx));
       }
+      CHECK_EQ(polygon_2d.size(), mesh_2d->getMeshPolygonDimension());
 
       // Finally, add polygon to mesh
       mesh_2d->addPolygonToMesh(polygon_2d);
     }
+  }
+
+  /*
+  * Triangulate support points for the requested image
+  * Usage of Triangle inspired From: LIBELAS
+  * http://www.cvlibs.net/software/libelas/
+  */
+  static std::vector<cv::Vec6f> computeDelaunayTriangulation(
+      const KeypointsCV& keypoints,
+      MeshIndices* vtx_indices = nullptr) {
+    // input/output structure for triangulation
+    struct triangulateio in, out;
+    int32_t k;
+
+    // Input number of points and point list
+    in.numberofpoints = keypoints.size();
+    in.pointlist = (float*)malloc(in.numberofpoints * 2 * sizeof(float));
+    k = 0;
+    for (int32_t i = 0; i < keypoints.size(); i++) {
+      in.pointlist[k++] = keypoints[i].x;
+      in.pointlist[k++] = keypoints[i].y;
+    }
+    in.numberofpointattributes = 0;
+    in.pointattributelist = NULL;
+    in.pointmarkerlist = NULL;
+    in.numberofsegments = 0;
+    in.numberofholes = 0;
+    in.numberofregions = 0;
+    in.regionlist = NULL;
+
+    // outputs
+    out.pointlist = NULL;
+    out.pointattributelist = NULL;
+    out.pointmarkerlist = NULL;
+    out.trianglelist = NULL;
+    out.triangleattributelist = NULL;
+    out.neighborlist = NULL;
+    out.segmentlist = NULL;
+    out.segmentmarkerlist = NULL;
+    out.edgelist = NULL;
+    out.edgemarkerlist = NULL;
+
+    // do triangulation (z=zero-based, n=neighbors, Q=quiet, B=no boundary
+    // markers)
+    char parameters[] = "zneQB";
+    ::triangulate(parameters, &in, &out, NULL);
+
+    // put resulting triangles into vector tri
+    // triangle structure is an array that holds the triangles 3 corners
+    // Stores one point and the remainder in a counterclockwise order
+    std::vector<cv::Vec6f> tri;
+    k = 0;
+    TriVtxIndices tri_vtx_indices;
+    for (int32_t i = 0; i < out.numberoftriangles; i++) {
+      // Find vertex ids!
+      if (vtx_indices) {
+        tri_vtx_indices[0] = out.trianglelist[k];
+        tri_vtx_indices[1] = out.trianglelist[k + 1];
+        tri_vtx_indices[2] = out.trianglelist[k + 2];
+        vtx_indices->push_back(tri_vtx_indices);
+      }
+      tri.push_back(cv::Vec6f(keypoints[out.trianglelist[k]].x,
+                              keypoints[out.trianglelist[k]].y,
+                              keypoints[out.trianglelist[k + 1]].x,
+                              keypoints[out.trianglelist[k + 1]].y,
+                              keypoints[out.trianglelist[k + 2]].x,
+                              keypoints[out.trianglelist[k + 2]].y));
+      k += 3;
+    }
+
+    // free memory used for triangulation
+    free(in.pointlist);
+    free(out.pointlist);
+    free(out.trianglelist);
+
+    // return triangles
+    return tri;
   }
 
  private:
@@ -414,7 +506,7 @@ class Mesher {
   static std::vector<cv::Vec6f> createMesh2dImpl(
       const cv::Size& img_size,
       const KeypointsCV& keypoints_to_triangulate,
-      std::vector<cv::Vec3f>* vtx_indices = nullptr);
+      MeshIndices* vtx_indices = nullptr);
 
   static void createMesh2dVIO(
       std::vector<cv::Vec6f>* triangulation_2D,
