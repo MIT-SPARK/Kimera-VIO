@@ -278,7 +278,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   CHECK(!gt_sensor_name.empty());
 
   std::string filename_sensor =
-      input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/sensor.yaml";
   YamlParser yaml_parser(filename_sensor);
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
