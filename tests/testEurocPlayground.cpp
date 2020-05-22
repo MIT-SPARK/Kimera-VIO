@@ -37,7 +37,7 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
   EurocPlayground euroc_playground(FLAGS_test_data_path + "/V1_01_easy/",
                                    FLAGS_test_data_path + "/EurocParams",
                                    50,
-                                   100);
+                                   1000);
   if (FLAGS_display) {
     euroc_playground.visualizeGtData(true, true, true);
 
@@ -125,9 +125,6 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       MeshOptimizationOutput::UniquePtr out_ptr = mesh_opt.spinOnce(input);
       out_ptr->optimized_mesh_3d.convertVerticesMeshToMat(&pcl);
       out_ptr->optimized_mesh_3d.convertPolygonsMeshToMat(&connect);
-
-      LOG(INFO) << pcl;
-      LOG(INFO) << connect;
     }
   }
 }

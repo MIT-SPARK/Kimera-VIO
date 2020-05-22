@@ -17,6 +17,7 @@
 #include <Eigen/Core>
 
 #include <glog/logging.h>
+
 #include "kimera-vio/common/vio_types.h"
 
 namespace VIO {
@@ -109,7 +110,7 @@ inline bool barycentricCoordinates(const KeypointCV& v0,
  * Möller–Trumbore ray-triangle intersection algorithm.
  * See https://www.scratchapixel.com for more info.
  * @param orig Origin of ray
- * @param dir Direction of ray
+ * @param dir Direction of ray, normalized!
  * @param v0, v1, v2 Vertices of triangle
  * @param t
  * @param u, v Barycentric coordinates of the intersection point

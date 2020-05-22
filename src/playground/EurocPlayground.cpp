@@ -118,17 +118,29 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         const cv::Affine3d& left_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
             euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
                 .compose(left_frame->cam_param_.body_Pose_cam_));
-        const cv::Affine3d& right_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
-            euroc_data_provider_->getGroundTruthPose(right_frame->timestamp_)
-                .compose(right_frame->cam_param_.body_Pose_cam_));
+        const cv::Affine3d& right_cam_pose =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                euroc_data_provider_
+                    ->getGroundTruthPose(right_frame->timestamp_)
+                    .compose(right_frame->cam_param_.body_Pose_cam_));
 
         cv::Mat smaller_img;
-        cv::resize(left_frame->img_, smaller_img, cv::Size(), 0.5, 0.5);
+        static constexpr double kScaleFactor = 0.1;
+        cv::resize(left_frame->img_,
+                   smaller_img,
+                   cv::Size(),
+                   kScaleFactor,
+                   kScaleFactor);
+        cv::Mat resize_K = cv::Mat::eye(3, 3, CV_64FC1);
+        resize_K.at<double>(0, 0) = kScaleFactor;
+        resize_K.at<double>(1, 1) = kScaleFactor;
+        cv::Mat resized_K = resize_K * K;
         visualizer_3d_->visualizePoseWithImgInFrustum(
             smaller_img,
             left_cam_pose,
             &output->widgets_,
-            "Camera id: " + std::to_string(left_frame->id_));
+            "Camera id: " + std::to_string(left_frame->id_),
+            resized_K);
 
         // Compute depth map just to see.
         cv::Mat disp_img =

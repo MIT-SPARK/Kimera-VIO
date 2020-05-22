@@ -126,7 +126,9 @@ class OpenCvVisualizer3D : public Visualizer3D {
       const cv::Mat& frustum_image,
       const cv::Affine3d& frustum_pose,
       WidgetsMap* widgets_map,
-      const std::string& widget_id = "Camera Pose with Frustum");
+      const std::string& widget_id = "Camera Pose with Frustum",
+      const cv::Matx33d K =
+      cv::Matx33d(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0));
 
   /**
    * @brief visualizePlyMesh Visualize a PLY from filename (absolute path).

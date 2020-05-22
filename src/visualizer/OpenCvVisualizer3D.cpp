@@ -907,9 +907,9 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
     const cv::Mat& frustum_image,
     const cv::Affine3d& frustum_pose,
     WidgetsMap* widgets_map,
-    const std::string& widget_id) {
+    const std::string& widget_id,
+    const cv::Matx33d K) {
   CHECK_NOTNULL(widgets_map);
-  static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
   std::unique_ptr<cv::viz::WCameraPosition> cam_widget_ptr = nullptr;
   if (frustum_image.empty()) {
     cam_widget_ptr = VIO::make_unique<cv::viz::WCameraPosition>(

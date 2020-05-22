@@ -570,10 +570,6 @@ class MeshOptimization {
           }
         }
 
-        // Display as well marginal covariances.
-        // gtsam::KeyVector variables;
-        // fg.marginal(variables);
-
         break;
       }
       case MeshOptimizerType::kConnectedMesh: {
@@ -745,7 +741,7 @@ class MeshOptimization {
     cv::Matx33d K;
     cv::eigen2cv(intrinsics.K(), K);
     cv::viz::WCameraPosition cpw(0.2);                   // Coordinate axes
-    cv::viz::WCameraPosition cpw_frustum(K, img_, 2.0);  // Camera frustum
+    cv::viz::WCameraPosition cpw_frustum(K, img_, 0.5);  // Camera frustum
     window_.showWidget("World Coordinates", cv::viz::WCoordinateSystem(0.5));
     window_.showWidget("Cam Coordinates", cpw, cam_pose_real);
     window_.showWidget("Cam Frustum", cpw_frustum, cam_pose_real);
