@@ -29,7 +29,9 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/mesh/Mesh.h"
+#include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
+#include "kimera-vio/mesh/MeshOptimization-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
@@ -37,116 +39,6 @@
 #include <gtsam/nonlinear/Marginals.h>
 
 namespace VIO {
-
-//! Barycenter Coordinates type
-using BaryCoord = float;
-
-/**
- * @brief edgeFunction As in Juan Pineda in 1988 and a paper called "A Parallel
- * Algorithm for Polygon Rasterization". Implementation from
- * https://www.scratchapixel.com
- * @param a, b, c 2D points
- * @return ORDER MATTERS: returns positive number if left of line, negative otw.
- * Zero if the point is exactly on the line.
- * Equivalent to the magnitude of the cross products between the
- * vector (b-a) and (c-a).
- */
-float edgeFunction(const KeypointCV& a,
-                   const KeypointCV& b,
-                   const KeypointCV& c) {
-  return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
-}
-
-/**
- * @brief checkPointInsideTriangle
- * https://www.scratchapixel.com
- * @param a, b, c Vertices of the triangle in 2D
- * @param p Vertex to query
- * @return True if inside, false otw.
- */
-bool checkPointInsideTriangle(const KeypointCV& a,
-                              const KeypointCV& b,
-                              const KeypointCV& c,
-                              const KeypointCV& p) {
-  bool inside = true;
-  // TODO(Toni): this is different than the check inside tri below!
-  inside &= edgeFunction(a, b, p) >= 0;
-  inside &= edgeFunction(b, c, p) >= 0;
-  inside &= edgeFunction(c, a, p) >= 0;
-  return inside;
-}
-
-/**
- * @brief barycentricCoordinates
- * https://www.scratchapixel.com
- * @param v0, v1, v2 Triangle coordinates in 2D image.
- * @param p Query Point in 2D image.
- * @param w0, w1, w2 Barycentric coordinates.
- * @return True if Query point is inside triangle, false otherwise.
- */
-bool barycentricCoordinates(const KeypointCV& v0,
-                            const KeypointCV& v1,
-                            const KeypointCV& v2,
-                            const KeypointCV& p,
-                            BaryCoord* w0,
-                            BaryCoord* w1,
-                            BaryCoord* w2) {
-  CHECK_NOTNULL(w0);
-  CHECK_NOTNULL(w1);
-  CHECK_NOTNULL(w2);
-
-  // area of the triangle multiplied by 2
-  float area = edgeFunction(v0, v1, v2);
-  // signed area of the triangle v1v2p multiplied by 2
-  *w0 = edgeFunction(v1, v2, p);
-  // signed area of the triangle v2v0p multiplied by 2
-  *w1 = edgeFunction(v2, v0, p);
-  // signed area of the triangle v0v1p multiplied by 2
-  *w2 = edgeFunction(v0, v1, p);
-
-  bool has_neg = (*w0 < 0) || (*w1 < 0) || (*w2 < 0);
-  bool has_pos = (*w0 > 0) || (*w1 > 0) || (*w2 > 0);
-  // if point p is inside triangles defined by vertices v0, v1, v2
-  if (!(has_neg && has_pos)) {
-    // barycentric coordinates are the areas of the sub-triangles divided by the
-    // area of the main triangle
-    *w0 /= area;
-    *w1 /= area;
-    *w2 /= area;
-    return true;
-  } else {
-    return false;
-  }
-}
-
-enum class MeshOptimizerType {
-  kConnectedMesh = 0,
-  kDisconnectedMesh = 1,
-  kClosedForm = 2,
-  kGtsamMesh = 3
-};
-
-struct MeshOptimizationInput {
-  KIMERA_POINTER_TYPEDEFS(MeshOptimizationInput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(MeshOptimizationInput);
-
-  MeshOptimizationInput() = default;
-  ~MeshOptimizationInput() = default;
-
-  cv::Mat noisy_point_cloud;
-  CameraParams camera_params;
-  Mesh2D mesh_2d;
-};
-
-struct MeshOptimizationOutput {
-  KIMERA_POINTER_TYPEDEFS(MeshOptimizationOutput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(MeshOptimizationOutput);
-
-  MeshOptimizationOutput() = default;
-  ~MeshOptimizationOutput() = default;
-
-  Mesh3D optimized_mesh_3d;
-};
 
 class MeshOptimization {
  public:
@@ -257,7 +149,8 @@ class MeshOptimization {
     for (size_t i = 0u; i < noisy_point_cloud.cols; ++i) {
       // 1. Project pointcloud to image (color img with projections)
       // aka get pixel coordinates for all points in pointcloud.
-      // TODO(Toni): the projection of all points could be greatly optimized by
+      // TODO(Toni): the projection of all points could be greatly optimized
+      // by
       // appending all points into a big matrix and performing dense
       // multiplication.
       const cv::Point3f& lmk = noisy_point_cloud.at<cv::Point3f>(i);
@@ -348,13 +241,16 @@ class MeshOptimization {
     CHECK_GT(number_of_valid_datapoints, 3u);
     CHECK_GT(corresp.size(), 0u);
     LOG_IF(ERROR, corresp.size() != mesh_2d.getNumberOfPolygons())
-        << "Every triangle should have some data points! (or maybe not really)";
+        << "Every triangle should have some data points! (or maybe not "
+           "really)";
 
-    /// Step 2: Solve for the ys and build the Y matrix incrementally by looping
+    /// Step 2: Solve for the ys and build the Y matrix incrementally by
+    /// looping
     /// over all triangles.
     LOG(INFO) << "Building optimization problem.";
     // This matrix has as columns the landmark ids, and as rows the ys of each
-    // datapoint, with non-zeros only where a datapoint is associated to a lmk.
+    // datapoint, with non-zeros only where a datapoint is associated to a
+    // lmk.
     cv::Mat vtx_ids_to_ys = cv::Mat::zeros(number_of_valid_datapoints,
                                            mesh_2d.getNumberOfUniqueVertices(),
                                            CV_32F);
@@ -380,7 +276,8 @@ class MeshOptimization {
       CHECK(mesh_2d.getPolygon(tri_idx, &polygon_2d));
       CHECK_EQ(polygon_2d.size(), 3);
 
-      /// Step 2.1: Build bearing vector matrix of triangle and collect landmark
+      /// Step 2.1: Build bearing vector matrix of triangle and collect
+      /// landmark
       /// ids.
       // List of landmark ids associated to the triangle vertices
       std::array<Mesh2D::VertexId, 3> vtx_ids;
@@ -424,7 +321,8 @@ class MeshOptimization {
       // these
       // or maybe not if its neighbour triangles are fine.
       std::vector<cv::Point3f> triangle_datapoints = corresp[tri_idx];
-      //! Pixels associated to a triangle that have a depth value (measurements)
+      //! Pixels associated to a triangle that have a depth value
+      //! (measurements)
       KeypointsCV triangle_pixels = pixel_corresp[tri_idx];
       LOG_IF(ERROR, triangle_datapoints.size() < 3)
           << "Degenerate case optimization problem, we need more than 3 "
@@ -470,13 +368,15 @@ class MeshOptimization {
                 gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
 
             // double norm_type_parameter = 0.1;
-            // gtsam::SharedDiagonal model = gtsam::noiseModel::Robust::Create(
+            // gtsam::SharedDiagonal model =
+            // gtsam::noiseModel::Robust::Create(
             //     gtsam::noiseModel::mEstimator::Huber::Create(
             //         norm_type_parameter,
             //         gtsam::noiseModel::mEstimator::Huber::Scalar),  //
             //         Default
             //                                                         // is
-            //                                                         // Block
+            //                                                         //
+            //                                                         Block
             //     noise_model_input);
 
             //! one per data point influencing three variables
@@ -662,7 +562,6 @@ class MeshOptimization {
 
             //! Add new vertex to polygon
             poly_3d.push_back(Mesh3D::VertexType(lmk_id, lmk));
-
           }
           if (add_poly) {
             reconstructed_mesh.addPolygonToMesh(poly_3d);

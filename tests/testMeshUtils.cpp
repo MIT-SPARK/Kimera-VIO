@@ -7,23 +7,23 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testMeshOptimization.cpp
- * @brief  test MeshOptimization implementation
+ * @file   testMeshUtils.cpp
+ * @brief  test MeshUtils implementation
  * @author Antoni Rosinol
  */
 
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 
-#include "kimera-vio/mesh/MeshOptimization.h"
+#include "kimera-vio/mesh/MeshUtils.h"
 
 DECLARE_string(test_data_path);
 
 namespace VIO {
 
-class MeshOptimizationFixture : public ::testing::Test {
+class MeshUtilsFixture : public ::testing::Test {
  public:
-  MeshOptimizationFixture() {}
+  MeshUtilsFixture() {}
 
  protected:
   virtual void SetUp() override {}
@@ -36,7 +36,8 @@ class MeshOptimizationFixture : public ::testing::Test {
 
 };
 
-TEST_F(MeshOptimizationFixture, test) {
+TEST_F(MeshUtilsFixture, testRayIntersectAlgorithm) {
+
 }
 
 }  // namespace VIO
