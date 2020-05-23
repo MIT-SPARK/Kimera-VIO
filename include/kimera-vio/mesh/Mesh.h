@@ -22,6 +22,8 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/viz/types.hpp>  // Just for color type.
 
+#include <glog/logging.h>
+
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/SerializationOpenCv.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -113,9 +115,6 @@ class Mesh {
       return vertex_color_;
     }
     inline const LandmarkId& getLmkId() const { return lmk_id_; }
-    inline cv::Mat getAdjacencyMatrix() const {
-      return adjacency_matrix_;
-    }
 
     /// Setters.
     inline void setVertexPosition(const VertexPosition& position) {
@@ -135,10 +134,10 @@ class Mesh {
   typedef std::vector<VertexType> Polygon;
 
  public:
-  // Adds a new polygon into the mesh, updates the internal data structures.
+  //! Adds a new polygon into the mesh, updates the internal data structures.
   void addPolygonToMesh(const Polygon& polygon);
 
-  // Completely clears the mesh.
+  //! Completely clears the mesh.
   void clearMesh();
 
   /// Getters
@@ -151,7 +150,9 @@ class Mesh {
   // TODO needs to be generalized to aleatory polygonal meshes.
   // Currently it only allows polygons of same size.
   inline size_t getMeshPolygonDimension() const { return polygon_dimension_; }
+  inline cv::Mat getAdjacencyMatrix() const { return adjacency_matrix_; }
 
+  /// Checkers
   inline bool isLmkIdInMesh(const LandmarkId& lmk_id) const {
     const auto& it = lmk_id_to_vertex_map_.find(lmk_id);
     if (it != lmk_id_to_vertex_map_.end()) {

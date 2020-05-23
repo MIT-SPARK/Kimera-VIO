@@ -216,6 +216,7 @@ if(BUILD_TESTS)
     tests/testLoopClosureDetector.cpp
     tests/testLogger.cpp
     tests/testMesher.cpp # rotten
+    tests/testMesh.cpp
     tests/testMeshUtils.cpp
     tests/testMeshOptimization.cpp
     tests/testParallelPlaneRegularBasicFactor.cpp

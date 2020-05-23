@@ -32,7 +32,7 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
       normals_computed_(false),
       vertices_mesh_color_(0, 1, CV_8UC3),
       polygons_mesh_(0, 1, CV_32SC1),
-      adjacency_matrix_(1, 1, CV_8UC1),
+      adjacency_matrix_(1, 1, CV_8UC1, cv::Scalar(0u)),
       polygon_dimension_(polygon_dimension) {
   CHECK_GE(polygon_dimension, 3) << "A polygon must have more than 2"
                                     " vertices";
@@ -120,9 +120,9 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
     CHECK_LT(vtx_ids[0], adjacency_matrix_.rows);
     CHECK_LT(vtx_ids[1], adjacency_matrix_.rows);
     CHECK_LT(vtx_ids[2], adjacency_matrix_.rows);
-    if (adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[1]) &&
-        adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[2]) &&
-        adjacency_matrix_.at<uchar>(vtx_ids[1], vtx_ids[2])) {
+    if (adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[1]) == 1u &&
+        adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[2]) == 1u &&
+        adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]) == 1u ) {
       // Triangle already exists!
       triangle_in_mesh = true;
     }
@@ -160,12 +160,12 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
     CHECK_EQ(adjacency_matrix_.rows, adjacency_matrix_.cols);
 
     // Update old vertices col/row
-    adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[1]) = 1u;
-    adjacency_matrix_.at<uchar>(vtx_ids[1], vtx_ids[0]) = 1u;
-    adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[2]) = 1u;
-    adjacency_matrix_.at<uchar>(vtx_ids[2], vtx_ids[0]) = 1u;
-    adjacency_matrix_.at<uchar>(vtx_ids[1], vtx_ids[2]) = 1u;
-    adjacency_matrix_.at<uchar>(vtx_ids[2], vtx_ids[1]) = 1u;
+    adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[1]) = 1u;
+    adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[0]) = 1u;
+    adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[2]) = 1u;
+    adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[0]) = 1u;
+    adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]) = 1u;
+    adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[1]) = 1u;
   } else {
     // No need to update connectivity.
   }
