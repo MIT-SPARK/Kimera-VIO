@@ -46,7 +46,10 @@ TEST_F(MeshFixture, addPolygonNoDuplicates) {
   LandmarkIds lmk_ids = {1u, 2u, 3u};
   for (const auto& lmk_id : lmk_ids) {
     // Use as vertex position a "random" one (just adding lmk_id).
-    Mesh2D::VertexType vertex(lmk_id, Vertex2D(1.0 + lmk_id, 1.0 + 2 * lmk_id));
+    Mesh2D::VertexType vertex(
+        lmk_id,
+        Vertex2D(1.0f + static_cast<float>(lmk_id),
+                 1.0f + 2.0f * static_cast<float>(lmk_id)));
     polygon.push_back(vertex);
   }
   mesh_2d.addPolygonToMesh(polygon);
@@ -98,13 +101,11 @@ TEST_F(MeshFixture, addPolygonNoDuplicates) {
   cv::Mat vertices_mesh;
   mesh_2d.convertVerticesMeshToMat(&vertices_mesh);
   ASSERT_EQ(vertices_mesh.rows, 3u);
-  ASSERT_EQ(vertices_mesh.cols, 2u);
-  EXPECT_EQ(vertices_mesh.at<uint8_t>(0, 0), 1.1);
-  EXPECT_EQ(vertices_mesh.at<uint8_t>(0, 1), 1.2);
-  EXPECT_EQ(vertices_mesh.at<uint8_t>(1, 0), 1.2);
-  EXPECT_EQ(vertices_mesh.at<uint8_t>(1, 1), 1.4);
-  EXPECT_EQ(vertices_mesh.at<uint8_t>(2, 0), 1.3);
-  EXPECT_EQ(vertices_mesh.at<uint8_t>(2, 1), 1.6);
+  ASSERT_EQ(vertices_mesh.cols, 1u);
+  EXPECT_EQ(vertices_mesh.at<Vertex2D>(0, 0), Vertex2D(1.1, 1.2));
+  EXPECT_EQ(vertices_mesh.at<Vertex2D>(1, 0), Vertex2D(1.1, 1.2));
+  EXPECT_EQ(vertices_mesh.at<Vertex2D>(2, 0), Vertex2D(1.2, 1.4));
+  EXPECT_EQ(vertices_mesh.at<Vertex2D>(2, 0), Vertex2D(1.3, 1.6));
 }
 
 }  // namespace VIO
