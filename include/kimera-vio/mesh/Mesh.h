@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <math.h>
 #include <map>
 #include <vector>
-#include <math.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/mat.hpp>
@@ -41,6 +41,7 @@ class Mesh {
   typedef std::vector<VertexNormal> VertexNormals;
   // Vertex id (for internal processing).
   typedef size_t VertexId;
+  typedef std::vector<size_t> VertexIds;
 
  public:
   // Default constructor.
@@ -112,6 +113,10 @@ class Mesh {
       return vertex_color_;
     }
     inline const LandmarkId& getLmkId() const { return lmk_id_; }
+    inline cv::Mat getAdjacencyMatrix() const {
+      return adjacency_matrix_;
+    }
+
     /// Setters.
     inline void setVertexPosition(const VertexPosition& position) {
       vertex_position_ = position;
@@ -147,6 +152,26 @@ class Mesh {
   // Currently it only allows polygons of same size.
   inline size_t getMeshPolygonDimension() const { return polygon_dimension_; }
 
+  inline bool isLmkIdInMesh(const LandmarkId& lmk_id) const {
+    const auto& it = lmk_id_to_vertex_map_.find(lmk_id);
+    if (it != lmk_id_to_vertex_map_.end()) {
+      // Sanity check
+      CHECK(isVtxIdInMesh(it->second));
+      return true;
+    } else {
+      return false;
+    }
+  }
+  inline bool isVtxIdInMesh(const VertexId& vtx_id) const {
+    const auto& it = vertex_to_lmk_id_map_.find(vtx_id);
+    if (it != vertex_to_lmk_id_map_.end()) {
+      // Sanity check
+      CHECK(isLmkIdInMesh(it->second));
+      return true;
+    } else {
+      return false;
+    }
+  }
   inline bool getVtxIdForLmkId(const LandmarkId& lmk_id,
                                VertexId* vtx_id) const {
     CHECK_NOTNULL(vtx_id);
@@ -234,15 +259,14 @@ class Mesh {
   /// Functions
   // Updates internal structures to add a vertex.
   // Used by addPolygonToMesh, it is not supposed to be used by the end user.
-  void updateMeshDataStructures(
+  VertexId updateMeshDataStructures(
       const LandmarkId& lmk_id,
       const VertexPosition& lmk_position,
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
-      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_id_map,
       cv::Mat* vertices_mesh,
       VertexNormals* vertices_mesh_normal,
       cv::Mat* vertices_mesh_color,
-      cv::Mat* polygon_mesh,
       const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
 
   // Sets all vertex normals to 0.
@@ -302,6 +326,12 @@ class Mesh {
   // index into the associated row in vertices_mesh_.
   cv::Mat polygons_mesh_;
 
+  //! Connectivity of the mesh at the edge level.
+  //! Squared matrix of vertices, ordered according to vtx_id (meaning their
+  //! position in the vertices_mesh_ rows.
+  //! This information should be
+  cv::Mat adjacency_matrix_;
+
   // Number of vertices per polygon.
   const size_t polygon_dimension_;
 };
@@ -322,7 +352,7 @@ inline Mesh3D::VertexType convertVertex2dTo3d(const Mesh2D::VertexType& vtx_2d,
   // REMOVE BECAUSE IT MAKES NO SENSE TO USE PIXELS AS XYZ! >
   cv::Mat mat_2_1 = cv::Mat(vtx_position_2d, false);
   cv::Mat mat_3_1 = tf_3_2 * mat_2_1;
-  Vertex3D vtx_position_3d (mat_3_1);
+  Vertex3D vtx_position_3d(mat_3_1);
   auto norm = std::sqrt(vtx_position_2d.dot(vtx_position_2d));
   vtx_position_3d.x = vtx_position_3d.x / norm * 5;
   vtx_position_3d.y = vtx_position_3d.y / norm * 5;

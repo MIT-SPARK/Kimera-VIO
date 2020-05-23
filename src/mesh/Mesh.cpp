@@ -32,6 +32,7 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
       normals_computed_(false),
       vertices_mesh_color_(0, 1, CV_8UC3),
       polygons_mesh_(0, 1, CV_32SC1),
+      adjacency_matrix_(1, 1, CV_8UC1),
       polygon_dimension_(polygon_dimension) {
   CHECK_GE(polygon_dimension, 3) << "A polygon must have more than 2"
                                     " vertices";
@@ -74,11 +75,7 @@ Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(
 /* -------------------------------------------------------------------------- */
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
-  // Update mesh connectivity (this does duplicate polygons, adding twice the
-  // same polygon is permitted, although it should not for efficiency).
-  // This cannot be avoided by just checking that at least one of the
-  // vertices of the wanna-be polygon is new, as a polygon that has no new
-  // vertices can be linking in a new way three old vertices.
+  // Update mesh connectivity
   CHECK_EQ(polygon.size(), polygon_dimension_)
       << "Trying to insert a polygon of different dimension than "
       << "the mesh's polygons.\n"
@@ -86,30 +83,101 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       << "Mesh expected polygon dimension: " << polygon_dimension_ << ".\n";
   // Reset flag to know if normals are valid or not.
   normals_computed_ = false;
-  // Specify number of point ids per face in the mesh.
-  polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
-  // Loop over each vertex in the given polygon.
+
+  // Update vertices in the mesh (this happens all the time, even if we
+  // do not add a new triangle connectivity-wise).
+  VertexIds vtx_ids;
+  bool triangle_maybe_already_in_mesh = true;
   for (const VertexType& vertex : polygon) {
-    // Add or update vertex in the mesh, and encode its connectivity in the
-    // mesh.
-    updateMeshDataStructures(vertex.getLmkId(),
-                             vertex.getVertexPosition(),
-                             &vertex_to_lmk_id_map_,
-                             &lmk_id_to_vertex_map_,
-                             &vertices_mesh_,
-                             &vertices_mesh_normal_,
-                             &vertices_mesh_color_,
-                             &polygons_mesh_);
+    const LandmarkId& lmk_id = vertex.getLmkId();
+    VertexId existing_vtx_id;
+    if (!getVtxIdForLmkId(lmk_id, &existing_vtx_id)) {
+      // Vtx is not in the mesh, so no way the triangle is in the mesh.
+      triangle_maybe_already_in_mesh = false;
+    }
+    const VertexId& vtx_id =
+        updateMeshDataStructures(lmk_id,
+                                 vertex.getVertexPosition(),
+                                 &vertex_to_lmk_id_map_,
+                                 &lmk_id_to_vertex_map_,
+                                 &vertices_mesh_,
+                                 &vertices_mesh_normal_,
+                                 &vertices_mesh_color_);
+    if (triangle_maybe_already_in_mesh) {
+      // Just a small sanity check.
+      CHECK_EQ(vtx_id, existing_vtx_id);
+    }
+
+    vtx_ids.push_back(vtx_id);
+  }
+  CHECK_EQ(vtx_ids.size(), polygon_dimension_);
+
+  // Check the triangle is not already in the mesh
+  CHECK_EQ(polygon_dimension_, 3) << "This doesn't work with non-triangles";
+  bool triangle_in_mesh = false;
+  if (triangle_maybe_already_in_mesh) {
+    // Check that the triangle is not already in the mesh!
+    CHECK_LT(vtx_ids[0], adjacency_matrix_.rows);
+    CHECK_LT(vtx_ids[1], adjacency_matrix_.rows);
+    CHECK_LT(vtx_ids[2], adjacency_matrix_.rows);
+    if (adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[1]) &&
+        adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[2]) &&
+        adjacency_matrix_.at<uchar>(vtx_ids[1], vtx_ids[2])) {
+      // Triangle already exists!
+      triangle_in_mesh = true;
+    }
+  }
+
+  if (!triangle_in_mesh) {
+    // Update polygons_mesh_
+    // Specify number of point ids per face in the mesh.
+    polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
+    for (const VertexId& vtx_id : vtx_ids) {
+      polygons_mesh_.push_back(static_cast<int>(vtx_id));
+    }
+
+    // Update adjacency matrix
+    if (!triangle_maybe_already_in_mesh) {
+      // There are new vertices!
+      // TODO(Toni): this assumes that we never remove vertices!!
+      // Add a new col/row for each new vtx
+      // Check vtx_ids are ordered
+      std::sort(vtx_ids.begin(), vtx_ids.end());
+      for (const auto& vtx_id : vtx_ids) {
+        if (vtx_id >= adjacency_matrix_.rows) {
+          // Non-existing vertex! Add row/col. Careful! vtx_ids ordering
+          // matters! First order them!
+          CHECK(adjacency_matrix_.rows != 0 && adjacency_matrix_.cols != 0);
+          cv::Mat row = cv::Mat::zeros(1, adjacency_matrix_.cols, CV_8UC1);
+          cv::vconcat(adjacency_matrix_, row, adjacency_matrix_);
+
+          cv::Mat col = cv::Mat::zeros(adjacency_matrix_.rows, 1, CV_8UC1);
+          cv::hconcat(adjacency_matrix_, col, adjacency_matrix_);
+        }
+        CHECK_LT(vtx_id, adjacency_matrix_.rows);
+      }
+    }
+    CHECK_EQ(adjacency_matrix_.rows, adjacency_matrix_.cols);
+
+    // Update old vertices col/row
+    adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[1]) = 1u;
+    adjacency_matrix_.at<uchar>(vtx_ids[1], vtx_ids[0]) = 1u;
+    adjacency_matrix_.at<uchar>(vtx_ids[0], vtx_ids[2]) = 1u;
+    adjacency_matrix_.at<uchar>(vtx_ids[2], vtx_ids[0]) = 1u;
+    adjacency_matrix_.at<uchar>(vtx_ids[1], vtx_ids[2]) = 1u;
+    adjacency_matrix_.at<uchar>(vtx_ids[2], vtx_ids[1]) = 1u;
+  } else {
+    // No need to update connectivity.
   }
 }
 
-/* -------------------------------------------------------------------------- */
 // Updates mesh data structures incrementally, by adding new landmark
 // if there was no previous id, or updating it if it was already present.
 // Provides the id of the row where the new/updated vertex is in the
 // vertices_mesh data structure.
 template <typename VertexPositionType>
-void Mesh<VertexPositionType>::updateMeshDataStructures(
+typename Mesh<VertexPositionType>::VertexId
+Mesh<VertexPositionType>::updateMeshDataStructures(
     const LandmarkId& lmk_id,
     const VertexPositionType& lmk_position,
     std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
@@ -117,20 +185,18 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     cv::Mat* vertices_mesh,
     VertexNormals* vertices_mesh_normal,
     cv::Mat* vertices_mesh_color,
-    cv::Mat* polygon_mesh,
     const VertexColorRGB& vertex_color) const {
   CHECK_NOTNULL(vertex_to_lmk_id_map);
   CHECK_NOTNULL(lmk_id_to_vertex_id_map);
   CHECK_NOTNULL(vertices_mesh);
   CHECK_NOTNULL(vertices_mesh_normal);
   CHECK_NOTNULL(vertices_mesh_color);
-  CHECK_NOTNULL(polygon_mesh);
   DCHECK(!normals_computed_) << "Normals should be invalidated before...";
 
   const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_id_map->end();
   const auto& vertex_it = lmk_id_to_vertex_id_map->find(lmk_id);
 
-  int row_id_vertex;
+  VertexId row_id_vertex;
   // Check whether this landmark is already in the set of vertices of the
   // mesh.
   if (vertex_it == lmk_id_to_vertex_map_end) {
@@ -150,12 +216,11 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     vertices_mesh->at<VertexPositionType>(vertex_it->second) = lmk_position;
     row_id_vertex = vertex_it->second;
   }
-  // Store corresponding ids (row index) to the 3d point in map_points_3d.
-  // This structure encodes the connectivity of the mesh:
-  polygon_mesh->push_back(row_id_vertex);
+  return row_id_vertex;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Get a polygon in the mesh.
 // Returns false if there is no polygon.
 // TODO(Toni) this is constructing polygons on the fly, but we should instead
@@ -190,7 +255,8 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
   return true;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Retrieve a vertex of the mesh given a LandmarkId.
 // Returns true if we could find the vertex with the given landmark id
 // false otherwise.
@@ -223,7 +289,8 @@ bool Mesh<VertexPosition>::getVertex(const LandmarkId& lmk_id,
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Retrieve per vertex normals of the mesh.
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::computePerVertexNormals() {
@@ -233,7 +300,8 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
   size_t n_vtx = getNumberOfUniqueVertices();
   std::vector<int> counts(n_vtx, 0);
 
-  // Set all per-vertex normals in mesh to 0, since we want to average per-face
+  // Set all per-vertex normals in mesh to 0, since we want to average
+  // per-face
   // normals.
   clearVertexNormals();
 
@@ -296,7 +364,8 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
   return;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Retrieve a vertex of the mesh given a LandmarkId.
 // Returns true if we could find the vertex with the given landmark id
 // false otherwise.
@@ -318,7 +387,8 @@ bool Mesh<VertexPositionType>::setVertexColor(
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 template <typename VertexPositionType>
 bool Mesh<VertexPositionType>::setVertexPosition(
     const LandmarkId& lmk_id,
@@ -336,7 +406,8 @@ bool Mesh<VertexPositionType>::setVertexPosition(
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Get a list of all lmk ids in the mesh.
 template <typename VertexPositionType>
 LandmarkIds Mesh<VertexPositionType>::getLandmarkIds() const {
@@ -352,7 +423,6 @@ LandmarkIds Mesh<VertexPositionType>::getLandmarkIds() const {
   return lmk_ids;
 }
 
-/* -------------------------------------------------------------------------- */
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::convertVerticesMeshToMat(
     cv::Mat* vertices_mesh) const {
@@ -360,7 +430,6 @@ void Mesh<VertexPositionType>::convertVerticesMeshToMat(
   *vertices_mesh = vertices_mesh_.clone();
 }
 
-/* -------------------------------------------------------------------------- */
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::convertPolygonsMeshToMat(
     cv::Mat* polygons_mesh) const {
@@ -368,14 +437,15 @@ void Mesh<VertexPositionType>::convertPolygonsMeshToMat(
   *polygons_mesh = polygons_mesh_.clone();
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 template <typename VertexPositionType>
-void Mesh<VertexPositionType>::setTopology(
-    const cv::Mat& polygons_mesh) {
+void Mesh<VertexPositionType>::setTopology(const cv::Mat& polygons_mesh) {
   polygons_mesh_ = polygons_mesh.clone();
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Reset all data structures of the mesh.
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::clearMesh() {

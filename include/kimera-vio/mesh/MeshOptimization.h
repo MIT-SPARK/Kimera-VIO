@@ -29,9 +29,9 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/mesh/Mesh.h"
+#include "kimera-vio/mesh/MeshOptimization-definitions.h"
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
-#include "kimera-vio/mesh/MeshOptimization-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
@@ -321,9 +321,9 @@ class MeshOptimization {
       // these
       // or maybe not if its neighbour triangles are fine.
       std::vector<cv::Point3f> triangle_datapoints = corresp[tri_idx];
-      //! Pixels associated to a triangle that have a depth value
-      //! (measurements)
-      KeypointsCV triangle_pixels = pixel_corresp[tri_idx];
+      //! Pixels associated to a triangle that have a depth value (datapoint,
+      //! measurements)
+      KeypointsCV datapoint_pixels = pixel_corresp[tri_idx];
       LOG_IF(ERROR, triangle_datapoints.size() < 3)
           << "Degenerate case optimization problem, we need more than 3 "
              "datapoints: offending triangle idx: "
@@ -338,8 +338,8 @@ class MeshOptimization {
       // Build factor graph
       switch (mesh_optimizer_type_) {
         case MeshOptimizerType::kGtsamMesh: {
-          for (size_t i = 0u; i < triangle_pixels.size(); i++) {
-            const KeypointCV& pixel = triangle_pixels[i];
+          for (size_t i = 0u; i < datapoint_pixels.size(); i++) {
+            const KeypointCV& pixel = datapoint_pixels[i];
             const cv::Point3f& lmk = triangle_datapoints[i];
             float inv_depth_meas = 1.0 / std::sqrt(lmk.dot(lmk));
 
@@ -383,6 +383,10 @@ class MeshOptimization {
             factor_graph += gtsam::JacobianFactor(
                 i1, A1, i2, A2, i3, A3, b, noise_model_input);
           }
+
+          //! Add spring energies for this triangle, but don't duplicate
+          //! springs!
+
           break;
         }
         default: {
