@@ -563,7 +563,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           drawCylinder("Variance for Lmk: " + std::to_string(lmk_id),
                        lmk_max,
                        lmk_min,
-                       0.02);
+                       0.01);
 
           //! Add new vertex to polygon
           //! Color with covariance bgr:
