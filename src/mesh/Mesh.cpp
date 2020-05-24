@@ -32,7 +32,7 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
       vertices_mesh_(0, 1, CV_32FC3),
       vertices_mesh_normal_(),
       normals_computed_(false),
-      vertices_mesh_color_(0, 1, CV_8UC3),
+      vertices_mesh_color_(0, 0, CV_8UC3, cv::viz::Color::blue()),
       polygons_mesh_(0, 1, CV_32SC1),
       adjacency_matrix_(1, 1, CV_8UC1, cv::Scalar(0u)),
       face_hashes_(),
@@ -459,6 +459,12 @@ void Mesh<VertexPositionType>::getPolygonsMeshToMat(
     cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   *polygons_mesh = polygons_mesh_.clone();
+}
+
+template <typename VertexPositionType>
+cv::Mat Mesh<VertexPositionType>::getColorsMesh(
+    const bool& safe) const {
+  return safe? vertices_mesh_color_.clone() : vertices_mesh_color_;
 }
 
 template <typename VertexPositionType>

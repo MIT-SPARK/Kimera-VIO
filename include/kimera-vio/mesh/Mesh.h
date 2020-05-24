@@ -199,6 +199,7 @@ class Mesh {
   // Retrieve the mesh data structures.
   void getVerticesMeshToMat(cv::Mat* vertices_mesh) const;
   void getPolygonsMeshToMat(cv::Mat* polygons_mesh) const;
+  cv::Mat getColorsMesh(const bool& safe = false) const;
 
   /**
    * @brief setTopology DANGEROUS: it replaces the current topology by the
