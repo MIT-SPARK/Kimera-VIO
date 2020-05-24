@@ -33,7 +33,7 @@ DEFINE_bool(display, false, "Display tests results.");
 
 namespace VIO {
 
-TEST(TestEurocPlayground, basicEurocPlayground) {
+TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
   EurocPlayground euroc_playground(FLAGS_test_data_path + "/V1_01_easy/",
                                    FLAGS_test_data_path + "/EurocParams",
                                    50,
