@@ -29,7 +29,7 @@
 #include "kimera-vio/playground/EurocPlayground.h"
 
 DECLARE_string(test_data_path);
-DEFINE_bool(display, false, "Display tests results.");
+DECLARE_bool(display);
 
 namespace VIO {
 
