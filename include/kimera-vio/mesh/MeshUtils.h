@@ -18,6 +18,8 @@
 
 #include <glog/logging.h>
 
+#include <opencv2/viz.hpp>
+
 #include "kimera-vio/common/vio_types.h"
 
 namespace VIO {
@@ -153,6 +155,66 @@ inline bool rayTriangleIntersect(const Vec3f& orig,
   t = v0v2.dot(qvec) * inv_det;
 
   return true;
+}
+
+/**
+ * Maps an input h from a value between 0.0 and 1.0 into a rainbow. Copied from
+ * OctomapProvider in octomap. Copied from voxblox itself.
+ */
+inline cv::viz::Color rainbowColorMap(double h) {
+  cv::viz::Color color;
+  // blend over HSV-values (more colors)
+
+  double s = 1.0;
+  double v = 1.0;
+
+  h -= floor(h);
+  h *= 6;
+  int i;
+  double m, n, f;
+
+  i = floor(h);
+  f = h - i;
+  if (!(i & 1)) f = 1 - f;  // if i is even
+  m = v * (1 - s);
+  n = v * (1 - s * f);
+
+  switch (i) {
+    case 6:
+    case 0:
+      color = cv::Scalar(255 * m, 255 * n, 255 * v, 255);
+      break;
+    case 1:
+      color = cv::Scalar(255 * m, 255 * v, 255 * n, 255);
+      break;
+    case 2:
+      color = cv::Scalar(255 * n, 255 * v, 255 * m, 255);
+      break;
+    case 3:
+      color = cv::Scalar(255 * v, 255 * n, 255 * m, 255);
+      break;
+    case 4:
+      color = cv::Scalar(255 * v, 255 * m, 255 * n, 255);
+      break;
+    case 5:
+      color = cv::Scalar(255 * n, 255 * m, 255 * v, 255);
+      break;
+    default:
+      color = cv::Scalar(127, 127, 255, 255);
+      break;
+  }
+
+  return color;
+}
+
+/// Maps an input h from a value between 0.0 and 1.0 into a grayscale color.
+inline cv::viz::Color grayColorMap(double h) {
+  auto x = round(h * 255);
+  return cv::Scalar(x, x, x);
+}
+
+inline cv::viz::Color randomColor() {
+  return cv::Scalar(rand() % 256, rand() % 256, rand() % 256, 255);
 }
 
 }  // namespace VIO

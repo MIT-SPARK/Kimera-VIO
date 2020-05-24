@@ -18,6 +18,8 @@
 
 #include <opencv2/core/core.hpp>
 
+#include "kimera-vio/utils/UtilsNumerical.h"
+
 namespace VIO {
 
 /**
@@ -33,6 +35,7 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
       vertices_mesh_color_(0, 1, CV_8UC3),
       polygons_mesh_(0, 1, CV_32SC1),
       adjacency_matrix_(1, 1, CV_8UC1, cv::Scalar(0u)),
+      face_hashes_(),
       polygon_dimension_(polygon_dimension) {
   CHECK_GE(polygon_dimension, 3) << "A polygon must have more than 2"
                                     " vertices";
@@ -48,6 +51,8 @@ Mesh<VertexPositionType>::Mesh(const Mesh<VertexPositionType>& rhs_mesh)
       normals_computed_(rhs_mesh.normals_computed_),
       vertices_mesh_color_(rhs_mesh.vertices_mesh_color_.clone()),  // CLONING!
       polygons_mesh_(rhs_mesh.polygons_mesh_.clone()),              // CLONING!
+      adjacency_matrix_(rhs_mesh.adjacency_matrix_.clone()),        // CLONING!
+      face_hashes_(rhs_mesh.face_hashes_),
       polygon_dimension_(rhs_mesh.polygon_dimension_) {
   VLOG(2) << "You are calling the copy ctor for a mesh... Cloning data.";
 }
@@ -69,6 +74,8 @@ Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(
   normals_computed_ = rhs_mesh.normals_computed_;
   vertices_mesh_color_ = rhs_mesh.vertices_mesh_color_.clone();
   polygons_mesh_ = rhs_mesh.polygons_mesh_.clone();
+  adjacency_matrix_ = rhs_mesh.adjacency_matrix_.clone();
+  face_hashes_ = rhs_mesh.face_hashes_;
   return *this;
 }
 
@@ -98,6 +105,8 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
     const VertexId& vtx_id =
         updateMeshDataStructures(lmk_id,
                                  vertex.getVertexPosition(),
+                                 vertex.getVertexColor(),
+                                 vertex.getVertexNormal(),
                                  &vertex_to_lmk_id_map_,
                                  &lmk_id_to_vertex_map_,
                                  &vertices_mesh_,
@@ -108,33 +117,47 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       CHECK_EQ(vtx_id, existing_vtx_id);
     }
 
+    CHECK_NE(vtx_id, -1);
     vtx_ids.push_back(vtx_id);
   }
   CHECK_EQ(vtx_ids.size(), polygon_dimension_);
+
+  std::sort(vtx_ids.begin(), vtx_ids.end());
+  const auto& face_hash =
+      UtilsNumerical::hashTriplet(vtx_ids[0], vtx_ids[1], vtx_ids[2]);
+  const auto& it = face_hashes_.find(face_hash);
 
   // Check the triangle is not already in the mesh
   CHECK_EQ(polygon_dimension_, 3) << "This doesn't work with non-triangles";
   bool triangle_in_mesh = false;
   if (triangle_maybe_already_in_mesh) {
     // Check that the triangle is not already in the mesh!
-    CHECK_LT(vtx_ids[0], adjacency_matrix_.rows);
-    CHECK_LT(vtx_ids[1], adjacency_matrix_.rows);
-    CHECK_LT(vtx_ids[2], adjacency_matrix_.rows);
-    if (adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[1]) == 1u &&
-        adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[2]) == 1u &&
-        adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]) == 1u ) {
+    if (it != face_hashes_.end()) {
+      // LOG(ERROR) << "Found existing face with hash: " << face_hash;
       // Triangle already exists!
       triangle_in_mesh = true;
+      CHECK(it->second);
+      CHECK_EQ(adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[1]), 1u);
+      CHECK_EQ(adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]), 1u);
+      CHECK_EQ(adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[0]), 1u);
+    } else {
+      triangle_in_mesh = false;
     }
   }
 
   if (!triangle_in_mesh) {
+    // LOG(ERROR) << "Adding face with hash: " << face_hash;
+    CHECK(it == face_hashes_.end()) << "Hash collision? This can happen but "
+                                       "weird... Check your hashing function.";
+    face_hashes_[face_hash] = true;
+
     // Update polygons_mesh_
     // Specify number of point ids per face in the mesh.
     polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
     for (const VertexId& vtx_id : vtx_ids) {
       polygons_mesh_.push_back(static_cast<int>(vtx_id));
     }
+
 
     // Update adjacency matrix
     if (!triangle_maybe_already_in_mesh) {
@@ -167,7 +190,9 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
     adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]) = 1u;
     adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[1]) = 1u;
   } else {
-    // No need to update connectivity.
+    // No need to update connectivity, since the triangle is in the mesh already
+    CHECK(it != face_hashes_.end());
+    CHECK(face_hashes_[face_hash]);
   }
 }
 
@@ -180,12 +205,13 @@ typename Mesh<VertexPositionType>::VertexId
 Mesh<VertexPositionType>::updateMeshDataStructures(
     const LandmarkId& lmk_id,
     const VertexPositionType& lmk_position,
+    const VertexColorRGB& vertex_color,
+    const VertexNormal& vertex_normal,
     std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
     std::map<LandmarkId, VertexId>* lmk_id_to_vertex_id_map,
     cv::Mat* vertices_mesh,
     VertexNormals* vertices_mesh_normal,
-    cv::Mat* vertices_mesh_color,
-    const VertexColorRGB& vertex_color) const {
+    cv::Mat* vertices_mesh_color) const {
   CHECK_NOTNULL(vertex_to_lmk_id_map);
   CHECK_NOTNULL(lmk_id_to_vertex_id_map);
   CHECK_NOTNULL(vertices_mesh);
@@ -203,7 +229,7 @@ Mesh<VertexPositionType>::updateMeshDataStructures(
     // New landmark, create a new entrance in the set of vertices.
     // Store 3D points in map_points_3d.
     vertices_mesh->push_back(lmk_position);
-    vertices_mesh_normal->push_back(VertexNormal());
+    vertices_mesh_normal->push_back(vertex_normal);
     vertices_mesh_color->push_back(vertex_color);
     row_id_vertex = vertices_mesh->rows - 1;
     // Book-keeping.
@@ -213,8 +239,10 @@ Mesh<VertexPositionType>::updateMeshDataStructures(
   } else {
     // Update old landmark with new position.
     // But don't update the color information... Or should we?
-    vertices_mesh->at<VertexPositionType>(vertex_it->second) = lmk_position;
     row_id_vertex = vertex_it->second;
+    vertices_mesh->at<VertexPositionType>(row_id_vertex) = lmk_position;
+    vertices_mesh_normal->at(row_id_vertex) = vertex_normal;
+    vertices_mesh_color->at<VertexColorRGB>(row_id_vertex) = vertex_color;
   }
   return row_id_vertex;
 }
@@ -387,8 +415,6 @@ bool Mesh<VertexPositionType>::setVertexColor(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
 template <typename VertexPositionType>
 bool Mesh<VertexPositionType>::setVertexPosition(
     const LandmarkId& lmk_id,
@@ -406,8 +432,6 @@ bool Mesh<VertexPositionType>::setVertexPosition(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
 // Get a list of all lmk ids in the mesh.
 template <typename VertexPositionType>
 LandmarkIds Mesh<VertexPositionType>::getLandmarkIds() const {
@@ -424,28 +448,25 @@ LandmarkIds Mesh<VertexPositionType>::getLandmarkIds() const {
 }
 
 template <typename VertexPositionType>
-void Mesh<VertexPositionType>::convertVerticesMeshToMat(
+void Mesh<VertexPositionType>::getVerticesMeshToMat(
     cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
   *vertices_mesh = vertices_mesh_.clone();
 }
 
 template <typename VertexPositionType>
-void Mesh<VertexPositionType>::convertPolygonsMeshToMat(
+void Mesh<VertexPositionType>::getPolygonsMeshToMat(
     cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   *polygons_mesh = polygons_mesh_.clone();
 }
 
-/* --------------------------------------------------------------------------
- */
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::setTopology(const cv::Mat& polygons_mesh) {
   polygons_mesh_ = polygons_mesh.clone();
+  // TODO(TONI) // What about adjacency matrix!!! and face_hashes!
 }
 
-/* --------------------------------------------------------------------------
- */
 // Reset all data structures of the mesh.
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::clearMesh() {
@@ -453,6 +474,8 @@ void Mesh<VertexPositionType>::clearMesh() {
   vertices_mesh_normal_ = VertexNormals();
   vertices_mesh_color_ = cv::Mat(0, 1, CV_8UC3);
   polygons_mesh_ = cv::Mat(0, 1, CV_32SC1);
+  adjacency_matrix_ = cv::Mat(1, 1, CV_8UC1, cv::Scalar(0u));
+  face_hashes_.clear();
   vertex_to_lmk_id_map_.clear();
   lmk_id_to_vertex_map_.clear();
 }

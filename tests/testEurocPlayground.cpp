@@ -37,7 +37,7 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
   EurocPlayground euroc_playground(FLAGS_test_data_path + "/V1_01_easy/",
                                    FLAGS_test_data_path + "/EurocParams",
                                    50,
-                                   1000);
+                                   100);
   if (FLAGS_display) {
     euroc_playground.visualizeGtData(true, true, true);
 
@@ -57,10 +57,10 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       cv::KeyPoint::convert(corners, keypoints);
 
       const cv::Size& img_size = it->second.left_image_.size();
-      keypoints.push_back(KeypointCV(1u, 1u));
-      keypoints.push_back(KeypointCV(1u, img_size.width - 1u));
-      keypoints.push_back(KeypointCV(img_size.height - 1u, 0u));
-      keypoints.push_back(KeypointCV(img_size.height - 1u, img_size.width - 1u));
+      //keypoints.push_back(KeypointCV(1u, 1u));
+      //keypoints.push_back(KeypointCV(1u, img_size.width - 1u));
+      //keypoints.push_back(KeypointCV(img_size.height - 1u, 0u));
+      //keypoints.push_back(KeypointCV(img_size.height - 1u, img_size.width - 1u));
 
       // Build 2D Mesh out of image keypoints using delaunay triangulation
       Mesh2D mesh_2d;
@@ -102,8 +102,8 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       cv::Mat pcl;
       cv::Mat connect;
 
-      input.mesh_2d.convertVerticesMeshToMat(&pcl);
-      input.mesh_2d.convertPolygonsMeshToMat(&connect);
+      input.mesh_2d.getVerticesMeshToMat(&pcl);
+      input.mesh_2d.getPolygonsMeshToMat(&connect);
 
       // LOG(INFO) << pcl;
       // LOG(INFO) << connect;
@@ -123,8 +123,8 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       input.noisy_point_cloud = ordered_pcl.t();
 
       MeshOptimizationOutput::UniquePtr out_ptr = mesh_opt.spinOnce(input);
-      out_ptr->optimized_mesh_3d.convertVerticesMeshToMat(&pcl);
-      out_ptr->optimized_mesh_3d.convertPolygonsMeshToMat(&connect);
+      out_ptr->optimized_mesh_3d.getVerticesMeshToMat(&pcl);
+      out_ptr->optimized_mesh_3d.getPolygonsMeshToMat(&connect);
     }
   }
 }

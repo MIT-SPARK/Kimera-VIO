@@ -1565,11 +1565,11 @@ void Mesher::appendLmkIdsOfPolygon(
 /* -------------------------------------------------------------------------- */
 void Mesher::getVerticesMesh(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
-  mesh_3d_.convertVerticesMeshToMat(vertices_mesh);
+  mesh_3d_.getVerticesMeshToMat(vertices_mesh);
 }
 void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
-  mesh_3d_.convertPolygonsMeshToMat(polygons_mesh);
+  mesh_3d_.getPolygonsMeshToMat(polygons_mesh);
 }
 
 void Mesher::serializeMeshes() {

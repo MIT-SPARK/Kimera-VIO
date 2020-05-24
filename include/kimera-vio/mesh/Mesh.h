@@ -197,8 +197,8 @@ class Mesh {
   }
 
   // Retrieve the mesh data structures.
-  void convertVerticesMeshToMat(cv::Mat* vertices_mesh) const;
-  void convertPolygonsMeshToMat(cv::Mat* polygons_mesh) const;
+  void getVerticesMeshToMat(cv::Mat* vertices_mesh) const;
+  void getPolygonsMeshToMat(cv::Mat* polygons_mesh) const;
 
   /**
    * @brief setTopology DANGEROUS: it replaces the current topology by the
@@ -263,12 +263,13 @@ class Mesh {
   VertexId updateMeshDataStructures(
       const LandmarkId& lmk_id,
       const VertexPosition& lmk_position,
+      const VertexColorRGB& vertex_color,
+      const VertexNormal& vertex_normal,
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
       std::map<LandmarkId, VertexId>* lmk_id_to_vertex_id_map,
       cv::Mat* vertices_mesh,
       VertexNormals* vertices_mesh_normal,
-      cv::Mat* vertices_mesh_color,
-      const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
+      cv::Mat* vertices_mesh_color) const;
 
   // Sets all vertex normals to 0.
   inline void clearVertexNormals() { vertices_mesh_normal_.clear(); }
@@ -286,6 +287,8 @@ class Mesh {
     ar& normals_computed_;
     ar& vertices_mesh_color_;
     ar& polygons_mesh_;
+    ar& adjacency_matrix_;
+    // ar& face_hashes_;
     ar& const_cast<size_t&>(polygon_dimension_);
   }
 
@@ -330,8 +333,10 @@ class Mesh {
   //! Connectivity of the mesh at the edge level.
   //! Squared matrix of vertices, ordered according to vtx_id (meaning their
   //! position in the vertices_mesh_ rows.
-  //! This information should be
   cv::Mat adjacency_matrix_;
+
+  //! Used as a hash to know if a face is in the mesh
+  std::unordered_map<size_t, bool> face_hashes_;
 
   // Number of vertices per polygon.
   const size_t polygon_dimension_;

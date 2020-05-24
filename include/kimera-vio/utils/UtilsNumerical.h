@@ -37,6 +37,30 @@ size_t hashPair(const std::pair<T1, T2>& p) {
   return seed;
 }
 
+//! A hash function used to hash a pair of any kind: ORDER DOESN'T MATTERS,
+//! If you want order invariance just sort your values before accessing/checking
+//! Used for hashing faces in a mesh.
+template <class T1, class T2, class T3>
+size_t hashTriplet(const T1& p1, const T2& p2, const T3& p3) {
+  // return ((std::hash<T1>()(p1) ^ (std::hash<T2>()(p2) << 1)) >> 1) ^
+  //        (std::hash<T3>()(p3) << 1);
+  static constexpr size_t sl = 17191;
+  static constexpr size_t sl2 = sl * sl;
+  return static_cast<unsigned int>(p1 + p2 * sl + p3 * sl2);
+}
+
+//! A hash function used to hash a pair of any kind: ORDER MATTERS,
+//! If you want order invariance just sort your values before accessing/checking
+//! Used for hashing faces in a mesh.
+template <class T1, class T2, class T3>
+size_t hashTripletOrderAgnostic(const T1& p1, const T2& p2, const T3& p3) {
+  size_t seed = 0u;
+  boost::hash_combine(seed, p1);
+  boost::hash_combine(seed, p2);
+  boost::hash_combine(seed, p3);
+  return seed;
+}
+
 // Sort vector and remove duplicate elements
 template <typename T>
 void VectorUnique(std::vector<T>& v) {
