@@ -182,7 +182,7 @@ Pipeline::Pipeline(const VioParams& params,
       parallel_run_,
       BackEndFactory::createBackend(backend_type_,
                                     // These two should be given by parameters.
-                                    stereo_camera_->getLeftCamRectPose(),
+                                    stereo_camera_->getBodyPoseLeftCamRect(),
                                     stereo_camera_->getStereoCalib(),
                                     *backend_params_,
                                     imu_params_,
@@ -202,7 +202,7 @@ Pipeline::Pipeline(const VioParams& params,
         parallel_run_,
         MesherFactory::createMesher(
             MesherType::PROJECTIVE,
-            MesherParams(stereo_camera_->getLeftCamRectPose(),
+            MesherParams(stereo_camera_->getBodyPoseLeftCamRect(),
                          params.camera_params_.at(0u).image_size_)));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
@@ -728,7 +728,7 @@ bool Pipeline::initializeOnline(
       // Create initial backend
       CHECK(stereo_camera_);
       InitializationBackEnd initial_backend(
-          stereo_camera_->getLeftCamRectPose(),
+          stereo_camera_->getBodyPoseLeftCamRect(),
           stereo_camera_->getStereoCalib(),
           backend_params_init,
           imu_params_,

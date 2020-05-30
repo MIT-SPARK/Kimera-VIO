@@ -29,6 +29,13 @@ enum class MeshOptimizerType {
   kGtsamMesh = 3
 };
 
+enum class MeshColorType {
+  kVertexFlatColor = 0,
+  kVertexRGB = 1,
+  kVertexDepthVariance = 2,
+  kVertexSupport = 3,
+};
+
 struct MeshOptimizationInput {
   KIMERA_POINTER_TYPEDEFS(MeshOptimizationInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MeshOptimizationInput);
@@ -37,7 +44,6 @@ struct MeshOptimizationInput {
   ~MeshOptimizationInput() = default;
 
   cv::Mat noisy_point_cloud;
-  CameraParams camera_params;
   Mesh2D mesh_2d;
 };
 

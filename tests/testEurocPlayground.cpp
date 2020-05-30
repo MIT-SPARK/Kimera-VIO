@@ -33,11 +33,18 @@ DECLARE_bool(display);
 
 namespace VIO {
 
-TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
+TEST(TestEurocPlayground, basicEurocPlayground) {
   EurocPlayground euroc_playground(FLAGS_test_data_path + "/V1_01_easy/",
                                    FLAGS_test_data_path + "/EurocParams",
                                    50,
-                                   100);
+                                   200);
+
+  // Optimize mesh using MeshOpt
+  MeshOptimization mesh_opt(MeshOptimizerType::kGtsamMesh,
+                            MeshColorType::kVertexFlatColor,
+                            euroc_playground.stereo_camera_,
+                            euroc_playground.visualizer_3d_);
+
   if (FLAGS_display) {
     euroc_playground.visualizeGtData(true, true, true);
 
@@ -51,24 +58,27 @@ TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
              euroc_playground.mesh_packets_.begin();
          it != euroc_playground.mesh_packets_.end();
          it++) {
+      cv::Mat left_img_rect = it->second.left_image_rect_;
       std::vector<cv::KeyPoint> corners =
-          feature_detector.rawFeatureDetection(it->second.left_image_);
+          feature_detector.rawFeatureDetection(left_img_rect);
       KeypointsCV keypoints;
       cv::KeyPoint::convert(corners, keypoints);
 
-      const cv::Size& img_size = it->second.left_image_.size();
-      //keypoints.push_back(KeypointCV(1u, 1u));
-      //keypoints.push_back(KeypointCV(1u, img_size.width - 1u));
-      //keypoints.push_back(KeypointCV(img_size.height - 1u, 0u));
-      //keypoints.push_back(KeypointCV(img_size.height - 1u, img_size.width - 1u));
+      const cv::Size& img_size = left_img_rect.size();
+      // keypoints.clear();
+      for (size_t v = 0u; v < img_size.height; v += 30) {
+        for (size_t u = 0u; u < img_size.width; u += 30) {
+          keypoints.push_back(KeypointCV(u, v));
+        }
+      }
 
       // Build 2D Mesh out of image keypoints using delaunay triangulation
       Mesh2D mesh_2d;
-      Mesher::createMesh2D(keypoints, img_size, &mesh_2d);
+      Mesher::createMesh2D(keypoints, &mesh_2d);
 
       // Visualize 2D mesh
       cv::Mat mesh_2d_viz;
-      cv::cvtColor(it->second.left_image_.clone(), mesh_2d_viz, CV_GRAY2RGB);
+      cv::cvtColor(left_img_rect.clone(), mesh_2d_viz, CV_GRAY2RGB);
       MeshOptimization::draw2dMeshOnImg(mesh_2d, &mesh_2d_viz);
       for (const auto& keypoint : keypoints) {
         cv::circle(mesh_2d_viz,
@@ -80,23 +90,13 @@ TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
                    0);
       }
       cv::imshow("Mesh 2D", mesh_2d_viz);
-      cv::waitKey(0);
+      cv::waitKey(1);
 
       // Create pointcloud
       cv::Mat ordered_pcl = it->second.depth_map_.clone();
-      // ordered_pcl = ordered_pcl.reshape(3,
-      // it->second.depth_map_.size().area());
 
-      // Optimize mesh using MeshOpt
-      MeshOptimization mesh_opt(MeshOptimizerType::kGtsamMesh, true);
-      mesh_opt.img_ = mesh_2d_viz;
+      mesh_opt.img_ = left_img_rect;
       MeshOptimizationInput input;
-      // Set to identity because the pointcloud is in the camera's frame of
-      // reference
-      // already!
-      euroc_playground.vio_params_.camera_params_.at(0).body_Pose_cam_ =
-          gtsam::Pose3::identity();
-      input.camera_params = euroc_playground.vio_params_.camera_params_.at(0);
       input.mesh_2d = mesh_2d;
 
       cv::Mat pcl;
@@ -120,7 +120,7 @@ TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
 
       // mesh_opt.draw3dMesh(
       //     "Mesh 3D before opt", cv::viz::Color::blue(), input.mesh_3d);
-      input.noisy_point_cloud = ordered_pcl.t();
+      input.noisy_point_cloud = ordered_pcl;
 
       MeshOptimizationOutput::UniquePtr out_ptr = mesh_opt.spinOnce(input);
       out_ptr->optimized_mesh_3d.getVerticesMeshToMat(&pcl);

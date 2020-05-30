@@ -46,10 +46,10 @@ using CamPose = cv::Affine3d;
 struct MeshPacket {
   Timestamp timestamp_;
   DepthMap depth_map_;
-  CamPose left_cam_pose_;
-  CamPose right_cam_pose_;
-  cv::Mat left_image_;
-  cv::Mat right_image_;
+  CamPose left_cam_rect_pose_;
+  CamPose right_cam_rect_pose_;
+  cv::Mat left_image_rect_;
+  cv::Mat right_image_rect;
 };
 using MeshPackets = std::map<Timestamp, MeshPacket>;
 
@@ -84,7 +84,10 @@ public:
   //! Params
   VioParams vio_params_;
 
-  OpenCvVisualizer3D::UniquePtr visualizer_3d_;
+  OpenCvVisualizer3D::Ptr visualizer_3d_;
+
+  //! Stereo Camera to back/project and do stereo dense reconstruction.
+  StereoCamera::Ptr stereo_camera_;
 
  protected:
   //! Fill one IMU measurement only
@@ -104,8 +107,6 @@ public:
   //! Feature Detector to extract features from the images.
   FeatureDetector::UniquePtr feature_detector_;
 
-  //! Stereo Camera to back/project and do stereo dense reconstruction.
-  StereoCamera::UniquePtr stereo_camera_;
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;

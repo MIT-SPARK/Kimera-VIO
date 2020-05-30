@@ -478,7 +478,7 @@ template <typename VertexPositionType>
 void Mesh<VertexPositionType>::clearMesh() {
   vertices_mesh_ = cv::Mat(0, 1, CV_32FC3);
   vertices_mesh_normal_ = VertexNormals();
-  vertices_mesh_color_ = cv::Mat(0, 1, CV_8UC3);
+  vertices_mesh_color_ = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::blue());
   polygons_mesh_ = cv::Mat(0, 1, CV_32SC1);
   adjacency_matrix_ = cv::Mat(1, 1, CV_8UC1, cv::Scalar(0u));
   face_hashes_.clear();
