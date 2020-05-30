@@ -98,6 +98,22 @@ class StereoCameraFixture : public ::testing::Test {
     }
   }
 
+  /**
+   * @brief compareLandmarks compares two sets of 3D landmarks
+   */
+  void compareLandmarks(const LandmarksCV& lmks_1,
+                        const LandmarksCV& lmks_2,
+                        const float& tol) {
+    ASSERT_EQ(lmks_1.size(), lmks_2.size());
+    for (size_t i = 0u; i < lmks_1.size(); i++) {
+      const auto& lmk_1 = lmks_1[i];
+      const auto& lmk_2 = lmks_2[i];
+      EXPECT_NEAR(lmk_1.x, lmk_2.x, tol);
+      EXPECT_NEAR(lmk_1.y, lmk_2.y, tol);
+      EXPECT_NEAR(lmk_1.z, lmk_2.z, tol);
+    }
+  }
+
   /** Visualization **/
   void drawPixelOnImg(const cv::Point2f& pixel,
                       cv::Mat& img,
@@ -214,13 +230,14 @@ TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
   KeypointsCV expected_right_kpts;
   KeypointsCV actual_left_kpts;
   KeypointsCV actual_right_kpts;
-  for (int32_t u = 0; u < depth_map.rows; ++u) {
-    for (int32_t v = 0; v < depth_map.cols; ++v) {
-      const cv::Point3f& xyz = depth_map.at<cv::Point3f>(u, v);
+  for (size_t v = 0u; v < depth_map.rows; ++v) {
+    for (size_t u = 0u; u < depth_map.cols; ++u) {
+      KeypointCV pixel(u, v);
+      const cv::Point3f& xyz = depth_map.at<cv::Point3f>(pixel);
       if (isValidPoint(xyz) && xyz.z <= kMaxZ) {
         // Convert xyz to global coords (as they are given in camera coords).
         const gtsam::Pose3& left_cam_rect_pose =
-            stereo_camera_->getLeftCamRectPose();
+            stereo_camera_->getBodyPoseLeftCamRect();
         // transform from left cam frame of reference to body because the
         // stereo camera projection function expects landmarks in the body
         // frame of reference!
@@ -237,15 +254,51 @@ TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
         // We would expect the 3D position of the pixel in u,v coords to
         // project at or at least near (u, v).
         actual_left_kpts.push_back(kp_left);
-        expected_left_kpts.push_back(KeypointCV(u, v));
+        expected_left_kpts.push_back(pixel);
         actual_right_kpts.push_back(kp_right);
         expected_right_kpts.push_back(
-            KeypointCV(u, v - disp_img.at<float>(u, v)));
+            KeypointCV(u - disp_img.at<float>(pixel), v));
       }
     }
   }
   compareKeypoints(expected_left_kpts, actual_left_kpts, 0.0001f);
   compareKeypoints(expected_right_kpts, actual_right_kpts, 0.0001f);
+}
+
+TEST_F(StereoCameraFixture, backProjectGivenDepth) {
+  CHECK_NOTNULL(stereo_camera_);
+  LandmarksCV expected_lmks;
+  LandmarksCV actual_lmks;
+
+  KeypointCV kp(stereo_camera_->getStereoCalib()->calibration().px(),
+                stereo_camera_->getStereoCalib()->calibration().py());
+  double depth = 1.0;
+  LandmarkCV expected_lmk(0.0, 0.0, depth);
+  gtsam::Point3 lmk_body =
+      stereo_camera_->getBodyPoseLeftCamRect().transformFrom(
+          gtsam::Point3(expected_lmk.x, expected_lmk.y, expected_lmk.z));
+  expected_lmk.x = lmk_body.x();
+  expected_lmk.y = lmk_body.y();
+  expected_lmk.z = lmk_body.z();
+
+  LandmarkCV actual_lmk;
+  stereo_camera_->backProjectDepth(kp, depth, &actual_lmk);
+  expected_lmks.push_back(expected_lmk);
+  actual_lmks.push_back(actual_lmk);
+
+  // Increase depth by 20
+  depth = 20.0;
+  expected_lmk = LandmarkCV(0.0, 0.0, depth);
+  lmk_body = stereo_camera_->getBodyPoseLeftCamRect().transformFrom(
+      gtsam::Point3(expected_lmk.x, expected_lmk.y, expected_lmk.z));
+  expected_lmk.x = lmk_body.x();
+  expected_lmk.y = lmk_body.y();
+  expected_lmk.z = lmk_body.z();
+  stereo_camera_->backProjectDepth(kp, depth, &actual_lmk);
+  expected_lmks.push_back(expected_lmk);
+  actual_lmks.push_back(actual_lmk);
+
+  compareLandmarks(expected_lmks, actual_lmks, 0.00001);
 }
 
 }  // namespace VIO
