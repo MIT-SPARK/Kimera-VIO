@@ -43,11 +43,11 @@ namespace VIO {
 
 MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
                                    const MeshColorType& mesh_color_type,
-                                   StereoCamera::UniquePtr stereo_camera,
+                                   StereoCamera::Ptr stereo_camera,
                                    OpenCvVisualizer3D::Ptr visualizer)
     : visualizer_(visualizer),
       mesh_optimizer_type_(solver_type),
-      stereo_camera_(std::move(stereo_camera)),
+      stereo_camera_(CHECK_NOTNULL(stereo_camera)),
       window_("Mesh Optimization"),
       mesh_color_type_(mesh_color_type) {
   window_.setBackgroundColor(cv::viz::Color::white());
@@ -213,6 +213,7 @@ void MeshOptimization::collectTriangleDataPoints(
   CHECK_NOTNULL(corresp);
   CHECK_NOTNULL(pixel_corresp);
   *CHECK_NOTNULL(number_of_valid_datapoints) = 0u;
+  CHECK_NOTNULL(stereo_camera_);
 
   for (size_t v = 0u; v < noisy_point_cloud.rows; ++v) {
     for (size_t u = 0u; u < noisy_point_cloud.cols; ++u) {
@@ -240,8 +241,7 @@ void MeshOptimization::collectTriangleDataPoints(
 
         KeypointCV left_pixel;
         KeypointCV right_pixel;
-        CHECK_NOTNULL(stereo_camera_)
-            ->project(lmk_cv, &left_pixel, &right_pixel);
+        stereo_camera_->project(lmk_cv, &left_pixel, &right_pixel);
         CHECK_NEAR(left_pixel.x, static_cast<double>(u), 0.001);
         CHECK_NEAR(left_pixel.y, static_cast<double>(v), 0.001);
 
@@ -480,7 +480,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   LOG(INFO) << "Solving optimization problem.";
   switch (mesh_optimizer_type_) {
     case MeshOptimizerType::kGtsamMesh: {
-      static constexpr bool kUseSpringEnergies = false;
+      static constexpr bool kUseSpringEnergies = true;
       if (kUseSpringEnergies) {
         //! Add spring energies for this triangle, but don't duplicate
         //! springs! Hence, use adjacency matrix to know where to put the
@@ -594,10 +594,12 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           //! only the distance along the ray is meaningful!
           //! TODO(Toni): this is in world coordinates!! Not in cam coords!
           //! But right-now everything is the same...
-          // drawCylinder("Variance for Lmk: " + std::to_string(lmk_id),
-          //             lmk_max,
-          //             lmk_min,
-          //             0.01);
+          drawCylinder("Variance for Lmk: " + std::to_string(lmk_id),
+                       lmk_max,
+                       lmk_min,
+                       0.01,
+                       30,
+                       cv::viz::Color::azure());
 
           //! Add new vertex to polygon
           //! Color with covariance bgr:
@@ -673,13 +675,15 @@ void MeshOptimization::getBearingVectorFrom2DPixel(
     const cv::Point2f& pixel,
     cv::Point3f* bearing_vector_body_frame) {
   CHECK_NOTNULL(bearing_vector_body_frame);
+  CHECK_NOTNULL(stereo_camera_);
   LandmarkCV lmk;
   // This in turn transforms the bearing vector to the stereo camera frame of
   // reference. Therefore, bearing vector is expressed in the body frame of ref.
   stereo_camera_->backProjectDepth(pixel, 1.0, &lmk);
   *bearing_vector_body_frame = lmk / std::sqrt(lmk.dot(lmk));
   CHECK_NEAR(bearing_vector_body_frame->dot(*bearing_vector_body_frame),
-                  1.0f, 0.0001f);
+             1.0f,
+             0.0001f);
 }
 
 void MeshOptimization::getBearingVectorFrom3DLmk(const gtsam::Pose3& extrinsics,
@@ -725,6 +729,8 @@ void MeshOptimization::drawPointCloud(const std::string& id,
                                       const cv::Mat& pointcloud,
                                       const cv::Affine3d& pose) {
   cv::Mat viz_cloud(0, 1, CV_32FC3, cv::Scalar(0));
+  cv::Mat colors_pcl = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::red());
+  CHECK_EQ(img_.type(), CV_8UC1);
   if (pointcloud.rows != 1u || pointcloud.cols != 1u) {
     LOG(ERROR) << "Reshaping pointcloud!";
     cv::Mat_<cv::Point3f> flat_pcl = cv::Mat(1, 0, CV_32FC3);
@@ -733,12 +739,13 @@ void MeshOptimization::drawPointCloud(const std::string& id,
         const cv::Point3f& lmk = pointcloud.at<cv::Point3f>(v, u);
         if (isValidPoint(lmk) && lmk.z <= kMaxZ && lmk.z >= kMinZ) {
           flat_pcl.push_back(lmk);
+          colors_pcl.push_back(cv::Vec3b::all(img_.at<uint8_t>(v, u)));
         }
       }
     }
     viz_cloud = flat_pcl;
   }
-  cv::viz::WCloud cloud(viz_cloud, cv::viz::Color::red());
+  cv::viz::WCloud cloud(viz_cloud, colors_pcl);
   cloud.setRenderingProperty(cv::viz::POINT_SIZE, 6);
   window_.showWidget(id, cloud, pose);
 }

@@ -49,7 +49,7 @@ class MeshOptimization {
  public:
   MeshOptimization(const MeshOptimizerType& solver_type,
                    const MeshColorType& mesh_color_type,
-                   StereoCamera::UniquePtr stereo_camera,
+                   StereoCamera::Ptr stereo_camera,
                    OpenCvVisualizer3D::Ptr visualizer = nullptr);
   virtual ~MeshOptimization() = default;
 
@@ -190,8 +190,8 @@ class MeshOptimization {
   void spinDisplay();
 
  public:
-  /// Image for debug display
-  cv::Mat img_ = cv::Mat::zeros(400, 400, CV_8UC3);
+  /// Image for debug display: gray scale.
+  cv::Mat img_ = cv::Mat::zeros(400, 400, CV_8UC1);
 
  private:
   const MeshOptimizerType mesh_optimizer_type_;
@@ -200,7 +200,7 @@ class MeshOptimization {
   static constexpr float kMaxZ = 4.0;   // meters
 
   //! Camera with which the noisy point cloud and the 2d mesh were generated.
-  StereoCamera::UniquePtr stereo_camera_;
+  StereoCamera::Ptr stereo_camera_;
 
   /// 3D plotting
   // TODO(Toni) this should be done by the display module...

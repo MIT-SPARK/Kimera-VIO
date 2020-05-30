@@ -87,7 +87,7 @@ public:
   OpenCvVisualizer3D::Ptr visualizer_3d_;
 
   //! Stereo Camera to back/project and do stereo dense reconstruction.
-  StereoCamera::UniquePtr stereo_camera_;
+  StereoCamera::Ptr stereo_camera_;
 
  protected:
   //! Fill one IMU measurement only
