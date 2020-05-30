@@ -204,6 +204,7 @@ if(BUILD_TESTS)
     tests/testPipeline.cpp
     tests/testVioParams.cpp
     tests/testEurocPlayground.cpp
+    tests/testCamera.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp

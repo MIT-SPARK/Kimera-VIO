@@ -36,13 +36,18 @@ class Camera {
   Camera(const CameraParams& cam_params);
   virtual ~Camera() = default;
 
+  // Camera implementation provided by gtsam
+  using CameraImpl = gtsam::PinholeCamera<gtsam::Cal3_S2>;
+
  public:
-  /** NOT TESTED
-   * @brief project Lmks into images, doesn't do any check...
-   * @param lmks
-   * @param kpts
+  /**
+   * @brief project 3D Lmks into images as 2D pixels, doesn't do any check...
+   * @param lmks Given in World coordinates or rather in whatever frame of
+   * reference the pose of the camera is given (usually the body frame!).
+   * @param kpts 2D pixel coordinates of the projection of the 3D landmark
    */
   void project(const LandmarksCV& lmks, KeypointsCV* kpts) const;
+  void project(const LandmarkCV& lmks, KeypointCV* kpts) const;
 
   /** NOT TESTED
    * @brief backProject keypoints given depth
@@ -56,7 +61,7 @@ class Camera {
  private:
   CameraParams cam_params_;
   gtsam::Cal3_S2 calibration_;
-  gtsam::PinholeCamera<gtsam::Cal3_S2> camera_impl_;
+  std::unique_ptr<CameraImpl> camera_impl_;
 };
 
 }  // namespace VIO
