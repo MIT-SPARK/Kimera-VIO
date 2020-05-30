@@ -1,15 +1,7 @@
 #include "kimera-vio/playground/EurocPlayground.h"
+#include "kimera-vio/mesh/MeshUtils.h"
 
 namespace VIO {
-
-static const double MISSING_Z = 10000.;
-
-static bool isValidPoint(const cv::Point3f& pt) {
-  // Check both for disparities explicitly marked as invalid (where OpenCV maps
-  // pt.z to MISSING_Z)
-  // and zero disparities (point mapped to infinity).
-  return pt.z != MISSING_Z && !std::isinf(pt.z);
-}
 
 EurocPlayground::EurocPlayground(const std::string& dataset_path,
                                  const std::string& params_path,
@@ -115,14 +107,15 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
           vio_params_.frontend_params_.stereo_matching_params_);
       if ((left_frame->id_ % subsample_n) == 0u) {
         // Add frame to frustum
-        const cv::Affine3d& left_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
-            euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
-                .compose(left_frame->cam_param_.body_Pose_cam_));
-        const cv::Affine3d& right_cam_pose =
+        const cv::Affine3d& left_cam_rect_pose =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
+                    .compose(CHECK_NOTNULL(stereo_camera_)->getBodyPoseLeftCamRect()));
+        const cv::Affine3d& right_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_
                     ->getGroundTruthPose(right_frame->timestamp_)
-                    .compose(right_frame->cam_param_.body_Pose_cam_));
+                    .compose(CHECK_NOTNULL(stereo_camera_)->getBodyPoseRightCamRect()));
 
         cv::Mat smaller_img;
         static constexpr double kScaleFactor = 0.1;
@@ -137,7 +130,7 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat resized_K = resize_K * K;
         visualizer_3d_->visualizePoseWithImgInFrustum(
             smaller_img,
-            left_cam_pose,
+            left_cam_rect_pose,
             &output->widgets_,
             "Camera id: " + std::to_string(left_frame->id_),
             resized_K);
@@ -146,15 +139,16 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat disp_img =
             cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
         CHECK(stereo_frame.isRectified());
-        stereo_camera_->undistortRectifyStereoFrame(&stereo_frame);
-        stereo_camera_->stereoDisparityReconstruction(
+        CHECK_NOTNULL(stereo_camera_)->undistortRectifyStereoFrame(&stereo_frame);
+        CHECK_NOTNULL(stereo_camera_)->stereoDisparityReconstruction(
             stereo_frame.getLeftImgRectified(),
             stereo_frame.getRightImgRectified(),
             &disp_img);
         cv::Mat disp_viz_img;
         UtilsOpenCV::getDisparityVis(disp_img, disp_viz_img, 1.0);
-        cv::imshow("Left Image", stereo_frame.getLeftImgRectified());
-        cv::imshow("Right Image", stereo_frame.getRightImgRectified());
+        cv::imshow("Left Image Rectified", stereo_frame.getLeftImgRectified());
+        cv::imshow("Right Image Rectified",
+                   stereo_frame.getRightImgRectified());
         cv::imshow("Disparity Image", disp_viz_img);
 
         // Check
@@ -166,9 +160,10 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
 
         // I think this is the perfect container for mesh optimization
         // since it encodes in (u, v) => (x, y, z).
+        // Maybe ideally it should be (u, v) => 1/z
         cv::Mat_<cv::Point3f> depth_map;
         // Need to move all points according to pose of stereo camera!
-        stereo_camera_->backProjectDisparityTo3D(disp_img, &depth_map);
+        CHECK_NOTNULL(stereo_camera_)->backProjectDisparityTo3D(disp_img, &depth_map);
         CHECK_EQ(depth_map.type(), CV_32FC3);
         // Would that work? interpret xyz as rgb?
         cv::imshow("Depth Image", depth_map);
@@ -176,10 +171,14 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
 
         // Store depth maps for mesh optimization.
         MeshPacket mesh_packet_;
-        mesh_packet_.left_cam_pose_ = left_cam_pose;
-        mesh_packet_.left_image_ = left_frame->img_;
-        mesh_packet_.right_cam_pose_ = right_cam_pose;
-        mesh_packet_.right_image_ = right_frame->img_;
+        // Shouldn't we send rectified camera pose?
+        mesh_packet_.left_cam_rect_pose_ = left_cam_rect_pose;
+        // Shouldn't we send rectified images?
+        mesh_packet_.left_image_rect_ =
+            stereo_frame.left_img_rectified_.clone();
+        mesh_packet_.right_cam_rect_pose_ = right_cam_rect_pose;
+        mesh_packet_.right_image_rect =
+            stereo_frame.right_img_rectified_.clone();
 
         LOG(INFO) << "Converting depth to pcl.";
         // Reshape as a list of 3D points, same channels,
@@ -189,26 +188,26 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         // Depth image contains INFs. We have to remove them:
         CHECK_EQ(left_frame->img_.type(), CV_8UC1);  // for color
         cv::Mat_<cv::Point3f> valid_depth = cv::Mat(1, 0, CV_32FC3);
-        cv::Mat_<cv::Vec3b> valid_color =
-            cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
+        cv::Mat valid_colors = cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
         static constexpr float kMaxZ = 5.0;  // 5 meters
         for (int32_t u = 0; u < depth_map.rows; ++u) {
           for (int32_t v = 0; v < depth_map.cols; ++v) {
             const cv::Point3f& xyz = depth_map(u, v);
             if (isValidPoint(xyz) && xyz.z <= kMaxZ) {
               valid_depth.push_back(xyz);
-              auto grey_value = left_frame->img_.at<int8_t>(u, v);
-              valid_color.push_back(
+              const auto& grey_value =
+                  stereo_frame.left_img_rectified_.at<uint8_t>(u, v);
+              valid_colors.push_back(
                   cv::Vec3b(grey_value, grey_value, grey_value));
             }
           }
         }
-        mesh_packet_.depth_map_ = valid_depth;
+        mesh_packet_.depth_map_ = depth_map;
         mesh_packets_[left_frame->timestamp_] = mesh_packet_;
 
         LOG(INFO) << "Send pcl to viz.";
         visualizer_3d_->visualizePointCloud(
-            valid_depth, &output->widgets_, left_cam_pose, valid_color);
+            valid_depth, &output->widgets_, left_cam_rect_pose, valid_colors);
       }
     }
   }

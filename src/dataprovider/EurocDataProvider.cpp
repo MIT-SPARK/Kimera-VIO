@@ -211,8 +211,8 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
   Timestamp previous_timestamp = -1;
 
   // Read/store imu measurements, line by line.
-  ImuMeasurements imu_meas;
-  CHECK(imu_single_callback_) << "Did you forget to register the IMU callback?";
+  LOG_IF(WARNING, imu_single_callback_)
+      << "Missing IMU callback! Did you forget to register the IMU callback?";
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
     gtsam::Vector6 gyroAccData;
@@ -236,7 +236,9 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
     if (normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
     //! Send IMU measurement to the VIO pipeline.
-    imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
+    if(imu_single_callback_) {
+      imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
+    }
 
     if (previous_timestamp == -1) {
       // Do nothing.

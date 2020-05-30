@@ -138,14 +138,12 @@ class Mesher {
    * keypoints.
    */
   static void createMesh2D(const KeypointsCV& keypoints,
-                           const cv::Size& image_size,
                            Mesh2D* mesh_2d) {
     CHECK_NOTNULL(mesh_2d);
     CHECK_EQ(mesh_2d->getNumberOfPolygons(), 0u);
     CHECK_EQ(mesh_2d->getNumberOfUniqueVertices(), 0u);
     MeshIndices vtx_indices;
     std::vector<cv::Vec6f> tri =
-        // Mesher::createMesh2dImpl(image_size, keypoints, &vtx_indices);
         Mesher::computeDelaunayTriangulation(keypoints, &vtx_indices);
 
     // Iterate over the 2d mesh triangles.

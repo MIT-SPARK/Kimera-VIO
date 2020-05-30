@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <map>
 #include <vector>
 
 #include <Eigen/Core>
@@ -25,10 +26,12 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/mesh/Mesh.h"
 #include "kimera-vio/mesh/MeshOptimization-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 
 namespace VIO {
 
@@ -45,7 +48,9 @@ class MeshOptimization {
 
  public:
   MeshOptimization(const MeshOptimizerType& solver_type,
-                   const bool& debug_mode);
+                   const MeshColorType& mesh_color_type,
+                   StereoCamera::UniquePtr stereo_camera,
+                   OpenCvVisualizer3D::Ptr visualizer = nullptr);
   virtual ~MeshOptimization() = default;
 
   /**
@@ -70,8 +75,30 @@ class MeshOptimization {
                   bool display_as_wireframe = false,
                   const double& opacity = 1.0);
 
- private:
-  /**
+ public:
+  // In public only for testing... please remove.
+
+  /** Faster version (should be faster using parallelization and vectorization)
+   * both in hardware (GPUs) or in software...
+   *
+   * WARNING assumes the points in mesh_2d are given as u,v not v,u!
+   * I.e. if you feed this mesh with the opencv feature detections given
+   * as point2f which are (v,u), this will break! Transpose to (u,v) points.
+   *
+   * @brief collectTriangleDataPointsFast
+   * @param noisy_point_cloud
+   * @param mesh_2d
+   * @param corresp
+   * @param pixel_corresp
+   * @param number_of_valid_datapoints
+   */
+  void collectTriangleDataPointsFast(const cv::Mat& noisy_point_cloud,
+                                     const Mesh2D& mesh_2d,
+                                     TriangleToDatapoints* corresp,
+                                     TriangleToPixels* pixel_corresp,
+                                     size_t* number_of_valid_datapoints);
+
+  /** THIS IS TOO SLOW, and assumes noisy point cloud is not organized...
    * @brief collectTriangleDataPoints Builds correspondences between 2D
    * triangles and noisy point cloud.
    * @param noisy_point_cloud
@@ -81,33 +108,42 @@ class MeshOptimization {
    */
   void collectTriangleDataPoints(const cv::Mat& noisy_point_cloud,
                                  const Mesh2D& mesh_2d,
-                                 const CameraParams& camera_params,
                                  TriangleToDatapoints* corresp,
                                  TriangleToPixels* pixel_corresp,
                                  size_t* number_of_valid_datapoints);
 
-  /**
-   * @brief solveOptimalMesh
-   * Assumes noisy point cloud is given in camera frame!
-   * @param noisy_point_cloud
-   * @param camera_params
-   * @param mesh_2d
-   * @return
-   */
-  MeshOptimizationOutput::UniquePtr solveOptimalMesh(
-      const cv::Mat& noisy_point_cloud,
-      const CameraParams& camera_params,
-      const Mesh2D& mesh_2d);
-
- private:
-  //! Utility functions
-  cv::Point2f generatePixelFromLandmarkGivenCamera(
+  //! Utility functions: put them in MeshUtils
+  static cv::Point2f generatePixelFromLandmarkGivenCamera(
       const cv::Point3f& lmk,
       const gtsam::Pose3& extrinsics,
       const gtsam::Cal3_S2& intrinsics);
 
-  void getBearingVectorFrom2DPixel(const gtsam::Cal3_S2& intrinsics,
-                                   const cv::Point2f& pixel,
+  // This is taken from stackoverflow:
+  // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
+  static float sign(const cv::Point2f& p1,
+                    const cv::Point2f& p2,
+                    const cv::Point2f& p3);
+
+  static bool pointInTriangle(const cv::Point2f& pt,
+                              const cv::Point2f& v1,
+                              const cv::Point2f& v2,
+                              const cv::Point2f& v3);
+
+ private:
+  /**
+   * @brief solveOptimalMesh
+   * Assumes noisy point cloud is given in camera frame!
+   * @param noisy_point_cloud In the frame of reference of the undistorted
+   * rectified stereo camera
+   * @param mesh_2d In pixel coordinates
+   * @return
+   */
+  MeshOptimizationOutput::UniquePtr solveOptimalMesh(
+      const cv::Mat& noisy_point_cloud,
+      const Mesh2D& mesh_2d);
+
+ private:
+  void getBearingVectorFrom2DPixel(const cv::Point2f& pixel,
                                    cv::Point3f* bearing_vector);
 
   void getBearingVectorFrom3DLmk(const gtsam::Pose3& extrinsics,
@@ -115,18 +151,9 @@ class MeshOptimization {
                                  cv::Point3f* bearing_vector,
                                  float* inverse_depth);
 
-  // This is taken from stackoverflow:
-  // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
-  float sign(const cv::Point2f& p1,
-             const cv::Point2f& p2,
-             const cv::Point2f& p3);
-
-  bool pointInTriangle(const cv::Point2f& pt,
-                       const cv::Point2f& v1,
-                       const cv::Point2f& v2,
-                       const cv::Point2f& v3);
-
-  void drawPointCloud(const std::string& id, const cv::Mat& pointcloud);
+  void drawPointCloud(const std::string& id,
+                      const cv::Mat& pointcloud,
+                      const cv::Affine3d& pose);
 
   /**
    * @brief drawCylinder
@@ -167,14 +194,19 @@ class MeshOptimization {
   cv::Mat img_ = cv::Mat::zeros(400, 400, CV_8UC3);
 
  private:
-  /// If debug mode is enabled a 3D viz window will display the problem.
-  bool debug_mode_ = true;
-
   const MeshOptimizerType mesh_optimizer_type_;
+
+  static constexpr float kMinZ = 1.5;  // meters
+  static constexpr float kMaxZ = 4.0;   // meters
+
+  //! Camera with which the noisy point cloud and the 2d mesh were generated.
+  StereoCamera::UniquePtr stereo_camera_;
 
   /// 3D plotting
   // TODO(Toni) this should be done by the display module...
   cv::viz::Viz3d window_;
+  MeshColorType mesh_color_type_;
+  OpenCvVisualizer3D::Ptr visualizer_;
 };
 
 }  // namespace VIO

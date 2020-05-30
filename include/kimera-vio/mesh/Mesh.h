@@ -49,7 +49,7 @@ class Mesh {
   // Default constructor.
   Mesh(const size_t& polygon_dimension = 3);
 
-  // Delete copy constructor.
+  // Copy constructor.
   // Performs a deep copy (clones) the data members.
   Mesh(const Mesh& rhs_mesh);
 

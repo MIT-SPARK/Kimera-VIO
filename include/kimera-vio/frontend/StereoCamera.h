@@ -23,9 +23,9 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
-#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -75,6 +75,31 @@ class StereoCamera {
                KeypointCV* right_kpt) const;
 
   /**
+   * @brief backProjectDisparity Back project a 2D keypoint in 3D given a
+   * disparity value. The 3D vector
+   * is expressed in body coordinates (or whatever frame of reference the
+   * stereo camera's pose is).
+   * @param kp 2D keypoint in pixel coordinates
+   * @param disparity of the 3D landmark
+   * @param lmk 3D landmark resulting from the backProjection of the 2D keypoint
+   */
+  void backProjectDisparity(const KeypointCV& kp,
+                            const double& disparity,
+                            LandmarkCV* lmk) const;
+
+  /**
+   * @brief backProject A 2D keypoint in 3D given a depth value. The 3D vector
+   * is expressed in body coordinates (or whatever frame of reference the
+   * stereo camera's pose is).
+   * @param kp 2D keypoint in pixel coordinates
+   * @param depth Depth of the landmark
+   * @param lmk 3D landmark resulting from the backProjection of the 2D keypoint
+   */
+  void backProjectDepth(const KeypointCV& kp,
+                        const double& depth,
+                        LandmarkCV* lmk) const;
+
+  /** // NOT TESTED and probably wrong!
    * @brief backProject keypoints given disparity image
    * @param kps
    * @param disparity_img
@@ -113,11 +138,21 @@ class StereoCamera {
                                       cv::Mat* depth);
 
   /**
-   * @brief getLeftCamRectPose Get left camera pose after rectification with
+   * @brief getBodyPoseLeftCamRect Get left camera pose after rectification with
    * respect to the body frame.
    * @return
    */
-  inline gtsam::Pose3 getLeftCamRectPose() const { return B_Pose_camLrect_; }
+  inline gtsam::Pose3 getBodyPoseLeftCamRect() const {
+    return B_Pose_camLrect_;
+  }
+  /**
+   * @brief getBodyPoseRightCamRect Get right camera pose after rectification
+   * with respect to the body frame.
+   * @return
+   */
+  inline gtsam::Pose3 getBodyPoseRightCamRect() const {
+    return B_Pose_camRrect_;
+  }
 
   // Ideally this would return a const shared pointer or a copy, but GTSAM's
   // idiosyncrasies require shared ptrs all over the place.
@@ -126,7 +161,16 @@ class StereoCamera {
    * @return stereo camera calibration after undistortion and rectification.
    */
   inline gtsam::Cal3_S2Stereo::shared_ptr getStereoCalib() const {
-    return stereo_calibration_;
+    return CHECK_NOTNULL(stereo_calibration_);
+  }
+
+  /**
+   * @brief getImageSize
+   * @return image size of left/right frames
+   */
+  inline cv::Size getImageSize() const {
+    CHECK_EQ(ROI1_, ROI2_);
+    return cv::Size(ROI1_.x, ROI1_.y);
   }
 
   /**
@@ -172,13 +216,14 @@ class StereoCamera {
 
  protected:
   //! Stereo camera implementation
-  gtsam::StereoCamera stereo_camera_impl_;
+  gtsam::StereoCamera undistorted_rectified_stereo_camera_impl_;
 
   //! Stereo camera calibration
   gtsam::Cal3_S2Stereo::shared_ptr stereo_calibration_;
 
-  //! Pose from Body to Left Camera after rectification
+  //! Pose from Body to Left/Right Camera after rectification
   gtsam::Pose3 B_Pose_camLrect_;
+  gtsam::Pose3 B_Pose_camRrect_;
 
   //! Non-rectified parameters
   CameraParams left_cam_params_;

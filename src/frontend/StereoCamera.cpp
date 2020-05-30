@@ -39,7 +39,7 @@ namespace VIO {
 StereoCamera::StereoCamera(const CameraParams& left_cam_params,
                            const CameraParams& right_cam_params,
                            const StereoMatchingParams& stereo_matching_params)
-    : stereo_camera_impl_(),
+    : undistorted_rectified_stereo_camera_impl_(),
       stereo_calibration_(nullptr),
       baseline_(0.0),
       left_cam_params_(left_cam_params),
@@ -63,6 +63,11 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
       UtilsOpenCV::cvMatToGtsamRot3(R1_).inverse();
   gtsam::Pose3 camL_Pose_camLrect(camL_Rot_camLrect, gtsam::Point3::Zero());
   B_Pose_camLrect_ = left_cam_params.body_Pose_cam_.compose(camL_Pose_camLrect);
+
+  const gtsam::Rot3& camR_Rot_camRrect =
+      UtilsOpenCV::cvMatToGtsamRot3(R2_).inverse();
+  gtsam::Pose3 camR_Pose_camRrect(camR_Rot_camRrect, gtsam::Point3::Zero());
+  B_Pose_camRrect_ = left_cam_params.body_Pose_cam_.compose(camR_Pose_camRrect);
 
   // Calc baseline (see L.2700 and L.2616 in
   // https://github.com/opencv/opencv/blob/master/modules/calib3d/src/calibration.cpp
@@ -89,7 +94,7 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
       VIO::make_unique<UndistorterRectifier>(P2_, right_cam_params, R2_);
 
   //! Create stereo camera implementation
-  stereo_camera_impl_ =
+  undistorted_rectified_stereo_camera_impl_ =
       gtsam::StereoCamera(B_Pose_camLrect_, stereo_calibration_);
 }
 
@@ -113,11 +118,38 @@ void StereoCamera::project(const LandmarkCV& lmk,
   CHECK_NOTNULL(left_kpt);
   CHECK_NOTNULL(right_kpt);
   const gtsam::StereoPoint2& kp =
-      stereo_camera_impl_.project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
-  *left_kpt = KeypointCV(kp.v(), kp.uL());
-  *right_kpt = KeypointCV(kp.v(), kp.uR());
+      undistorted_rectified_stereo_camera_impl_.project2(
+          gtsam::Point3(lmk.x, lmk.y, lmk.z));
+  *left_kpt = KeypointCV(kp.uL(), kp.v());
+  *right_kpt = KeypointCV(kp.uR(), kp.v());
 }
 
+void StereoCamera::backProjectDepth(const KeypointCV& kp,
+                                    const double& depth,
+                                    LandmarkCV* lmk) const {
+  CHECK_NOTNULL(lmk);
+  CHECK_NOTNULL(stereo_calibration_);
+  CHECK_GT(depth, 0.0) << "Requested back projection of a keypoint :" << kp
+                       << "\n with negative depth: " << depth;
+  double disparity =
+      stereo_calibration_->fy() * stereo_calibration_->baseline() / depth;
+  backProjectDisparity(kp, disparity, lmk);
+}
+
+void StereoCamera::backProjectDisparity(const KeypointCV& kp,
+                                        const double& disparity,
+                                        LandmarkCV* lmk) const {
+  CHECK_NOTNULL(lmk);
+  CHECK_NOTNULL(stereo_calibration_);
+  CHECK_GT(disparity, 0.0) << "Requested back projection of a keypoint :" << kp
+                           << "\n with negative disparity: " << disparity;
+  gtsam::StereoPoint2 z(kp.x, kp.x - disparity, kp.y);
+  gtsam::Point3 gtsam_lmk =
+      undistorted_rectified_stereo_camera_impl_.backproject2(z);
+  *lmk = LandmarkCV(gtsam_lmk.x(), gtsam_lmk.y(), gtsam_lmk.z());
+}
+
+// NOT TESTED and probably wrong!
 void StereoCamera::backProject(const KeypointsCV& kps,
                                const cv::Mat& disparity_img,
                                LandmarksCV* lmks) const {
@@ -128,14 +160,15 @@ void StereoCamera::backProject(const KeypointsCV& kps,
     // Some algorithms, like StereoBM or StereoSGBM compute 16-bit fixed-point
     // disparity map (where each disparity value has 4 fractional bits),
     // whereas other algorithms output 32-bit floating-point disparity map.
-    auto disparity = disparity_img.at<int16_t>(kp);
+    // !!!!!!!! WARNING gtsam's stereo points are doubles, our keypoints are
+    // floats,
+    // and disparity is int16_t...
+    double disparity = static_cast<double>(disparity_img.at<int16_t>(kp));
     // TODO(TONI): check disparity is valid!!
     CHECK_GE(disparity, 0);
-    // WARNING gtsam's stereo points are doubles, our keypoints are floats,
-    // and disparity is int16_t...
-    gtsam::StereoPoint2 z(kp.x, kp.x + disparity, kp.y);
-    gtsam::Point3 lmk = stereo_camera_impl_.backproject2(z);
-    lmks->push_back(LandmarkCV(lmk.x(), lmk.y(), lmk.z()));
+    LandmarkCV lmk;
+    backProjectDisparity(kp, disparity, &lmk);
+    lmks->push_back(lmk);
   }
 }
 

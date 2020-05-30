@@ -24,6 +24,14 @@
 
 namespace VIO {
 
+static const double MISSING_Z = 10000.;
+static bool isValidPoint(const cv::Point3f& pt) {
+  // Check both for disparities explicitly marked as invalid (where OpenCV maps
+  // pt.z to MISSING_Z)
+  // and zero disparities (point mapped to infinity).
+  return pt.z != MISSING_Z && !std::isinf(pt.z);
+}
+
 //! Barycenter Coordinates type
 using BaryCoord = float;
 //! Vector3f to support vectorized math
@@ -42,6 +50,8 @@ using Vec3f = Eigen::Vector3f;
 inline float edgeFunction(const KeypointCV& a,
                           const KeypointCV& b,
                           const KeypointCV& c) {
+
+  // return (a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y);
   return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
 
@@ -71,6 +81,7 @@ inline bool checkPointInsideTriangle(const KeypointCV& a,
  * @param p Query Point in 2D image.
  * @param w0, w1, w2 Barycentric coordinates.
  * @return True if Query point is inside triangle, false otherwise.
+ * If the query point is at a vertex it returns false!
  */
 inline bool barycentricCoordinates(const KeypointCV& v0,
                                    const KeypointCV& v1,
@@ -215,6 +226,15 @@ inline cv::viz::Color grayColorMap(double h) {
 
 inline cv::viz::Color randomColor() {
   return cv::Scalar(rand() % 256, rand() % 256, rand() % 256, 255);
+}
+
+template<class T>
+T min3(const T& a, const T& b, const T& c) {
+  return std::min(a, std::min(b, c));
+}
+template<class T>
+T max3(const T& a, const T& b, const T& c) {
+  return std::max(a, std::max(b, c));
 }
 
 }  // namespace VIO
