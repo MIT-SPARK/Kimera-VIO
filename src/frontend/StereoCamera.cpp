@@ -28,10 +28,10 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -99,14 +99,23 @@ void StereoCamera::project(const LandmarksCV& lmks,
   CHECK_NOTNULL(left_kpts)->clear();
   CHECK_NOTNULL(right_kpts)->clear();
   const auto& n_lmks = lmks.size();
-  left_kpts->reserve(n_lmks);
-  right_kpts->reserve(n_lmks);
-  for (const auto& lmk : lmks) {
-    const gtsam::StereoPoint2& kp =
-        stereo_camera_impl_.project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
-    left_kpts->push_back(KeypointCV(kp.uL(), kp.v()));
-    right_kpts->push_back(KeypointCV(kp.uR(), kp.v()));
+  left_kpts->resize(n_lmks);
+  right_kpts->resize(n_lmks);
+  // Can be greatly optimized using matrix multiplication/vectorization.
+  for (size_t i = 0u; i < n_lmks; i++) {
+    project(lmks[i], &(*left_kpts)[i], &(*right_kpts)[i]);
   }
+}
+
+void StereoCamera::project(const LandmarkCV& lmk,
+                           KeypointCV* left_kpt,
+                           KeypointCV* right_kpt) const {
+  CHECK_NOTNULL(left_kpt);
+  CHECK_NOTNULL(right_kpt);
+  const gtsam::StereoPoint2& kp =
+      stereo_camera_impl_.project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
+  *left_kpt = KeypointCV(kp.v(), kp.uL());
+  *right_kpt = KeypointCV(kp.v(), kp.uR());
 }
 
 void StereoCamera::backProject(const KeypointsCV& kps,
@@ -227,9 +236,51 @@ void StereoCamera::backProjectDisparityTo3D(const cv::Mat& disparity_img,
   // been computed: in principle, we calculate that at ctor time, so it is
   // always computed.
   CHECK_NE(Q_.at<double>(3, 2), 0.0);
+  CHECK_EQ(Q_.at<double>(3, 3), 0.0)
+      << "Set CALIB_ZERO_DISPARITY when doing stereo rectification.";
   static constexpr bool kHandleMissingValues = true;
   cv::reprojectImageTo3D(
       disparity_img, *depth, Q_, kHandleMissingValues, CV_32F);
+  CHECK_EQ(disparity_img.rows, depth->rows);
+  CHECK_EQ(disparity_img.cols, depth->cols);
+}
+
+void StereoCamera::backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
+                                                  cv::Mat* depth) {
+  CHECK_NOTNULL(depth);
+  CHECK_EQ(disparity_img.type(), CV_32F);
+  CHECK(!disparity_img.empty());
+  CHECK_EQ(Q_.type(), CV_64F);
+  CHECK_EQ(Q_.rows, 4);
+  CHECK_EQ(Q_.cols, 4);
+
+  // Same size than the disparity_img
+  *depth = cv::Mat::zeros(disparity_img.size(), CV_32FC3);
+
+  // Non-zero elements from Q
+  double Q03 = Q_.at<double>(0, 3);  // -c_x
+  double Q13 = Q_.at<double>(1, 3);  // -c_y
+  double Q23 = Q_.at<double>(2, 3);  // f
+  double Q32 = Q_.at<double>(3, 2);  // -1.0 / T_x where T_x is the baseline
+  double Q33 = Q_.at<double>(3, 3);  // (c_x - c_x') / T_x
+
+  // Get xyz from disparity
+  for (size_t i = 0u; i < disparity_img.rows; i++) {
+    // Loop over rows
+    const float* disp_ptr = disparity_img.ptr<float>(i);
+    cv::Vec3f* xyz_ptr = depth->ptr<cv::Vec3f>(i);
+
+    for (size_t j = 0u; j < disparity_img.cols; j++) {
+      // Loop over cols
+      const float pw = 1.0f / (disp_ptr[j] * Q32 + Q33);
+
+      // For each pixel, generate 3D point
+      cv::Vec3f& point = xyz_ptr[j];
+      point[0] = (static_cast<float>(j) + Q03) * pw;
+      point[1] = (static_cast<float>(i) + Q13) * pw;
+      point[2] = Q23 * pw;
+    }
+  }
 }
 
 void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) {

@@ -54,14 +54,25 @@ class StereoCamera {
 
  public:
   /** NOT TESTED
-   * @brief project Lmks into images, doesn't do any check...
-   * @param lmks
+   * @brief project 3D Lmks into images as 2D pixels, doesn't do any check...
+   * @param lmks Given in World coordinates or rather in whatever frame of
+   * reference the pose of the left camera is given (usually the body frame!)
    * @param left_kpts
    * @param right_kpts
    */
   void project(const LandmarksCV& lmks,
                KeypointsCV* left_kpts,
                KeypointsCV* right_kpts) const;
+
+  /**
+   * @brief project One lmk into left/right images, doesn't do any check...
+   * @param[in] lmks
+   * @param[out] left_kpts
+   * @param[out] right_kpts
+   */
+  void project(const LandmarkCV& lmk,
+               KeypointCV* left_kpt,
+               KeypointCV* right_kpt) const;
 
   /**
    * @brief backProject keypoints given disparity image
@@ -92,11 +103,14 @@ class StereoCamera {
    * fractional bits.
    * @param depth
    * Output 3-channel floating-point image of the same size as disparity . Each
-   * element of _3dImage(x,y) contains 3D coordinates of the point (x,y)
-   * computed from the disparity
-   * map.
+   * element of _3dImage(u, v) contains 3D coordinates of the keypoint (u, v)
+   * computed from the disparity map.
+   * WARNING The output 3D landmarks (x, y, z) are given in camera coordinates!!
+   * rather than body coordinates!
    */
   void backProjectDisparityTo3D(const cv::Mat& disparity_img, cv::Mat* depth);
+  void backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
+                                      cv::Mat* depth);
 
   /**
    * @brief getLeftCamRectPose Get left camera pose after rectification with
