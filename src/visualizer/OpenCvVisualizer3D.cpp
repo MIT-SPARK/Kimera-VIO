@@ -601,11 +601,12 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& polygons_mesh,
                                          WidgetsMap* widgets,
                                          const cv::Mat& tcoords,
-                                         const cv::Mat& texture) {
+                                         const cv::Mat& texture,
+                                         const std::string& id) {
   CHECK_NOTNULL(widgets);
   // Check data
   bool color_mesh = false;
-  if (colors.rows != 0) {
+  if (colors.rows != 0u) {
     CHECK_EQ(map_points_3d.rows, colors.rows)
         << "Map points and Colors should have same number of rows. One"
            " color per map point.";
@@ -613,7 +614,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     color_mesh = true;
   }
 
-  if (tcoords.rows != 0) {
+  if (tcoords.rows != 0u) {
     CHECK_EQ(map_points_3d.rows, tcoords.rows)
         << "Map points and tcoords should have same number of rows. One"
            "tcoord per map point.";
@@ -633,7 +634,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   cv_mesh.texture = texture;
 
   // Plot mesh.
-  (*widgets)["Mesh"] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
+  (*widgets)["3D Mesh " + id] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
 }
 
 /* -------------------------------------------------------------------------- */

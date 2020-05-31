@@ -37,7 +37,8 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
   EurocPlayground euroc_playground(FLAGS_test_data_path + "/V1_01_easy/",
                                    FLAGS_test_data_path + "/EurocParams",
                                    50,
-                                   200);
+                                   1000,
+                                   300);
 
   // Optimize mesh using MeshOpt
   MeshOptimization mesh_opt(MeshOptimizerType::kGtsamMesh,
@@ -54,6 +55,8 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
     FeatureDetector feature_detector(feature_detector_params);
 
     // Get pose with depth maps
+    VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+    size_t count = 0u;
     for (MeshPackets::const_iterator it =
              euroc_playground.mesh_packets_.begin();
          it != euroc_playground.mesh_packets_.end();
@@ -66,8 +69,8 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
 
       const cv::Size& img_size = left_img_rect.size();
       // keypoints.clear();
-      for (size_t v = 0u; v < img_size.height; v += 30) {
-        for (size_t u = 0u; u < img_size.width; u += 30) {
+      for (size_t v = 0u; v < img_size.height; v += 50) {
+        for (size_t u = 0u; u < img_size.width; u += 50) {
           keypoints.push_back(KeypointCV(u, v));
         }
       }
@@ -125,7 +128,25 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       MeshOptimizationOutput::UniquePtr out_ptr = mesh_opt.spinOnce(input);
       out_ptr->optimized_mesh_3d.getVerticesMeshToMat(&pcl);
       out_ptr->optimized_mesh_3d.getPolygonsMeshToMat(&connect);
+      cv::Mat colors = out_ptr->optimized_mesh_3d.getColorsMesh();
+      // Move pcl to world coordinates
+      output->visualization_type_ = VisualizationType::kPointcloud;
+      euroc_playground.visualizer_3d_->visualizeMesh3D(pcl,
+                                                       colors,
+                                                       connect,
+                                                       &output->widgets_,
+                                                       cv::Mat(),
+                                                       cv::Mat(),
+                                                       std::to_string(count++));
+      gtsam::Pose3 world_pose_body = it->second.world_pose_body_;
+      CHECK_GT(output->widgets_.size(), 1u);
+      output->widgets_.rbegin()->second->setPose(
+          UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_body));
     }
+    euroc_playground.display_module_->spinOnce(std::move(output));
+    /// Render all the mesh reconstruction
+    // mesh_opt.spinDisplay();
   }
 }
-}
+
+}  // namespace kimera

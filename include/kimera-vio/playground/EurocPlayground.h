@@ -46,6 +46,7 @@ using CamPose = cv::Affine3d;
 struct MeshPacket {
   Timestamp timestamp_;
   DepthMap depth_map_;
+  gtsam::Pose3 world_pose_body_;
   CamPose left_cam_rect_pose_;
   CamPose right_cam_rect_pose_;
   cv::Mat left_image_rect_;
@@ -58,7 +59,8 @@ class EurocPlayground {
   EurocPlayground(const std::string& dataset_path,
                   const std::string& params_path,
                   const int& initial_k = 20,
-                  const int& final_k = 10000);
+                  const int& final_k = 10000,
+                  const size_t& subsample_n = 100u);
   ~EurocPlayground() = default;
 
  public:
@@ -89,6 +91,9 @@ public:
   //! Stereo Camera to back/project and do stereo dense reconstruction.
   StereoCamera::Ptr stereo_camera_;
 
+  DisplayModule::UniquePtr display_module_;
+  DisplayModule::InputQueue display_input_queue_;
+
  protected:
   //! Fill one IMU measurement only
   void fillImuQueue(const ImuMeasurement& imu_measurement);
@@ -102,7 +107,8 @@ public:
  protected:
   std::string dataset_path_;
 
-
+  //! N subsampled frames which we use
+  const FrameId subsample_n = 50u;
 
   //! Feature Detector to extract features from the images.
   FeatureDetector::UniquePtr feature_detector_;
@@ -110,8 +116,6 @@ public:
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;
-  DisplayModule::UniquePtr display_module_;
-  DisplayModule::InputQueue display_input_queue_;
 
   //! Data
   ImuData imu_data_;

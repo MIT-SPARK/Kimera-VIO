@@ -284,7 +284,6 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   // Need to visualizeScene again because the image of the camera frustum
   // was updated
   if (visualizer_) {
-    LOG(ERROR) << "Drawing pointcloud!";
     drawPointCloud("Noisy Point Cloud",
                    noisy_point_cloud,
                    UtilsOpenCV::gtsamPose3ToCvAffine3d(
@@ -292,7 +291,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
     // draw2dMeshOnImg(img_, mesh_2d);
     drawScene(stereo_camera_->getBodyPoseLeftCamRect(),
               stereo_camera_->getStereoCalib()->calibration());
-    spinDisplay();
+    // spinDisplay();
   }
 
   /// Step 1: Collect all datapoints that fall within triangle
@@ -604,11 +603,17 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           //! Add new vertex to polygon
           //! Color with covariance bgr:
           static constexpr double kScaleStdDeviation = 0.1;
-          cv::viz::Color vtx_color;
+          cv::viz::Color vtx_color = cv::viz::Color::black();
           switch (mesh_color_type_) {
             case MeshColorType::kVertexFlatColor: {
               // Use color of each pixel where the landmark is
-              vtx_color = cv::viz::Color::red();
+              switch(mesh_count_ % 5) {
+                case 0: vtx_color = cv::viz::Color::red(); break;
+                case 1: vtx_color = cv::viz::Color::apricot(); break;
+                case 2: vtx_color = cv::viz::Color::purple(); break;
+                case 3: vtx_color = cv::viz::Color::brown(); break;
+                case 4: vtx_color = cv::viz::Color::pink(); break;
+              }
             } break;
             case MeshColorType::kVertexRGB: {
               // Use textures in the image
@@ -649,12 +654,16 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   // Display reconstructed mesh.
   if (visualizer_) {
     LOG(INFO) << "Drawing optimized reconstructed mesh...";
-    draw3dMesh("Reconstructed Mesh", reconstructed_mesh, false, 0.9);
-    spinDisplay();
+    draw3dMesh("Reconstructed Mesh " + std::to_string(mesh_count_),
+               reconstructed_mesh,
+               false,
+               0.9);
+    // spinDisplay();
   }
   MeshOptimizationOutput::UniquePtr output =
       VIO::make_unique<MeshOptimizationOutput>();
   output->optimized_mesh_3d = reconstructed_mesh;
+  mesh_count_++;
   return output;
 }
 

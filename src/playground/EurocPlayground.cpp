@@ -6,8 +6,10 @@ namespace VIO {
 EurocPlayground::EurocPlayground(const std::string& dataset_path,
                                  const std::string& params_path,
                                  const int& initial_k,
-                                 const int& final_k)
+                                 const int& final_k,
+                                 const size_t& subsample_n)
     : dataset_path_(dataset_path),
+      subsample_n(subsample_n),
       vio_params_(params_path),
       feature_detector_(nullptr),
       euroc_data_provider_(nullptr),
@@ -89,11 +91,11 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
   }
 
   if (viz_img_in_frustum) {
-    static const FrameId subsample_n = 50u;
     CHECK_GT(vio_params_.camera_params_.size(), 0);
     const auto& K = vio_params_.camera_params_.at(0).K_;
     Frame::UniquePtr left_frame = nullptr;
     Frame::UniquePtr right_frame = nullptr;
+    size_t color_counter = 0u;
     while (left_frame_queue_.pop(left_frame) &&
            right_frame_queue_.pop(right_frame)) {
       CHECK(left_frame);
@@ -110,12 +112,14 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         const cv::Affine3d& left_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
-                    .compose(CHECK_NOTNULL(stereo_camera_)->getBodyPoseLeftCamRect()));
+                    .compose(CHECK_NOTNULL(stereo_camera_)
+                                 ->getBodyPoseLeftCamRect()));
         const cv::Affine3d& right_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_
                     ->getGroundTruthPose(right_frame->timestamp_)
-                    .compose(CHECK_NOTNULL(stereo_camera_)->getBodyPoseRightCamRect()));
+                    .compose(CHECK_NOTNULL(stereo_camera_)
+                                 ->getBodyPoseRightCamRect()));
 
         cv::Mat smaller_img;
         static constexpr double kScaleFactor = 0.1;
@@ -139,11 +143,12 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat disp_img =
             cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
         CHECK(stereo_frame.isRectified());
-        CHECK_NOTNULL(stereo_camera_)->undistortRectifyStereoFrame(&stereo_frame);
-        CHECK_NOTNULL(stereo_camera_)->stereoDisparityReconstruction(
-            stereo_frame.getLeftImgRectified(),
-            stereo_frame.getRightImgRectified(),
-            &disp_img);
+        CHECK_NOTNULL(stereo_camera_)
+            ->undistortRectifyStereoFrame(&stereo_frame);
+        CHECK_NOTNULL(stereo_camera_)
+            ->stereoDisparityReconstruction(stereo_frame.getLeftImgRectified(),
+                                            stereo_frame.getRightImgRectified(),
+                                            &disp_img);
         cv::Mat disp_viz_img;
         UtilsOpenCV::getDisparityVis(disp_img, disp_viz_img, 1.0);
         cv::imshow("Left Image Rectified", stereo_frame.getLeftImgRectified());
@@ -163,7 +168,8 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         // Maybe ideally it should be (u, v) => 1/z
         cv::Mat_<cv::Point3f> depth_map;
         // Need to move all points according to pose of stereo camera!
-        CHECK_NOTNULL(stereo_camera_)->backProjectDisparityTo3D(disp_img, &depth_map);
+        CHECK_NOTNULL(stereo_camera_)
+            ->backProjectDisparityTo3D(disp_img, &depth_map);
         CHECK_EQ(depth_map.type(), CV_32FC3);
         // Would that work? interpret xyz as rgb?
         cv::imshow("Depth Image", depth_map);
@@ -172,6 +178,8 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         // Store depth maps for mesh optimization.
         MeshPacket mesh_packet_;
         // Shouldn't we send rectified camera pose?
+        mesh_packet_.world_pose_body_ =
+            euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_);
         mesh_packet_.left_cam_rect_pose_ = left_cam_rect_pose;
         // Shouldn't we send rectified images?
         mesh_packet_.left_image_rect_ =
@@ -197,11 +205,16 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
               valid_depth.push_back(xyz);
               const auto& grey_value =
                   stereo_frame.left_img_rectified_.at<uint8_t>(u, v);
+              // We recolor the depth map for disambiguation of original
+              // viewpoint
               valid_colors.push_back(
-                  cv::Vec3b(grey_value, grey_value, grey_value));
+                  cv::Vec3b(color_counter == 0u? grey_value : 0u,
+                            color_counter == 1u? grey_value : 0u,
+                            color_counter == 2u? grey_value : 0u));
             }
           }
         }
+        color_counter++;
         mesh_packet_.depth_map_ = depth_map;
         mesh_packets_[left_frame->timestamp_] = mesh_packet_;
 

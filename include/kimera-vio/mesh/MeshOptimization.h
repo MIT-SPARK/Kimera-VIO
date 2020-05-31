@@ -75,6 +75,9 @@ class MeshOptimization {
                   bool display_as_wireframe = false,
                   const double& opacity = 1.0);
 
+  //! Render the collected visualizations
+  void spinDisplay();
+
  public:
   // In public only for testing... please remove.
 
@@ -187,7 +190,6 @@ class MeshOptimization {
                       const cv::viz::Color& color = cv::viz::Color::red(),
                       const size_t& pixel_size = 5u);
 
-  void spinDisplay();
 
  public:
   /// Image for debug display: gray scale.
@@ -201,6 +203,9 @@ class MeshOptimization {
 
   //! Camera with which the noisy point cloud and the 2d mesh were generated.
   StereoCamera::Ptr stereo_camera_;
+
+  //! Mesh count: just for visualization to change the ids of the 3d mesh widget
+  size_t mesh_count_ = 0u;
 
   /// 3D plotting
   // TODO(Toni) this should be done by the display module...
