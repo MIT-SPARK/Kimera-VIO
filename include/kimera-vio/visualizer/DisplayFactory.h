@@ -18,7 +18,9 @@
 
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Display.h"
+#include "kimera-vio/visualizer/DisplayParams.h"
 #include "kimera-vio/visualizer/OpenCvDisplay.h"
+#include "kimera-vio/visualizer/PangolinDisplay.h"
 
 namespace VIO {
 
@@ -31,18 +33,23 @@ class DisplayFactory {
   virtual ~DisplayFactory() = default;
 
   static DisplayBase::UniquePtr makeDisplay(
-      const DisplayType& display_type,
+      const DisplayParams& display_params,
       const ShutdownPipelineCallback& shutdown_pipeline_cb) {
-    switch (display_type) {
+    switch (display_params.display_type_) {
       case DisplayType::kOpenCV: {
-        return VIO::make_unique<OpenCv3dDisplay>(shutdown_pipeline_cb);
+        return VIO::make_unique<OpenCv3dDisplay>(display_params,
+                                                 shutdown_pipeline_cb);
+      }
+      case DisplayType::kPangolin: {
+        return VIO::make_unique<PangolinDisplay>(display_params,
+                                                 shutdown_pipeline_cb);
       }
       default: {
         LOG(FATAL) << "Requested display type is not supported.\n"
                    << "Currently supported display types:\n"
                    << "0: OpenCV 3D viz\n 1: Pangolin (not supported yet)\n"
                    << " but requested display: "
-                   << static_cast<int>(display_type);
+                   << VIO::to_underlying(display_params.display_type_);
       }
     }
   }

@@ -39,7 +39,8 @@ VioParams::VioParams(const std::string& params_folder_path)
                 "RightCameraParams.yaml",
                 "FrontendParams.yaml",
                 "BackendParams.yaml",
-                "LcdParams.yaml") {}
+                "LcdParams.yaml",
+                "DisplayParams.yaml") {}
 
 VioParams::VioParams(const std::string& params_folder_path,
                      const std::string& pipeline_params_filename,
@@ -48,7 +49,8 @@ VioParams::VioParams(const std::string& params_folder_path,
                      const std::string& right_cam_params_filename,
                      const std::string& frontend_params_filename,
                      const std::string& backend_params_filename,
-                     const std::string& lcd_params_filename)
+                     const std::string& lcd_params_filename,
+                     const std::string& display_params_filename)
     : PipelineParams("VioParams"),
       // Actual VIO Parameters
       imu_params_(),
@@ -56,6 +58,7 @@ VioParams::VioParams(const std::string& params_folder_path,
       frontend_params_(),
       backend_params_(std::make_shared<BackendParams>()),
       lcd_params_(),
+      display_params_(),
       frontend_type_(FrontendType::kStereoImu),
       backend_type_(BackendType::kStructuralRegularities),
       parallel_run_(true),
@@ -66,7 +69,8 @@ VioParams::VioParams(const std::string& params_folder_path,
       right_cam_params_filename_(right_cam_params_filename),
       frontend_params_filename_(frontend_params_filename),
       backend_params_filename_(backend_params_filename),
-      lcd_params_filename_(lcd_params_filename) {
+      lcd_params_filename_(lcd_params_filename),
+      display_params_filename_(display_params_filename) {
   if (!params_folder_path.empty()) {
     parseYAML(params_folder_path);
   } else {
@@ -123,6 +127,10 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   // Parse LcdParams
   parsePipelineParams(folder_path + '/' + lcd_params_filename_, &lcd_params_);
 
+  // Parse DisplayParams
+  parsePipelineParams(folder_path + '/' + display_params_filename_,
+                      &display_params_);
+
   return true;
 }
 
@@ -134,6 +142,7 @@ void VioParams::print() const {
   CHECK(backend_params_);
   backend_params_->print();
   lcd_params_.print();
+  display_params_.print();
   LOG(INFO) << "Frontend Type: " << VIO::to_underlying(frontend_type_);
   LOG(INFO) << "Backend Type: " << VIO::to_underlying(backend_type_);
   LOG(INFO) << "Running VIO in " << (parallel_run_ ? "parallel" : "sequential")

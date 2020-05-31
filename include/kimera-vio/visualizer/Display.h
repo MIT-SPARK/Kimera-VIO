@@ -28,7 +28,8 @@ class DisplayBase {
   KIMERA_POINTER_TYPEDEFS(DisplayBase);
   KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayBase);
 
-  DisplayBase() = default;
+  DisplayBase(const DisplayType& display_type)
+    : display_type_(display_type) {}
   virtual ~DisplayBase() = default;
 
   /**
@@ -37,6 +38,9 @@ class DisplayBase {
    * @param viz_output Visualizer output, which is the display input.
    */
   virtual void spinOnce(DisplayInputBase::UniquePtr&& viz_output) = 0;
+
+ public:
+  DisplayType display_type_;
 };
 
 }  // namespace VIO

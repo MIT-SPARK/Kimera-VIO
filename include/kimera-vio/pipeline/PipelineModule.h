@@ -561,7 +561,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
     return !input_queue_->isShutdown() && !input_queue_->empty();
   }
 
- private:
+ protected:
   //! Input
   InputQueue* input_queue_;
 };

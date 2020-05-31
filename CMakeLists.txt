@@ -42,6 +42,7 @@ if(NOT TARGET DBoW2::DBoW2)
   INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
 endif()
 find_package(KimeraRPGO REQUIRED)
+find_package(Pangolin REQUIRED)
 
 ### External Dependencies
 include(ExternalProject)
@@ -120,6 +121,7 @@ target_link_libraries(${PROJECT_NAME}
     opengv
     DBoW2::DBoW2
     KimeraRPGO
+    ${Pangolin_LIBRARIES}
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
@@ -129,6 +131,8 @@ target_link_libraries(${PROJECT_NAME}
     gtsam_unstable
  )
 target_include_directories(${PROJECT_NAME}
+  PRIVATE
+    ${Pangolin_INCLUDE_DIRS}
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}

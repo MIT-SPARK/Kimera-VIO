@@ -29,7 +29,8 @@ class OpenCv3dDisplay : public DisplayBase {
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb);
+  OpenCv3dDisplay(const DisplayParams& display_params,
+                  const ShutdownPipelineCallback& shutdown_pipeline_cb);
 
   // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;

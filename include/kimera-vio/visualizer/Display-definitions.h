@@ -22,12 +22,8 @@
 namespace VIO {
 
 /**
- * @brief The DisplayType enum: enumerates the types of supported renderers.
- */
-enum class DisplayType { kOpenCV = 0 };
-
-/**
  * @brief The WindowData struct: Contains internal data for Visualizer3D window.
+ * This only applies to OpenCV displayers
  */
 struct WindowData {
  public:

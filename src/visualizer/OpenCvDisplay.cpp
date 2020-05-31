@@ -25,8 +25,9 @@
 namespace VIO {
 
 OpenCv3dDisplay::OpenCv3dDisplay(
+    const DisplayParams& display_params,
     const ShutdownPipelineCallback& shutdown_pipeline_cb)
-    : DisplayBase(),
+    : DisplayBase(display_params.display_type_),
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb) {
   if (VLOG_IS_ON(2)) {

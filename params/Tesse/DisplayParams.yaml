@@ -1,0 +1,6 @@
+%YAML:1.0
+
+# Type of display to use:
+# 0: opencv display
+# 1: pangolin
+display_type: 0

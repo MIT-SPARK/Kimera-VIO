@@ -118,7 +118,8 @@ Pipeline::Pipeline(const VioParams& params,
       parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
-          "initialization_frontend_output_queue", false),
+          "initialization_frontend_output_queue",
+          false),
       backend_input_queue_("backend_input_queue"),
       display_input_queue_("display_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
@@ -249,10 +250,10 @@ Pipeline::Pipeline(const VioParams& params,
         nullptr,
         parallel_run_,
         // Use given displayer if any
-        displayer
-            ? std::move(displayer)
-            : DisplayFactory::makeDisplay(
-                  DisplayType::kOpenCV, std::bind(&Pipeline::shutdown, this)));
+        displayer ? std::move(displayer)
+                  : DisplayFactory::makeDisplay(
+                        params.display_params_,
+                        std::bind(&Pipeline::shutdown, this)));
   }
 
   if (FLAGS_use_lcd) {
@@ -603,7 +604,7 @@ bool Pipeline::initializeFromIMU(
 
   // Guess pose from IMU, assumes vehicle to be static.
   ImuAccGyrS imu_accgyrs = stereo_imu_sync_packet.getImuAccGyrs();
-  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols()-1);
+  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols() - 1);
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
           imu_accgyr,
