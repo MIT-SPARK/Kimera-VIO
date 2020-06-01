@@ -9,5 +9,10 @@ frontend_type: 0
 # 1: RegularVioBackEnd
 backend_type: 1
 
+# Type of displayer
+# 0: OpenCV
+# 1: Pangolin
+display_type: 0
+
 # Run VIO parallel or sequential
 parallel_run: 1

@@ -596,7 +596,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
 // and provide color for each polygon.
-void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
+bool OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& colors,
                                          const cv::Mat& polygons_mesh,
                                          WidgetsMap* widgets,
@@ -623,7 +623,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
 
   // No points/mesh to visualize.
   if (map_points_3d.rows == 0 || polygons_mesh.rows == 0) {
-    return;
+    return false;
   }
 
   cv::viz::Mesh cv_mesh;
@@ -635,6 +635,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
 
   // Plot mesh.
   (*widgets)["3D Mesh " + id] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */

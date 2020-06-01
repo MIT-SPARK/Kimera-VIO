@@ -131,15 +131,17 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       cv::Mat colors = out_ptr->optimized_mesh_3d.getColorsMesh();
       // Move pcl to world coordinates
       output->visualization_type_ = VisualizationType::kPointcloud;
-      euroc_playground.visualizer_3d_->visualizeMesh3D(pcl,
-                                                       colors,
-                                                       connect,
-                                                       &output->widgets_,
-                                                       cv::Mat(),
-                                                       cv::Mat(),
-                                                       std::to_string(count++));
+      CHECK_NOTNULL(euroc_playground.visualizer_3d_);
+      CHECK(euroc_playground.visualizer_3d_->visualizeMesh3D(
+          pcl,
+          colors,
+          connect,
+          &output->widgets_,
+          cv::Mat(),
+          cv::Mat(),
+          std::to_string(count++)));
       gtsam::Pose3 world_pose_body = it->second.world_pose_body_;
-      CHECK_GT(output->widgets_.size(), 1u);
+      CHECK_GT(output->widgets_.size(), 0u);
       output->widgets_.rbegin()->second->setPose(
           UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_body));
     }

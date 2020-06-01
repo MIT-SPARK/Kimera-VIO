@@ -167,8 +167,9 @@ class OpenCvVisualizer3D : public Visualizer3D {
    * @param texture Optional texture image
    * @param id Optional string id in case you want to display multiple 3D meshes
    * in the same visualization window
+   * @return false if nothing to draw
    */
-  void visualizeMesh3D(const cv::Mat& map_points_3d,
+  bool visualizeMesh3D(const cv::Mat& map_points_3d,
                        const cv::Mat& colors,
                        const cv::Mat& polygons_mesh,
                        WidgetsMap* widgets,
