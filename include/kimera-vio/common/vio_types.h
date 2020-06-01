@@ -9,6 +9,8 @@
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
 
+#include <glog/logging.h>
+
 #include <opencv2/core.hpp>
 
 namespace VIO {
@@ -48,7 +50,7 @@ using FrameId = std::uint64_t;  // Frame id is used as the index of gtsam symbol
                                 // (not as a gtsam key).
 using PlaneId = std::uint64_t;
 using LandmarkId = size_t;  // -1 for invalid landmarks. // int would be too
-                              // small if it is 16 bits!
+                            // small if it is 16 bits!
 using LandmarkIds = std::vector<LandmarkId>;
 using LandmarkCV = cv::Point3d;
 using LandmarksCV = std::vector<LandmarkCV>;
@@ -58,7 +60,6 @@ using KeypointsCV = std::vector<KeypointCV>;
 using StatusKeypointCV = std::pair<KeypointStatus, KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
 using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
-
 
 // TODO(Toni): move make unique and  to underlying to another file...
 // Add compatibility for c++11's lack of make_unique.
@@ -71,6 +72,19 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 template <typename E>
 constexpr typename std::underlying_type<E>::type to_underlying(E e) noexcept {
   return static_cast<typename std::underlying_type<E>::type>(e);
+}
+
+template <class Base, class Derived>
+inline Derived safeCast(const Base& params) {
+  try {
+    return dynamic_cast<const Derived&>(params);
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting an object that is not "
+                  "the one you expected!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when dynamic casting.";
+  }
 }
 
 }  // namespace VIO

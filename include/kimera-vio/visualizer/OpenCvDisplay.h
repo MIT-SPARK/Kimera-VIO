@@ -24,20 +24,55 @@
 
 namespace VIO {
 
-struct OpenCv3dDisplayParams {
+class OpenCv3dDisplayParams : public DisplayParams {
+ public:
+  OpenCv3dDisplayParams(const DisplayType& display_type)
+      : DisplayParams(display_type) {}
+  virtual ~OpenCv3dDisplayParams() = default;
+
+  // Parse YAML file describing camera parameters.
+  bool parseYAML(const std::string& filepath) override {
+    YamlParser yaml_parser(filepath);
+    yaml_parser.getYamlParam("hold_display", &hold_display_);
+    return true;
+  }
+
+  // Display all params.
+  void print() const override {
+    std::stringstream out;
+    PipelineParams::print(out,
+                          "Display Type ",
+                          VIO::to_underlying(display_type_),
+                          "Hold Display ",
+                          hold_display_);
+  }
+
+  // Assert equality up to a tolerance.
+  bool equals(const OpenCv3dDisplayParams& cam_par,
+              const double& tol = 1e-9) const {
+    return display_type_ == cam_par.display_type_ &&
+           hold_display_ == cam_par.hold_display_;
+  }
+
+ protected:
+  bool equals(const DisplayParams& rhs,
+              const double& tol = 1e-9) const override {
+    return equals(static_cast<const OpenCv3dDisplayParams&>(rhs), tol);
+  }
+
+ public:
   //! Spins the 3D window and 2D image display indefinitely, until user closes
   //! the window.
   bool hold_display_ = false;
 };
-
 
 class OpenCv3dDisplay : public DisplayBase {
  public:
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb,
-                  const OpenCv3dDisplayParams& params);
+  OpenCv3dDisplay(const DisplayParams& display_params,
+                  const ShutdownPipelineCallback& shutdown_pipeline_cb);
 
   // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;

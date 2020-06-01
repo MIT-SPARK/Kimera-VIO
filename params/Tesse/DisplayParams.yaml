@@ -1,0 +1,6 @@
+%YAML:1.0
+
+# OpenCV Display params.
+
+# Whether to hold the display for user input
+hold_display: 0

@@ -20,17 +20,19 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
 
 namespace VIO {
 
 OpenCv3dDisplay::OpenCv3dDisplay(
-    const ShutdownPipelineCallback& shutdown_pipeline_cb,
-    const OpenCv3dDisplayParams& params)
-    : DisplayBase(),
+    const DisplayParams& display_params,
+    const ShutdownPipelineCallback& shutdown_pipeline_cb)
+    : DisplayBase(display_params.display_type_),
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb),
-      params_(params) {
+      params_(VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
+          display_params)) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {

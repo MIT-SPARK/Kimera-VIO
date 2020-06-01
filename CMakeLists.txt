@@ -42,6 +42,7 @@ if(NOT TARGET DBoW2::DBoW2)
   INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
 endif()
 find_package(KimeraRPGO REQUIRED)
+find_package(Pangolin REQUIRED)
 
 ### External Dependencies
 include(ExternalProject)
@@ -127,6 +128,7 @@ target_link_libraries(${PROJECT_NAME}
     DBoW2::DBoW2
     KimeraRPGO
   PUBLIC
+    ${Pangolin_LIBRARIES}
     Boost::boost
     ${OpenCV_LIBRARIES}
     ${GFLAGS_LIBRARIES}
@@ -136,6 +138,7 @@ target_link_libraries(${PROJECT_NAME}
  )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
+    ${Pangolin_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}
     ${GLOG_INCLUDE_DIRS}

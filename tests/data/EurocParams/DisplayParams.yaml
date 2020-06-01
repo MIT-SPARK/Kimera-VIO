@@ -1,0 +1,4 @@
+%YAML:1.0
+
+# Hold display until user input
+hold_display: 1

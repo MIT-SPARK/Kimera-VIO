@@ -45,13 +45,17 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
   visualizer_3d_ = VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
 
   // Create Displayer
-  OpenCv3dDisplayParams opencv_3d_display_params;
-  opencv_3d_display_params.hold_display_ = true;
+  CHECK(vio_params_.display_params_);
+  OpenCv3dDisplayParams modified_display_params =
+      VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
+          *vio_params_.display_params_);
+  modified_display_params.hold_display_ = true;
+  DisplayParams& new_display_params = modified_display_params;
   display_module_ = VIO::make_unique<DisplayModule>(
       &display_input_queue_,
       nullptr,
       vio_params_.parallel_run_,
-      VIO::make_unique<OpenCv3dDisplay>(nullptr, opencv_3d_display_params));
+      VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
 
   // Create Feature detector
   FeatureDetectorParams feature_detector_params;
@@ -208,9 +212,9 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
               // We recolor the depth map for disambiguation of original
               // viewpoint
               valid_colors.push_back(
-                  cv::Vec3b(color_counter == 0u? grey_value : 0u,
-                            color_counter == 1u? grey_value : 0u,
-                            color_counter == 2u? grey_value : 0u));
+                  cv::Vec3b(color_counter == 0u ? grey_value : 0u,
+                            color_counter == 1u ? grey_value : 0u,
+                            color_counter == 2u ? grey_value : 0u));
             }
           }
         }

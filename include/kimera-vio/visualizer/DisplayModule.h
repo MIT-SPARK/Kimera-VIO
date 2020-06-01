@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
@@ -51,6 +52,32 @@ class DisplayModule
     CHECK(input);
     display_->spinOnce(std::move(input));
     return VIO::make_unique<NullPipelinePayload>();
+  }
+
+  typename MISO::InputUniquePtr getInputPacket() override {
+    if (display_->display_type_ == DisplayType::kPangolin) {
+      // If we are using pangolin just fake a constant input of messages
+      // to not block the visualizer.
+      return VIO::make_unique<DisplayInputBase>();
+    }
+
+    typename MISO::InputUniquePtr input = nullptr;
+    bool queue_state = false;
+
+    if (MISO::parallel_run_) {
+      queue_state = input_queue_->popBlocking(input);
+    } else {
+      queue_state = input_queue_->pop(input);
+    }
+
+    if (queue_state) {
+      return input;
+    } else {
+      LOG(WARNING) << "Module: " << MISO::name_id_ << " - "
+                   << "Input queue: " << input_queue_->queue_id_
+                   << " didn't return an output.";
+      return nullptr;
+    }
   }
 
  private:

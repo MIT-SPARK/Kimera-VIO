@@ -118,7 +118,8 @@ Pipeline::Pipeline(const VioParams& params,
       parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
-          "initialization_frontend_output_queue", false),
+          "initialization_frontend_output_queue",
+          false),
       backend_input_queue_("backend_input_queue"),
       display_input_queue_("display_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
@@ -244,16 +245,17 @@ Pipeline::Pipeline(const VioParams& params,
                     std::placeholders::_1));
     }
     //! Actual displaying of visual data is done in the main thread.
+    CHECK(params.display_params_);
     display_module_ = VIO::make_unique<DisplayModule>(
         &display_input_queue_,
         nullptr,
         parallel_run_,
         // Use given displayer if any
-        displayer
-            ? std::move(displayer)
-            : DisplayFactory::makeDisplay(DisplayType::kOpenCV,
-                                          std::bind(&Pipeline::shutdown, this),
-                                          OpenCv3dDisplayParams()));
+        displayer ? std::move(displayer)
+                  : DisplayFactory::makeDisplay(
+                        params.display_params_->display_type_,
+                        *(params.display_params_),
+                        std::bind(&Pipeline::shutdown, this)));
   }
 
   if (FLAGS_use_lcd) {
@@ -517,6 +519,7 @@ void Pipeline::shutdown() {
 
 /* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  CHECK(backend_params_);
   switch (backend_params_->autoInitialize_) {
     case 0:
       // If the gtNavState is identity, the params provider probably did a
@@ -604,7 +607,8 @@ bool Pipeline::initializeFromIMU(
 
   // Guess pose from IMU, assumes vehicle to be static.
   ImuAccGyrS imu_accgyrs = stereo_imu_sync_packet.getImuAccGyrs();
-  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols()-1);
+  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols() - 1);
+  CHECK(backend_params_);
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
           imu_accgyr,
@@ -719,6 +723,7 @@ bool Pipeline::initializeOnline(
 
       // Adjust parameters for Bundle Adjustment
       // TODO(Sandro): Create YAML file for initialization and read in!
+      CHECK(backend_params_);
       BackendParams backend_params_init(*backend_params_);
       backend_params_init.smartNoiseSigma_ =
           FLAGS_smart_noise_sigma_bundle_adjustment;
