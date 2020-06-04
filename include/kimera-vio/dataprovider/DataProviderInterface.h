@@ -73,6 +73,9 @@ class DataProviderInterface {
   inline void registerRightFrameCallback(const FrameInputCallback& callback) {
     right_frame_callback_ = callback;
   }
+  inline void registerdepthFrameCallback(const FrameInputCallback& callback) {
+    depth_frame_callback_ = callback;
+  }
 
  protected:
   // Vio callbacks. These functions should be called once data is available for
@@ -81,6 +84,7 @@ class DataProviderInterface {
   ImuMultiInputCallback imu_multi_callback_;
   FrameInputCallback left_frame_callback_;
   FrameInputCallback right_frame_callback_;
+  FrameInputCallback depth_frame_callback_;
 
   // Shutdown switch to stop data provider.
   std::atomic_bool shutdown_ = {false};

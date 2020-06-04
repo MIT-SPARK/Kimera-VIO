@@ -68,6 +68,10 @@ class DataProviderModule
     CHECK(right_frame);
     right_frame_queue_.push(std::move(right_frame));
   }
+  inline void fillDepthFrameQueue(Frame::UniquePtr depth_frame) {
+    CHECK(depth_frame);
+    depth_frame_queue_.push(std::move(depth_frame));
+  }
   //! Callbacks to fill queues but they block if queues are getting full.
   //! Blocking call in case you want to avoid overfilling the input queues.
   //! This is useful when parsing datasets files, since parsing is much faster
@@ -80,6 +84,10 @@ class DataProviderModule
   inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
     CHECK(right_frame);
     right_frame_queue_.pushBlockingIfFull(std::move(right_frame), 5u);
+  }
+  inline void fillDepthFrameQueueBlockingIfFull(Frame::UniquePtr depth_frame) {
+    CHECK(depth_frame);
+    depth_frame_queue_.pushBlockingIfFull(std::move(depth_frame), 5u);
   }
   //! Fill multiple IMU measurements at once
   inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
@@ -112,7 +120,8 @@ class DataProviderModule
 
   //! Checks if the module has work to do (should check input queues are empty)
   inline bool hasWork() const override {
-    return !left_frame_queue_.empty() || !right_frame_queue_.empty();
+    return !left_frame_queue_.empty() || !right_frame_queue_.empty()
+        || !depth_frame_queue_.empty();
   }
 
  private:
@@ -120,6 +129,7 @@ class DataProviderModule
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
+  ThreadsafeQueue<Frame::UniquePtr> depth_frame_queue_;
   const Timestamp kNoFrameYet = 0;
   Timestamp timestamp_last_frame_;
   // TODO(Toni): remove these below
