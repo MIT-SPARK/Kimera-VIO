@@ -33,9 +33,9 @@
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Display.h" // TODO(Toni): separate ocv display
+#include "kimera-vio/visualizer/Display.h"  // TODO(Toni): separate ocv display
 #include "kimera-vio/visualizer/DisplayModule.h"
-#include "kimera-vio/visualizer/Visualizer3D.h" // TODO(Toni): separate ocv viz
+#include "kimera-vio/visualizer/Visualizer3D.h"  // TODO(Toni): separate ocv viz
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {

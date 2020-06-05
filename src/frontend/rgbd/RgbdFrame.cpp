@@ -7,13 +7,14 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   DataProviderModule.cpp
- * @brief  Pipeline Module that takes care of providing data to the VIO
- * pipeline.
+ * @file   RgbdFrame.cpp
+ * @brief  Class describing a single image
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/dataprovider/DataProviderModule.h"
+#pragma once
+
+#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
 
 namespace VIO {
 

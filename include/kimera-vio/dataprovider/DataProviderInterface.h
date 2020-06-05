@@ -18,7 +18,7 @@
 #include <string>
 
 #include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -34,6 +34,7 @@ class DataProviderInterface {
   typedef std::function<void(const ImuMeasurement&)> ImuSingleInputCallback;
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
+  typedef std::function<void(cv::Mat)> DepthFrameInputCallback;
 
   DataProviderInterface();
   virtual ~DataProviderInterface();
@@ -73,7 +74,7 @@ class DataProviderInterface {
   inline void registerRightFrameCallback(const FrameInputCallback& callback) {
     right_frame_callback_ = callback;
   }
-  inline void registerdepthFrameCallback(const FrameInputCallback& callback) {
+  inline void registerDepthFrameCallback(const DepthFrameInputCallback& callback) {
     depth_frame_callback_ = callback;
   }
 
@@ -84,7 +85,7 @@ class DataProviderInterface {
   ImuMultiInputCallback imu_multi_callback_;
   FrameInputCallback left_frame_callback_;
   FrameInputCallback right_frame_callback_;
-  FrameInputCallback depth_frame_callback_;
+  DepthFrameInputCallback depth_frame_callback_;
 
   // Shutdown switch to stop data provider.
   std::atomic_bool shutdown_ = {false};

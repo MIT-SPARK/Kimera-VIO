@@ -7,6 +7,7 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoImuSyncPacket.h"
+  "${CMAKE_CURRENT_LIST_DIR}/MonoImuSyncPacket.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndParams.h"
@@ -20,3 +21,4 @@ target_sources(kimera_vio PRIVATE
 )
 
 add_subdirectory(feature-detector)
+add_subdirectory(rgbd)
