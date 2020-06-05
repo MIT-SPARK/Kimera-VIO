@@ -28,18 +28,17 @@ MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
 
 MonoDataProviderModule::InputUniquePtr
 MonoDataProviderModule::getInputPacket() {
-    if (!MISO::shutdown_) {
-      return getMonoImuSyncPacket();
-    } else {
-      return nullptr;
-    }
-    // Push the synced messages to the frontend's input queue
-    // TODO(Toni): should be a return like that, so that we pass the info to the
-    // queue... Right now we use a callback bcs otw I need to fix all
-    // initialization which is a lot to be fixed.
-    // Actually, right now we don't even use a callback since mono VIO is not
-    // implemented...
+  if (!MISO::shutdown_) {
+    return getMonoImuSyncPacket();
+  } else {
+    return nullptr;
   }
+  // Push the synced messages to the frontend's input queue
+  // TODO(Toni): should be a return like that, so that we pass the info to the
+  // queue... Right now we use a callback bcs otw I need to fix all
+  // initialization which is a lot to be fixed.
+  // Actually, right now we don't even use a callback since mono VIO is not
+  // implemented...
 }
 
 }  // namespace VIO

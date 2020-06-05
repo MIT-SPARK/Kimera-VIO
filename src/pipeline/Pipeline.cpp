@@ -100,7 +100,7 @@ Pipeline::Pipeline(const VioParams& params,
                    DisplayBase::UniquePtr&& displayer)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
-      data_provider_module_(nullptr),
+      stereo_data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
       vio_backend_module_(nullptr),
       lcd_module_(nullptr),
@@ -133,14 +133,14 @@ Pipeline::Pipeline(const VioParams& params,
       params.frontend_params_.stereo_matching_params_);
 
   //! Create DataProvider
-  data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
+  stereo_data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
       &stereo_frontend_input_queue_,
       "Stereo Data Provider",
       parallel_run_,
       // TODO(Toni): these params should not be sent...
       params.frontend_params_.stereo_matching_params_);
 
-  data_provider_module_->registerVioPipelineCallback(
+  stereo_data_provider_module_->registerVioPipelineCallback(
       std::bind(&Pipeline::spinOnce, this, std::placeholders::_1));
 
   //! Create frontend
@@ -381,7 +381,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
     lcd_and_lcd_input_finished = false;
   }
 
-  CHECK(data_provider_module_);
+  CHECK(stereo_data_provider_module_);
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
@@ -390,7 +390,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
       is_backend_ok_ &&     // Loop while backend is fine.
       (!is_initialized_ ||  // Loop while not initialized
                             // Or, once initialized, data is not yet consumed.
-       !(!data_provider_module_->isWorking() &&
+       !(!stereo_data_provider_module_->isWorking() &&
          (stereo_frontend_input_queue_.isShutdown() ||
           stereo_frontend_input_queue_.empty()) &&
          !vio_frontend_module_->isWorking() &&
@@ -407,7 +407,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
             << "VIO pipeline status: \n"
             << "Initialized? " << is_initialized_ << '\n'
             << "Data provider is working? "
-            << data_provider_module_->isWorking() << '\n'
+            << stereo_data_provider_module_->isWorking() << '\n'
             << "Frontend input queue shutdown? "
             << stereo_frontend_input_queue_.isShutdown() << '\n'
             << "Frontend input queue empty? "
@@ -456,7 +456,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   VLOG(1) << "shutdown_: " << shutdown_ << '\n'
           << "VIO pipeline status: \n"
           << "Initialized? " << is_initialized_ << '\n'
-          << "Data provider is working? " << data_provider_module_->isWorking()
+          << "Data provider is working? " << stereo_data_provider_module_->isWorking()
           << '\n'
           << "Frontend input queue shutdown? "
           << stereo_frontend_input_queue_.isShutdown() << '\n'
@@ -504,8 +504,8 @@ void Pipeline::shutdown() {
   }
 
   // Second: stop data provider
-  CHECK(data_provider_module_);
-  data_provider_module_->shutdown();
+  CHECK(stereo_data_provider_module_);
+  stereo_data_provider_module_->shutdown();
 
   // Third: stop VIO's threads
   stopThreads();

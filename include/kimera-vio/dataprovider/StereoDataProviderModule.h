@@ -50,6 +50,14 @@ class StereoDataProviderModule
 
   virtual ~StereoDataProviderModule() = default;
 
+  inline OutputUniquePtr spinOnce(
+      StereoImuSyncPacket::UniquePtr input) override {
+    // Called by spin(), which also calls getInputPacket().
+    // Data provider syncs and publishes input sensor information, which
+    // is done at the level of getInputPacket. No other action needed.
+    return input;
+  }
+
   //! Callbacks to fill queues: they should be all lighting fast.
   inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
     CHECK(right_frame);
