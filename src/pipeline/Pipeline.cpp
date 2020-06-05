@@ -96,7 +96,8 @@ namespace VIO {
 
 Pipeline::Pipeline(const VioParams& params,
                    Visualizer3D::UniquePtr&& visualizer,
-                   DisplayBase::UniquePtr&& displayer)
+                   DisplayBase::UniquePtr&& displayer,
+                   LoopClosureDetector::UniquePtr&& lcd)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
@@ -258,9 +259,11 @@ Pipeline::Pipeline(const VioParams& params,
   if (FLAGS_use_lcd) {
     lcd_module_ = VIO::make_unique<LcdModule>(
         parallel_run_,
-        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
-                              params.lcd_params_,
-                              FLAGS_log_output));
+        // Use given lcd if any
+        lcd ? std::move(lcd)
+            : LcdFactory::createLcd(LoopClosureDetectorType::BoW,
+                                    params.lcd_params_,
+                                    FLAGS_log_output));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillBackendQueue,

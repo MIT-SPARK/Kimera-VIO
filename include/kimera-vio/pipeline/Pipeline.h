@@ -55,7 +55,8 @@ class Pipeline {
      */
   Pipeline(const VioParams& params,
            Visualizer3D::UniquePtr&& visualizer = nullptr,
-           DisplayBase::UniquePtr&& displayer = nullptr);
+           DisplayBase::UniquePtr&& displayer = nullptr,
+           LoopClosureDetector::UniquePtr&& lcd = nullptr);
 
   virtual ~Pipeline();
 
