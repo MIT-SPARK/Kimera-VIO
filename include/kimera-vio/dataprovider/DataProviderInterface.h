@@ -30,11 +30,11 @@ class DataProviderInterface {
   KIMERA_POINTER_TYPEDEFS(DataProviderInterface);
   //! IMU input callbacks come in two flavours:
   //! - Single: allows to add only one single measurement at a time.
-  //! - Multi: allows to add a bunck of measurements at a time.
+  //! - Multi: allows to add a bunch of measurements at a time.
   typedef std::function<void(const ImuMeasurement&)> ImuSingleInputCallback;
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
-  typedef std::function<void(cv::Mat)> DepthFrameInputCallback;
+  typedef std::function<void(DepthFrame::UniquePtr)> DepthFrameInputCallback;
 
   DataProviderInterface();
   virtual ~DataProviderInterface();
@@ -74,7 +74,8 @@ class DataProviderInterface {
   inline void registerRightFrameCallback(const FrameInputCallback& callback) {
     right_frame_callback_ = callback;
   }
-  inline void registerDepthFrameCallback(const DepthFrameInputCallback& callback) {
+  inline void registerDepthFrameCallback(
+      const DepthFrameInputCallback& callback) {
     depth_frame_callback_ = callback;
   }
 

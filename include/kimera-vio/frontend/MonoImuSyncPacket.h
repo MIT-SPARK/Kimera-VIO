@@ -29,7 +29,7 @@ class MonoImuSyncPacket : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(MonoImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MonoImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MonoImuSyncPacket(Frame::ConstUniquePtr frame,
+  MonoImuSyncPacket(Frame::UniquePtr frame,
                     const ImuStampS& imu_stamps,
                     const ImuAccGyrS& imu_accgyr);
   virtual ~MonoImuSyncPacket() = default;

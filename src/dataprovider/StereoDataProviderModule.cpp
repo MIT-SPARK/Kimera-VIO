@@ -31,7 +31,7 @@ StereoDataProviderModule::StereoDataProviderModule(
           name_id,
           parallel_run),
       right_frame_queue_("data_provider_right_frame_queue"),
-      stereo_matching_params_(stereo_matching_params_) {}
+      stereo_matching_params_(stereo_matching_params) {}
 
 StereoDataProviderModule::InputUniquePtr
 StereoDataProviderModule::getInputPacket() {
