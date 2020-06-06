@@ -49,6 +49,7 @@ class DataProviderModule : public MISOPipelineModule<Input, Output> {
       : MISO(output_queue, name_id, parallel_run),
         imu_data_(),
         left_frame_queue_("data_provider_left_frame_queue"),
+        // not super nice to init a member with another member in ctor...
         timestamp_last_frame_(kNoFrameYet) {}
   virtual ~DataProviderModule() = default;
 
@@ -253,7 +254,7 @@ class DataProviderModule : public MISOPipelineModule<Input, Output> {
   //! Input data
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
-  const Timestamp kNoFrameYet = 0;
+  static const Timestamp kNoFrameYet = 0;
   Timestamp timestamp_last_frame_;
 };
 
