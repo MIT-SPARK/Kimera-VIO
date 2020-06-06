@@ -23,11 +23,11 @@ namespace VIO {
 MonoImuSyncPacket::MonoImuSyncPacket(Frame::UniquePtr frame,
                                      const ImuStampS& imu_stamps,
                                      const ImuAccGyrS& imu_accgyr)
-    : PipelinePayload(CHECK_NOTNULL(frame)->timestamp_),
+    : PipelinePayload(frame->timestamp_),
       frame_(std::move(frame)),
       imu_stamps_(imu_stamps),
       imu_accgyr_(imu_accgyr) {
-  CHECK_NOTNULL(frame_);
+  CHECK(frame_);
   CHECK_GT(imu_stamps_.cols(), 0u);
   CHECK_GT(imu_accgyr_.cols(), 0u);
   CHECK_EQ(imu_stamps_.cols(), imu_accgyr_.cols());
