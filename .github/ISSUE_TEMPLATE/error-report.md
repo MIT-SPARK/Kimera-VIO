@@ -23,7 +23,7 @@ about: Fill this out and upload your data (!!)
 Please attach all the files needed to reproduce the error.
 
 Please give also the following information:
-* SparkVio branch, tag or commit used
+* Kimera-Vio branch, tag or commit used
 * GTSAM version used:
 * OpenGV version used:
 * OpenCV version used: type `opencv_version`
