@@ -39,7 +39,7 @@ MonoImuSyncPacket::MonoImuSyncPacket(Frame::UniquePtr frame,
 }
 
 void MonoImuSyncPacket::print() const {
-  CHECK_NOTNULL(frame_);
+  CHECK(frame_);
   LOG(INFO) << "Mono Frame timestamp: " << frame_->timestamp_ << '\n'
             << "STAMPS IMU rows : \n"
             << imu_stamps_.rows() << '\n'
