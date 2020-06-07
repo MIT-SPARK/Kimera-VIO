@@ -29,7 +29,7 @@ class RgbdImuSyncPacket : public PipelinePayload {
 
   void print() const;
 
- private:
+ public:
   RgbdFrame::UniquePtr rgbd_frame_;
   const ImuStampS imu_stamps_;
   const ImuAccGyrS imu_accgyr_;
