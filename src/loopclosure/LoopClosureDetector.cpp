@@ -202,6 +202,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
+    output_payload->timestamp_kf_ = input.timestamp_kf_;
   }
   CHECK(output_payload) << "Missing LCD output payload.";
 
