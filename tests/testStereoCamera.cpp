@@ -43,7 +43,7 @@ class StereoCameraFixture : public ::testing::Test {
         vio_params_.camera_params_.at(0),
         vio_params_.camera_params_.at(1),
         vio_params_.frontend_params_.stereo_matching_params_);
-    CHECK_NOTNULL(stereo_camera_);
+    CHECK(stereo_camera_);
   }
   ~StereoCameraFixture() override = default;
 
@@ -167,7 +167,7 @@ class StereoCameraFixture : public ::testing::Test {
  * backProjectDisparityTo3D...)
  */
 TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
-  CHECK_NOTNULL(stereo_camera_);
+  CHECK(stereo_camera_);
 
   Frame::UniquePtr left_frame = nullptr;
   Frame::UniquePtr right_frame = nullptr;
@@ -266,7 +266,7 @@ TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
 }
 
 TEST_F(StereoCameraFixture, backProjectGivenDepth) {
-  CHECK_NOTNULL(stereo_camera_);
+  CHECK(stereo_camera_);
   LandmarksCV expected_lmks;
   LandmarksCV actual_lmks;
 
