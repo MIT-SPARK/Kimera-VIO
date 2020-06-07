@@ -94,6 +94,7 @@ public:
   DisplayModule::UniquePtr display_module_;
   DisplayModule::InputQueue display_input_queue_;
 
+
  protected:
   //! Fill one IMU measurement only
   void fillImuQueue(const ImuMeasurement& imu_measurement);
@@ -116,6 +117,7 @@ public:
 
   //! Modules
   EurocDataProvider::UniquePtr euroc_data_provider_;
+
 
   //! Data
   ImuData imu_data_;

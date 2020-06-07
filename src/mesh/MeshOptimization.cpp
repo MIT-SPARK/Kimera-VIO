@@ -395,14 +395,18 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
         triangles_to_datapoints_pixels[tri_idx];
     CHECK_EQ(triangle_datapoints_xyz_left_rect_cam_frame.size(),
              triangle_datapoints_pixel.size());
-    LOG_IF(ERROR, triangle_datapoints_xyz_left_rect_cam_frame.size() < 3)
-        << "Degenerate case optimization problem, we need more than 3 "
-           "datapoints: offending triangle idx: "
-        << tri_idx;
 
     // Skip under-constrained since we do not have enough info to solve Ay=b
-    if (triangle_datapoints_xyz_left_rect_cam_frame.size() < 3) continue;
+    if (triangle_datapoints_xyz_left_rect_cam_frame.size() < 3) {
+      // ALTHOUGH WE COULD JUST USE AS PRIOR THE CURRENT DEPTH SAMPLE...
+      LOG(ERROR) << "Degenerate case optimization problem, we need more than 3 "
+                    "datapoints: offending triangle idx: "
+                 << tri_idx;
+      continue;
+    }
 
+    LOG(INFO) << "Adding " << triangle_datapoints_xyz_left_rect_cam_frame.size()
+              << " datapoints to triangle with idx: " << tri_idx;
     switch (mesh_optimizer_type_) {
       case MeshOptimizerType::kGtsamMesh: {
         // Build factor graph on a per triangle basis
@@ -446,7 +450,8 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           //! Inverse depth of datapoint
           gtsam::Vector1 b(inv_depth_meas);
           gtsam::SharedDiagonal noise_model_input =
-              gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(1.0));
+              gtsam::noiseModel::Diagonal::Sigmas(
+                  gtsam::Vector1(kDepthMeasNoiseSigma));
 
           //! one per data point influencing three variables
           factor_graph += gtsam::JacobianFactor(
@@ -479,7 +484,6 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   LOG(INFO) << "Solving optimization problem.";
   switch (mesh_optimizer_type_) {
     case MeshOptimizerType::kGtsamMesh: {
-      static constexpr bool kUseSpringEnergies = true;
       if (kUseSpringEnergies) {
         //! Add spring energies for this triangle, but don't duplicate
         //! springs! Hence, use adjacency matrix to know where to put the
@@ -490,7 +494,8 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
         const gtsam::Matrix11 A1(kSpringConstant);
         const gtsam::Matrix11 A2(-1.0 * kSpringConstant);
         const gtsam::SharedDiagonal kSpringNoiseModel =
-            gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
+            gtsam::noiseModel::Diagonal::Sigmas(
+                gtsam::Vector1(kSpringNoiseSigma));
         // ASSUMEs that vtx ids are the indices of the adjacency matrix!
         for (size_t i = 0u; i < adjacency_matrix.rows; i++) {
           gtsam::Key i1(i);
@@ -607,12 +612,22 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           switch (mesh_color_type_) {
             case MeshColorType::kVertexFlatColor: {
               // Use color of each pixel where the landmark is
-              switch(mesh_count_ % 5) {
-                case 0: vtx_color = cv::viz::Color::red(); break;
-                case 1: vtx_color = cv::viz::Color::apricot(); break;
-                case 2: vtx_color = cv::viz::Color::purple(); break;
-                case 3: vtx_color = cv::viz::Color::brown(); break;
-                case 4: vtx_color = cv::viz::Color::pink(); break;
+              switch (mesh_count_ % 5) {
+                case 0:
+                  vtx_color = cv::viz::Color::red();
+                  break;
+                case 1:
+                  vtx_color = cv::viz::Color::apricot();
+                  break;
+                case 2:
+                  vtx_color = cv::viz::Color::purple();
+                  break;
+                case 3:
+                  vtx_color = cv::viz::Color::brown();
+                  break;
+                case 4:
+                  vtx_color = cv::viz::Color::pink();
+                  break;
               }
             } break;
             case MeshColorType::kVertexRGB: {
@@ -746,7 +761,7 @@ void MeshOptimization::drawPointCloud(const std::string& id,
     for (int32_t v = 0u; v < pointcloud.rows; ++v) {
       for (int32_t u = 0u; u < pointcloud.cols; ++u) {
         const cv::Point3f& lmk = pointcloud.at<cv::Point3f>(v, u);
-        if (isValidPoint(lmk) && lmk.z <= kMaxZ && lmk.z >= kMinZ) {
+        if (isValidPoint(lmk)) {
           flat_pcl.push_back(lmk);
           colors_pcl.push_back(cv::Vec3b::all(img_.at<uint8_t>(v, u)));
         }

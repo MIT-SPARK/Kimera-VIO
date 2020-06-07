@@ -201,11 +201,10 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         CHECK_EQ(left_frame->img_.type(), CV_8UC1);  // for color
         cv::Mat_<cv::Point3f> valid_depth = cv::Mat(1, 0, CV_32FC3);
         cv::Mat valid_colors = cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
-        static constexpr float kMaxZ = 5.0;  // 5 meters
         for (int32_t u = 0; u < depth_map.rows; ++u) {
           for (int32_t v = 0; v < depth_map.cols; ++v) {
             const cv::Point3f& xyz = depth_map(u, v);
-            if (isValidPoint(xyz) && xyz.z <= kMaxZ) {
+            if (isValidPoint(xyz)) {
               valid_depth.push_back(xyz);
               const auto& grey_value =
                   stereo_frame.left_img_rectified_.at<uint8_t>(u, v);
