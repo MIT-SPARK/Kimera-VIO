@@ -19,6 +19,7 @@
 #include <utility>
 
 namespace VIO {
+
 StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,
                                          const ImuAccGyrS& imu_accgyrs,

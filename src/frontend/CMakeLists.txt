@@ -9,6 +9,7 @@ target_sources(kimera_vio
   "${CMAKE_CURRENT_LIST_DIR}/StereoMatchingParams.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/StereoImuSyncPacket.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/MonoImuSyncPacket.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndModule.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndFactory.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndParams.cpp"
@@ -16,4 +17,5 @@ target_sources(kimera_vio
 )
 
 add_subdirectory(feature-detector)
+add_subdirectory(rgbd)
 
