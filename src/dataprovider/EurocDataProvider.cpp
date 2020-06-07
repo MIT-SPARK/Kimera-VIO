@@ -24,6 +24,11 @@
 #include <vector>
 
 #include <glog/logging.h>
+#include <gflags/gflags.h>
+
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"

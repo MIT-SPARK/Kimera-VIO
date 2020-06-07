@@ -35,7 +35,7 @@ Camera::Camera(const CameraParams& cam_params)
       cam_params_(cam_params) {
   camera_impl_ = VIO::make_unique<CameraImpl>(cam_params.body_Pose_cam_,
                                               calibration_);
-  CHECK_NOTNULL(camera_impl_);
+  CHECK(camera_impl_);
 }
 
 void Camera::project(const LandmarksCV& lmks, KeypointsCV* kpts) const {
@@ -52,8 +52,9 @@ void Camera::project(const LandmarkCV& lmk, KeypointCV* kpt) const {
   CHECK_NOTNULL(kpt);
   // I believe this project call in gtsam is quite inefficient as it goes
   // through a cascade of calls... Only useful if you want gradients I guess...
+  CHECK(camera_impl_);
   const gtsam::Point2& kp =
-      CHECK_NOTNULL(camera_impl_)->project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
+      camera_impl_->project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
   *kpt = KeypointCV(kp.x(), kp.y());
 }
 
@@ -62,9 +63,10 @@ void Camera::backProject(const KeypointsCV& kps,
                          LandmarksCV* lmks) const {
   CHECK_NOTNULL(lmks)->clear();
   lmks->reserve(kps.size());
+  CHECK(camera_impl_);
   for (const KeypointCV& kp : kps) {
     gtsam::Point2 z(kp.x, kp.y);
-    gtsam::Point3 lmk = CHECK_NOTNULL(camera_impl_)->backproject(z, depth);
+    gtsam::Point3 lmk = camera_impl_->backproject(z, depth);
     lmks->push_back(LandmarkCV(lmk.x(), lmk.y(), lmk.z()));
   }
 }

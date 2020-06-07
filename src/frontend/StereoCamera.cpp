@@ -103,6 +103,8 @@ void StereoCamera::project(const LandmarksCV& lmks,
                            KeypointsCV* right_kpts) const {
   CHECK_NOTNULL(left_kpts)->clear();
   CHECK_NOTNULL(right_kpts)->clear();
+  left_kpts->clear();
+  right_kpts->clear();
   const auto& n_lmks = lmks.size();
   left_kpts->resize(n_lmks);
   right_kpts->resize(n_lmks);
@@ -128,7 +130,7 @@ void StereoCamera::backProjectDepth(const KeypointCV& kp,
                                     const double& depth,
                                     LandmarkCV* lmk) const {
   CHECK_NOTNULL(lmk);
-  CHECK_NOTNULL(stereo_calibration_);
+  CHECK(stereo_calibration_ != nullptr);
   CHECK_GT(depth, 0.0) << "Requested back projection of a keypoint :" << kp
                        << "\n with negative depth: " << depth;
   double disparity =
@@ -140,7 +142,7 @@ void StereoCamera::backProjectDisparity(const KeypointCV& kp,
                                         const double& disparity,
                                         LandmarkCV* lmk) const {
   CHECK_NOTNULL(lmk);
-  CHECK_NOTNULL(stereo_calibration_);
+  CHECK(stereo_calibration_ != nullptr);
   CHECK_GT(disparity, 0.0) << "Requested back projection of a keypoint :" << kp
                            << "\n with negative disparity: " << disparity;
   gtsam::StereoPoint2 z(kp.x, kp.x - disparity, kp.y);

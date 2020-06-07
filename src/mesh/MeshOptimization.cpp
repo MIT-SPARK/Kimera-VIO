@@ -47,7 +47,7 @@ MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
                                    OpenCvVisualizer3D::Ptr visualizer)
     : visualizer_(visualizer),
       mesh_optimizer_type_(solver_type),
-      stereo_camera_(CHECK_NOTNULL(stereo_camera)),
+      stereo_camera_(stereo_camera),
       window_("Mesh Optimization"),
       mesh_color_type_(mesh_color_type) {
   window_.setBackgroundColor(cv::viz::Color::white());
@@ -213,7 +213,7 @@ void MeshOptimization::collectTriangleDataPoints(
   CHECK_NOTNULL(corresp);
   CHECK_NOTNULL(pixel_corresp);
   *CHECK_NOTNULL(number_of_valid_datapoints) = 0u;
-  CHECK_NOTNULL(stereo_camera_);
+  CHECK(stereo_camera_);
 
   for (size_t v = 0u; v < noisy_point_cloud.rows; ++v) {
     for (size_t u = 0u; u < noisy_point_cloud.cols; ++u) {
@@ -279,7 +279,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   CHECK_GT(mesh_2d.getNumberOfPolygons(), 0);
   CHECK_GT(mesh_2d.getNumberOfUniqueVertices(), 0);
   CHECK_EQ(noisy_point_cloud.channels(), 3u);
-  CHECK_NOTNULL(stereo_camera_);
+  CHECK(stereo_camera_);
 
   // Need to visualizeScene again because the image of the camera frustum
   // was updated
@@ -684,7 +684,7 @@ void MeshOptimization::getBearingVectorFrom2DPixel(
     const cv::Point2f& pixel,
     cv::Point3f* bearing_vector_body_frame) {
   CHECK_NOTNULL(bearing_vector_body_frame);
-  CHECK_NOTNULL(stereo_camera_);
+  CHECK(stereo_camera_ != nullptr);
   LandmarkCV lmk;
   // This in turn transforms the bearing vector to the stereo camera frame of
   // reference. Therefore, bearing vector is expressed in the body frame of ref.
