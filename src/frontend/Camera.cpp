@@ -26,15 +26,15 @@
 namespace VIO {
 
 Camera::Camera(const CameraParams& cam_params)
-    : camera_impl_(nullptr),
+    : cam_params_(cam_params),
       calibration_(cam_params.intrinsics_.at(0),
                    cam_params.intrinsics_.at(1),
                    0.0,  // No skew
                    cam_params.intrinsics_.at(2),
                    cam_params.intrinsics_.at(3)),
-      cam_params_(cam_params) {
-  camera_impl_ = VIO::make_unique<CameraImpl>(cam_params.body_Pose_cam_,
-                                              calibration_);
+      camera_impl_(nullptr) {
+  camera_impl_ =
+      VIO::make_unique<CameraImpl>(cam_params.body_Pose_cam_, calibration_);
   CHECK(camera_impl_);
 }
 
@@ -59,16 +59,29 @@ void Camera::project(const LandmarkCV& lmk, KeypointCV* kpt) const {
 }
 
 void Camera::backProject(const KeypointsCV& kps,
-                         const double& depth,
+                         const Depths& depths,
                          LandmarksCV* lmks) const {
   CHECK_NOTNULL(lmks)->clear();
   lmks->reserve(kps.size());
+  CHECK_EQ(kps.size(), depths.size());
   CHECK(camera_impl_);
-  for (const KeypointCV& kp : kps) {
-    gtsam::Point2 z(kp.x, kp.y);
-    gtsam::Point3 lmk = camera_impl_->backproject(z, depth);
-    lmks->push_back(LandmarkCV(lmk.x(), lmk.y(), lmk.z()));
+  for (size_t i = 0u; i < kps.size(); i++) {
+    LandmarkCV lmk;
+    backProject(kps[i], depths[i], &lmk);
+    lmks->push_back(lmk);
   }
+}
+
+void Camera::backProject(const KeypointCV& kp,
+                         const Depth& depth,
+                         LandmarkCV* lmk) const {
+  CHECK_NOTNULL(lmk);
+  CHECK(camera_impl_);
+  gtsam::Point2 z(kp.x, kp.y);
+  gtsam::Point3 gtsam_lmk = camera_impl_->backproject(z, depth);
+  lmk->x = gtsam_lmk.x();
+  lmk->y = gtsam_lmk.y();
+  lmk->z = gtsam_lmk.z();
 }
 
 }  // namespace VIO

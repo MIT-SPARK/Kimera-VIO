@@ -30,7 +30,7 @@
 #include <gtsam/nonlinear/Marginals.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/mesh/Mesh.h"
 #include "kimera-vio/mesh/MeshOptimization-definitions.h"
 #include "kimera-vio/mesh/MeshUtils.h"
@@ -43,13 +43,15 @@ namespace VIO {
 
 MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
                                    const MeshColorType& mesh_color_type,
-                                   StereoCamera::Ptr stereo_camera,
+                                   Camera::Ptr camera,
                                    OpenCvVisualizer3D::Ptr visualizer)
     : visualizer_(visualizer),
       mesh_optimizer_type_(solver_type),
-      stereo_camera_(stereo_camera),
+      mono_camera_(camera),
+      body_pose_cam_(camera->getBodyPoseCam()),
       window_("Mesh Optimization"),
       mesh_color_type_(mesh_color_type) {
+  CHECK(camera);
   window_.setBackgroundColor(cv::viz::Color::white());
   window_.setFullScreen(true);
 }
@@ -213,7 +215,7 @@ void MeshOptimization::collectTriangleDataPoints(
   CHECK_NOTNULL(corresp);
   CHECK_NOTNULL(pixel_corresp);
   *CHECK_NOTNULL(number_of_valid_datapoints) = 0u;
-  CHECK(stereo_camera_);
+  CHECK(mono_camera_);
 
   for (size_t v = 0u; v < noisy_point_cloud.rows; ++v) {
     for (size_t u = 0u; u < noisy_point_cloud.cols; ++u) {
@@ -227,12 +229,10 @@ void MeshOptimization::collectTriangleDataPoints(
       const cv::Point3f& lmk = noisy_point_cloud.at<cv::Point3f>(pixel);
       if (isValidPoint(lmk) && lmk.z <= kMaxZ && lmk.z >= kMinZ) {
         // Convert xyz to global coords (as they are given in camera coords).
-        const gtsam::Pose3& left_cam_rect_pose =
-            stereo_camera_->getBodyPoseLeftCamRect();
         // transform from left cam frame of reference to body because the
-        // stereo camera projection function expects landmarks in the body
+        // camera projection function expects landmarks in the body
         // frame of reference!
-        const gtsam::Point3& pt_body = left_cam_rect_pose.transformFrom(
+        const gtsam::Point3& pt_body = body_pose_cam_.transformFrom(
             gtsam::Point3(lmk.x, lmk.y, lmk.z));
         LandmarkCV lmk_cv;
         lmk_cv.x = pt_body.x();
@@ -240,8 +240,7 @@ void MeshOptimization::collectTriangleDataPoints(
         lmk_cv.z = pt_body.z();
 
         KeypointCV left_pixel;
-        KeypointCV right_pixel;
-        stereo_camera_->project(lmk_cv, &left_pixel, &right_pixel);
+        mono_camera_->project(lmk_cv, &left_pixel);
         CHECK_NEAR(left_pixel.x, static_cast<double>(u), 0.001);
         CHECK_NEAR(left_pixel.y, static_cast<double>(v), 0.001);
 
@@ -279,18 +278,16 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   CHECK_GT(mesh_2d.getNumberOfPolygons(), 0);
   CHECK_GT(mesh_2d.getNumberOfUniqueVertices(), 0);
   CHECK_EQ(noisy_point_cloud.channels(), 3u);
-  CHECK(stereo_camera_);
+  CHECK(mono_camera_);
 
   // Need to visualizeScene again because the image of the camera frustum
   // was updated
   if (visualizer_) {
     drawPointCloud("Noisy Point Cloud",
                    noisy_point_cloud,
-                   UtilsOpenCV::gtsamPose3ToCvAffine3d(
-                       stereo_camera_->getBodyPoseLeftCamRect()));
+                   UtilsOpenCV::gtsamPose3ToCvAffine3d(body_pose_cam_));
     // draw2dMeshOnImg(img_, mesh_2d);
-    drawScene(stereo_camera_->getBodyPoseLeftCamRect(),
-              stereo_camera_->getStereoCalib()->calibration());
+    drawScene(body_pose_cam_, mono_camera_->getCalibration());
     // spinDisplay();
   }
 
@@ -363,7 +360,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
 
       if (visualizer_) {
         drawArrow(cv::Point3d(UtilsOpenCV::gtsamVector3ToCvMat(
-                      stereo_camera_->getBodyPoseLeftCamRect().translation())),
+                      body_pose_cam_.translation())),
                   cv_bearing_vector_body_frame,
                   "r" + std::to_string(tri_idx * 3 + col),
                   false,
@@ -699,11 +696,11 @@ void MeshOptimization::getBearingVectorFrom2DPixel(
     const cv::Point2f& pixel,
     cv::Point3f* bearing_vector_body_frame) {
   CHECK_NOTNULL(bearing_vector_body_frame);
-  CHECK(stereo_camera_ != nullptr);
+  CHECK(mono_camera_ != nullptr);
   LandmarkCV lmk;
-  // This in turn transforms the bearing vector to the stereo camera frame of
+  // This in turn transforms the bearing vector to the camera frame of
   // reference. Therefore, bearing vector is expressed in the body frame of ref.
-  stereo_camera_->backProjectDepth(pixel, 1.0, &lmk);
+  mono_camera_->backProject(pixel, 1.0, &lmk);
   *bearing_vector_body_frame = lmk / std::sqrt(lmk.dot(lmk));
   CHECK_NEAR(bearing_vector_body_frame->dot(*bearing_vector_body_frame),
              1.0f,

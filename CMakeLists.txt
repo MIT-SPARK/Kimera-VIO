@@ -213,6 +213,7 @@ if(BUILD_TESTS)
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp
     tests/testFrame.cpp # NEEDS UPDATE
+    tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testImuFrontEnd.cpp

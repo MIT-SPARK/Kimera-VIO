@@ -26,7 +26,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/mesh/Mesh.h"
 #include "kimera-vio/mesh/MeshOptimization-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
@@ -49,7 +49,7 @@ class MeshOptimization {
  public:
   MeshOptimization(const MeshOptimizerType& solver_type,
                    const MeshColorType& mesh_color_type,
-                   StereoCamera::Ptr stereo_camera,
+                   Camera::Ptr camera,
                    OpenCvVisualizer3D::Ptr visualizer = nullptr);
   virtual ~MeshOptimization() = default;
 
@@ -137,7 +137,7 @@ class MeshOptimization {
    * @brief solveOptimalMesh
    * Assumes noisy point cloud is given in camera frame!
    * @param noisy_point_cloud In the frame of reference of the undistorted
-   * rectified stereo camera
+   * (and rectified) camera
    * @param mesh_2d In pixel coordinates
    * @return
    */
@@ -203,7 +203,8 @@ class MeshOptimization {
   static constexpr float kDepthMeasNoiseSigma = 0.3f;
 
   //! Camera with which the noisy point cloud and the 2d mesh were generated.
-  StereoCamera::Ptr stereo_camera_;
+  Camera::Ptr mono_camera_;
+  gtsam::Pose3 body_pose_cam_;
 
   //! Mesh count: just for visualization to change the ids of the 3d mesh widget
   size_t mesh_count_ = 0u;

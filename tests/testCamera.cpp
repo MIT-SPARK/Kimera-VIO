@@ -20,7 +20,7 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
-#include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
 DECLARE_string(test_data_path);
@@ -49,7 +49,7 @@ class MonoCameraFixture : public ::testing::Test {
 
   void parseEuroc() {
     // Create euroc data parser
-    // Only parse one stereo frame... 0 - 1
+    // Only parse one mono frame... 0 - 1
     euroc_data_provider_ = VIO::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/V1_01_easy/", 10, 11, vio_params_);
 
@@ -137,9 +137,6 @@ class MonoCameraFixture : public ::testing::Test {
   cv::viz::Viz3d window_;
 };
 
-// Checks that the math has not been changed by accident.
-TEST_F(MonoCameraFixture, BaselineCalculation) {}
-
 TEST_F(MonoCameraFixture, project) {
   LandmarksCV lmks;
   lmks.push_back(LandmarkCV(0.0, 0.0, 1.0));
@@ -182,6 +179,49 @@ TEST_F(MonoCameraFixture, projectCheirality) {
   KeypointCV kpt;
   EXPECT_THROW(mono_camera_->project(lmk_behind_cam, &kpt),
                gtsam::CheiralityException);
+}
+
+TEST_F(MonoCameraFixture, backProjectSingleSimple) {
+  // Easy test first, back-project keypoint at the center of the image with
+  // a given depth.
+  CameraParams& camera_params = vio_params_.camera_params_.at(0);
+  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  KeypointCV kpt(camera_params.intrinsics_.at(2),
+                 camera_params.intrinsics_.at(3));
+  LandmarkCV actual_lmk;
+  double depth = 2.0;
+  mono_camera_->backProject(kpt, depth, &actual_lmk);
+
+  LandmarkCV expected_lmk(0.0, 0.0, depth);
+  EXPECT_EQ(expected_lmk, actual_lmk);
+}
+
+TEST_F(MonoCameraFixture, backProjectMultipleSimple) {
+  // Easy test first, back-project keypoints at the center of the image with
+  // different depths.
+  CameraParams& camera_params = vio_params_.camera_params_.at(0);
+  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  KeypointCV kpt(camera_params.intrinsics_.at(2),
+                 camera_params.intrinsics_.at(3));
+  // Create 3 keypoints centered at image with different depths
+  KeypointsCV kpts(3, kpt);
+  std::vector<double> depths = {2.0, 3.0, 4.5};
+  LandmarksCV actual_lmks;
+  mono_camera_->backProject(kpts, depths, &actual_lmks);
+
+  LandmarksCV expected_lmks;
+  for (const auto& depth : depths) {
+    expected_lmks.push_back(LandmarkCV(0.0, 0.0, depth));
+  }
+
+  ASSERT_EQ(actual_lmks.size(), expected_lmks.size());
+  for (size_t i = 0u; i < actual_lmks.size(); i++) {
+    EXPECT_EQ(expected_lmks[i], actual_lmks[i]);
+  }
 }
 
 }  // namespace VIO
