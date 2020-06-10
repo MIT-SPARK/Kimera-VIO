@@ -77,6 +77,8 @@ class RgbdCamera : public Camera {
                          const uint16_t& depth_factor) {
     CHECK_EQ(intensity_img.type(), CV_8UC1);
     CHECK_EQ(depth_img.type(), CV_16UC1);
+    CHECK_EQ(depth_img.size(), intensity_img.size());
+
     int img_height = intensity_img.rows;
     int img_width = intensity_img.cols;
 
@@ -92,12 +94,13 @@ class RgbdCamera : public Camera {
     float constant_y = unit_scaling / intrinsics.at(1u);
     float bad_point = std::numeric_limits<float>::quiet_NaN();
 
-    cv::Mat_<cv::Point3f> cloud_msg = cv::Mat(img_height, img_width, CV_32FC3);
+    cv::Mat_<cv::Point3f> cloud_output =
+        cv::Mat(img_height, img_width, CV_32FC3);
 
     for (int v = 0u; v < img_height; ++v) {
       for (int u = 0u; u < img_width; ++u) {
         uint16_t depth = depth_img.at<uint16_t>(v, u) / depth_factor;
-        cv::Point3f& xyz = cloud_msg.at<cv::Point3f>(v, u);
+        cv::Point3f& xyz = cloud_output.at<cv::Point3f>(v, u);
 
         // Check for invalid measurements
         xyz.x = (u - center_x) * depth * constant_x;
@@ -118,6 +121,7 @@ class RgbdCamera : public Camera {
         // xyzrgba.b = color;
       }
     }
+    return cloud_output;
   }
 
  protected:
