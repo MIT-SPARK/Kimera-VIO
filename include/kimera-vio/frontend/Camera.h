@@ -27,12 +27,23 @@
 
 namespace VIO {
 
+/**
+ * @brief The Camera class Implements a Monocular Camera.
+ * It currently assumes the camera has been undistorted.
+ */
 class Camera {
  public:
   KIMERA_POINTER_TYPEDEFS(Camera);
   KIMERA_DELETE_COPY_CONSTRUCTORS(Camera);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using Depth = double;
+  using Depths = std::vector<Depth>;
+
+  /**
+   * @brief Camera
+   * @param cam_params
+   */
   Camera(const CameraParams& cam_params);
   virtual ~Camera() = default;
 
@@ -55,10 +66,23 @@ class Camera {
    * @param disparity_img
    */
   void backProject(const KeypointsCV& kps,
-                   const double& depth,
+                   const Depths& depths,
                    LandmarksCV* lmks) const;
 
- private:
+  void backProject(const KeypointCV& kp,
+                   const Depth& depth,
+                   LandmarkCV* lmk) const;
+
+  /**
+   * @brief getCalibration
+   * @return  The intrinsic calibration of the camera
+   */
+  inline gtsam::Cal3_S2 getCalibration() const { return calibration_; }
+  inline gtsam::Pose3 getBodyPoseCam() const {
+    return cam_params_.body_Pose_cam_;
+  }
+
+ protected:
   CameraParams cam_params_;
   gtsam::Cal3_S2 calibration_;
   std::unique_ptr<CameraImpl> camera_impl_;

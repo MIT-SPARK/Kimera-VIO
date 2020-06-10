@@ -40,10 +40,13 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
                                    1000,
                                    300);
 
+  Camera::Ptr mono_camera = VIO::make_unique<Camera>(
+      euroc_playground.vio_params_.camera_params_.at(0));
+
   // Optimize mesh using MeshOpt
   MeshOptimization mesh_opt(MeshOptimizerType::kGtsamMesh,
                             MeshColorType::kVertexFlatColor,
-                            euroc_playground.stereo_camera_,
+                            mono_camera,
                             euroc_playground.visualizer_3d_);
 
   if (FLAGS_display) {

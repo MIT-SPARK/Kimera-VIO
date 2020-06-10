@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include <opencv2/core/core.hpp>
-
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/rgbd/DepthFrame.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
@@ -30,16 +28,12 @@ class RgbdFrame : public PipelinePayload {
 
   RgbdFrame(const FrameId& id,
             const Timestamp& timestamp,
-            Frame::UniquePtr rgb_img,
-            DepthFrame::UniquePtr depth_img)
-      : PipelinePayload(timestamp),
-        id_(id),
-        rgb_img_(std::move(rgb_img)),
-        depth_img_(std::move(depth_img)) {}
+            Frame::UniquePtr intensity_img,
+            DepthFrame::UniquePtr depth_img);
 
  public:
   const FrameId id_;
-  Frame::UniquePtr rgb_img_;
+  Frame::UniquePtr intensity_img_;
   DepthFrame::UniquePtr depth_img_;
 };
 

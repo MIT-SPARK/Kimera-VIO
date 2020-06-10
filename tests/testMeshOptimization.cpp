@@ -44,9 +44,12 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   // But make the image be a 2 by 2 one for simplicity
   camera_params.image_size_ = cv::Size(2, 2);
 
+  Camera::Ptr mono_camera = VIO::make_unique<Camera>(camera_params);
+
   // Optimize mesh using MeshOpt
-  MeshOptimization mesh_opt(
-      MeshOptimizerType::kGtsamMesh, MeshColorType::kVertexSupport, nullptr);
+  MeshOptimization mesh_opt(MeshOptimizerType::kGtsamMesh,
+                            MeshColorType::kVertexSupport,
+                            mono_camera);
 
   // Only add a point in the center of the triangle
   cv::Mat point_cloud = cv::Mat(0, 0, CV_32FC3);
@@ -72,8 +75,6 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   cv::Point3f close_lmk(9.2, 1.2, 0.0003);
   expected_lmks.push_back(close_lmk);
   point_cloud.push_back(close_lmk);
-
-
 
   // the point cloud shape must be the same as the image size which is 2x2 now.
   // This is interpreted as: the pixel in {0,0} has a 3D point at expected_lmk0
@@ -103,25 +104,25 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   Mesh2D::VertexType vtx1(0u, Vertex2D(0.0, 0.0));
   Mesh2D::VertexType vtx2(1u, Vertex2D(0.0, 1.0));
   Mesh2D::VertexType vtx3(2u, Vertex2D(1.0, 1.0));
-  //Mesh2D::VertexType vtx4(3, Vertex2D(1.0, 0.0));
+  // Mesh2D::VertexType vtx4(3, Vertex2D(1.0, 0.0));
   Mesh2D::Polygon tri;
   tri.push_back(vtx1);
   tri.push_back(vtx2);
   tri.push_back(vtx3);
   mesh_2d.addPolygonToMesh(tri);
-  //tri = Mesh2D::Polygon();
-  //tri.push_back(vtx1);
-  //tri.push_back(vtx3);
-  //tri.push_back(vtx4);
-  //mesh_2d.addPolygonToMesh(tri);
+  // tri = Mesh2D::Polygon();
+  // tri.push_back(vtx1);
+  // tri.push_back(vtx3);
+  // tri.push_back(vtx4);
+  // mesh_2d.addPolygonToMesh(tri);
 
   Vertex2D vtx1_xyz = vtx1.getVertexPosition();
   Vertex2D vtx2_xyz = vtx2.getVertexPosition();
   Vertex2D vtx3_xyz = vtx3.getVertexPosition();
 
   // check edgeFunctions are correct
-  KeypointCV pixel_inside (0.5, 0.75);
-  KeypointCV pixel_outside (0.5, 0.25);
+  KeypointCV pixel_inside(0.5, 0.75);
+  KeypointCV pixel_outside(0.5, 0.25);
 
   // cw
   EXPECT_GT(edgeFunction(pixel_inside, vtx1_xyz, vtx2_xyz), 0.0);
@@ -170,10 +171,11 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
                                                0.0,
                                                camera_params.intrinsics_.at(2),
                                                camera_params.intrinsics_.at(3));
-  Camera camera (camera_params);
+  Camera camera(camera_params);
 
   // Check that the point was considered to be inside the triangle
-  for (size_t tri_idx = 0u; tri_idx < mesh_2d.getNumberOfPolygons(); tri_idx++) {
+  for (size_t tri_idx = 0u; tri_idx < mesh_2d.getNumberOfPolygons();
+       tri_idx++) {
     std::vector<cv::Point3f> triangle_datapoints = corresp[tri_idx];
     EXPECT_EQ(triangle_datapoints.size(), 1u);
     //! Pixels associated to a triangle that have a depth value (datapoint,
