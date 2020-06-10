@@ -92,6 +92,22 @@ class MonoCameraFixture : public ::testing::Test {
     }
   }
 
+  /**
+   * @brief compareLandmarks compares two sets of landmarks
+   */
+  void compareLandmarks(const LandmarksCV& lmks_1,
+                        const LandmarksCV& lmks_2,
+                        const float& tol) {
+    ASSERT_EQ(lmks_1.size(), lmks_2.size());
+    for (size_t i = 0u; i < lmks_1.size(); i++) {
+      const auto& lmk_1 = lmks_1[i];
+      const auto& lmk_2 = lmks_2[i];
+      EXPECT_NEAR(lmk_1.x, lmk_2.x, tol);
+      EXPECT_NEAR(lmk_1.y, lmk_2.y, tol);
+      EXPECT_NEAR(lmk_1.z, lmk_2.z, tol);
+    }
+  }
+
   /** Visualization **/
   void drawPixelOnImg(const cv::Point2f& pixel,
                       cv::Mat& img,
@@ -195,7 +211,9 @@ TEST_F(MonoCameraFixture, backProjectSingleSimple) {
   mono_camera_->backProject(kpt, depth, &actual_lmk);
 
   LandmarkCV expected_lmk(0.0, 0.0, depth);
-  EXPECT_EQ(expected_lmk, actual_lmk);
+  EXPECT_NEAR(expected_lmk.x, actual_lmk.x, 0.0001);
+  EXPECT_NEAR(expected_lmk.y, actual_lmk.y, 0.0001);
+  EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
 }
 
 TEST_F(MonoCameraFixture, backProjectMultipleSimple) {
@@ -218,10 +236,7 @@ TEST_F(MonoCameraFixture, backProjectMultipleSimple) {
     expected_lmks.push_back(LandmarkCV(0.0, 0.0, depth));
   }
 
-  ASSERT_EQ(actual_lmks.size(), expected_lmks.size());
-  for (size_t i = 0u; i < actual_lmks.size(); i++) {
-    EXPECT_EQ(expected_lmks[i], actual_lmks[i]);
-  }
+  compareLandmarks(actual_lmks, expected_lmks, 0.0001);
 }
 
 }  // namespace VIO
