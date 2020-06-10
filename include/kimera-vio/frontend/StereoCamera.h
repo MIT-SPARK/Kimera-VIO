@@ -161,7 +161,8 @@ class StereoCamera {
    * @return stereo camera calibration after undistortion and rectification.
    */
   inline gtsam::Cal3_S2Stereo::shared_ptr getStereoCalib() const {
-    return CHECK_NOTNULL(stereo_calibration_);
+    CHECK(stereo_calibration_);
+    return stereo_calibration_;
   }
 
   /**

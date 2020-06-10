@@ -131,7 +131,7 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
       cv::Mat colors = out_ptr->optimized_mesh_3d.getColorsMesh();
       // Move pcl to world coordinates
       output->visualization_type_ = VisualizationType::kPointcloud;
-      CHECK_NOTNULL(euroc_playground.visualizer_3d_);
+      CHECK(euroc_playground.visualizer_3d_);
       CHECK(euroc_playground.visualizer_3d_->visualizeMesh3D(
           pcl,
           colors,

@@ -23,6 +23,7 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
 
+#include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 

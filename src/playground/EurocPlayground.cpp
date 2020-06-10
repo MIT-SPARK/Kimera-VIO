@@ -111,18 +111,20 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
           *left_frame,
           *right_frame,
           vio_params_.frontend_params_.stereo_matching_params_);
+
+      CHECK(stereo_camera_);
       if ((left_frame->id_ % subsample_n) == 0u) {
         // Add frame to frustum
         const cv::Affine3d& left_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
-                    .compose(CHECK_NOTNULL(stereo_camera_)
+                    .compose(stereo_camera_
                                  ->getBodyPoseLeftCamRect()));
         const cv::Affine3d& right_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_
                     ->getGroundTruthPose(right_frame->timestamp_)
-                    .compose(CHECK_NOTNULL(stereo_camera_)
+                    .compose(stereo_camera_
                                  ->getBodyPoseRightCamRect()));
 
         cv::Mat smaller_img;
@@ -147,9 +149,9 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat disp_img =
             cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
         CHECK(stereo_frame.isRectified());
-        CHECK_NOTNULL(stereo_camera_)
+        stereo_camera_
             ->undistortRectifyStereoFrame(&stereo_frame);
-        CHECK_NOTNULL(stereo_camera_)
+        stereo_camera_
             ->stereoDisparityReconstruction(stereo_frame.getLeftImgRectified(),
                                             stereo_frame.getRightImgRectified(),
                                             &disp_img);
@@ -172,8 +174,7 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         // Maybe ideally it should be (u, v) => 1/z
         cv::Mat_<cv::Point3f> depth_map;
         // Need to move all points according to pose of stereo camera!
-        CHECK_NOTNULL(stereo_camera_)
-            ->backProjectDisparityTo3D(disp_img, &depth_map);
+        stereo_camera_->backProjectDisparityTo3D(disp_img, &depth_map);
         CHECK_EQ(depth_map.type(), CV_32FC3);
         // Would that work? interpret xyz as rgb?
         cv::imshow("Depth Image", depth_map);

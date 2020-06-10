@@ -15,6 +15,9 @@
 
 #include <fstream>
 
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Pose3.h>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 

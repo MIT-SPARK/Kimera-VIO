@@ -39,7 +39,7 @@ class MonoCameraFixture : public ::testing::Test {
     parseEuroc();
     // Create Mono Camera
     mono_camera_ = VIO::make_unique<Camera>(vio_params_.camera_params_.at(0));
-    CHECK_NOTNULL(mono_camera_);
+    CHECK(mono_camera_);
   }
   ~MonoCameraFixture() override = default;
 
