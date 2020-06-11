@@ -90,8 +90,9 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());
     }
-    if (params_.hold_display_) {
+    if (params_.hold_3d_display_) {
       // Spin forever until user closes window
+      LOG(WARNING) << "Holding OpenCV 3d window display";
       window_data_.window_.spin();
     } else {
       window_data_.window_.spinOnce(1, true);
@@ -105,8 +106,9 @@ void OpenCv3dDisplay::spin2dWindow(const DisplayInputBase& viz_output) {
     cv::imshow(img_to_display.name_, img_to_display.image_);
   }
   VLOG(10) << "Spin Visualize 2D output.";
-  if (params_.hold_display_) {
+  if (params_.hold_2d_display_) {
     // Spin forever until user closes window
+    LOG(WARNING) << "Holding OpenCV 2d window display";
     cv::waitKey(0);
   } else {
     // Just spins once

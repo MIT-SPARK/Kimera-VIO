@@ -49,7 +49,7 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
   OpenCv3dDisplayParams modified_display_params =
       VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
           *vio_params_.display_params_);
-  modified_display_params.hold_display_ = true;
+  modified_display_params.hold_3d_display_ = true;
   DisplayParams& new_display_params = modified_display_params;
   display_module_ = VIO::make_unique<DisplayModule>(
       &display_input_queue_,
