@@ -31,7 +31,8 @@ inline bool isValidPoint(const cv::Point3f& pt,
   // Check both for disparities explicitly marked as invalid (where OpenCV maps
   // pt.z to MISSING_Z)
   // and zero disparities (point mapped to infinity).
-  return pt.z != missing_z && !std::isinf(pt.z) && pt.z < max_z && pt.z > min_z;
+  return pt.z != missing_z && !std::isinf(pt.z) && !std::isnan(pt.z) &&
+         pt.z < max_z && pt.z > min_z;
 }
 
 //! Barycenter Coordinates type
@@ -52,7 +53,6 @@ using Vec3f = Eigen::Vector3f;
 inline float edgeFunction(const KeypointCV& a,
                           const KeypointCV& b,
                           const KeypointCV& c) {
-
   // return (a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y);
   return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
@@ -230,11 +230,11 @@ inline cv::viz::Color randomColor() {
   return cv::Scalar(rand() % 256, rand() % 256, rand() % 256, 255);
 }
 
-template<class T>
+template <class T>
 T min3(const T& a, const T& b, const T& c) {
   return std::min(a, std::min(b, c));
 }
-template<class T>
+template <class T>
 T max3(const T& a, const T& b, const T& c) {
   return std::max(a, std::max(b, c));
 }

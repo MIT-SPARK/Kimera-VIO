@@ -28,7 +28,8 @@ RgbdFrame::RgbdFrame(const FrameId& id,
   CHECK(depth_img_);
   CHECK_EQ(intensity_img_->img_.type(), CV_8UC1)
       << "The provided left image is not grayscale...";
-  CHECK_EQ(depth_img_->depth_img_.type(), CV_16UC1)
+  CHECK(depth_img_->depth_img_.type() == CV_16UC1 ||
+        depth_img_->depth_img_.type() == CV_32FC1)
       << "The provided depth image is not in the expected format...";
   CHECK_EQ(intensity_img_->img_.size, depth_img_->depth_img_.size);
 }

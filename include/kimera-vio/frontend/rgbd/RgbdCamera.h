@@ -29,6 +29,25 @@
 
 namespace VIO {
 
+// TODO(Toni): put this in utils rather. And make it template on unit type:
+// can be either float or uint16_t...
+// Encapsulate differences between processing float and uint16_t depths
+template <typename T>
+struct DepthTraits {};
+
+template <>
+struct DepthTraits<uint16_t> {
+  static inline bool valid(uint16_t depth) { return depth != 0; }
+  // Originally mm
+  static inline float toMeters(uint16_t depth) { return depth * 0.001f; }
+};
+
+template <>
+struct DepthTraits<float> {
+  static inline bool valid(float depth) { return std::isfinite(depth); }
+  static inline float toMeters(float depth) { return depth; }
+};
+
 /**
  * @brief The RgbdCamera class An implementation of RGB-D camera.
  * Currently assumes left and depth cameras are registered and undistorted.
@@ -62,21 +81,31 @@ class RgbdCamera : public Camera {
   cv::Mat convertRgbdToPointcloud(const RgbdFrame& rgbd_frame) {
     CHECK(rgbd_frame.intensity_img_);
     CHECK(rgbd_frame.depth_img_);
-    return convert(rgbd_frame.intensity_img_->img_,
-                   rgbd_frame.depth_img_->depth_img_,
-                   cam_params_.intrinsics_,
-                   depth_factor_);
+    const auto& depth_type = rgbd_frame.depth_img_->depth_img_.type();
+    if (depth_type == CV_16UC1) {
+      return convert<uint16_t>(rgbd_frame.intensity_img_->img_,
+                               rgbd_frame.depth_img_->depth_img_,
+                               cam_params_.intrinsics_,
+                               depth_factor_);
+    } else if (depth_type == CV_32FC1) {
+      return convert<float>(rgbd_frame.intensity_img_->img_,
+                            rgbd_frame.depth_img_->depth_img_,
+                            cam_params_.intrinsics_,
+                            static_cast<float>(depth_factor_));
+
+    } else {
+      LOG(FATAL) << "Unrecognized depth image type.";
+    }
   }
 
  private:
-  // TODO(Toni): put this in utils rather. And make it template on unit type:
-  // can be either float or uint16_t...
-  static cv::Mat convert(const cv::Mat& intensity_img,
-                         const cv::Mat& depth_img,
-                         const CameraParams::Intrinsics& intrinsics,
-                         const uint16_t& depth_factor) {
+  template <typename T>
+  cv::Mat convert(const cv::Mat& intensity_img,
+                  const cv::Mat& depth_img,
+                  const CameraParams::Intrinsics& intrinsics,
+                  const T& depth_factor) {
     CHECK_EQ(intensity_img.type(), CV_8UC1);
-    CHECK_EQ(depth_img.type(), CV_16UC1);
+    CHECK(depth_img.type() == CV_16UC1 || depth_img.type() == CV_32FC1);
     CHECK_EQ(depth_img.size(), intensity_img.size());
 
     int img_height = intensity_img.rows;
@@ -89,7 +118,8 @@ class RgbdCamera : public Camera {
     // Combine unit conversion (if necessary) with scaling by focal length for
     // computing (X,Y)
     // 0.001f if uint16_t, 1.0f if floats in depth_msg
-    float unit_scaling = 0.001f;
+    // float unit_scaling = 0.001f;
+    double unit_scaling = DepthTraits<T>::toMeters(T(1));
     float constant_x = unit_scaling / intrinsics.at(0u);
     float constant_y = unit_scaling / intrinsics.at(1u);
     float bad_point = std::numeric_limits<float>::quiet_NaN();
@@ -99,17 +129,19 @@ class RgbdCamera : public Camera {
 
     for (int v = 0u; v < img_height; ++v) {
       for (int u = 0u; u < img_width; ++u) {
-        uint16_t depth = depth_img.at<uint16_t>(v, u) / depth_factor;
+        T depth = depth_img.at<T>(v, u) * depth_factor;
         cv::Point3f& xyz = cloud_output.at<cv::Point3f>(v, u);
 
         // Check for invalid measurements
-        xyz.x = (u - center_x) * depth * constant_x;
-        xyz.y = (v - center_y) * depth * constant_y;
         // TODO(Toni): could clip depth here...
-        if (depth <= 0u) {
+        if (!DepthTraits<T>::valid(depth)) {
+          xyz.x = bad_point;
+          xyz.y = bad_point;
           xyz.z = bad_point;
         } else {
           // Fill in XYZ
+          xyz.x = (u - center_x) * depth * constant_x;
+          xyz.y = (v - center_y) * depth * constant_y;
           xyz.z = depth * unit_scaling;
         }
 

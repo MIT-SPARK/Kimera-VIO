@@ -195,7 +195,7 @@ void MeshOptimization::collectTriangleDataPointsFast(
         if (!(has_neg && has_pos)) {
           // Point in triangle
           const cv::Point3f& lmk = noisy_point_cloud.at<cv::Point3f>(pixel);
-          if (isValidPoint(lmk) && lmk.z <= kMaxZ && lmk.z >= kMinZ) {
+          if (isValidPoint(lmk, kMissingZ, kMinZ, kMaxZ)) {
             (*triangles_to_datapoints_xyz)[k].push_back(lmk);
             (*triangles_to_datapoints_pixels)[k].push_back(pixel);
             ++(*number_of_valid_datapoints);
@@ -227,13 +227,13 @@ void MeshOptimization::collectTriangleDataPoints(
       // multiplication.
       KeypointCV pixel = cv::Point2f(u, v);
       const cv::Point3f& lmk = noisy_point_cloud.at<cv::Point3f>(pixel);
-      if (isValidPoint(lmk) && lmk.z <= kMaxZ && lmk.z >= kMinZ) {
+      if (isValidPoint(lmk, kMissingZ, kMinZ, kMaxZ)) {
         // Convert xyz to global coords (as they are given in camera coords).
         // transform from left cam frame of reference to body because the
         // camera projection function expects landmarks in the body
         // frame of reference!
-        const gtsam::Point3& pt_body = body_pose_cam_.transformFrom(
-            gtsam::Point3(lmk.x, lmk.y, lmk.z));
+        const gtsam::Point3& pt_body =
+            body_pose_cam_.transformFrom(gtsam::Point3(lmk.x, lmk.y, lmk.z));
         LandmarkCV lmk_cv;
         lmk_cv.x = pt_body.x();
         lmk_cv.y = pt_body.y();
@@ -278,6 +278,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   CHECK_GT(mesh_2d.getNumberOfPolygons(), 0);
   CHECK_GT(mesh_2d.getNumberOfUniqueVertices(), 0);
   CHECK_EQ(noisy_point_cloud.channels(), 3u);
+  CHECK(!noisy_point_cloud.empty());
   CHECK(mono_camera_);
 
   // Need to visualizeScene again because the image of the camera frustum
@@ -670,7 +671,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
                reconstructed_mesh,
                false,
                0.9);
-    // spinDisplay();
+    spinDisplay();
   }
   MeshOptimizationOutput::UniquePtr output =
       VIO::make_unique<MeshOptimizationOutput>();
@@ -749,6 +750,7 @@ bool MeshOptimization::pointInTriangle(const cv::Point2f& pt,
 void MeshOptimization::drawPointCloud(const std::string& id,
                                       const cv::Mat& pointcloud,
                                       const cv::Affine3d& pose) {
+  CHECK(!pointcloud.empty());
   cv::Mat viz_cloud(0, 1, CV_32FC3, cv::Scalar(0));
   cv::Mat colors_pcl = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::red());
   CHECK_EQ(img_.type(), CV_8UC1);
@@ -758,7 +760,7 @@ void MeshOptimization::drawPointCloud(const std::string& id,
     for (int32_t v = 0u; v < pointcloud.rows; ++v) {
       for (int32_t u = 0u; u < pointcloud.cols; ++u) {
         const cv::Point3f& lmk = pointcloud.at<cv::Point3f>(v, u);
-        if (isValidPoint(lmk)) {
+        if (isValidPoint(lmk, kMissingZ, kMinZ, kMaxZ)) {
           flat_pcl.push_back(lmk);
           colors_pcl.push_back(cv::Vec3b::all(img_.at<uint8_t>(v, u)));
         }
@@ -766,6 +768,7 @@ void MeshOptimization::drawPointCloud(const std::string& id,
     }
     viz_cloud = flat_pcl;
   }
+  CHECK(!viz_cloud.empty());
   cv::viz::WCloud cloud(viz_cloud, colors_pcl);
   cloud.setRenderingProperty(cv::viz::POINT_SIZE, 6);
   window_.showWidget(id, cloud, pose);

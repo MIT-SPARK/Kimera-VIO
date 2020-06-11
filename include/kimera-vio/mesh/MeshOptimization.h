@@ -154,6 +154,8 @@ class MeshOptimization {
                                  cv::Point3f* bearing_vector,
                                  float* inverse_depth);
 
+  // TODO(Toni): put all these functions into OpenCV visualizer, and use that
+  // module!
   void drawPointCloud(const std::string& id,
                       const cv::Mat& pointcloud,
                       const cv::Affine3d& pose);
@@ -201,6 +203,9 @@ class MeshOptimization {
   static constexpr bool kUseSpringEnergies = true;
   static constexpr float kSpringNoiseSigma = 0.5f;
   static constexpr float kDepthMeasNoiseSigma = 0.3f;
+  static constexpr float kMissingZ = 10000.0f;
+  static constexpr float kMinZ = 0.00001f;
+  static constexpr float kMaxZ = 10.0f;
 
   //! Camera with which the noisy point cloud and the 2d mesh were generated.
   Camera::Ptr mono_camera_;
