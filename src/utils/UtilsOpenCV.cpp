@@ -78,22 +78,18 @@ std::string UtilsOpenCV::typeToString(int type) {
 bool UtilsOpenCV::compareCvMatsUpToTol(const cv::Mat& mat1,
                                        const cv::Mat& mat2,
                                        const double& tol) {
+  CHECK_EQ(mat1.size(), mat2.size());
+  CHECK_EQ(mat1.type(), mat2.type());
+
   // treat two empty mat as identical as well
   if (mat1.empty() && mat2.empty()) {
     LOG(WARNING) << "CvMatCmp: asked comparison of 2 empty matrices.";
     return true;
   }
 
-  // if dimensionality of two mats are not identical, these two mats are not
-  // identical
-  if (mat1.cols != mat2.cols || mat1.rows != mat2.rows ||
-      mat1.dims != mat2.dims) {
-    return false;
-  }
-
   // Compare the two matrices!
   cv::Mat diff = mat1 - mat2;
-  return cv::checkRange(diff, true, 0, -tol, tol);
+  return cv::checkRange(diff, true, nullptr, -tol, tol);
 }
 
 /* -------------------------------------------------------------------------- */

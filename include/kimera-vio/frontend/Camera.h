@@ -60,15 +60,16 @@ class Camera {
   void project(const LandmarksCV& lmks, KeypointsCV* kpts) const;
   void project(const LandmarkCV& lmks, KeypointCV* kpts) const;
 
-  /** NOT TESTED
-   * @brief backProject keypoints given depth
-   * @param kps
-   * @param disparity_img
+  /**
+   * @brief backProject keypoints given depth projected to landmarks in 3D
+   * In body frame of reference (not camera).
+   * @param[in] kps keypoints in 2D
+   * @param[in] depths of each keypoint
+   * @param[out] lmks 3D Landmarks
    */
   void backProject(const KeypointsCV& kps,
                    const Depths& depths,
                    LandmarksCV* lmks) const;
-
   void backProject(const KeypointCV& kp,
                    const Depth& depth,
                    LandmarkCV* lmk) const;

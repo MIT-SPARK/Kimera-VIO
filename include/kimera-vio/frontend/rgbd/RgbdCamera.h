@@ -95,7 +95,7 @@ class RgbdCamera : public Camera {
     float bad_point = std::numeric_limits<float>::quiet_NaN();
 
     cv::Mat_<cv::Point3f> cloud_output =
-        cv::Mat(img_height, img_width, CV_32FC3);
+        cv::Mat(img_height, img_width, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));
 
     for (int v = 0u; v < img_height; ++v) {
       for (int u = 0u; u < img_width; ++u) {
@@ -105,7 +105,8 @@ class RgbdCamera : public Camera {
         // Check for invalid measurements
         xyz.x = (u - center_x) * depth * constant_x;
         xyz.y = (v - center_y) * depth * constant_y;
-        if (depth != 0u) {
+        // TODO(Toni): could clip depth here...
+        if (depth <= 0u) {
           xyz.z = bad_point;
         } else {
           // Fill in XYZ
@@ -121,6 +122,7 @@ class RgbdCamera : public Camera {
         // xyzrgba.b = color;
       }
     }
+
     return cloud_output;
   }
 

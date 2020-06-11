@@ -77,8 +77,13 @@ void Camera::backProject(const KeypointCV& kp,
                          LandmarkCV* lmk) const {
   CHECK_NOTNULL(lmk);
   CHECK(camera_impl_);
-  gtsam::Point2 z(kp.x, kp.y);
-  gtsam::Point3 gtsam_lmk = camera_impl_->backproject(z, depth);
+  CHECK_GT(depth, 0.0);
+  CHECK_GE(kp.x, 0.0);
+  CHECK_GE(kp.y, 0.0);
+  CHECK_LT(kp.x, cam_params_.image_size_.width);
+  CHECK_LT(kp.y, cam_params_.image_size_.height);
+  gtsam::Point2 uv(kp.x, kp.y);
+  gtsam::Point3 gtsam_lmk = camera_impl_->backproject(uv, depth);
   lmk->x = gtsam_lmk.x();
   lmk->y = gtsam_lmk.y();
   lmk->z = gtsam_lmk.z();

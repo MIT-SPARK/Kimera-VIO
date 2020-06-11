@@ -239,4 +239,101 @@ TEST_F(MonoCameraFixture, backProjectMultipleSimple) {
   compareLandmarks(actual_lmks, expected_lmks, 0.0001);
 }
 
+TEST_F(MonoCameraFixture, backProjectSingleTopLeft) {
+  // Back-project keypoint at the center of the image with a given depth.
+  CameraParams& camera_params = vio_params_.camera_params_.at(0);
+  double fx = 3.0 / 2.0;
+  double fy = 1.0 / 2.0;
+  double px = 190.0;
+  double py = 240.0;
+  camera_params.intrinsics_ = {fx, fy, px, py};
+  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  LandmarkCV actual_lmk;
+  double depth = 2.0;
+  KeypointCV kpt(0.0, 0.0);  // Top-left corner
+  mono_camera_->backProject(kpt, depth, &actual_lmk);
+
+  LandmarkCV expected_lmk(depth / fx * (-px), depth / fy * (-py), depth);
+  EXPECT_NEAR(expected_lmk.x, actual_lmk.x, 0.0001);
+  EXPECT_NEAR(expected_lmk.y, actual_lmk.y, 0.0001);
+  EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
+}
+
+TEST_F(MonoCameraFixture, backProjectSingleRandom) {
+  // Back-project keypoint at the center of the image with a given depth.
+  CameraParams& camera_params = vio_params_.camera_params_.at(0);
+  double fx = 30.9 / 2.2;
+  double fy = 12.0 / 23.0;
+  double px = 390.8;
+  double py = 142.2;
+  camera_params.intrinsics_ = {fx, fy, px, py};
+  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  LandmarkCV actual_lmk;
+  double depth = 1.3;
+  KeypointCV kpt(123.2f, 450.9f);  // Top-left corner
+  mono_camera_->backProject(kpt, depth, &actual_lmk);
+
+  LandmarkCV expected_lmk(
+      depth / fx * (kpt.x - px), depth / fy * (kpt.y - py), depth);
+  EXPECT_NEAR(expected_lmk.x, actual_lmk.x, 0.0001);
+  EXPECT_NEAR(expected_lmk.y, actual_lmk.y, 0.0001);
+  EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
+}
+
+TEST_F(MonoCameraFixture, backProjectMultipleComplex) {
+  // Back-project keypoints at the center of the image with
+  // different depths.
+  CameraParams& camera_params = vio_params_.camera_params_.at(0);
+  double fx = 30.9 / 2.2;
+  double fy = 12.0 / 23.0;
+  double px = 390.8;
+  double py = 142.2;
+  camera_params.intrinsics_ = {fx, fy, px, py};
+  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  KeypointsCV kpts;
+  std::vector<double> depths;
+  static constexpr size_t kKeypoints = 10u;
+  // Make a star of pixels so every axis is covered, with random depths
+  for (size_t i = 0u; i < kKeypoints; i++) {
+    // diagonal top-left bottom-right
+    kpts.push_back(
+        KeypointCV(i * camera_params.image_size_.width / kKeypoints,
+                   i * camera_params.image_size_.height / kKeypoints));
+    depths.push_back(i * 2.3);
+    // diagonal bottom-left top-right
+    kpts.push_back(KeypointCV(
+        i * camera_params.image_size_.width / kKeypoints,
+        (kKeypoints - i) * camera_params.image_size_.height / kKeypoints));
+    depths.push_back(i * 1.3);
+    // horizontal
+    kpts.push_back(
+        KeypointCV(i * camera_params.image_size_.width / kKeypoints, py));
+    depths.push_back(i * 0.3);
+    // vertical
+    kpts.push_back(
+        KeypointCV(px, i * camera_params.image_size_.height / kKeypoints));
+    depths.push_back(i * 10.3);
+  }
+  CHECK_EQ(depths.size(), kpts.size());
+  // Create 3 keypoints centered at image with different depths
+  LandmarksCV actual_lmks;
+  mono_camera_->backProject(kpts, depths, &actual_lmks);
+
+  LandmarksCV expected_lmks;
+  for (size_t i = 0u; i < kpts.size(); i++) {
+    expected_lmks.push_back(LandmarkCV(depths[i] / fx * (kpts[i].x - px),
+                                       depths[i] / fy * (kpts[i].y - py),
+                                       depths[i]));
+  }
+  ASSERT_EQ(actual_lmks.size(), expected_lmks.size());
+
+  compareLandmarks(actual_lmks, expected_lmks, 0.0001);
+}
+
 }  // namespace VIO

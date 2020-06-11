@@ -26,6 +26,14 @@
 #include "kimera-vio/frontend/rgbd/RgbdCamera.h"
 #include "kimera-vio/frontend/rgbd/RgbdFrame.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/mesh/MeshUtils.h"
+#include "kimera-vio/visualizer/Display.h"
+#include "kimera-vio/visualizer/DisplayFactory.h"
+#include "kimera-vio/visualizer/DisplayModule.h"
+#include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 DECLARE_string(test_data_path);
 DECLARE_bool(display);
@@ -36,9 +44,29 @@ class RgbdCameraFixture : public ::testing::Test {
  public:
   RgbdCameraFixture()
       : vio_params_(FLAGS_test_data_path + "/EurocParams"),
-        rgbd_camera_(nullptr) {
+        rgbd_camera_(nullptr),
+        visualizer_3d_(nullptr),
+        display_module_(nullptr),
+        display_input_queue_("display_input_queue") {
     rgbd_camera_ =
         VIO::make_unique<RgbdCamera>(vio_params_.camera_params_.at(0));
+    // Create visualizer
+    VisualizationType viz_type = VisualizationType::kPointcloud;
+    BackendType backend_type = BackendType::kStereoImu;
+    visualizer_3d_ =
+        VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
+    // Create Displayer
+    CHECK(vio_params_.display_params_);
+    OpenCv3dDisplayParams modified_display_params =
+        VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
+            *vio_params_.display_params_);
+    modified_display_params.hold_display_ = true;
+    DisplayParams& new_display_params = modified_display_params;
+    display_module_ = VIO::make_unique<DisplayModule>(
+        &display_input_queue_,
+        nullptr,
+        vio_params_.parallel_run_,
+        VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
   }
   ~RgbdCameraFixture() override = default;
 
@@ -46,44 +74,79 @@ class RgbdCameraFixture : public ::testing::Test {
   void SetUp() override {}
   void TearDown() override {}
 
+  void displayPcl(const cv::Mat& pcl) {
+    CHECK(!pcl.empty());
+    VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+    // Depth image contains INFs. We have to remove them:
+    cv::Mat_<cv::Point3f> valid_depth = cv::Mat(1, 0, CV_32FC3);
+    for (int32_t u = 0; u < pcl.rows; ++u) {
+      for (int32_t v = 0; v < pcl.cols; ++v) {
+        const cv::Point3f& xyz = pcl.at<cv::Point3f>(u, v);
+        if (isValidPoint(xyz, 10000.0, 0.0, 10.0)) {
+          valid_depth.push_back(xyz);
+        }
+      }
+    }
+    CHECK(!valid_depth.empty());
+    visualizer_3d_->visualizePointCloud(valid_depth, &output->widgets_);
+    display_module_->spinOnce(std::move(output));
+  }
+
  protected:
-  // Default Parms
-  //! Params
   VioParams vio_params_;
   RgbdCamera::UniquePtr rgbd_camera_;
+
+  //! For visualization only
+  OpenCvVisualizer3D::Ptr visualizer_3d_;
+  DisplayModule::UniquePtr display_module_;
+  DisplayModule::InputQueue display_input_queue_;
 };
 
 TEST_F(RgbdCameraFixture, convertToPoincloud) {
-  CHECK(rgbd_camera_);
-  const auto& cam_params = vio_params_.camera_params_.at(0);
+  ASSERT_TRUE(rgbd_camera_);
+  ASSERT_GT(vio_params_.camera_params_.size(), 0u);
+  CameraParams cam_params = vio_params_.camera_params_.at(0);
   const auto& width = cam_params.image_size_.width;
   const auto& height = cam_params.image_size_.height;
 
   // Create fake sinusoidal depth map
-  cv::Mat_<uint16_t> depth_map = cv::Mat(height, width, CV_16UC1);
-  for (int v = 0u; depth_map.rows; v++) {
-    for (int u = 0u; depth_map.cols; u++) {
-      depth_map.at<uint16_t>(v, u) = std::sin(v + u);
+  cv::Mat_<uint16_t> depth_map =
+      cv::Mat(height, width, CV_16UC1, cv::Scalar(0u));
+  LOG(ERROR) << "Creating depth map.";
+  for (int v = 0u; v < depth_map.rows; v++) {
+    for (int u = 0u; u < depth_map.cols; u++) {
+      // 1unit of 16_t depth => 0.001m
+      depth_map.at<uint16_t>(v, u) =
+          1000.0 + 200.0 * std::sin(static_cast<float>(v + u));
     }
   }
 
   // Get pointcloud of this depth map using unproject of mono camera with
   // same params
+  LOG(ERROR) << "Creating mono cam.";
+  // Make identity for simplicity, but should test as well for non-identity
+  cam_params.body_Pose_cam_ = gtsam::Pose3::identity();
   Camera mono_cam(cam_params);
-  cv::Mat_<cv::Point3f> expected_cloud = cv::Mat(height, width, CV_32FC3);
-  for (int v = 0u; expected_cloud.rows; v++) {
-    for (int u = 0u; expected_cloud.cols; u++) {
-      KeypointCV kp(u, v);
+  cv::Mat_<cv::Point3f> expected_cloud =
+      cv::Mat(height, width, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));
+  LOG(ERROR) << "Creating cloud.";
+  for (int v = 0u; v < expected_cloud.rows; v++) {
+    for (int u = 0u; u < expected_cloud.cols; u++) {
       // 0.001f bcs depth is uint16_t! Float => 1.0f
-      double depth = depth_map.at<uint16_t>(kp) * 0.001f;
+      double depth = depth_map.at<uint16_t>(v, u) * 0.001;
       LandmarkCV lmk;
+      KeypointCV kp(u, v);
       mono_cam.backProject(kp, depth, &lmk);
       expected_cloud.at<cv::Point3f>(v, u) = lmk;
+      VLOG(10) << "U,V: " << u << ' ' << v << '\n'
+               << "Depth: " << depth << '\n'
+               << "Lmk: " << lmk;
     }
   }
 
   // Create actual pointcloud using rgbd camera
   // Inventing intensity image since we don't use it.
+  LOG(ERROR) << "Reconstructing cloud.";
   cv::Mat intensity_img = cv::Mat(height, width, CV_8UC1, cv::Scalar(0u));
   Frame::UniquePtr frame =
       VIO::make_unique<Frame>(0u, 0u, cam_params, intensity_img);
@@ -91,10 +154,16 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
       VIO::make_unique<DepthFrame>(0u, 0u, depth_map);
   RgbdFrame rgbd_frame(0u, 0u, std::move(frame), std::move(depth_frame));
   cv::Mat actual_cloud = rgbd_camera_->convertRgbdToPointcloud(rgbd_frame);
-  cv::Mat diff = actual_cloud != expected_cloud;
-  // Equal if no elements disagree
-  bool equal = cv::countNonZero(diff) == 0;
-  EXPECT_TRUE(equal);
+  LOG(ERROR) << "Expected cloud: " << expected_cloud;
+  LOG(ERROR) << "Actual cloud: " << actual_cloud;
+  EXPECT_TRUE(
+      UtilsOpenCV::compareCvMatsUpToTol(expected_cloud, actual_cloud, 0.00001));
+  if (FLAGS_display) {
+  LOG(ERROR) << "Visualizing Expected cloud";
+    displayPcl(expected_cloud);
+  LOG(ERROR) << "Visualizing Actual cloud";
+    displayPcl(actual_cloud);
+  }
 }
 
 }  // namespace VIO
