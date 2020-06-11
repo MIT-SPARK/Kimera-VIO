@@ -24,14 +24,14 @@
 
 namespace VIO {
 
-static constexpr double MISSING_Z = 10000.0;
-static constexpr float kMinZ = 1.5;  // meters
-static constexpr float kMaxZ = 5.0;  // meters
-static bool isValidPoint(const cv::Point3f& pt) {
+inline bool isValidPoint(const cv::Point3f& pt,
+                         const float& missing_z = 10000.0,
+                         const float& min_z = 1.5,
+                         const float& max_z = 5.0) {
   // Check both for disparities explicitly marked as invalid (where OpenCV maps
   // pt.z to MISSING_Z)
   // and zero disparities (point mapped to infinity).
-  return pt.z != MISSING_Z && !std::isinf(pt.z) && pt.z < kMaxZ && pt.z > kMinZ;
+  return pt.z != missing_z && !std::isinf(pt.z) && pt.z < max_z && pt.z > min_z;
 }
 
 //! Barycenter Coordinates type
