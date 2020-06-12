@@ -166,7 +166,9 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
   DepthFrame::UniquePtr depth_frame =
       VIO::make_unique<DepthFrame>(0u, 0u, depth_map);
   RgbdFrame rgbd_frame(0u, 0u, std::move(frame), std::move(depth_frame));
-  cv::Mat actual_cloud = rgbd_camera_->convertRgbdToPointcloud(rgbd_frame);
+  cv::Mat actual_cloud;
+  cv::Mat colors;
+  rgbd_camera_->convertRgbdToPointcloud(rgbd_frame, &actual_cloud, &colors);
   VLOG(5) << "Expected cloud: " << expected_cloud;
   VLOG(5) << "Actual cloud: " << actual_cloud;
   EXPECT_TRUE(

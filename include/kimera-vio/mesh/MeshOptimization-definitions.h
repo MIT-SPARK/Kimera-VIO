@@ -43,7 +43,8 @@ struct MeshOptimizationInput {
   MeshOptimizationInput() = default;
   ~MeshOptimizationInput() = default;
 
-  cv::Mat noisy_point_cloud;
+  cv::Mat pcl;
+  cv::Mat pcl_colors;
   Mesh2D mesh_2d;
 };
 

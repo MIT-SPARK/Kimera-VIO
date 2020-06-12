@@ -58,7 +58,7 @@ MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
 
 MeshOptimizationOutput::UniquePtr MeshOptimization::spinOnce(
     const MeshOptimizationInput& input) {
-  return solveOptimalMesh(input.noisy_point_cloud, input.mesh_2d);
+  return solveOptimalMesh(input.pcl, input.pcl_colors, input.mesh_2d);
 }
 
 void MeshOptimization::draw2dMeshOnImg(const Mesh2D& mesh_2d,
@@ -273,21 +273,23 @@ void MeshOptimization::collectTriangleDataPoints(
 }
 
 MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
-    const cv::Mat& noisy_point_cloud,
+    const cv::Mat& noisy_pcl,
+    const cv::Mat& pcl_colors,
     const Mesh2D& mesh_2d) {
   CHECK_GT(mesh_2d.getNumberOfPolygons(), 0);
   CHECK_GT(mesh_2d.getNumberOfUniqueVertices(), 0);
-  CHECK_EQ(noisy_point_cloud.channels(), 3u);
-  CHECK(!noisy_point_cloud.empty());
+  CHECK_EQ(noisy_pcl.channels(), 3u);
+  CHECK_EQ(noisy_pcl.size, pcl_colors.size);
+  CHECK(!noisy_pcl.empty());
   CHECK(mono_camera_);
 
   // Need to visualizeScene again because the image of the camera frustum
   // was updated
   if (visualizer_) {
     drawPointCloud("Noisy Point Cloud",
-                   noisy_point_cloud,
+                   noisy_pcl,
+                   pcl_colors,
                    UtilsOpenCV::gtsamPose3ToCvAffine3d(body_pose_cam_));
-    // draw2dMeshOnImg(img_, mesh_2d);
     drawScene(body_pose_cam_, mono_camera_->getCalibration());
     // spinDisplay();
   }
@@ -297,7 +299,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   TriangleToDatapoints triangles_to_datapoints_xyz;  // In left_cam_rect coords
   TriangleToPixels triangles_to_datapoints_pixels;
   size_t number_of_valid_datapoints = 0;
-  collectTriangleDataPointsFast(noisy_point_cloud,
+  collectTriangleDataPointsFast(noisy_pcl,
                                 mesh_2d,
                                 &triangles_to_datapoints_xyz,
                                 &triangles_to_datapoints_pixels,
@@ -403,8 +405,8 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
       continue;
     }
 
-    LOG(INFO) << "Adding " << triangle_datapoints_xyz_left_rect_cam_frame.size()
-              << " datapoints to triangle with idx: " << tri_idx;
+    VLOG(10) << "Adding " << triangle_datapoints_xyz_left_rect_cam_frame.size()
+             << " datapoints to triangle with idx: " << tri_idx;
     switch (mesh_optimizer_type_) {
       case MeshOptimizerType::kGtsamMesh: {
         // Build factor graph on a per triangle basis
@@ -748,21 +750,23 @@ bool MeshOptimization::pointInTriangle(const cv::Point2f& pt,
 }
 
 void MeshOptimization::drawPointCloud(const std::string& id,
-                                      const cv::Mat& pointcloud,
+                                      const cv::Mat& pcl,
+                                      const cv::Mat& pcl_colors,
                                       const cv::Affine3d& pose) {
-  CHECK(!pointcloud.empty());
+  CHECK(!pcl.empty());
+  CHECK_EQ(pcl.size, pcl_colors.size);
   cv::Mat viz_cloud(0, 1, CV_32FC3, cv::Scalar(0));
   cv::Mat colors_pcl = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::red());
-  CHECK_EQ(img_.type(), CV_8UC1);
-  if (pointcloud.rows != 1u || pointcloud.cols != 1u) {
+  if (pcl.rows != 1u || pcl.cols != 1u) {
     LOG(ERROR) << "Reshaping pointcloud!";
     cv::Mat_<cv::Point3f> flat_pcl = cv::Mat(1, 0, CV_32FC3);
-    for (int32_t v = 0u; v < pointcloud.rows; ++v) {
-      for (int32_t u = 0u; u < pointcloud.cols; ++u) {
-        const cv::Point3f& lmk = pointcloud.at<cv::Point3f>(v, u);
+    for (int32_t v = 0u; v < pcl.rows; ++v) {
+      for (int32_t u = 0u; u < pcl.cols; ++u) {
+        const cv::Point3f& lmk = pcl.at<cv::Point3f>(v, u);
+        const cv::Vec3b& color = pcl_colors.at<cv::Vec3b>(v, u);
         if (isValidPoint(lmk, kMissingZ, kMinZ, kMaxZ)) {
           flat_pcl.push_back(lmk);
-          colors_pcl.push_back(cv::Vec3b::all(img_.at<uint8_t>(v, u)));
+          colors_pcl.push_back(color);
         }
       }
     }

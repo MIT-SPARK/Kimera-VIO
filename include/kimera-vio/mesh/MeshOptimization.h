@@ -143,6 +143,7 @@ class MeshOptimization {
    */
   MeshOptimizationOutput::UniquePtr solveOptimalMesh(
       const cv::Mat& noisy_point_cloud,
+      const cv::Mat& pcl_colors,
       const Mesh2D& mesh_2d);
 
  private:
@@ -157,7 +158,8 @@ class MeshOptimization {
   // TODO(Toni): put all these functions into OpenCV visualizer, and use that
   // module!
   void drawPointCloud(const std::string& id,
-                      const cv::Mat& pointcloud,
+                      const cv::Mat& pcl,
+                      const cv::Mat& pcl_colors,
                       const cv::Affine3d& pose);
 
   /**
@@ -192,7 +194,6 @@ class MeshOptimization {
                       const cv::viz::Color& color = cv::viz::Color::red(),
                       const size_t& pixel_size = 5u);
 
-
  public:
   /// Image for debug display: gray scale.
   cv::Mat img_ = cv::Mat::zeros(400, 400, CV_8UC1);
@@ -200,9 +201,9 @@ class MeshOptimization {
  private:
   const MeshOptimizerType mesh_optimizer_type_;
 
-  static constexpr bool kUseSpringEnergies = true;
+  static constexpr bool kUseSpringEnergies = false;
   static constexpr float kSpringNoiseSigma = 0.5f;
-  static constexpr float kDepthMeasNoiseSigma = 0.3f;
+  static constexpr float kDepthMeasNoiseSigma = 0.1f;
   static constexpr float kMissingZ = 10000.0f;
   static constexpr float kMinZ = 0.00001f;
   static constexpr float kMaxZ = 10.0f;

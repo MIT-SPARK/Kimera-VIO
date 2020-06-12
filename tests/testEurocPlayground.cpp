@@ -126,7 +126,7 @@ TEST(TestEurocPlayground, basicEurocPlayground) {
 
       // mesh_opt.draw3dMesh(
       //     "Mesh 3D before opt", cv::viz::Color::blue(), input.mesh_3d);
-      input.noisy_point_cloud = ordered_pcl;
+      input.pcl = ordered_pcl;
 
       MeshOptimizationOutput::UniquePtr out_ptr = mesh_opt.spinOnce(input);
       out_ptr->optimized_mesh_3d.getVerticesMeshToMat(&pcl);

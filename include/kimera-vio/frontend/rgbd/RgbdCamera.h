@@ -72,13 +72,20 @@ class RgbdCamera : public Camera {
  public:
   /**
    * @brief convertRgbdToPointcloud
-   * @param intrinsics Intrinsics of the camera for which we generate the
-   * pointcloud
-   * @return A cv::Mat_<cv::Point3f> with the same size as the intensity/depth
-   * image and with each entry representing the corresponding 3D point in the
-   * camera frame of reference.
+   * @param[in] rgbd_frame Frame holding RGB + Depth data
+   * @param[out] cloud A cv::Mat_<cv::Point3f> with the same size as the
+   * intensity/depth
+   * image and with each entry per pixel representing the corresponding 3D
+   * point in the camera frame of reference.
+   * @param[out] colors A color for each point in the cloud. Same layout than
+   * the
+   * pointcloud.
    */
-  cv::Mat convertRgbdToPointcloud(const RgbdFrame& rgbd_frame) {
+  void convertRgbdToPointcloud(const RgbdFrame& rgbd_frame,
+                               cv::Mat* cloud,
+                               cv::Mat* colors) {
+    CHECK_NOTNULL(cloud);
+    CHECK_NOTNULL(colors);
     CHECK(rgbd_frame.intensity_img_);
     CHECK(rgbd_frame.depth_img_);
     const auto& depth_type = rgbd_frame.depth_img_->depth_img_.type();
@@ -86,12 +93,16 @@ class RgbdCamera : public Camera {
       return convert<uint16_t>(rgbd_frame.intensity_img_->img_,
                                rgbd_frame.depth_img_->depth_img_,
                                cam_params_.intrinsics_,
-                               depth_factor_);
+                               depth_factor_,
+                               cloud,
+                               colors);
     } else if (depth_type == CV_32FC1) {
       return convert<float>(rgbd_frame.intensity_img_->img_,
                             rgbd_frame.depth_img_->depth_img_,
                             cam_params_.intrinsics_,
-                            static_cast<float>(depth_factor_));
+                            static_cast<float>(depth_factor_),
+                            cloud,
+                            colors);
 
     } else {
       LOG(FATAL) << "Unrecognized depth image type.";
@@ -100,10 +111,14 @@ class RgbdCamera : public Camera {
 
  private:
   template <typename T>
-  cv::Mat convert(const cv::Mat& intensity_img,
-                  const cv::Mat& depth_img,
-                  const CameraParams::Intrinsics& intrinsics,
-                  const T& depth_factor) {
+  void convert(const cv::Mat& intensity_img,
+               const cv::Mat& depth_img,
+               const CameraParams::Intrinsics& intrinsics,
+               const T& depth_factor,
+               cv::Mat* cloud,
+               cv::Mat* colors) {
+    CHECK_NOTNULL(cloud);
+    CHECK_NOTNULL(colors);
     CHECK_EQ(intensity_img.type(), CV_8UC1);
     CHECK(depth_img.type() == CV_16UC1 || depth_img.type() == CV_32FC1);
     CHECK_EQ(depth_img.size(), intensity_img.size());
@@ -124,13 +139,16 @@ class RgbdCamera : public Camera {
     float constant_y = unit_scaling / intrinsics.at(1u);
     float bad_point = std::numeric_limits<float>::quiet_NaN();
 
-    cv::Mat_<cv::Point3f> cloud_output =
+    cv::Mat_<cv::Point3f> cloud_out =
         cv::Mat(img_height, img_width, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));
+    cv::Mat colors_out =
+        cv::Mat(img_height, img_width, CV_8UC3, cv::viz::Color::red());
 
     for (int v = 0u; v < img_height; ++v) {
       for (int u = 0u; u < img_width; ++u) {
         T depth = depth_img.at<T>(v, u) * depth_factor;
-        cv::Point3f& xyz = cloud_output.at<cv::Point3f>(v, u);
+        cv::Point3f& xyz = cloud_out.at<cv::Point3f>(v, u);
+        cv::Vec3b& color = colors_out.at<cv::Vec3b>(v, u);
 
         // Check for invalid measurements
         // TODO(Toni): could clip depth here...
@@ -143,19 +161,16 @@ class RgbdCamera : public Camera {
           xyz.x = (u - center_x) * depth * constant_x;
           xyz.y = (v - center_y) * depth * constant_y;
           xyz.z = depth * unit_scaling;
-        }
 
-        // TODO(Toni): perhaps use a cv::Point7f to store color as well?
-        // uint8_t color = intensity_msg.at<uint8_t>(v, u);
-        // Fill in color
-        // xyzrgba.a = 255;
-        // xyzrgba.r = color;
-        // xyzrgba.g = color;
-        // xyzrgba.b = color;
+          // Fill in color (grayscale for now)
+          const auto& grey_value = intensity_img.at<uint8_t>(v, u);
+          color = cv::Vec3b(grey_value, grey_value, grey_value);
+        }
       }
     }
 
-    return cloud_output;
+    *cloud = cloud_out;
+    *colors = colors_out;
   }
 
  protected:
