@@ -113,6 +113,20 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                        const size_t& n_last_frustums = 10u);
 
   /**
+   * @brief drawScene Draws a 3D Scene with a world frame of references, a
+   * camera frame of reference and the frustum of the camera with an image
+   * displayed inside the frustum
+   * @param extrinsics Camera 3D extrinsics wrt World frame.
+   * @param intrinsics Camera intrinsics
+   * @param frustum_img Image to be displayed inside the camera frustum
+   * @param widgets_map
+   */
+  void drawScene(const gtsam::Pose3& extrinsics,
+                 const gtsam::Cal3_S2& intrinsics,
+                 const cv::Mat& frustum_img,
+                 WidgetsMap* widgets_map);
+
+  /**
  * @brief visualizePoseWithImgInFrustum
  * Visualize a single camera pose with an image inside its frustum.
    * Adds an image to the frustum of the last pose if cv::Mat is not empty.
@@ -128,7 +142,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
       WidgetsMap* widgets_map,
       const std::string& widget_id = "Camera Pose with Frustum",
       const cv::Matx33d K =
-      cv::Matx33d(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0));
+          cv::Matx33d(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0));
 
   /**
    * @brief visualizePlyMesh Visualize a PLY from filename (absolute path).
@@ -171,12 +185,11 @@ class OpenCvVisualizer3D : public Visualizer3D {
    */
   bool visualizeMesh3D(const cv::Mat& map_points_3d,
                        const cv::Mat& colors,
-                       const cv::Mat& polygons_mesh,
+                       const cv::Mat& polygons,
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat(),
                        const string& id = "");
-
 
  private:
   //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
@@ -206,6 +219,24 @@ class OpenCvVisualizer3D : public Visualizer3D {
                       const bool& visualize_plane_label = true,
                       const int& cluster_id = 1);
 
+  /**
+   * @brief drawCylinder
+   * @param[in] cylinder_id Unique identifier (otw it overwrites viz).
+   * @param[in] axis_point1 A point1 on the axis of the cylinder.
+   * @param[in] axis_point2 A point2 on the axis of the cylinder.
+   * @param[in] radius Radius of the cylinder.
+   * @param[out] widgets
+   * @param numsides Resolution of the cylinder.
+   * @param color Color of the cylinder.
+   */
+  void drawCylinder(const std::string& id,
+                    const cv::Point3d& axis_point1,
+                    const cv::Point3d& axis_point2,
+                    const double& radius,
+                    WidgetsMap* widgets,
+                    const int& numsides = 30,
+                    const cv::viz::Color& color = cv::viz::Color::red());
+
   //! Draw a line in opencv.
   void drawLine(const std::string& line_id,
                 const double& from_x,
@@ -222,9 +253,24 @@ class OpenCvVisualizer3D : public Visualizer3D {
                 const cv::Point3d& pt2,
                 WidgetsMap* widgets);
 
-  //! Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-  void visualizeMesh3D(const cv::Mat& mapPoints3d,
-                       const cv::Mat& polygonsMesh,
+  void drawArrow(const std::string& arrow_id,
+                 const cv::Point3f& from,
+                 const cv::Point3f& to,
+                 WidgetsMap* widgets,
+                 const bool& with_text = false,
+                 const double& arrow_thickness = 1.0,
+                 const double& text_thickness = 1.0,
+                 const cv::viz::Color& color = cv::viz::Color::red());
+
+  /**
+   * @brief visualizeMesh3D Visualize a 3D point cloud of unique 3D landmarks
+   * with its connectivity with only one color.
+   * @param map_points_3d
+   * @param polygons
+   * @param widgets
+   */
+  void visualizeMesh3D(const cv::Mat& map_points_3d,
+                       const cv::Mat& polygons,
                        WidgetsMap* widgets);
 
   /// Visualize a 3D point cloud of unique 3D landmarks with its connectivity.

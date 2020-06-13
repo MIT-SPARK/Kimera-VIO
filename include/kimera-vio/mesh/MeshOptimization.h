@@ -155,40 +155,6 @@ class MeshOptimization {
                                  cv::Point3f* bearing_vector,
                                  float* inverse_depth);
 
-  // TODO(Toni): put all these functions into OpenCV visualizer, and use that
-  // module!
-  void drawPointCloud(const std::string& id,
-                      const cv::Mat& pcl,
-                      const cv::Mat& pcl_colors,
-                      const cv::Affine3d& pose);
-
-  /**
-   * @brief drawCylinder
-   * @param id
-   * @param axis_point1 A point1 on the axis of the cylinder.
-   * @param axis_point2 A point2 on the axis of the cylinder.
-   * @param radius Radius of the cylinder.
-   * @param numsides Resolution of the cylinder.
-   * @param color Color of the cylinder.
-   */
-  void drawCylinder(const std::string& id,
-                    const cv::Point3d& axis_point1,
-                    const cv::Point3d& axis_point2,
-                    const double& radius,
-                    const int& numsides = 30,
-                    const cv::viz::Color& color = cv::viz::Color::red());
-
-  void drawScene(const gtsam::Pose3& extrinsics,
-                 const gtsam::Cal3_S2& intrinsics);
-
-  void drawArrow(const cv::Point3f& from,
-                 const cv::Point3f& to,
-                 const std::string& id,
-                 const bool& with_text,
-                 const double& arrow_thickness = 0.03,
-                 const double& text_thickness = 0.2,
-                 const cv::viz::Color& color = cv::viz::Color::blue());
-
   void drawPixelOnImg(const cv::Point2f& pixel,
                       const cv::Mat& img,
                       const cv::viz::Color& color = cv::viz::Color::red(),
