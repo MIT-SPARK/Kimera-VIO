@@ -30,6 +30,7 @@ class PangolinDisplay : public DisplayBase {
  public:
   KIMERA_POINTER_TYPEDEFS(PangolinDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(PangolinDisplay);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   PangolinDisplay(const DisplayParams& display_params,
                   const ShutdownPipelineCallback& shutdown_pipeline_cb)
