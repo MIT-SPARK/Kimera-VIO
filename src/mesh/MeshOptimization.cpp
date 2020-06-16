@@ -21,8 +21,6 @@
 #include <Eigen/Core>
 
 #include <opencv2/opencv.hpp>
-// To convert from/to eigen
-#include <opencv2/core/eigen.hpp>
 
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Pose3.h>
@@ -295,12 +293,12 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
     cv::Mat viz_cloud(0, 1, CV_32FC3, cv::Scalar(0));
     cv::Mat colors_pcl = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::red());
     CHECK_EQ(img_.type(), CV_8UC1);
-    if (pointcloud.rows != 1u || pointcloud.cols != 1u) {
-      LOG(ERROR) << "Reshaping pointcloud!";
+    if (noisy_pcl.rows != 1u || noisy_pcl.cols != 1u) {
+      LOG(ERROR) << "Reshaping noisy_pcl!";
       cv::Mat_<cv::Point3f> flat_pcl = cv::Mat(1, 0, CV_32FC3);
-      for (int32_t v = 0u; v < pointcloud.rows; ++v) {
-        for (int32_t u = 0u; u < pointcloud.cols; ++u) {
-          const cv::Point3f& lmk = pointcloud.at<cv::Point3f>(v, u);
+      for (int32_t v = 0u; v < noisy_pcl.rows; ++v) {
+        for (int32_t u = 0u; u < noisy_pcl.cols; ++u) {
+          const cv::Point3f& lmk = noisy_pcl.at<cv::Point3f>(v, u);
           if (isValidPoint(lmk)) {
             flat_pcl.push_back(lmk);
             colors_pcl.push_back(cv::Vec3b::all(img_.at<uint8_t>(v, u)));
@@ -390,8 +388,9 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
       getBearingVectorFrom2DPixel(vtx_pixel, &cv_bearing_vector_body_frame);
 
       if (visualizer_) {
-        visualizer_->drawArrow("r" + std::to_string(tri_idx * 3 + col),
-                               cv::Point3d(UtilsOpenCV::gtsamVector3ToCvMat(
+        std::string arrow_id = "r" + std::to_string(tri_idx * 3 + col);
+        visualizer_->drawArrow(arrow_id,
+                               cv::Point3f(UtilsOpenCV::gtsamVector3ToCvMat(
                                    body_pose_cam_.translation())),
                                cv_bearing_vector_body_frame,
                                &output->widgets_,
@@ -627,12 +626,13 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           //! only the distance along the ray is meaningful!
           //! TODO(Toni): this is in world coordinates!! Not in cam coords!
           //! But right-now everything is the same...
-          if (visuailzer_) {
+          if (visualizer_) {
             visualizer_->drawCylinder(
                 "Variance for Lmk: " + std::to_string(lmk_id),
                 lmk_max,
                 lmk_min,
                 0.01,
+                &output->widgets_,
                 30,
                 cv::viz::Color::azure());
           }
@@ -707,11 +707,11 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
                0.9);
     spinDisplay();
   }
-  MeshOptimizationOutput::UniquePtr output =
+  MeshOptimizationOutput::UniquePtr mesh_output =
       VIO::make_unique<MeshOptimizationOutput>();
-  output->optimized_mesh_3d = reconstructed_mesh;
+  mesh_output->optimized_mesh_3d = reconstructed_mesh;
   mesh_count_++;
-  return output;
+  return mesh_output;
 }
 
 cv::Point2f MeshOptimization::generatePixelFromLandmarkGivenCamera(

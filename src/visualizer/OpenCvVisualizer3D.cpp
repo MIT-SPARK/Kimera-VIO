@@ -600,14 +600,14 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
 }
 
 /* -------------------------------------------------------------------------- */
-void drawArrow(const std::string& arrow_id,
-               const cv::Point3f& from,
-               const cv::Point3f& to,
-               WidgetsMap* widgets,
-               const bool& with_text,
-               const double& arrow_thickness,
-               const double& text_thickness,
-               const cv::viz::Color& color) {
+void OpenCvVisualizer3D::drawArrow(const std::string& arrow_id,
+                                   const cv::Point3f& from,
+                                   const cv::Point3f& to,
+                                   WidgetsMap* widgets,
+                                   const bool& with_text,
+                                   const double& arrow_thickness,
+                                   const double& text_thickness,
+                                   const cv::viz::Color& color) {
   CHECK_NOTNULL(widgets);
   if (with_text) {
     (*widgets)["Arrow label " + arrow_id] = VIO::make_unique<cv::viz::WText3D>(
@@ -976,14 +976,14 @@ void OpenCvVisualizer3D::drawScene(const gtsam::Pose3& extrinsics,
   static constexpr double kWorldFrameScale = 0.5;
   static constexpr double kCamFrameScale = 0.2;
   static constexpr double kFrustumScale = 1.0;
-  (*widgets)["World Coordinates"] =
+  (*widgets_map)["World Coordinates"] =
       VIO::make_unique<cv::viz::WCoordinateSystem>(kWorldFrameScale);
-  (*widgets)["Cam Coordinates"] =
+  (*widgets_map)["Cam Coordinates"] =
       VIO::make_unique<cv::viz::WCameraPosition>(kCamFrameScale);
-  (*widgets)["Cam Coordinates"]->setPose(cam_pose_real);
-  (*widgets)["Cam Frustum"] =
+  (*widgets_map)["Cam Coordinates"]->setPose(cam_pose_real);
+  (*widgets_map)["Cam Frustum"] =
       VIO::make_unique<cv::viz::WCameraPosition>(K, frustum_img, kFrustumScale);
-  (*widgets)["Cam Frustum"]->setPose(cam_pose_real);
+  (*widgets_map)["Cam Frustum"]->setPose(cam_pose_real);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1012,7 +1012,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                                    const double& distance,
                                                    const LandmarkId& lmk_id,
                                                    const gtsam::Point3& point,
-                                                   WidgetsMap* widgets) {
+                                                   WidgetsMap* widgets_map) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
   LmkIdToLineIdMap* lmk_id_to_line_id_map_ptr = nullptr;
   LineNr* line_nr_ptr = nullptr;
@@ -1058,7 +1058,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                              point.x(),
                              point.y(),
                              point.z(),
-                             widgets);
+                             widgets_map);
     // Augment line_nr for next line_id.
     (*line_nr_ptr)++;
   } else {
@@ -1075,7 +1075,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                point.x(),
                                point.y(),
                                point.z(),
-                               widgets);
+                               widgets_map);
   }
 }
 

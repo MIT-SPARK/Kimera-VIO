@@ -191,34 +191,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        const cv::Mat& texture = cv::Mat(),
                        const string& id = "");
 
- private:
-  //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static cv::Mat visualizeMesh2D(
-      const std::vector<cv::Vec6f>& triangulation2D,
-      const cv::Mat& img,
-      const KeypointsCV& extra_keypoints = KeypointsCV());
-
-  //! Visualize 2d mesh.
-  static cv::Mat visualizeMesh2DStereo(
-      const std::vector<cv::Vec6f>& triangulation_2D,
-      const Frame& ref_frame);
-
- private:
-  //! Visualize a 3D point cloud of unique 3D landmarks.
-  void visualizePoints3D(const PointsWithIdMap& points_with_id,
-                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-                         WidgetsMap* widgets_map);
-
-  //! Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-  void visualizePlane(const PlaneId& plane_index,
-                      const double& n_x,
-                      const double& n_y,
-                      const double& n_z,
-                      const double& d,
-                      WidgetsMap* widgets_map,
-                      const bool& visualize_plane_label = true,
-                      const int& cluster_id = 1);
-
   /**
    * @brief drawCylinder
    * @param[in] cylinder_id Unique identifier (otw it overwrites viz).
@@ -261,6 +233,34 @@ class OpenCvVisualizer3D : public Visualizer3D {
                  const double& arrow_thickness = 1.0,
                  const double& text_thickness = 1.0,
                  const cv::viz::Color& color = cv::viz::Color::red());
+
+ private:
+  //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  static cv::Mat visualizeMesh2D(
+      const std::vector<cv::Vec6f>& triangulation2D,
+      const cv::Mat& img,
+      const KeypointsCV& extra_keypoints = KeypointsCV());
+
+  //! Visualize 2d mesh.
+  static cv::Mat visualizeMesh2DStereo(
+      const std::vector<cv::Vec6f>& triangulation_2D,
+      const Frame& ref_frame);
+
+ private:
+  //! Visualize a 3D point cloud of unique 3D landmarks.
+  void visualizePoints3D(const PointsWithIdMap& points_with_id,
+                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+                         WidgetsMap* widgets_map);
+
+  //! Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
+  void visualizePlane(const PlaneId& plane_index,
+                      const double& n_x,
+                      const double& n_y,
+                      const double& n_z,
+                      const double& d,
+                      WidgetsMap* widgets_map,
+                      const bool& visualize_plane_label = true,
+                      const int& cluster_id = 1);
 
   /**
    * @brief visualizeMesh3D Visualize a 3D point cloud of unique 3D landmarks
