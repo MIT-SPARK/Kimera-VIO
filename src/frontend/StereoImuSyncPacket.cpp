@@ -21,16 +21,16 @@
 namespace VIO {
 StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,
-                                         const ImuAccGyrS& imu_accgyr,
+                                         const ImuAccGyrS& imu_accgyrs,
                                          const ReinitPacket& reinit_packet)
     : PipelinePayload(stereo_frame.getTimestamp()),
       stereo_frame_(stereo_frame),
       imu_stamps_(imu_stamps),
-      imu_accgyr_(imu_accgyr),
+      imu_accgyrs_(imu_accgyrs),
       reinit_packet_(reinit_packet) {
   CHECK_GT(imu_stamps_.cols(), 0u);
-  CHECK_GT(imu_accgyr_.cols(), 0u);
-  CHECK_EQ(imu_stamps_.cols(), imu_accgyr_.cols());
+  CHECK_GT(imu_accgyrs_.cols(), 0u);
+  CHECK_EQ(imu_stamps_.cols(), imu_accgyrs_.cols());
   // The timestamp of the last IMU measurement must correspond to the timestamp
   // of the stereo frame. In case there is no IMU measurement with exactly
   // the same timestamp as the stereo frame, the user should interpolate
@@ -49,11 +49,11 @@ void StereoImuSyncPacket::print() const {
             << "STAMPS IMU: \n"
             << imu_stamps_ << '\n'
             << "ACCGYR IMU rows : \n"
-            << imu_accgyr_.rows() << '\n'
+            << imu_accgyrs_.rows() << '\n'
             << "ACCGYR IMU cols : \n"
-            << imu_accgyr_.cols() << '\n'
+            << imu_accgyrs_.cols() << '\n'
             << "ACCGYR IMU: \n"
-            << imu_accgyr_;
+            << imu_accgyrs_;
   if (reinit_packet_.getReinitFlag() == true) {
     LOG(INFO) << "\nVIO Re-Initialized at: " << reinit_packet_.getReinitTime()
               << '\n'
