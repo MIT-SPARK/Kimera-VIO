@@ -6,8 +6,8 @@ camera_id: right_cam
 T_BS:
   cols: 4
   rows: 4
-  data: [1.0, 0.0, 0.0, 0.05,
-         0.0, 1.0, 0.0, 0.0,
+  data: [1.0, 0.0, 0.0, 0.0,
+         0.0, 1.0, 0.0, -0.05,
          0.0, 0.0, 1.0, 0.0,
          0.0, 0.0, 0.0, 1.0]
 
@@ -15,6 +15,6 @@ T_BS:
 rate_hz: 20
 resolution: [720, 480]
 camera_model: pinhole
-intrinsics: [415.69219381653056, 277.1281292110204, 360, 240] # fu, fv, cu, cv
+intrinsics: [415.69219381653056, 415.69219381653056, 360, 240] # fu, fv, cu, cv
 distortion_model: radial-tangential
 distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
