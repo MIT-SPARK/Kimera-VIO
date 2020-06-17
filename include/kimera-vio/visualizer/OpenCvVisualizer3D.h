@@ -175,8 +175,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat(),
-                       const string& id = "");
-
+                       const std::string& id = "");
 
  private:
   //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
