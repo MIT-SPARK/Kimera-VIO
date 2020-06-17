@@ -21,8 +21,6 @@
 #include <Eigen/Core>
 
 #include <opencv2/opencv.hpp>
-// To convert from/to eigen
-#include <opencv2/core/eigen.hpp>
 
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Pose3.h>
@@ -38,6 +36,7 @@
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 #include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 namespace VIO {
 
@@ -283,14 +282,41 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   CHECK(!noisy_pcl.empty());
   CHECK(mono_camera_);
 
+  // For visualization
+  VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+  output->visualization_type_ = VisualizationType::kPointcloud;
+
   // Need to visualizeScene again because the image of the camera frustum
   // was updated
   if (visualizer_) {
-    drawPointCloud("Noisy Point Cloud",
-                   noisy_pcl,
-                   pcl_colors,
-                   UtilsOpenCV::gtsamPose3ToCvAffine3d(body_pose_cam_));
-    drawScene(body_pose_cam_, mono_camera_->getCalibration());
+    // Flatten and get colors for pcl
+    cv::Mat viz_cloud(0, 1, CV_32FC3, cv::Scalar(0));
+    cv::Mat colors_pcl = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::red());
+    CHECK_EQ(img_.type(), CV_8UC1);
+    if (noisy_pcl.rows != 1u || noisy_pcl.cols != 1u) {
+      LOG(ERROR) << "Reshaping noisy_pcl!";
+      cv::Mat_<cv::Point3f> flat_pcl = cv::Mat(1, 0, CV_32FC3);
+      for (int32_t v = 0u; v < noisy_pcl.rows; ++v) {
+        for (int32_t u = 0u; u < noisy_pcl.cols; ++u) {
+          const cv::Point3f& lmk = noisy_pcl.at<cv::Point3f>(v, u);
+          if (isValidPoint(lmk)) {
+            flat_pcl.push_back(lmk);
+            colors_pcl.push_back(cv::Vec3b::all(img_.at<uint8_t>(v, u)));
+          }
+        }
+      }
+      viz_cloud = flat_pcl;
+    }
+    visualizer_->visualizePointCloud(
+        viz_cloud,
+        &output->widgets_,
+        UtilsOpenCV::gtsamPose3ToCvAffine3d(body_pose_cam_),
+        colors_pcl);
+    // draw2dMeshOnImg(img_, mesh_2d);
+    visualizer_->drawScene(body_pose_cam_,
+                           mono_camera_->getCalibration(),
+                           img_,
+                           &output->widgets_);
     // spinDisplay();
   }
 
@@ -362,14 +388,16 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
       getBearingVectorFrom2DPixel(vtx_pixel, &cv_bearing_vector_body_frame);
 
       if (visualizer_) {
-        drawArrow(cv::Point3d(UtilsOpenCV::gtsamVector3ToCvMat(
-                      body_pose_cam_.translation())),
-                  cv_bearing_vector_body_frame,
-                  "r" + std::to_string(tri_idx * 3 + col),
-                  false,
-                  0.001,
-                  0.001,
-                  cv::viz::Color::red());
+        std::string arrow_id = "r" + std::to_string(tri_idx * 3 + col);
+        visualizer_->drawArrow(arrow_id,
+                               cv::Point3f(UtilsOpenCV::gtsamVector3ToCvMat(
+                                   body_pose_cam_.translation())),
+                               cv_bearing_vector_body_frame,
+                               &output->widgets_,
+                               false,
+                               0.001,
+                               0.001,
+                               cv::viz::Color::red());
       }
       Mesh2D::VertexId vtx_id;
       CHECK(mesh_2d.getVtxIdForLmkId(vtx.getLmkId(), &vtx_id));
@@ -598,12 +626,16 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           //! only the distance along the ray is meaningful!
           //! TODO(Toni): this is in world coordinates!! Not in cam coords!
           //! But right-now everything is the same...
-          drawCylinder("Variance for Lmk: " + std::to_string(lmk_id),
-                       lmk_max,
-                       lmk_min,
-                       0.01,
-                       30,
-                       cv::viz::Color::azure());
+          if (visualizer_) {
+            visualizer_->drawCylinder(
+                "Variance for Lmk: " + std::to_string(lmk_id),
+                lmk_max,
+                lmk_min,
+                0.01,
+                &output->widgets_,
+                30,
+                cv::viz::Color::azure());
+          }
 
           //! Add new vertex to polygon
           //! Color with covariance bgr:
@@ -675,11 +707,11 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
                0.9);
     spinDisplay();
   }
-  MeshOptimizationOutput::UniquePtr output =
+  MeshOptimizationOutput::UniquePtr mesh_output =
       VIO::make_unique<MeshOptimizationOutput>();
-  output->optimized_mesh_3d = reconstructed_mesh;
+  mesh_output->optimized_mesh_3d = reconstructed_mesh;
   mesh_count_++;
-  return output;
+  return mesh_output;
 }
 
 cv::Point2f MeshOptimization::generatePixelFromLandmarkGivenCamera(
@@ -747,80 +779,6 @@ bool MeshOptimization::pointInTriangle(const cv::Point2f& pt,
   has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
 
   return !(has_neg && has_pos);
-}
-
-void MeshOptimization::drawPointCloud(const std::string& id,
-                                      const cv::Mat& pcl,
-                                      const cv::Mat& pcl_colors,
-                                      const cv::Affine3d& pose) {
-  CHECK(!pcl.empty());
-  CHECK_EQ(pcl.size, pcl_colors.size);
-  cv::Mat viz_cloud(0, 1, CV_32FC3, cv::Scalar(0));
-  cv::Mat colors_pcl = cv::Mat(0, 0, CV_8UC3, cv::viz::Color::red());
-  if (pcl.rows != 1u || pcl.cols != 1u) {
-    LOG(ERROR) << "Reshaping pointcloud!";
-    cv::Mat_<cv::Point3f> flat_pcl = cv::Mat(1, 0, CV_32FC3);
-    for (int32_t v = 0u; v < pcl.rows; ++v) {
-      for (int32_t u = 0u; u < pcl.cols; ++u) {
-        const cv::Point3f& lmk = pcl.at<cv::Point3f>(v, u);
-        const cv::Vec3b& color = pcl_colors.at<cv::Vec3b>(v, u);
-        if (isValidPoint(lmk, kMissingZ, kMinZ, kMaxZ)) {
-          flat_pcl.push_back(lmk);
-          colors_pcl.push_back(color);
-        }
-      }
-    }
-    viz_cloud = flat_pcl;
-  }
-  CHECK(!viz_cloud.empty());
-  cv::viz::WCloud cloud(viz_cloud, colors_pcl);
-  cloud.setRenderingProperty(cv::viz::POINT_SIZE, 6);
-  window_.showWidget(id, cloud, pose);
-}
-
-void MeshOptimization::drawCylinder(const std::string& id,
-                                    const cv::Point3d& axis_point1,
-                                    const cv::Point3d& axis_point2,
-                                    const double& radius,
-                                    const int& numsides,
-                                    const cv::viz::Color& color) {
-  cv::viz::WCylinder cylinder(
-      axis_point1, axis_point2, radius, numsides, color);
-  window_.showWidget(id, cylinder);
-}
-
-void MeshOptimization::drawScene(const gtsam::Pose3& extrinsics,
-                                 const gtsam::Cal3_S2& intrinsics) {
-  cv::Mat cv_extrinsics;
-  cv::eigen2cv(extrinsics.matrix(), cv_extrinsics);
-  cv::Affine3f cam_pose_real;
-  cam_pose_real.matrix = cv_extrinsics;
-
-  cv::Matx33d K;
-  cv::eigen2cv(intrinsics.K(), K);
-  cv::viz::WCameraPosition cpw(0.2);  // Coordinate axes
-  static constexpr float kScaleFrustum = 1.0;
-  cv::viz::WCameraPosition cpw_frustum(
-      K, img_, kScaleFrustum);  // Camera frustum
-  window_.showWidget("World Coordinates", cv::viz::WCoordinateSystem(0.5));
-  window_.showWidget("Cam Coordinates", cpw, cam_pose_real);
-  window_.showWidget("Cam Frustum", cpw_frustum, cam_pose_real);
-}
-
-void MeshOptimization::drawArrow(const cv::Point3f& from,
-                                 const cv::Point3f& to,
-                                 const std::string& id,
-                                 const bool& with_text,
-                                 const double& arrow_thickness,
-                                 const double& text_thickness,
-                                 const cv::viz::Color& color) {
-  // Display 3D rays from cam origin to lmks.
-  if (with_text) {
-    window_.showWidget("Arrow Label " + id,
-                       cv::viz::WText3D(id, to, text_thickness, true, color));
-  }
-  window_.showWidget("Arrow " + id,
-                     cv::viz::WArrow(from, to, arrow_thickness, color));
 }
 
 void MeshOptimization::drawPixelOnImg(const cv::Point2f& pixel,

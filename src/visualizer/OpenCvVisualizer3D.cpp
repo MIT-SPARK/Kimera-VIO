@@ -24,6 +24,8 @@
 #include <gflags/gflags.h>
 
 #include <opencv2/viz.hpp>
+// To convert from/to eigen
+#include <opencv2/core/eigen.hpp>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
@@ -561,6 +563,19 @@ void OpenCvVisualizer3D::visualizePlane(const PlaneId& plane_index,
 }
 
 /* -------------------------------------------------------------------------- */
+void OpenCvVisualizer3D::drawCylinder(const std::string& cylinder_id,
+                                      const cv::Point3d& axis_point1,
+                                      const cv::Point3d& axis_point2,
+                                      const double& radius,
+                                      WidgetsMap* widgets,
+                                      const int& numsides,
+                                      const cv::viz::Color& color) {
+  CHECK_NOTNULL(widgets);
+  (*widgets)["Cylinder " + cylinder_id] = VIO::make_unique<cv::viz::WCylinder>(
+      axis_point1, axis_point2, radius, numsides, color);
+}
+
+/* -------------------------------------------------------------------------- */
 // Draw a line in opencv.
 void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   const double& from_x,
@@ -572,7 +587,7 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   WidgetsMap* widgets) {
   cv::Point3d pt1(from_x, from_y, from_z);
   cv::Point3d pt2(to_x, to_y, to_z);
-  drawLine(line_id, pt1, pt2, widgets);
+  drawLine("Line " + line_id, pt1, pt2, widgets);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -585,12 +600,30 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
 }
 
 /* -------------------------------------------------------------------------- */
+void OpenCvVisualizer3D::drawArrow(const std::string& arrow_id,
+                                   const cv::Point3f& from,
+                                   const cv::Point3f& to,
+                                   WidgetsMap* widgets,
+                                   const bool& with_text,
+                                   const double& arrow_thickness,
+                                   const double& text_thickness,
+                                   const cv::viz::Color& color) {
+  CHECK_NOTNULL(widgets);
+  if (with_text) {
+    (*widgets)["Arrow label " + arrow_id] = VIO::make_unique<cv::viz::WText3D>(
+        arrow_id, to, text_thickness, true, color);
+  }
+  (*widgets)["Arrow " + arrow_id] =
+      VIO::make_unique<cv::viz::WArrow>(from, to, arrow_thickness, color);
+}
+
+/* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
-                                         const cv::Mat& polygons_mesh,
+                                         const cv::Mat& polygons,
                                          WidgetsMap* widgets) {
   cv::Mat colors(0, 1, CV_8UC3, cv::viz::Color::gray());  // Do not color mesh.
-  visualizeMesh3D(map_points_3d, colors, polygons_mesh, widgets);
+  visualizeMesh3D(map_points_3d, colors, polygons, widgets);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -598,7 +631,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
 // and provide color for each polygon.
 bool OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& colors,
-                                         const cv::Mat& polygons_mesh,
+                                         const cv::Mat& polygons,
                                          WidgetsMap* widgets,
                                          const cv::Mat& tcoords,
                                          const cv::Mat& texture,
@@ -622,13 +655,13 @@ bool OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   }
 
   // No points/mesh to visualize.
-  if (map_points_3d.rows == 0 || polygons_mesh.rows == 0) {
+  if (map_points_3d.rows == 0 || polygons.rows == 0) {
     return false;
   }
 
   cv::viz::Mesh cv_mesh;
   cv_mesh.cloud = map_points_3d.t();
-  cv_mesh.polygons = polygons_mesh;
+  cv_mesh.polygons = polygons;
   cv_mesh.colors = color_mesh ? colors.t() : cv::Mat();
   cv_mesh.tcoords = tcoords.t();
   cv_mesh.texture = texture;
@@ -925,6 +958,34 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
   (*widgets_map)[widget_id] = std::move(cam_widget_ptr);
 }
 
+void OpenCvVisualizer3D::drawScene(const gtsam::Pose3& extrinsics,
+                                   const gtsam::Cal3_S2& intrinsics,
+                                   const cv::Mat& frustum_img,
+                                   WidgetsMap* widgets_map) {
+  CHECK_NOTNULL(widgets_map);
+
+  // Create info
+  cv::Mat cv_extrinsics;
+  cv::eigen2cv(extrinsics.matrix(), cv_extrinsics);
+  cv::Affine3f cam_pose_real;
+  cam_pose_real.matrix = cv_extrinsics;
+  cv::Matx33d K;
+  cv::eigen2cv(intrinsics.K(), K);
+
+  // Add widgets
+  static constexpr double kWorldFrameScale = 0.5;
+  static constexpr double kCamFrameScale = 0.2;
+  static constexpr double kFrustumScale = 1.0;
+  (*widgets_map)["World Coordinates"] =
+      VIO::make_unique<cv::viz::WCoordinateSystem>(kWorldFrameScale);
+  (*widgets_map)["Cam Coordinates"] =
+      VIO::make_unique<cv::viz::WCameraPosition>(kCamFrameScale);
+  (*widgets_map)["Cam Coordinates"]->setPose(cam_pose_real);
+  (*widgets_map)["Cam Frustum"] =
+      VIO::make_unique<cv::viz::WCameraPosition>(K, frustum_img, kFrustumScale);
+  (*widgets_map)["Cam Frustum"]->setPose(cam_pose_real);
+}
+
 /* -------------------------------------------------------------------------- */
 // Remove widget. True if successful, false if not.
 bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
@@ -951,7 +1012,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                                    const double& distance,
                                                    const LandmarkId& lmk_id,
                                                    const gtsam::Point3& point,
-                                                   WidgetsMap* widgets) {
+                                                   WidgetsMap* widgets_map) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
   LmkIdToLineIdMap* lmk_id_to_line_id_map_ptr = nullptr;
   LineNr* line_nr_ptr = nullptr;
@@ -997,7 +1058,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                              point.x(),
                              point.y(),
                              point.z(),
-                             widgets);
+                             widgets_map);
     // Augment line_nr for next line_id.
     (*line_nr_ptr)++;
   } else {
@@ -1014,7 +1075,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                point.x(),
                                point.y(),
                                point.z(),
-                               widgets);
+                               widgets_map);
   }
 }
 
