@@ -48,7 +48,7 @@ class StereoDataProviderModule
                            const bool& parallel_run,
                            const StereoMatchingParams& stereo_matching_params);
 
-  virtual ~StereoDataProviderModule() = default;
+  ~StereoDataProviderModule() override = default;
 
   inline OutputUniquePtr spinOnce(
       StereoImuSyncPacket::UniquePtr input) override {
