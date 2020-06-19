@@ -24,7 +24,19 @@
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
+#include "kimera-vio/mesh/Mesh.h"
+
 namespace VIO {
+
+struct PangolinDisplayInput: public DisplayInputBase {
+  KIMERA_POINTER_TYPEDEFS(PangolinDisplayInput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(PangolinDisplayInput);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  PangolinDisplayInput() = default;
+  virtual ~PangolinDisplayInput() = default;
+
+  Mesh3D mesh_3d_;
+};
 
 class PangolinDisplay : public DisplayBase {
  public:
@@ -37,7 +49,7 @@ class PangolinDisplay : public DisplayBase {
       : DisplayBase(display_params.display_type_),
         handler(nullptr),
         shutdown_pipeline_cb_(shutdown_pipeline_cb) {
-    pangolin::CreateWindowAndBind("Main", 640, 480);
+    pangolin::CreateWindowAndBind(display_params.name_, 640, 480);
     glEnable(GL_DEPTH_TEST);
 
     // Define Projection and initial ModelView matrix
@@ -70,7 +82,8 @@ class PangolinDisplay : public DisplayBase {
    * building 3D graphics is decoupled).
    * @param viz_output
    */
-  void spinOnce(DisplayInputBase::UniquePtr&& viz_output) override {
+  void spinOnce(DisplayInputBase::UniquePtr&& viz_input) override {
+    CHECK_NOTNULL(viz_input);
     if (!pangolin::ShouldQuit()) {
       // Clear screen and activate view to render into
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
