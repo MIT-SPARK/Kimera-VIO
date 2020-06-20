@@ -296,15 +296,15 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
     if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
       result->status_ = LCDStatus::LOW_NSS_FACTOR;
     } else {
-      // Remove low scores from the QueryResults based on nss.
-      DBoW2::QueryResults::iterator query_it =
-          lower_bound(query_result.begin(),
-                      query_result.end(),
-                      DBoW2::Result(0, lcd_params_.alpha_ * nss_factor),
-                      DBoW2::Result::geq);
-      if (query_it != query_result.end()) {
-        query_result.resize(query_it - query_result.begin());
-      }
+      // // Remove low scores from the QueryResults based on nss.
+      // DBoW2::QueryResults::iterator query_it =
+      //     lower_bound(query_result.begin(),
+      //                 query_result.end(),
+      //                 DBoW2::Result(0, lcd_params_.alpha_ * nss_factor),
+      //                 DBoW2::Result::geq);
+      // if (query_it != query_result.end()) {
+      //   query_result.resize(query_it - query_result.begin());
+      // }
 
       // Begin grouping and checking matches.
       if (query_result.empty()) {
@@ -906,11 +906,15 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   gtsam::Values value;
 
   if (factor.cur_key_ > 1) {
-    value.insert(gtsam::Symbol(factor.cur_key_ - 1), factor.W_Pose_Blkf_);
+    gtsam::Values optimized_values = pgo_->calculateEstimate();
+    gtsam::Pose3 estimated_last_pose =
+        optimized_values.at<gtsam::Pose3>(factor.cur_key_ - 2);
 
     gtsam::Pose3 B_llkf_Pose_lkf =
         W_Pose_Blkf_estimates_.at(factor.cur_key_ - 2)
             .between(factor.W_Pose_Blkf_);
+    value.insert(gtsam::Symbol(factor.cur_key_ - 1),
+                 estimated_last_pose.compose(B_llkf_Pose_lkf));
 
     nfg.add(
         gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol(factor.cur_key_ - 2),
