@@ -133,7 +133,6 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   parsePipelineParams(folder_path + '/' + lcd_params_filename_, &lcd_params_);
 
   // Parse DisplayParams
-  // Parse backend params, needs a bit of help with backend_type
   switch (display_type_) {
     case DisplayType::kOpenCV: {
       display_params_ = std::make_shared<OpenCv3dDisplayParams>(display_type_);
