@@ -83,7 +83,7 @@ class PangolinDisplay : public DisplayBase {
    * @param viz_output
    */
   void spinOnce(DisplayInputBase::UniquePtr&& viz_input) override {
-    CHECK_NOTNULL(viz_input);
+    CHECK(viz_input);
     if (!pangolin::ShouldQuit()) {
       // Clear screen and activate view to render into
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
