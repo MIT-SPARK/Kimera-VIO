@@ -189,7 +189,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat(),
-                       const string& id = "");
+                       const std::string& id = "");
 
   /**
    * @brief drawCylinder
