@@ -26,13 +26,13 @@
 namespace VIO {
 
 OpenCv3dDisplay::OpenCv3dDisplay(
-    const DisplayParams& display_params,
+    DisplayParams::Ptr display_params,
     const ShutdownPipelineCallback& shutdown_pipeline_cb)
-    : DisplayBase(display_params.display_type_),
+    : DisplayBase(display_params->display_type_), // DANGEROUS
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb),
       params_(VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
-          display_params)) {
+          *display_params)) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {

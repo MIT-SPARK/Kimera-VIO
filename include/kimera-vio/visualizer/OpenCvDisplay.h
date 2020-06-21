@@ -26,16 +26,18 @@ namespace VIO {
 
 class OpenCv3dDisplayParams : public DisplayParams {
  public:
-  OpenCv3dDisplayParams(const DisplayType& display_type)
-      : DisplayParams(display_type) {}
-  virtual ~OpenCv3dDisplayParams() = default;
+  OpenCv3dDisplayParams() : DisplayParams(DisplayType::kOpenCV) {
+    CHECK_EQ(display_type_, DisplayType::kOpenCV);
+  }
+  ~OpenCv3dDisplayParams() override = default;
 
   // Parse YAML file describing camera parameters.
   bool parseYAML(const std::string& filepath) override {
+    bool parent = DisplayParams::parseYAML(filepath);
     YamlParser yaml_parser(filepath);
     yaml_parser.getYamlParam("hold_3d_display", &hold_3d_display_);
     yaml_parser.getYamlParam("hold_2d_display", &hold_2d_display_);
-    return true;
+    return true && parent;
   }
 
   // Display all params.
@@ -76,7 +78,7 @@ class OpenCv3dDisplay : public DisplayBase {
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay(const DisplayParams& display_params,
+  OpenCv3dDisplay(DisplayParams::Ptr display_params,
                   const ShutdownPipelineCallback& shutdown_pipeline_cb);
 
   // TODO(Toni): consider using `unregisterAllWindows`

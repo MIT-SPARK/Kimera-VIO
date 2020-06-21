@@ -36,7 +36,7 @@ class DisplayParams : public PipelineParams {
 
   DisplayParams();
   DisplayParams(const DisplayType& display_type);
-  virtual ~DisplayParams() = default;
+  ~DisplayParams() override = default;
 
   // Parse YAML file describing camera parameters.
   bool parseYAML(const std::string& filepath) override;

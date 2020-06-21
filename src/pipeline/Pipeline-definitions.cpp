@@ -135,10 +135,12 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   // Parse DisplayParams
   switch (display_type_) {
     case DisplayType::kOpenCV: {
-      display_params_ = std::make_shared<OpenCv3dDisplayParams>(display_type_);
+      display_params_ = std::make_shared<OpenCv3dDisplayParams>();
       break;
     }
     case DisplayType::kPangolin: {
+      // We don't have Pangolin specific params so far...
+      display_params_ = std::make_shared<DisplayParams>();
       break;
     }
     default: {
