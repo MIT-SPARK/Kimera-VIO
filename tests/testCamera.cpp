@@ -51,7 +51,7 @@ class MonoCameraFixture : public ::testing::Test {
     // Create euroc data parser
     // Only parse one mono frame... 0 - 1
     euroc_data_provider_ = VIO::make_unique<EurocDataProvider>(
-        FLAGS_test_data_path + "/V1_01_easy/", 10, 11, vio_params_);
+        FLAGS_test_data_path + "/MicroEurocDataset/", 10, 11, vio_params_);
 
     // Register Callbacks
     euroc_data_provider_->registerLeftFrameCallback(std::bind(
