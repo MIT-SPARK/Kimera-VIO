@@ -1,6 +1,7 @@
 #include "kimera-vio/playground/EurocPlayground.h"
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
 
 namespace VIO {
 
@@ -51,7 +52,7 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
       VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
           *vio_params_.display_params_);
   modified_display_params.hold_3d_display_ = true;
-  DisplayParams& new_display_params = modified_display_params;
+  DisplayParams::Ptr new_display_params = std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
   display_module_ = VIO::make_unique<DisplayModule>(
       &display_input_queue_,
       nullptr,

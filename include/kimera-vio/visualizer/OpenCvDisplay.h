@@ -21,57 +21,9 @@
 #include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
 
 namespace VIO {
-
-class OpenCv3dDisplayParams : public DisplayParams {
- public:
-  OpenCv3dDisplayParams() : DisplayParams(DisplayType::kOpenCV) {
-    CHECK_EQ(display_type_, DisplayType::kOpenCV);
-  }
-  ~OpenCv3dDisplayParams() override = default;
-
-  // Parse YAML file describing camera parameters.
-  bool parseYAML(const std::string& filepath) override {
-    bool parent = DisplayParams::parseYAML(filepath);
-    YamlParser yaml_parser(filepath);
-    yaml_parser.getYamlParam("hold_3d_display", &hold_3d_display_);
-    yaml_parser.getYamlParam("hold_2d_display", &hold_2d_display_);
-    return true && parent;
-  }
-
-  // Display all params.
-  void print() const override {
-    std::stringstream out;
-    PipelineParams::print(out,
-                          "Display Type ",
-                          VIO::to_underlying(display_type_),
-                          "Hold 2D Display ",
-                          hold_2d_display_,
-                          "Hold 3D Display ",
-                          hold_3d_display_);
-  }
-
-  // Assert equality up to a tolerance.
-  bool equals(const OpenCv3dDisplayParams& cam_par,
-              const double& tol = 1e-9) const {
-    return display_type_ == cam_par.display_type_ &&
-           hold_2d_display_ == cam_par.hold_2d_display_ &&
-           hold_3d_display_ == cam_par.hold_3d_display_;
-  }
-
- protected:
-  bool equals(const DisplayParams& rhs,
-              const double& tol = 1e-9) const override {
-    return equals(static_cast<const OpenCv3dDisplayParams&>(rhs), tol);
-  }
-
- public:
-  //! Spins the 3D window or 2D image display indefinitely, until user closes
-  //! the window.
-  bool hold_3d_display_ = false;
-  bool hold_2d_display_ = false;
-};
 
 class OpenCv3dDisplay : public DisplayBase {
  public:

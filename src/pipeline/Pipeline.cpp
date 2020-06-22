@@ -255,7 +255,7 @@ Pipeline::Pipeline(const VioParams& params,
         displayer ? std::move(displayer)
                   : DisplayFactory::makeDisplay(
                         params.display_params_->display_type_,
-                        *(params.display_params_),
+                        params.display_params_,
                         std::bind(&Pipeline::shutdown, this)));
   }
 

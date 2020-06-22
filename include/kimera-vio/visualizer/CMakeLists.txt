@@ -11,5 +11,6 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/DisplayFactory.h"
   "${CMAKE_CURRENT_LIST_DIR}/Display.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpenCvDisplay.h"
+  "${CMAKE_CURRENT_LIST_DIR}/OpenCvDisplayParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/PangolinDisplay.h"
 )

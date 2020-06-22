@@ -22,6 +22,8 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
+#include "kimera-vio/visualizer/DisplayParams.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
 
 namespace VIO {
 
