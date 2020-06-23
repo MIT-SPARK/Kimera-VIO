@@ -299,26 +299,29 @@ TEST_F(MonoCameraFixture, backProjectMultipleComplex) {
   KeypointsCV kpts;
   std::vector<double> depths;
   static constexpr size_t kKeypoints = 10u;
+  //! This is just to avoid 0 depth
+  static constexpr double kEpsilonDepth = 0.01;
   // Make a star of pixels so every axis is covered, with random depths
   for (size_t i = 0u; i < kKeypoints; i++) {
     // diagonal top-left bottom-right
     kpts.push_back(
-        KeypointCV(i * camera_params.image_size_.width / kKeypoints,
-                   i * camera_params.image_size_.height / kKeypoints));
-    depths.push_back(i * 2.3);
+        KeypointCV(i * (camera_params.image_size_.width - 1) / kKeypoints,
+                   i * (camera_params.image_size_.height - 1) / kKeypoints));
+    depths.push_back(i * 2.3 + kEpsilonDepth);
     // diagonal bottom-left top-right
-    kpts.push_back(KeypointCV(
-        i * camera_params.image_size_.width / kKeypoints,
-        (kKeypoints - i) * camera_params.image_size_.height / kKeypoints));
-    depths.push_back(i * 1.3);
+    kpts.push_back(
+        KeypointCV(i * (camera_params.image_size_.width - 1) / kKeypoints,
+                   (kKeypoints - i) * (camera_params.image_size_.height - 1) /
+                       kKeypoints));
+    depths.push_back(i * 1.3 + kEpsilonDepth);
     // horizontal
     kpts.push_back(
-        KeypointCV(i * camera_params.image_size_.width / kKeypoints, py));
-    depths.push_back(i * 0.3);
+        KeypointCV(i * (camera_params.image_size_.width - 1) / kKeypoints, py));
+    depths.push_back(i * 0.3 + kEpsilonDepth);
     // vertical
-    kpts.push_back(
-        KeypointCV(px, i * camera_params.image_size_.height / kKeypoints));
-    depths.push_back(i * 10.3);
+    kpts.push_back(KeypointCV(
+        px, i * (camera_params.image_size_.height - 1) / kKeypoints));
+    depths.push_back(i * 10.3 + kEpsilonDepth);
   }
   CHECK_EQ(depths.size(), kpts.size());
   // Create 3 keypoints centered at image with different depths
