@@ -41,6 +41,8 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   CameraParams camera_params;
   camera_params.parseYAML(FLAGS_test_data_path +
                           "/EurocParams/LeftCameraParams.yaml");
+  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+
   // But make the image be a 2 by 2 one for simplicity
   camera_params.image_size_ = cv::Size(2, 2);
 
@@ -53,28 +55,25 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
 
   // Only add a point in the center of the triangle
   cv::Mat point_cloud = cv::Mat(0, 0, CV_32FC3);
-  std::vector<cv::Point3f> expected_lmks;
 
   // Order matters for comparing below:
   // {0, 0} first the landmakrs inside the triangle
-  cv::Point3f expected_lmk0(0.3, 2.0, 0.5);
-  expected_lmks.push_back(expected_lmk0);
-  point_cloud.push_back(expected_lmk0);
-
-  // {0, 1} Infinite points
-  cv::Point3f inf_lmk(2.5, 0.2, std::numeric_limits<float>::max());
-  expected_lmks.push_back(inf_lmk);
-  point_cloud.push_back(inf_lmk);
-
   // {1, 0} second the landmarks outside the triangle
-  cv::Point3f expected_lmk1(2.5, 1.25, 0.5);
-  expected_lmks.push_back(expected_lmk1);
-  point_cloud.push_back(expected_lmk1);
-
-  // {1, 1} Super-close points
-  cv::Point3f close_lmk(9.2, 1.2, 0.0003);
-  expected_lmks.push_back(close_lmk);
-  point_cloud.push_back(close_lmk);
+  // {0, 1} Infinite points
+  // {1, 1} Super-close points (depth-wise)
+  KeypointsCV expected_kpts;
+  expected_kpts.push_back(KeypointCV(0, 0));
+  expected_kpts.push_back(KeypointCV(1, 0));
+  expected_kpts.push_back(KeypointCV(0, 1));
+  expected_kpts.push_back(KeypointCV(1, 1));
+  Camera::Depths depths = {
+      0.5, std::numeric_limits<double>::max(), 0.5, 0.0003};
+  LandmarksCV expected_lmks;
+  mono_camera->backProject(expected_kpts, depths, &expected_lmks);
+  point_cloud.push_back(expected_lmks.at(0));
+  point_cloud.push_back(expected_lmks.at(1));
+  point_cloud.push_back(expected_lmks.at(2));
+  point_cloud.push_back(expected_lmks.at(3));
 
   // the point cloud shape must be the same as the image size which is 2x2 now.
   // This is interpreted as: the pixel in {0,0} has a 3D point at expected_lmk0
@@ -90,20 +89,21 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   //  datapoint inside: x
   //  datapoint outside: 0
   //
-  //  *2-------*3
-  //  |        /|
-  //  |   x   / |
-  //  |      /  |
-  //  |     /   |
-  //  |    /    |
-  //  |   /     |
-  //  |  /   0  |
-  //  | /       |
-  //  |/        |
-  //  *1-------*4
-  Mesh2D::VertexType vtx1(0u, Vertex2D(0.0, 0.0));
-  Mesh2D::VertexType vtx2(1u, Vertex2D(0.0, 1.0));
-  Mesh2D::VertexType vtx3(2u, Vertex2D(1.0, 1.0));
+  //  |-->U
+  //  |*2-------*3
+  //  v|        /|
+  //  V|   x   / |
+  //   |      /  |
+  //   |     /   |
+  //   |    /    |
+  //   |   /     |
+  //   |  /   0  |
+  //   | /       |
+  //   |/        |
+  //   *1-------*4
+  Mesh2D::VertexType vtx1(0u, expected_kpts.at(0)); // 0,0
+  Mesh2D::VertexType vtx2(1u, expected_kpts.at(1)); // 1,0
+  Mesh2D::VertexType vtx3(2u, expected_kpts.at(2)); // 0,1
   // Mesh2D::VertexType vtx4(3, Vertex2D(1.0, 0.0));
   Mesh2D::Polygon tri;
   tri.push_back(vtx1);
@@ -121,8 +121,8 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   Vertex2D vtx3_xyz = vtx3.getVertexPosition();
 
   // check edgeFunctions are correct
-  KeypointCV pixel_inside(0.5, 0.75);
-  KeypointCV pixel_outside(0.5, 0.25);
+  KeypointCV pixel_inside(0.5, 0.25);
+  KeypointCV pixel_outside(0.5, 0.75);
 
   // cw
   EXPECT_GT(edgeFunction(pixel_inside, vtx1_xyz, vtx2_xyz), 0.0);
@@ -163,15 +163,7 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
   EXPECT_EQ(datapoints.at(0u), point_cloud.at<cv::Point3f>(0u, 0u));
   KeypointsCV datapoints_pixels = pixel_corresp.at(0u);
   ASSERT_EQ(datapoints_pixels.size(), 1u);
-  EXPECT_EQ(datapoints_pixels.at(0u), cv::Point2f(0u, 0u));
-
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
-  static const gtsam::Cal3_S2 gtsam_intrinsics(camera_params.intrinsics_.at(0),
-                                               camera_params.intrinsics_.at(1),
-                                               0.0,
-                                               camera_params.intrinsics_.at(2),
-                                               camera_params.intrinsics_.at(3));
-  Camera camera(camera_params);
+  EXPECT_EQ(datapoints_pixels.at(0u), expected_kpts.at(1u));
 
   // Check that the point was considered to be inside the triangle
   for (size_t tri_idx = 0u; tri_idx < mesh_2d.getNumberOfPolygons();
@@ -185,12 +177,10 @@ TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
 
     for (size_t i = 0u; i < datapoint_pixels.size(); i++) {
       const KeypointCV& actual_pixel = datapoint_pixels[i];
-      const cv::Point3f& actual_lmk = triangle_datapoints[i];
+      const LandmarkCV& actual_lmk = triangle_datapoints[i];
       EXPECT_EQ(actual_lmk, expected_lmks[i]);
-      // Ideally, project the lmk with projective cam matrix...
-      const cv::Point2f& expected_pixel =
-          MeshOptimization::generatePixelFromLandmarkGivenCamera(
-              actual_lmk, camera_params.body_Pose_cam_, gtsam_intrinsics);
+      KeypointCV expected_pixel;
+      mono_camera->project(actual_lmk, &expected_pixel);
       EXPECT_EQ(actual_pixel, expected_pixel);
     }
   }
