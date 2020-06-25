@@ -332,14 +332,19 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       start_time = utils::Timer::tic();
       stereoFrame_k_->sparseStereoMatching();
       sparse_stereo_time = utils::Timer::toc(start_time).count();
-
       TrackingStatusPose status_pose_stereo;
-      outlierRejectionStereo(keyframe_R_cur_frame,
-                             stereoFrame_lkf_,
-                             stereoFrame_k_,
-                             &status_pose_stereo);
-      if (status_pose_stereo.first == TrackingStatus::VALID) {
-        trackerStatusSummary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+      if (tracker_.tracker_params_.useStereoTracking_) {
+        outlierRejectionStereo(keyframe_R_cur_frame,
+                               stereoFrame_lkf_,
+                               stereoFrame_k_,
+                               &status_pose_stereo);
+        if (status_pose_stereo.first == TrackingStatus::VALID) {
+          trackerStatusSummary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+        }
+      } else {
+        status_pose_stereo.first = TrackingStatus::INVALID;
+        status_pose_stereo.second = gtsam::Pose3();
+        trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
       }
     } else {
       trackerStatusSummary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
