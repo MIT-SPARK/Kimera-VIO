@@ -1,0 +1,13 @@
+#!/bin/bash
+# RegularVioBackEnd parameters.
+--min_num_of_observations=2
+--max_parallax=150
+--min_num_obs_for_proj_factor=4
+--convert_extra_smart_factors_to_proj_factors=false
+--remove_old_reg_factors=true
+--min_num_of_plane_constraints_to_add_factors=40
+--min_num_of_plane_constraints_to_remove_factors=25
+--use_unstable_plane_removal=false
+--min_num_of_plane_constraints_to_avoid_seg_fault=10
+--prior_noise_sigma_normal=0.1
+--prior_noise_sigma_distance=0.1
