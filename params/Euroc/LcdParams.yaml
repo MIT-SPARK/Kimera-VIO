@@ -1,8 +1,8 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.001
-min_temporal_matches: 1
+alpha: 100
+min_temporal_matches: 0
 dist_local: 1
 max_db_results: 50
 min_nss_factor: 0.05
@@ -11,7 +11,7 @@ max_intragroup_gap: 3
 max_distance_between_groups: 3
 max_distance_between_queries: 2
 
-geom_check_id: 0
+geom_check_id: 1
 min_correspondences: 12
 max_ransac_iterations_mono: 500
 ransac_probability_mono: 0.995
@@ -19,7 +19,7 @@ ransac_threshold_mono: 1e-5
 ransac_randomize_mono: 1
 ransac_inlier_threshold_mono: 0.01
 
-pose_recovery_option_id: 0
+pose_recovery_option_id: 1
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.995
 ransac_threshold_stereo: 0.3
@@ -40,8 +40,8 @@ score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
 
-pgo_rot_threshold: 0.005
-pgo_trans_threshold: 0.05
+pgo_rot_threshold: 0.001
+pgo_trans_threshold: 0.001
 
 # geom_check_id options:
 #   0: NISTER

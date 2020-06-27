@@ -3,7 +3,7 @@
 # 0: Structureless factors only, 4: SPR pipeline
 backend_modality: 0
 #INITIALIZATION PARAMETERS
-autoInitialize: 1
+autoInitialize: 0
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
@@ -62,8 +62,8 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 relinearizeThreshold: 0.01
 relinearizeSkip: 1
 zeroVelocitySigma: 0.001
-noMotionPositionSigma: 0.001
-noMotionRotationSigma: 0.0001
+noMotionPositionSigma: 0.01
+noMotionRotationSigma: 0.01
 constantVelSigma: 0.01
 numOptimize: 1
 horizon: 5 # In seconds.

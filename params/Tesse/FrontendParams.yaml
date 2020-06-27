@@ -3,8 +3,8 @@
 klt_win_size: 24
 klt_max_iter: 30
 klt_max_level: 4
-klt_eps: 0.1
-maxFeatureAge: 15
+klt_eps: 0.01
+maxFeatureAge: 30
 
 # Detector Params
 # 0: FAST
@@ -12,7 +12,7 @@ maxFeatureAge: 15
 # 2: AGAST
 # 3: GFTT, aka Good Features To Track
 feature_detector_type: 3
-maxFeaturesPerFrame: 300
+maxFeaturesPerFrame: 500
 
 # Good Features To Track specific parameters
 quality_level: 0.001
