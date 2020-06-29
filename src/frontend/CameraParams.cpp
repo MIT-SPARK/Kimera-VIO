@@ -68,7 +68,7 @@ void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
       << distortion_model_.c_str();
   std::vector<double> distortion_coeff;
   yaml_parser.getYamlParam("distortion_coefficients", &distortion_coeff);
-  CHECK_EQ(distortion_coeff.size(), 4);
+  CHECK_GE(distortion_coeff.size(), 4u);
   convertDistortionVectorToMatrix(distortion_coeff, &distortion_coeff_);
 }
 
@@ -78,7 +78,7 @@ void CameraParams::convertDistortionVectorToMatrix(
     const std::vector<double>& distortion_coeffs,
     cv::Mat* distortion_coeffs_mat) {
   CHECK_NOTNULL(distortion_coeffs_mat);
-  CHECK_EQ(distortion_coeffs.size(), 4);
+  CHECK_GE(distortion_coeffs.size(), 4u);
   *distortion_coeffs_mat = cv::Mat::zeros(1, distortion_coeffs.size(), CV_64F);
   for (int k = 0; k < distortion_coeffs_mat->cols; k++) {
     distortion_coeffs_mat->at<double>(0, k) = distortion_coeffs[k];
