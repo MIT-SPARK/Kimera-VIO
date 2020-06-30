@@ -421,7 +421,7 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
   CHECK(sf);
   gtsam::Cal3DS2 gtsam_calib;
   CameraParams::createGtsamCalibration(
-      sf->getLeftFrame().cam_param_.distortion_coeff_,
+      sf->getLeftFrame().cam_param_.distortion_coeff_mat_,
       sf->getLeftFrame().cam_param_.intrinsics_,
       &gtsam_calib);
 
@@ -769,7 +769,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
 
   gtsam::Cal3DS2 gtsam_calib;
   CameraParams::createGtsamCalibration(
-      sfnew->getLeftFrame().cam_param_.distortion_coeff_,
+      sfnew->getLeftFrame().cam_param_.distortion_coeff_mat_,
       sfnew->getLeftFrame().cam_param_.intrinsics_,
       &gtsam_calib);
 
