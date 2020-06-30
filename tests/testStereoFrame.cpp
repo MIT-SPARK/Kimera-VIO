@@ -418,6 +418,13 @@ TEST_F(StereoFrameFixture, matchTemplate) {
 
 /* ************************************************************************* */
 TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
+  CHECK(sf);
+  gtsam::Cal3DS2 gtsam_calib;
+  CameraParams::createGtsamCalibration(
+      sf->getLeftFrame().cam_param_.distortion_coeff_,
+      sf->getLeftFrame().cam_param_.intrinsics_,
+      &gtsam_calib);
+
   // Prepare the input data, on a grid!
   const int numRows = 8;
   const int numCols = 10;
@@ -470,8 +477,7 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
         xn.at<double>(1, 0) /
             xn.at<double>(
                 2, 0));  // convert back to pixel (non-homogeneous coordinates)
-    Point2 pt_expected =
-        sf->getLeftFrame().cam_param_.calibration_.uncalibrate(pt_in);
+    Point2 pt_expected = gtsam_calib.uncalibrate(pt_in);
 
     // actual value
     Point2 pt_actual =
@@ -759,6 +765,13 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
 TEST_F(StereoFrameFixture, sparseStereoMatching) {
   // create a brand new stereo frame
   initializeDataStereo();
+  CHECK(sfnew);
+
+  gtsam::Cal3DS2 gtsam_calib;
+  CameraParams::createGtsamCalibration(
+      sfnew->getLeftFrame().cam_param_.distortion_coeff_,
+      sfnew->getLeftFrame().cam_param_.intrinsics_,
+      &gtsam_calib);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that data is correctly populated:
@@ -829,8 +842,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
       Point2 kp_i_distUnrect_gtsam =
-          sfnew->getLeftFrame().cam_param_.calibration_.uncalibrate(
-              Point2(versor_i(0), versor_i(1)));
+          gtsam_calib.uncalibrate(Point2(versor_i(0), versor_i(1)));
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
                                kp_i_distUnrect_gtsam,
                                1));
@@ -880,7 +892,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       // original distorted unrectified point (CHECK BACKPROJECTION WORKS)
       Point3 point3d_unrect = actual_camL_R_camLrect.rotate(
           point3d);  // compensate for the rotation induced by rectification
-      Cal3DS2 KdistUnrect = sfnew->getLeftFrame().cam_param_.calibration_;
+      Cal3DS2 KdistUnrect = gtsam_calib;
       PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3(), KdistUnrect);
       Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unrect);
       EXPECT_TRUE(assert_equal(
