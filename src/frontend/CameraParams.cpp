@@ -48,10 +48,6 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   // Convert intrinsics to cv::Mat format.
   convertIntrinsicsVectorToMatrix(intrinsics_, &K_);
 
-  // Create gtsam calibration object.
-  // Calibration of a camera with radial distortion that also supports
-  createGtsamCalibration(distortion_coeff_, intrinsics_, &calibration_);
-
   // P_ = R_rectify_ * camera_matrix_;
   return true;
 }
@@ -146,22 +142,25 @@ void CameraParams::convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO(Toni) : Check if equidistant distortion is supported as well in gtsam.
-void CameraParams::createGtsamCalibration(const std::vector<double>& distortion,
+// TODO(Toni): Check if equidistant distortion is supported as well in gtsam.
+// TODO(Toni): rather remove this function as it is only used in tests for
+// uncalibrating the keypoints.. Use instead opencv.
+void CameraParams::createGtsamCalibration(const cv::Mat& distortion,
                                           const Intrinsics& intrinsics,
                                           gtsam::Cal3DS2* calibration) {
   CHECK_NOTNULL(calibration);
   CHECK_GE(intrinsics.size(), 4);
-  CHECK_GE(distortion.size(), 4);
-  *calibration = gtsam::Cal3DS2(intrinsics[0],   // fx
-                                intrinsics[1],   // fy
-                                0.0,             // skew
-                                intrinsics[2],   // u0
-                                intrinsics[3],   // v0
-                                distortion[0],   // k1
-                                distortion[1],   // k2
-                                distortion[2],   // p1 (k3)
-                                distortion[3]);  // p2 (k4)
+  CHECK_GE(distortion.cols, 4);
+  CHECK_EQ(distortion.rows, 1);
+  *calibration = gtsam::Cal3DS2(intrinsics[0],                 // fx
+                                intrinsics[1],                 // fy
+                                0.0,                           // skew
+                                intrinsics[2],                 // u0
+                                intrinsics[3],                 // v0
+                                distortion.at<double>(0, 0),   // k1
+                                distortion.at<double>(0, 1),   // k2
+                                distortion.at<double>(0, 2),   // p1 (k3)
+                                distortion.at<double>(0, 3));  // p2 (k4)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -192,8 +191,6 @@ void CameraParams::print() const {
             << "- distortion_coeff: " << distortion_coeff_ << '\n'
             << "- R_rectify: " << R_rectify_ << '\n'
             << "- P: " << P_;
-
-  if (FLAGS_minloglevel < 1) calibration_.print("\n gtsam calibration:\n");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -212,7 +209,6 @@ bool CameraParams::equals(const CameraParams& cam_par,
          (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
-         calibration_.equals(cam_par.calibration_, tol) &&
          UtilsOpenCV::compareCvMatsUpToTol(K_, cam_par.K_) &&
          UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_,
                                            cam_par.distortion_coeff_) &&

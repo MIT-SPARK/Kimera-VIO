@@ -204,7 +204,11 @@ class TestTracker : public ::testing::Test {
           camRef_pose_camCur.inverse().translation();
       versor_cur = versor_cur / versor_cur.norm();
 
-      Point2 pt_cur_gtsam = f_ref->cam_param_.calibration_.uncalibrate(
+      gtsam::Cal3DS2 gtsam_calib;
+      CameraParams::createGtsamCalibration(f_ref->cam_param_.distortion_coeff_,
+                                           f_ref->cam_param_.intrinsics_,
+                                           &gtsam_calib);
+      Point2 pt_cur_gtsam = gtsam_calib.uncalibrate(
           Point2(versor_cur[0] / versor_cur[2], versor_cur[1] / versor_cur[2]));
       KeypointCV pt_cur(pt_cur_gtsam.x(), pt_cur_gtsam.y());
 
@@ -238,7 +242,11 @@ class TestTracker : public ::testing::Test {
           camRef_pose_camCur.inverse().translation();
       versor_cur = versor_cur / versor_cur.norm();
 
-      Point2 pt_cur_gtsam = f_ref->cam_param_.calibration_.uncalibrate(
+      gtsam::Cal3DS2 gtsam_calib;
+      CameraParams::createGtsamCalibration(f_ref->cam_param_.distortion_coeff_,
+                                           f_ref->cam_param_.intrinsics_,
+                                           &gtsam_calib);
+      Point2 pt_cur_gtsam = gtsam_calib.uncalibrate(
           Point2(versor_cur[0] / versor_cur[2], versor_cur[1] / versor_cur[2]));
       KeypointCV pt_cur(pt_cur_gtsam.x(), pt_cur_gtsam.y());
 
@@ -1313,18 +1321,15 @@ TEST_F(TestTracker, MahalanobisDistance) {
                       O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                       O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
     float innovationMahalanobisNorm3 =
-        dinv * v(0) *
-            (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
-             v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
-             v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
-        dinv * v(1) *
-            (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
-             O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
-             O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
-        dinv * v(2) *
-            (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
-             O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
-             O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
+        dinv * v(0) * (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
+                       v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
+                       v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
+        dinv * v(1) * (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
+                       O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
+                       O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
+        dinv * v(2) * (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
+                       O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
+                       O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
     time3 += VIO::utils::Timer::toc(timeBefore).count();
 
     EXPECT_NEAR(double(innovationMahalanobisNorm1),

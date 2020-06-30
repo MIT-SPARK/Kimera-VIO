@@ -57,8 +57,7 @@ TEST(testFrame, ExtractCornersChessboard) {
           0,
           CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
-  UtilsOpenCV::ExtractCorners(f.img_,
-                              &f.keypoints_);
+  UtilsOpenCV::ExtractCorners(f.img_, &f.keypoints_);
   int numCorners_expected = 7 * 9;
   int numCorners_actual = f.keypoints_.size();
   // Assert that there are right number of corners!
@@ -67,10 +66,11 @@ TEST(testFrame, ExtractCornersChessboard) {
 
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersWhiteBoard) {
-  Frame f(0, 0, CameraParams(),
+  Frame f(0,
+          0,
+          CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(whitewallImgName));
-  UtilsOpenCV::ExtractCorners(f.img_,
-                              &f.keypoints_);
+  UtilsOpenCV::ExtractCorners(f.img_, &f.keypoints_);
   int numCorners_expected = 0;
   int numCorners_actual = f.keypoints_.size();
   // Assert that there are no corners!
@@ -79,7 +79,9 @@ TEST(testFrame, ExtractCornersWhiteBoard) {
 
 /* ------------------------------------------------------------------------- */
 TEST(testFrame, getNrValidKeypoints) {
-  Frame f(0, 0, CameraParams(),
+  Frame f(0,
+          0,
+          CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   const int nrValidExpected = 200;
   const int outlier_rate = 5;  // Insert one outlier every 5 valid landmark ids.
@@ -101,8 +103,8 @@ TEST(testFrame, CalibratePixel) {
   const int numTestCols = 8;
 
   // Get the camera parameters
-  CameraParams camParams;
-  camParams.parseYAML(sensorPath);
+  CameraParams cam_params;
+  cam_params.parseYAML(sensorPath);
 
   // Generate the pixels
   KeypointsCV testPointsCV;
@@ -116,16 +118,21 @@ TEST(testFrame, CalibratePixel) {
   }
   // Calibrate, and uncalibrate the point, verify that we get the same point
   for (KeypointsCV::iterator iter = testPointsCV.begin();
-       iter != testPointsCV.end(); iter++) {
-    Vector3 versor = Frame::calibratePixel(*iter, camParams);
+       iter != testPointsCV.end();
+       iter++) {
+    Vector3 versor = Frame::calibratePixel(*iter, cam_params);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
     versor = versor / versor(2);
-    Point2 uncalibrated_px_actual =
-        camParams.calibration_.uncalibrate(Point2(versor(0), versor(1)));
-    Point2 uncalibrated_px_expected = Point2(iter->x, iter->y);
-    Point2 px_mismatch = uncalibrated_px_actual - uncalibrated_px_expected;
+    gtsam::Cal3DS2 gtsam_calib;
+    CameraParams::createGtsamCalibration(
+        cam_params.distortion_coeff_, cam_params.intrinsics_, &gtsam_calib);
+    gtsam::Point2 uncalibrated_px_actual =
+        gtsam_calib.uncalibrate(gtsam::Point2(versor(0), versor(1)));
+    gtsam::Point2 uncalibrated_px_expected = gtsam::Point2(iter->x, iter->y);
+    gtsam::Point2 px_mismatch =
+        uncalibrated_px_actual - uncalibrated_px_expected;
     ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
   }
 }
@@ -138,8 +145,12 @@ TEST(testFrame, DISABLED_CalibratePixel) {
   const int numTestCols = 8;
 
   // Get the camera parameters
-  CameraParams camParams;
-  camParams.parseYAML(sensorPath);
+  CameraParams cam_params;
+  cam_params.parseYAML(sensorPath);
+
+  gtsam::Cal3DS2 gtsam_calib;
+  CameraParams::createGtsamCalibration(
+      cam_params.distortion_coeff_, cam_params.intrinsics_, &gtsam_calib);
 
   // Generate the pixels
   KeypointsCV testPointsCV;
@@ -148,22 +159,22 @@ TEST(testFrame, DISABLED_CalibratePixel) {
   for (int r = 0; r < numTestRows; r++) {
     for (int c = 0; c < numTestCols; c++) {
       testPointsCV.push_back(KeypointCV(c * imgWidth / (numTestCols - 1),
-          r * imgHeight / (numTestRows - 1)));
+                                        r * imgHeight / (numTestRows - 1)));
     }
   }
   // Calibrate, and uncalibrate the point, verify that we get the same point
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end();
        iter++) {
-    Vector3 versor = Frame::calibratePixel(*iter, camParams);
+    Vector3 versor = Frame::calibratePixel(*iter, cam_params);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
     versor = versor / versor(2);
     Point2 uncalibrated_px_actual =
-camParams.calibration_.uncalibrate(Point2(versor(0), versor(1))); Point2
-uncalibrated_px_expected = Point2(iter->x, iter->y); Point2 px_mismatch =
-uncalibrated_px_actual - uncalibrated_px_expected;
+        gtsam_calib.uncalibrate(Point2(versor(0), versor(1)));
+    Point2 uncalibrated_px_expected = Point2(iter->x, iter->y);
+    Point2 px_mismatch = uncalibrated_px_actual - uncalibrated_px_expected;
     ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
   }
 }
@@ -172,7 +183,9 @@ uncalibrated_px_actual - uncalibrated_px_expected;
 
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {
-  Frame f(0, 0, CameraParams(),
+  Frame f(0,
+          0,
+          CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   UtilsOpenCV::ExtractCorners(f.img_, &f.keypoints_);
   for (int i = 0; i < f.keypoints_.size(); i++) {

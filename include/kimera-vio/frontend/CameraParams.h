@@ -48,7 +48,6 @@ class CameraParams : public PipelineParams {
         body_Pose_cam_(),
         frame_rate_(),
         image_size_(),
-        calibration_(),
         K_(),
         distortion_model_(),
         distortion_coeff_(),
@@ -91,10 +90,6 @@ class CameraParams : public PipelineParams {
   double frame_rate_;
   cv::Size image_size_;
 
-  // GTSAM structures to calibrate points:
-  // Contains intrinsics and distortion parameters.
-  gtsam::Cal3DS2 calibration_;
-
   // For radial distortion and rectification.
   // 5 parameters (last is zero): distortion_model: radial-tangential.
   // TODO(Toni): USE ENUM CLASS, not std::string...
@@ -122,7 +117,7 @@ class CameraParams : public PipelineParams {
       cv::Mat* distortion_coeffs_mat);
   static void convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
                                               cv::Mat* camera_matrix);
-  static void createGtsamCalibration(const std::vector<double>& distortion,
+  static void createGtsamCalibration(const cv::Mat& distortion,
                                      const Intrinsics& intrinsics,
                                      gtsam::Cal3DS2* calibration);
 

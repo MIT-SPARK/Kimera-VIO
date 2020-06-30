@@ -55,11 +55,15 @@ TEST(testCameraParams, parseYAML) {
   EXPECT_DOUBLE_EQ(intrinsics_expected[2], cam_params.K_.at<double>(0, 2));
   EXPECT_DOUBLE_EQ(intrinsics_expected[3], cam_params.K_.at<double>(1, 2));
   EXPECT_EQ(cam_params.intrinsics_.size(), 4u);
-  EXPECT_DOUBLE_EQ(intrinsics_expected[0], cam_params.calibration_.fx());
-  EXPECT_DOUBLE_EQ(intrinsics_expected[1], cam_params.calibration_.fy());
-  EXPECT_DOUBLE_EQ(0u, cam_params.calibration_.skew());
-  EXPECT_DOUBLE_EQ(intrinsics_expected[2], cam_params.calibration_.px());
-  EXPECT_DOUBLE_EQ(intrinsics_expected[3], cam_params.calibration_.py());
+  gtsam::Cal3DS2 gtsam_calib;
+  CameraParams::createGtsamCalibration(cam_params.distortion_coeff_,
+                                       cam_params.intrinsics_,
+                                       &gtsam_calib);
+  EXPECT_DOUBLE_EQ(intrinsics_expected[0], gtsam_calib.fx());
+  EXPECT_DOUBLE_EQ(intrinsics_expected[1], gtsam_calib.fy());
+  EXPECT_DOUBLE_EQ(0u, gtsam_calib.skew());
+  EXPECT_DOUBLE_EQ(intrinsics_expected[2], gtsam_calib.px());
+  EXPECT_DOUBLE_EQ(intrinsics_expected[3], gtsam_calib.py());
 
   // Sensor extrinsics wrt. the body-frame.
   gtsam::Rot3 R_expected(0.0148655429818,
@@ -84,10 +88,10 @@ TEST(testCameraParams, parseYAML) {
   }
   EXPECT_EQ(cam_params.distortion_coeff_.rows, 1u);
   EXPECT_EQ(cam_params.distortion_coeff_.cols, 4u);
-  EXPECT_DOUBLE_EQ(distortion_expected[0], cam_params.calibration_.k1());
-  EXPECT_DOUBLE_EQ(distortion_expected[1], cam_params.calibration_.k2());
-  EXPECT_DOUBLE_EQ(distortion_expected[2], cam_params.calibration_.p1());
-  EXPECT_DOUBLE_EQ(distortion_expected[3], cam_params.calibration_.p2());
+  EXPECT_DOUBLE_EQ(distortion_expected[0], gtsam_calib.k1());
+  EXPECT_DOUBLE_EQ(distortion_expected[1], gtsam_calib.k2());
+  EXPECT_DOUBLE_EQ(distortion_expected[2], gtsam_calib.p1());
+  EXPECT_DOUBLE_EQ(distortion_expected[3], gtsam_calib.p2());
 }
 
 TEST(testCameraParams, convertDistortionVectorToMatrix) {

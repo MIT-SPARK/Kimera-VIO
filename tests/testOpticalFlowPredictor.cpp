@@ -48,18 +48,15 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
     // for large rotations of cam2 wrt cam1
     buildSceneLandmarks(&lmks_, 1.0);
 
-    // Create cameras calibration from Euroc dataset.
-    // Euroc dataset with distortion and skewness.
-    euroc_calib_ = camera_params_.calibration_;
-
     // You could use euroc_calib_ as well, but you'll have similar results
     // but you need to account for distortion, since the projectSafe function
     // of GTSAM also uncalibrates the pixels using the distortion params.
 
     // Simulated calibration without distortion or skewness, and with the
     // same fx and fy focal length.
-    simulated_calib_ = gtsam::Cal3DS2(euroc_calib_.fx(),
-                                      euroc_calib_.fx(),
+    const auto& fx = camera_params_.intrinsics_.at(0);
+    simulated_calib_ = gtsam::Cal3DS2(fx,
+                                      fx,
                                       0.0,
                                       camera_params_.image_size_.width / 2u,
                                       camera_params_.image_size_.height / 2u,
@@ -503,7 +500,7 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionOutOfImage) {
   // Create Right Camera
   //! Cam2 is at 45 degree rotation wrt x axis wrt Cam1: so that landmarks
   //! remain in front of camera, but outside of image of cam2.
-  gtsam::Rot3 rot_45_x( 0.924, 0.383, 0.0, 0.0);
+  gtsam::Rot3 rot_45_x(0.924, 0.383, 0.0, 0.0);
   gtsam::Pose3 cam_1_P_cam_2(rot_45_x, gtsam::Vector3::Zero());
   generateCam2(cam_1_P_cam_2);
 

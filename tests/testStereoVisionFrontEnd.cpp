@@ -67,10 +67,14 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
     // Data for testing "geometricOutlierRejectionMono"
     ref_frame = std::make_shared<Frame>(
-        id_ref, timestamp_ref, cam_params_left,
+        id_ref,
+        timestamp_ref,
+        cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
     cur_frame = std::make_shared<Frame>(
-        id_cur, timestamp_cur, cam_params_left,
+        id_cur,
+        timestamp_cur,
+        cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
     FrontendParams tp;
@@ -445,7 +449,8 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   EXPECT_NEAR(0, baseline(2), 1e-4);
 
   FrontendParams p = FrontendParams();  // default
-  p.feature_detector_params_.min_distance_btw_tracked_and_detected_features_ = 0.05;
+  p.feature_detector_params_.min_distance_btw_tracked_and_detected_features_ =
+      0.05;
   p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
 
@@ -476,7 +481,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
 
   // Call StereoVisionFrontEnd::Process first frame!
   StereoVisionFrontEnd st(imu_params_, ImuBias(), p, cam_params_left);
-  const StereoFrame &sf = st.processFirstStereoFrame(first_stereo_frame);
+  const StereoFrame& sf = st.processFirstStereoFrame(first_stereo_frame);
 
   // Check the following results:
   // 1. Feature Detection
@@ -484,7 +489,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
 
   // Check feature detection results!
   // landmarks_, landmarksAge_, keypoints_, versors_
-  const Frame &left_frame = sf.getLeftFrame();
+  const Frame& left_frame = sf.getLeftFrame();
   const int num_corners = left_frame.landmarks_.size();
   EXPECT_EQ(num_corners, left_frame.landmarks_age_.size());
   EXPECT_EQ(num_corners, left_frame.keypoints_.size());
@@ -530,9 +535,14 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // left_keypoints_rectified!
   std::vector<Point2> left_undistort_corners =
       loadCorners(synthetic_stereo_path + "/corners_undistort_left.txt");
+  const CameraParams& left_cam_params = sf.getLeftFrame().cam_param_;
+  gtsam::Cal3DS2 gtsam_left_cam_calib;
+  CameraParams::createGtsamCalibration(left_cam_params.distortion_coeff_,
+                                       left_cam_params.intrinsics_,
+                                       &gtsam_left_cam_calib);
   std::vector<Point2> left_rect_corners =
       convertCornersAcrossCameras(left_undistort_corners,
-                                  sf.getLeftFrame().cam_param_.calibration_,
+                                  gtsam_left_cam_calib,
                                   sf.getLeftUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
@@ -543,11 +553,16 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   }
 
   // right_keypoints_rectified
+  const CameraParams& right_cam_params = sf.getRightFrame().cam_param_;
+  gtsam::Cal3DS2 gtsam_right_cam_calib;
+  CameraParams::createGtsamCalibration(right_cam_params.distortion_coeff_,
+                                       right_cam_params.intrinsics_,
+                                       &gtsam_right_cam_calib);
   std::vector<Point2> right_undistort_corners =
       loadCorners(synthetic_stereo_path + "/corners_undistort_right.txt");
   std::vector<Point2> right_rect_corners =
       convertCornersAcrossCameras(right_undistort_corners,
-                                  sf.getRightFrame().cam_param_.calibration_,
+                                  gtsam_right_cam_calib,
                                   sf.getRightUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
