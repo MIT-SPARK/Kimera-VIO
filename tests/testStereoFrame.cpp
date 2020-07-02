@@ -119,8 +119,31 @@ class StereoFrameFixture : public ::testing::Test {
     sfnew->sparseStereoMatching();
   }
 
-  GenerateStereoFromParams(const string left_param_name,
-                           const string right_param_name) {
+  void GenerateStereoFromParams(const string left_param_name,
+                                const string right_param_name) {
+    cam_params_left.parseYAML(stereo_FLAGS_test_data_path + left_param_name);
+    cam_params_right.parseYAML(stereo_FLAGS_test_data_path + right_param_name);
+
+    // construct stereo camera
+    FrontendParams tp;
+    sf_custom_ = std::make_shared<StereoFrame>(
+        id,
+        timestamp,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+            stereo_FLAGS_test_data_path + left_image_name,
+            tp.stereo_matching_params_.equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+            stereo_FLAGS_test_data_path + right_image_name,
+            tp.stereo_matching_params_.equalize_image_),
+        cam_params_right,
+        tp.stereo_matching_params_);
+  }
+
+  void GenerateStereoFromParamsAndImgs(const string left_param_name,
+                                       const string right_param_name,
+                                       const string left_img_name,
+                                       const string right_img_name) {
     cam_params_left.parseYAML(stereo_FLAGS_test_data_path + left_param_name);
     cam_params_right.parseYAML(stereo_FLAGS_test_data_path + right_param_name);
 
@@ -141,15 +164,15 @@ class StereoFrameFixture : public ::testing::Test {
   }
 
   // generate keypoints regularly spaced along a grid of size numRows x numRows
-  GeneratePointGrid(int num_rows,
-                    int num_cols,
-                    int image_height,
-                    int image_width,
-                    KeypointsCV* keypoints) {
+  void GeneratePointGrid(int num_rows,
+                         int num_cols,
+                         int image_height,
+                         int image_width,
+                         KeypointsCV* keypoints) {
     for (int r = 0; r < num_rows; r++) {
       for (int c = 0; c < num_cols; c++) {
-        int y = image_height / (numRows - 1) * r;
-        int x = image_width / (numCols - 1) * c;
+        int y = image_height / (num_rows - 1) * r;
+        int x = image_width / (num_cols - 1) * c;
         keypoints->push_back(cv::Point2f(x, y));
       }
     }
@@ -564,9 +587,87 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints) {
 /* ************************************************************************* */
 TEST_F(StereoFrameFixture, undistortRectifyPoints5thDistPos) {
   GenerateStereoFromParams("/sensorLeft5thDistPos.yaml",
-                           "/sensorRight5thDistPos.yaml")
-      // get image rows and cols
-      const int img_rows = sf_custom_->getLeftFrame().img_.rows;
+                           "/sensorRight5thDistPos.yaml");
+  // get image rows and cols
+  const int img_rows = sf_custom_->getLeftFrame().img_.rows;
+  const int img_cols = sf_custom_->getLeftFrame().img_.cols;
+
+  // generate keypoints regularly spaced along a grid of size numRows x numRows
+  KeypointsCV keypoints_unrectified_gt;
+  GeneratePointGrid(8, 10, img_rows, img_cols, &keypoints_unrectified_gt);
+
+  // Actual value
+  StatusKeypointsCV keypoints_rectified;
+  sf_custom_->undistortRectifyPoints(keypoints_unrectified_gt,
+                                     sf_custom_->getLeftFrame().cam_param_,
+                                     sf_custom_->getLeftUndistRectCamMat(),
+                                     &keypoints_rectified);
+
+  // Map back!
+  KeypointsCV keypoints_unrectified_actual;
+  std::vector<KeypointStatus> status_unrectified;
+  tie(keypoints_unrectified_actual, status_unrectified) =
+      StereoFrame::distortUnrectifyPoints(
+          keypoints_rectified,
+          sf_custom_->getLeftFrame().cam_param_.undistRect_map_x_,
+          sf_custom_->getLeftFrame().cam_param_.undistRect_map_y_);
+
+  // Comparision
+  for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
+    if (keypoints_rectified[i].first != KeypointStatus::VALID) continue;
+    // compare pixel coordinates of valid points
+    EXPECT_NEAR(
+        keypoints_unrectified_actual[i].x, keypoints_unrectified_gt[i].x, 1);
+    EXPECT_NEAR(
+        keypoints_unrectified_actual[i].y, keypoints_unrectified_gt[i].y, 1);
+  }
+}
+
+/* ************************************************************************* */
+TEST_F(StereoFrameFixture, undistortRectifyPoints5thDistNeg) {
+  GenerateStereoFromParams("/sensorLeft5thDistNeg.yaml",
+                           "/sensorRight5thDistNeg.yaml");
+  // get image rows and cols
+  const int img_rows = sf_custom_->getLeftFrame().img_.rows;
+  const int img_cols = sf_custom_->getLeftFrame().img_.cols;
+
+  // generate keypoints regularly spaced along a grid of size numRows x numRows
+  KeypointsCV keypoints_unrectified_gt;
+  GeneratePointGrid(8, 10, img_rows, img_cols, &keypoints_unrectified_gt);
+
+  // Actual value
+  StatusKeypointsCV keypoints_rectified;
+  sf_custom_->undistortRectifyPoints(keypoints_unrectified_gt,
+                                     sf_custom_->getLeftFrame().cam_param_,
+                                     sf_custom_->getLeftUndistRectCamMat(),
+                                     &keypoints_rectified);
+
+  // Map back!
+  KeypointsCV keypoints_unrectified_actual;
+  std::vector<KeypointStatus> status_unrectified;
+  tie(keypoints_unrectified_actual, status_unrectified) =
+      StereoFrame::distortUnrectifyPoints(
+          keypoints_rectified,
+          sf_custom_->getLeftFrame().cam_param_.undistRect_map_x_,
+          sf_custom_->getLeftFrame().cam_param_.undistRect_map_y_);
+
+  // Comparision
+  for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
+    if (keypoints_rectified[i].first != KeypointStatus::VALID) continue;
+    // compare pixel coordinates of valid points
+    EXPECT_NEAR(
+        keypoints_unrectified_actual[i].x, keypoints_unrectified_gt[i].x, 1);
+    EXPECT_NEAR(
+        keypoints_unrectified_actual[i].y, keypoints_unrectified_gt[i].y, 1);
+  }
+}
+
+/* ************************************************************************* */
+TEST_F(StereoFrameFixture, undistortRectifyPoints5thDistZero) {
+  GenerateStereoFromParams("/sensorLeft5thDistZero.yaml",
+                           "/sensorRight5thDistZero.yaml");
+  // get image rows and cols
+  const int img_rows = sf_custom_->getLeftFrame().img_.rows;
   const int img_cols = sf_custom_->getLeftFrame().img_.cols;
 
   // generate keypoints regularly spaced along a grid of size numRows x numRows
