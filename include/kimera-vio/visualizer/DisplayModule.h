@@ -50,12 +50,12 @@ class DisplayModule
 
   virtual OutputUniquePtr spinOnce(InputUniquePtr input) {
     CHECK(input);
-    display_->spinOnce(std::move(input));
+    if (display_) display_->spinOnce(std::move(input));
     return VIO::make_unique<NullPipelinePayload>();
   }
 
   typename MISO::InputUniquePtr getInputPacket() override {
-    if (display_->display_type_ == DisplayType::kPangolin) {
+    if (display_ && display_->display_type_ == DisplayType::kPangolin) {
       // If we are using pangolin just fake a constant input of messages
       // to not block the visualizer.
       return VIO::make_unique<DisplayInputBase>();

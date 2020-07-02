@@ -42,7 +42,8 @@ if(NOT TARGET DBoW2::DBoW2)
   INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
 endif()
 find_package(KimeraRPGO REQUIRED)
-find_package(Pangolin REQUIRED)
+# Pangolin is optional
+find_package(Pangolin)
 
 ### External Dependencies
 include(ExternalProject)
@@ -128,17 +129,15 @@ target_link_libraries(${PROJECT_NAME}
     DBoW2::DBoW2
     KimeraRPGO
   PUBLIC
-    ${Pangolin_LIBRARIES}
     Boost::boost
     ${OpenCV_LIBRARIES}
     ${GFLAGS_LIBRARIES}
     ${GLOG_LIBRARIES}
     gtsam
     gtsam_unstable
- )
+)
 target_include_directories(${PROJECT_NAME}
   PUBLIC
-    ${Pangolin_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}
     ${GLOG_INCLUDE_DIRS}
@@ -146,6 +145,19 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+
+# Pangolin is optional
+if(Pangolin_FOUND)
+  target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+      ${Pangolin_LIBRARIES}
+  )
+  target_include_directories(${PROJECT_NAME}
+    PUBLIC
+      ${Pangolin_INCLUDE_DIRS}
+  )
+  target_compile_definitions(${PROJECT_NAME} PRIVATE Pangolin_FOUND=1)
+endif(Pangolin_FOUND)
 
 target_compile_options(${PROJECT_NAME}
   PRIVATE -Wall -pipe

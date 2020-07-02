@@ -12,5 +12,10 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Display.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpenCvDisplay.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpenCvDisplayParams.h"
-  "${CMAKE_CURRENT_LIST_DIR}/PangolinDisplay.h"
 )
+
+if(Pangolin_FOUND)
+  target_sources(kimera_vio PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/PangolinDisplay.h"
+  )
+endif(Pangolin_FOUND)

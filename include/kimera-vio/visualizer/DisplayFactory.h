@@ -20,7 +20,9 @@
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayParams.h"
 #include "kimera-vio/visualizer/OpenCvDisplay.h"
+#ifdef Pangolin_FOUND
 #include "kimera-vio/visualizer/PangolinDisplay.h"
+#endif
 
 namespace VIO {
 
@@ -37,7 +39,11 @@ class DisplayFactory {
                                             Types... args) {
     switch (display_type) {
       case DisplayType::kPangolin: {
+        #ifdef Pangolin_FOUND
         return VIO::make_unique<PangolinDisplay>(args...);
+        #else
+        return nullptr;
+        #endif
       }
       case DisplayType::kOpenCV: {
         return VIO::make_unique<OpenCv3dDisplay>(args...);
