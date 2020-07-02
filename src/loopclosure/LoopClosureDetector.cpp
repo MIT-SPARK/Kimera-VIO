@@ -296,15 +296,15 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
     if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
       result->status_ = LCDStatus::LOW_NSS_FACTOR;
     } else {
-      // // Remove low scores from the QueryResults based on nss.
-      // DBoW2::QueryResults::iterator query_it =
-      //     lower_bound(query_result.begin(),
-      //                 query_result.end(),
-      //                 DBoW2::Result(0, lcd_params_.alpha_ * nss_factor),
-      //                 DBoW2::Result::geq);
-      // if (query_it != query_result.end()) {
-      //   query_result.resize(query_it - query_result.begin());
-      // }
+      // Remove low scores from the QueryResults based on nss.
+      DBoW2::QueryResults::iterator query_it =
+          lower_bound(query_result.begin(),
+                      query_result.end(),
+                      DBoW2::Result(0, lcd_params_.alpha_ * nss_factor),
+                      DBoW2::Result::geq);
+      if (query_it != query_result.end()) {
+        query_result.resize(query_it - query_result.begin());
+      }
 
       // Begin grouping and checking matches.
       if (query_result.empty()) {
