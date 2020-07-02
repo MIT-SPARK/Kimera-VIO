@@ -42,43 +42,13 @@ class DisplayModule
   DisplayModule(DisplayQueue* input_queue,
                 OutputQueue* output_queue,
                 bool parallel_run,
-                DisplayBase::UniquePtr&& display)
-      : SISO(input_queue, output_queue, "Display", parallel_run),
-        display_(std::move(display)) {}
+                DisplayBase::UniquePtr&& display);
 
   virtual ~DisplayModule() = default;
 
-  virtual OutputUniquePtr spinOnce(InputUniquePtr input) {
-    CHECK(input);
-    if (display_) display_->spinOnce(std::move(input));
-    return VIO::make_unique<NullPipelinePayload>();
-  }
+  OutputUniquePtr spinOnce(InputUniquePtr input) override;
 
-  typename MISO::InputUniquePtr getInputPacket() override {
-    if (display_ && display_->display_type_ == DisplayType::kPangolin) {
-      // If we are using pangolin just fake a constant input of messages
-      // to not block the visualizer.
-      return VIO::make_unique<DisplayInputBase>();
-    }
-
-    typename MISO::InputUniquePtr input = nullptr;
-    bool queue_state = false;
-
-    if (MISO::parallel_run_) {
-      queue_state = input_queue_->popBlocking(input);
-    } else {
-      queue_state = input_queue_->pop(input);
-    }
-
-    if (queue_state) {
-      return input;
-    } else {
-      LOG(WARNING) << "Module: " << MISO::name_id_ << " - "
-                   << "Input queue: " << input_queue_->queue_id_
-                   << " didn't return an output.";
-      return nullptr;
-    }
-  }
+  typename MISO::InputUniquePtr getInputPacket() override;
 
  private:
   // The renderer used to display the visualizer output.
