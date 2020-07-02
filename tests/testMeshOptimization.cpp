@@ -36,7 +36,7 @@ class MeshOptimizationFixture : public ::testing::Test {
  private:
 };
 
-TEST_F(MeshOptimizationFixture, testCollectTriangleDataPointsFast) {
+TEST_F(MeshOptimizationFixture, DISABLED_testCollectTriangleDataPointsFast) {
   // Parse cam params
   CameraParams camera_params;
   camera_params.parseYAML(FLAGS_test_data_path +
