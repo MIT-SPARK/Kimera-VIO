@@ -9,6 +9,8 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
+  <depend>opengv_catkin</depend>
+  <depend>kimera_rpgo</depend>
   <depend>dbow2</depend>
   <depend>libgflags-dev</depend>
   <depend>libgoogle-glog-dev</depend>
