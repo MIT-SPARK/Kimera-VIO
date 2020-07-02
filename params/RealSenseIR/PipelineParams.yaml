@@ -12,7 +12,7 @@ backend_type: 1
 # Type of Displayer to use:
 # 0: OpenCV
 # 1: Pangolin
-display_type: 1
+display_type: 0
 
 # Run VIO parallel or sequential
 # 0: Sequential
