@@ -77,7 +77,8 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
   CHECK_GT(baseline_, 0.0);
 
   //! Create stereo camera calibration after rectification and undistortion.
-  gtsam::Cal3_S2 left_undist_rect_cam_mat = UtilsOpenCV::Cvmat2Cal3_S2(P1_);
+  const gtsam::Cal3_S2& left_undist_rect_cam_mat =
+      UtilsOpenCV::Cvmat2Cal3_S2(P1_);
   stereo_calibration_ =
       boost::make_shared<gtsam::Cal3_S2Stereo>(left_undist_rect_cam_mat.fx(),
                                                left_undist_rect_cam_mat.fy(),
