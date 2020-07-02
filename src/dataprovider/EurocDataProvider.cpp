@@ -273,12 +273,12 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
-                                    const std::string& gtSensorName) {
+                                    const std::string& gt_sensor_name) {
   CHECK(!input_dataset_path.empty());
-  CHECK(!gtSensorName.empty());
+  CHECK(!gt_sensor_name.empty());
 
   std::string filename_sensor =
-      input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/sensor.yaml";
   YamlParser yaml_parser(filename_sensor);
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
@@ -291,12 +291,13 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   // CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
-  gt_data_.body_Pose_cam_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
+  gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
-  // is at the body frame
-  CHECK(gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
-      << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
+  // is at the body frame: aka body_Pose_prism_ == body_Pose_cam_
+  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3()))
+      << "parseGTdata: we expected identity body_Pose_prism_: is everything "
+         "ok?";
 
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp, p_RS_R_x [m], p_RS_R_y [m], p_RS_R_z [m],
@@ -305,7 +306,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   // b_w_RS_S_x [rad s^-1], b_w_RS_S_y [rad s^-1], b_w_RS_S_z [rad s^-1],
   // b_a_RS_S_x [m s^-2], b_a_RS_S_y [m s^-2], b_a_RS_S_z [m s^-2]
   std::string filename_data =
-      input_dataset_path + "/mav0/" + gtSensorName + "/data.csv";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/data.csv";
   std::ifstream fin(filename_data.c_str());
   CHECK(fin.is_open()) << "Cannot open file: " << filename_data << '\n'
                        << "Assuming dataset has no ground truth...";
@@ -366,8 +367,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
         << "(" << q(2) << "," << gt_data_raw[5] << ") "
         << "(" << q(3) << "," << gt_data_raw[6] << ").";
 
-    gt_curr.pose_ =
-        gtsam::Pose3(rot, position).compose(gt_data_.body_Pose_cam_);
+    gt_curr.pose_ = gtsam::Pose3(rot, position);
     gt_curr.velocity_ =
         gtsam::Vector3(gt_data_raw[7], gt_data_raw[8], gt_data_raw[9]);
     gtsam::Vector3 gyroBias =

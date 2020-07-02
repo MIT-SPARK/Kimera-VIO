@@ -24,12 +24,20 @@
 
 namespace VIO {
 
+struct OpenCv3dDisplayParams {
+  //! Spins the 3D window and 2D image display indefinitely, until user closes
+  //! the window.
+  bool hold_display_ = false;
+};
+
+
 class OpenCv3dDisplay : public DisplayBase {
  public:
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb);
+  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb,
+                  const OpenCv3dDisplayParams& params);
 
   // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;
@@ -50,6 +58,10 @@ class OpenCv3dDisplay : public DisplayBase {
 
   //! Visualizes 2D data.
   void spin2dWindow(const DisplayInputBase& viz_output);
+
+  //! Set the pose of a 3D widget
+  void setWidgetPose(const std::string& widget_id,
+                     const cv::Affine3d& widget_pose);
 
   //! Sets the visualization properties of the 3D mesh.
   void setMeshProperties(WidgetsMap* widgets);
@@ -112,6 +124,8 @@ class OpenCv3dDisplay : public DisplayBase {
   //! We use this callback to shutdown the pipeline gracefully if
   //! the visualization window is closed.
   ShutdownPipelineCallback shutdown_pipeline_cb_;
+
+  OpenCv3dDisplayParams params_;
 };
 
 }  // namespace VIO

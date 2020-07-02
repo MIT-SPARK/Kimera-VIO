@@ -54,8 +54,12 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 
 /* -------------------------------------------------------------------------- */
 void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
-  yaml_parser.getYamlParam("distortion_model", &distortion_model_);
+  std::string distortion_model;
+  yaml_parser.getYamlParam("distortion_model", &distortion_model);
+  yaml_parser.getYamlParam("camera_model", &camera_model_);
+  distortion_model_ = stringToDistortion(distortion_model, camera_model_);
   // 4 parameters (read from file)
+<<<<<<< HEAD
   CHECK(distortion_model_ == "radtan" ||
         distortion_model_ == "radial-tangential" ||
         distortion_model_ == "equidistant")
@@ -66,6 +70,51 @@ void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
   yaml_parser.getYamlParam("distortion_coefficients", &distortion_coeff);
   CHECK_GE(distortion_coeff.size(), 4u);
   convertDistortionVectorToMatrix(distortion_coeff, &distortion_coeff_);
+=======
+  CHECK(distortion_model_ == DistortionModel::RADTAN ||
+        distortion_model_ == DistortionModel::EQUIDISTANT)
+      << "Unsupported distortion model. Expected: radtan or equidistant.";
+  yaml_parser.getYamlParam("distortion_coefficients", &distortion_coeff_);
+  convertDistortionVectorToMatrix(distortion_coeff_, &distortion_coeff_mat_);
+}
+
+const DistortionModel CameraParams::stringToDistortion(
+    const std::string& distortion_model,
+    const std::string& camera_model) {
+  std::string lower_case_distortion_model = distortion_model;
+  std::string lower_case_camera_model = camera_model;
+
+  std::transform(lower_case_distortion_model.begin(),
+                 lower_case_distortion_model.end(),
+                 lower_case_distortion_model.begin(),
+                 ::tolower);
+  std::transform(lower_case_camera_model.begin(),
+                 lower_case_camera_model.end(),
+                 lower_case_camera_model.begin(),
+                 ::tolower);
+
+  if (lower_case_camera_model == "pinhole") {
+    if (lower_case_camera_model == std::string("none")) {
+      return DistortionModel::NONE;
+    } else if ((lower_case_distortion_model == std::string("plumb bob")) ||
+               (lower_case_distortion_model == std::string("plumb_bob")) ||
+               (lower_case_distortion_model ==
+                std::string("radial-tangential")) ||
+               (lower_case_distortion_model == std::string("radtan"))) {
+      return DistortionModel::RADTAN;
+    } else if (lower_case_distortion_model == std::string("equidistant")) {
+      return DistortionModel::EQUIDISTANT;
+    } else {
+      LOG(FATAL)
+          << "Unrecognized distortion model for pinhole camera. Valid "
+             "pinhole "
+             "distortion model options are 'none', 'radtan', 'equidistant'.";
+    }
+  } else {
+    LOG(FATAL)
+        << "Unrecognized camera model. Valid camera models are 'pinhole'";
+  }
+>>>>>>> 585ecf07acc88b1389d645c64f741417b5cfa79b
 }
 
 /* -------------------------------------------------------------------------- */
@@ -187,8 +236,9 @@ void CameraParams::print() const {
   LOG(INFO) << out.str();
   LOG(INFO) << "- body_Pose_cam_: " << body_Pose_cam_ << '\n'
             << "- K: " << K_ << '\n'
-            << "- distortion_model: " << distortion_model_ << '\n'
-            << "- distortion_coeff: " << distortion_coeff_ << '\n'
+            << "- distortion_model: " << VIO::to_underlying(distortion_model_)
+            << '\n'
+            << "- distortion_coeff: " << distortion_coeff_mat_ << '\n'
             << "- R_rectify: " << R_rectify_ << '\n'
             << "- P: " << P_;
 }
@@ -210,12 +260,12 @@ bool CameraParams::equals(const CameraParams& cam_par,
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
          UtilsOpenCV::compareCvMatsUpToTol(K_, cam_par.K_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_,
-                                           cam_par.distortion_coeff_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(undistRect_map_x_,
-                                           cam_par.undistRect_map_x_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(undistRect_map_y_,
-                                           cam_par.undistRect_map_y_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_mat_,
+                                           cam_par.distortion_coeff_mat_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(undistort_rectify_map_x_,
+                                           cam_par.undistort_rectify_map_x_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(undistort_rectify_map_y_,
+                                           cam_par.undistort_rectify_map_y_) &&
          UtilsOpenCV::compareCvMatsUpToTol(R_rectify_, cam_par.R_rectify_) &&
          UtilsOpenCV::compareCvMatsUpToTol(P_, cam_par.P_);
 }

@@ -22,6 +22,7 @@
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
 DECLARE_string(test_data_path);
+DECLARE_bool(display);
 
 namespace VIO {
 
@@ -273,8 +274,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
 
   void spinDisplay() {
     // Display 3D window
-    static constexpr bool kDisplay = false;
-    if (kDisplay) {
+    if (FLAGS_display) {
       window_.spin();
     }
   }

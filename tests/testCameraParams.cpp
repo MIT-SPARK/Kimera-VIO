@@ -84,7 +84,7 @@ TEST(testCameraParams, parseYAML) {
       -0.28340811, 0.07395907, 0.00019359, 1.76187114e-05};
   for (int c = 0u; c < 4u; c++) {
     EXPECT_DOUBLE_EQ(distortion_expected[c],
-                     cam_params.distortion_coeff_.at<double>(c));
+                     cam_params.distortion_coeff_mat_.at<double>(c));
   }
   EXPECT_EQ(cam_params.distortion_coeff_.rows, 1u);
   EXPECT_EQ(cam_params.distortion_coeff_.cols, 4u);
