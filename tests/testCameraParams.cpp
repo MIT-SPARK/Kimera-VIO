@@ -56,7 +56,7 @@ TEST(testCameraParams, parseYAML) {
   EXPECT_DOUBLE_EQ(intrinsics_expected[3], cam_params.K_.at<double>(1, 2));
   EXPECT_EQ(cam_params.intrinsics_.size(), 4u);
   gtsam::Cal3DS2 gtsam_calib;
-  CameraParams::createGtsamCalibration(cam_params.distortion_coeff_,
+  CameraParams::createGtsamCalibration(cam_params.distortion_coeff_mat_,
                                        cam_params.intrinsics_,
                                        &gtsam_calib);
   EXPECT_DOUBLE_EQ(intrinsics_expected[0], gtsam_calib.fx());
@@ -82,12 +82,15 @@ TEST(testCameraParams, parseYAML) {
   // Distortion coefficients.
   const std::vector<double> distortion_expected = {
       -0.28340811, 0.07395907, 0.00019359, 1.76187114e-05};
-  for (int c = 0u; c < 4u; c++) {
+  ASSERT_EQ(cam_params.distortion_coeff_mat_.rows, 1u);
+  ASSERT_EQ(cam_params.distortion_coeff_mat_.cols, 4u);
+  ASSERT_EQ(cam_params.distortion_coeff_.size(), 4u);
+  for (int c = 0u; c < distortion_expected.size(); c++) {
     EXPECT_DOUBLE_EQ(distortion_expected[c],
                      cam_params.distortion_coeff_mat_.at<double>(c));
+    EXPECT_DOUBLE_EQ(distortion_expected[c],
+                     cam_params.distortion_coeff_.at(c));
   }
-  EXPECT_EQ(cam_params.distortion_coeff_.rows, 1u);
-  EXPECT_EQ(cam_params.distortion_coeff_.cols, 4u);
   EXPECT_DOUBLE_EQ(distortion_expected[0], gtsam_calib.k1());
   EXPECT_DOUBLE_EQ(distortion_expected[1], gtsam_calib.k2());
   EXPECT_DOUBLE_EQ(distortion_expected[2], gtsam_calib.p1());

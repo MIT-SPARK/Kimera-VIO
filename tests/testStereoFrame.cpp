@@ -481,7 +481,7 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
   CHECK(sf);
   gtsam::Cal3DS2 gtsam_calib;
   CameraParams::createGtsamCalibration(
-      sf->getLeftFrame().cam_param_.distortion_coeff_,
+      sf->getLeftFrame().cam_param_.distortion_coeff_mat_,
       sf->getLeftFrame().cam_param_.intrinsics_,
       &gtsam_calib);
 
@@ -609,8 +609,8 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints5thDistPos) {
   tie(keypoints_unrectified_actual, status_unrectified) =
       StereoFrame::distortUnrectifyPoints(
           keypoints_rectified,
-          sf_custom_->getLeftFrame().cam_param_.undistRect_map_x_,
-          sf_custom_->getLeftFrame().cam_param_.undistRect_map_y_);
+          sf_custom_->getLeftFrame().cam_param_.undistort_rectify_map_x_,
+          sf_custom_->getLeftFrame().cam_param_.undistort_rectify_map_y_);
 
   // Comparision
   for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
@@ -648,8 +648,8 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints5thDistNeg) {
   tie(keypoints_unrectified_actual, status_unrectified) =
       StereoFrame::distortUnrectifyPoints(
           keypoints_rectified,
-          sf_custom_->getLeftFrame().cam_param_.undistRect_map_x_,
-          sf_custom_->getLeftFrame().cam_param_.undistRect_map_y_);
+          sf_custom_->getLeftFrame().cam_param_.undistort_rectify_map_x_,
+          sf_custom_->getLeftFrame().cam_param_.undistort_rectify_map_y_);
 
   // Comparision
   for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
@@ -687,8 +687,8 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints5thDistZero) {
   tie(keypoints_unrectified_actual, status_unrectified) =
       StereoFrame::distortUnrectifyPoints(
           keypoints_rectified,
-          sf_custom_->getLeftFrame().cam_param_.undistRect_map_x_,
-          sf_custom_->getLeftFrame().cam_param_.undistRect_map_y_);
+          sf_custom_->getLeftFrame().cam_param_.undistort_rectify_map_x_,
+          sf_custom_->getLeftFrame().cam_param_.undistort_rectify_map_y_);
 
   // Comparision
   for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
@@ -937,7 +937,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
 
   gtsam::Cal3DS2 gtsam_calib;
   CameraParams::createGtsamCalibration(
-      sfnew->getLeftFrame().cam_param_.distortion_coeff_,
+      sfnew->getLeftFrame().cam_param_.distortion_coeff_mat_,
       sfnew->getLeftFrame().cam_param_.intrinsics_,
       &gtsam_calib);
 

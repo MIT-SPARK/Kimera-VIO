@@ -205,7 +205,7 @@ class TestTracker : public ::testing::Test {
       versor_cur = versor_cur / versor_cur.norm();
 
       gtsam::Cal3DS2 gtsam_calib;
-      CameraParams::createGtsamCalibration(f_ref->cam_param_.distortion_coeff_,
+      CameraParams::createGtsamCalibration(f_ref->cam_param_.distortion_coeff_mat_,
                                            f_ref->cam_param_.intrinsics_,
                                            &gtsam_calib);
       Point2 pt_cur_gtsam = gtsam_calib.uncalibrate(
@@ -243,7 +243,7 @@ class TestTracker : public ::testing::Test {
       versor_cur = versor_cur / versor_cur.norm();
 
       gtsam::Cal3DS2 gtsam_calib;
-      CameraParams::createGtsamCalibration(f_ref->cam_param_.distortion_coeff_,
+      CameraParams::createGtsamCalibration(f_ref->cam_param_.distortion_coeff_mat_,
                                            f_ref->cam_param_.intrinsics_,
                                            &gtsam_calib);
       Point2 pt_cur_gtsam = gtsam_calib.uncalibrate(

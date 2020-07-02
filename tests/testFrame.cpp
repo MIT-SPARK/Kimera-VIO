@@ -127,7 +127,7 @@ TEST(testFrame, CalibratePixel) {
     versor = versor / versor(2);
     gtsam::Cal3DS2 gtsam_calib;
     CameraParams::createGtsamCalibration(
-        cam_params.distortion_coeff_, cam_params.intrinsics_, &gtsam_calib);
+        cam_params.distortion_coeff_mat_, cam_params.intrinsics_, &gtsam_calib);
     gtsam::Point2 uncalibrated_px_actual =
         gtsam_calib.uncalibrate(gtsam::Point2(versor(0), versor(1)));
     gtsam::Point2 uncalibrated_px_expected = gtsam::Point2(iter->x, iter->y);
@@ -150,7 +150,7 @@ TEST(testFrame, DISABLED_CalibratePixel) {
 
   gtsam::Cal3DS2 gtsam_calib;
   CameraParams::createGtsamCalibration(
-      cam_params.distortion_coeff_, cam_params.intrinsics_, &gtsam_calib);
+      cam_params.distortion_coeff_mat_, cam_params.intrinsics_, &gtsam_calib);
 
   // Generate the pixels
   KeypointsCV testPointsCV;
