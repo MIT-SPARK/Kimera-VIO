@@ -169,8 +169,6 @@ The following are the gflags accepted by SparkVIO, this has been generated using
       histogram.) type: bool default: false
     * log_histogram_2D (Log 2D histogram to file. It logs the raw and smoothed
       histogram.) type: bool default: false
-    * max_grad_in_triangle (Maximum allowed gradient inside a triangle.)
-      type: double default: -1
     * max_triangle_side (Maximum allowed side for a triangle.) type: double
       default: 0.5
     * min_elongation_ratio (Minimum allowed elongation ratio for a triangle.)

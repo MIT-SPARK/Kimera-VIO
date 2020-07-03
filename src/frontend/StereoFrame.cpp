@@ -517,52 +517,6 @@ void StereoFrame::setIsRectified(bool is_rectified) {
   is_rectified_ = is_rectified;
 }
 
-/* -------------------------------------------------------------------------- */
-// TODO: this should be in Mesher.
-// Removes triangles in the 2d mesh that have more than "max_keypoints_with_
-// gradient" keypoints with higher gradient than "gradient_bound".
-// Input the original triangulation: original_triangulation_2D
-// Output the filtered triangulation wo high-gradient triangles:
-// filtered_triangulation_2D.
-// If gradient_bound < 0, the check is disabled.
-void StereoFrame::filterTrianglesWithGradients(
-    const std::vector<cv::Vec6f>& original_triangulation_2D,
-    std::vector<cv::Vec6f>* filtered_triangulation_2D,
-    const float& gradient_bound,
-    const size_t& max_keypoints_with_gradient) const {
-  CHECK_NOTNULL(filtered_triangulation_2D);
-  CHECK_NE(filtered_triangulation_2D, &original_triangulation_2D)
-      << "Input original_triangulation_2D should be different that the object "
-      << "pointed by filtered_triangulation_2D. Input=*Output error.";
-
-  if (gradient_bound == -1) {
-    // Skip filter.
-    *filtered_triangulation_2D = original_triangulation_2D;
-    LOG_FIRST_N(WARNING, 1) << "Filter triangles with gradients is disabled.";
-    return;
-  }
-
-  // Compute img gradients.
-  cv::Mat img_grads;
-  computeImgGradients(left_frame_.img_, &img_grads);
-
-  // For each triangle, set to full the triangles that have near-zero gradient.
-  // triangulation2Dobs_.reserve(triangulation2D.size());
-  // TODO far too many loops over triangles.
-  for (const cv::Vec6f& triangle : original_triangulation_2D) {
-    // Find all pixels with a gradient higher than gradBound.
-    std::vector<std::pair<KeypointCV, double>> keypoints_with_high_gradient =
-        UtilsOpenCV::FindHighIntensityInTriangle(
-            img_grads, triangle, gradient_bound);
-
-    // If no high-grad pixels exist,
-    // then this triangle is assumed to be a plane.
-    if (keypoints_with_high_gradient.size() <= max_keypoints_with_gradient) {
-      filtered_triangulation_2D->push_back(triangle);
-    }
-  }
-}
-
 void StereoFrame::computeImgGradients(const cv::Mat& img,
                                       cv::Mat* img_grads) const {
   CHECK_NOTNULL(img_grads);
@@ -576,28 +530,6 @@ void StereoFrame::computeImgGradients(const cv::Mat& img,
     cv::imshow("left_img_grads", *img_grads);
     cv::waitKey(1);
   }
-}
-
-/* -------------------------------------------------------------------------- */
-void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
-  left_frame_.cam_param_.R_rectify_ = sf.left_frame_.cam_param_.R_rectify_;
-  right_frame_.cam_param_.R_rectify_ = sf.right_frame_.cam_param_.R_rectify_;
-  B_Pose_camLrect_ = sf.B_Pose_camLrect_;
-  baseline_ = sf.baseline_;
-  left_frame_.cam_param_.undistort_rectify_map_x_ =
-      sf.left_frame_.cam_param_.undistort_rectify_map_x_.clone();
-  left_frame_.cam_param_.undistort_rectify_map_y_ =
-      sf.left_frame_.cam_param_.undistort_rectify_map_y_.clone();
-  right_frame_.cam_param_.undistort_rectify_map_x_ =
-      sf.right_frame_.cam_param_.undistort_rectify_map_x_.clone();
-  right_frame_.cam_param_.undistort_rectify_map_y_ =
-      sf.right_frame_.cam_param_.undistort_rectify_map_y_.clone();
-  left_frame_.cam_param_.P_ = sf.left_frame_.cam_param_.P_.clone();
-  right_frame_.cam_param_.P_ = sf.right_frame_.cam_param_.P_.clone();
-  left_undistRectCameraMatrix_ = sf.left_undistRectCameraMatrix_;
-  right_undistRectCameraMatrix_ = sf.right_undistRectCameraMatrix_;
-  is_rectified_ = true;
-  VLOG(10) << "cloned undistRect maps and other rectification parameters!";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1041,8 +973,6 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
   return right_keypoints_rectified;
 }
 
-/* ---------------------------------------------------------------------------------------
- */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     const cv::Mat left_rectified,
     const cv::Mat right_rectified,
@@ -1052,7 +982,6 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     const double& depth_map_factor,
     const double& min_depth) const {
   int verbosity = 0;
-  bool writeImageLeftRightMatching = false;
 
   StatusKeypointsCV right_keypoints_rectified;
   right_keypoints_rectified.reserve(left_keypoints_rectified.size());

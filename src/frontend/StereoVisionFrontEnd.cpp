@@ -259,22 +259,14 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   // TODO this copies the stereo frame!!
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
 
-  // Copy rectification from previous frame to avoid recomputing it.
-  // TODO avoid copying altogether...
-  auto start_time = utils::Timer::tic();
-  stereoFrame_k_->cloneRectificationParameters(*stereoFrame_km1_);
-  double clone_rect_params_time = utils::Timer::toc(start_time).count();
-
   /////////////////////// TRACKING /////////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
-  // Track features from the previous frame
-  Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
-  Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
   // We need to use the frame to frame rotation.
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
-  tracker_.featureTracking(left_frame_km1, left_frame_k, ref_frame_R_cur_frame);
-
+  tracker_.featureTracking(stereoFrame_km1_->getLeftFrameMutable(),
+                           stereoFrame_k_->getLeftFrameMutable(),
+                           ref_frame_R_cur_frame);
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
     // TODO(Toni): this image should already be computed and inside the

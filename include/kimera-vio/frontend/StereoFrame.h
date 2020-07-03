@@ -97,25 +97,6 @@ class StereoFrame {
   void setIsRectified(bool is_rectified);
 
   /* ------------------------------------------------------------------------ */
-  // Removes triangles in the 2d mesh that have more than "max_keypoints_with_
-  // gradient" keypoints with higher gradient than "gradient_bound".
-  // Input the original triangulation: original_triangulation_2D
-  // Output the filtered triangulation wo high-gradient triangles:
-  // filtered_triangulation_2D.
-  // gradient_bound = 50 (max 255): if pixels in triangle have at least
-  // max_keypoints _with_gradient grad smaller than gradient_bound, triangle is
-  // rejected
-  void filterTrianglesWithGradients(
-      const std::vector<cv::Vec6f>& original_triangulation_2D,
-      std::vector<cv::Vec6f>* filtered_triangulation_2D,
-      const float& gradient_bound = 50.0,
-      const size_t& max_keypoints_with_gradient = 0) const;
-
-  /* ------------------------------------------------------------------------ */
-  // Copy rectification parameters from another stereo camera.
-  void cloneRectificationParameters(const StereoFrame& sf);
-
-  /* ------------------------------------------------------------------------ */
   // For each keypoint in the left frame, get
   // (i) keypoint in right frame,
   // (ii) depth,

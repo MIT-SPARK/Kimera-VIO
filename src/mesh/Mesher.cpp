@@ -64,9 +64,6 @@ DEFINE_bool(log_histogram_2D,
             " It logs the raw and smoothed histogram.");
 
 // Mesh filters.
-DEFINE_double(max_grad_in_triangle,
-              -1,
-              "Maximum allowed gradient inside a triangle.");
 DEFINE_double(min_ratio_btw_largest_smallest_side,
               0.5,
               "Minimum ratio between largest and smallest "
