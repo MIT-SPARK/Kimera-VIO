@@ -214,30 +214,6 @@ TEST_F(StereoFrameFixture, rectification) {
   EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(P2_T_expect, P2_T_actual));
 }
 
-TEST_F(StereoFrameFixture, cloneRectificationParameters) {
-  // construct stereo camera
-  FrontendParams tp;
-  StereoFrame* sf2 =
-      new StereoFrame(id,
-                      timestamp,
-                      UtilsOpenCV::ReadAndConvertToGrayScale(
-                          stereo_FLAGS_test_data_path + left_image_name,
-                          tp.stereo_matching_params_.equalize_image_),
-                      cam_params_left,
-                      UtilsOpenCV::ReadAndConvertToGrayScale(
-                          stereo_FLAGS_test_data_path + right_image_name,
-                          tp.stereo_matching_params_.equalize_image_),
-                      cam_params_right,
-                      tp.stereo_matching_params_);
-  // clone
-  sf2->cloneRectificationParameters(*sf);
-  // make sure everything was copied correctly
-  EXPECT_TRUE(
-      sf2->getLeftFrame().cam_param_.equals(sf->getLeftFrame().cam_param_));
-  EXPECT_TRUE(
-      sf2->getRightFrame().cam_param_.equals(sf->getRightFrame().cam_param_));
-}
-
 TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
   // Synthetic experiments for findMatchingKeypointRectified
 
