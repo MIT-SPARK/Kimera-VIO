@@ -31,6 +31,7 @@
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/DisplayModule.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
 #include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
