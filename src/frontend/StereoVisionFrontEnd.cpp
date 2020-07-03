@@ -274,9 +274,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
   tracker_.featureTracking(left_frame_km1, left_frame_k, ref_frame_R_cur_frame);
-  // Update rotation from keyframe to next iteration reference frame (aka
-  // cur_frame in current iteration).
-  keyframe_R_ref_frame_ = keyframe_R_cur_frame;
 
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
@@ -404,11 +401,13 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     stereoFrame_k_->setIsKeyframe(false);
   }
 
-  // Update for next iter.
+  // Update keyframe to reference frame for next iteration.
   if (stereoFrame_k_->isKeyframe()) {
-    // Reset relative rotation.
+    // Reset relative rotation if we have a keyframe.
     keyframe_R_ref_frame_ = gtsam::Rot3::identity();
   } else {
+    // Update rotation from keyframe to next iteration reference frame (aka
+    // cur_frame in current iteration).
     keyframe_R_ref_frame_ = keyframe_R_cur_frame;
   }
 
