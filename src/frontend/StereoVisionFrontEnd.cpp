@@ -274,6 +274,9 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
   tracker_.featureTracking(left_frame_km1, left_frame_k, ref_frame_R_cur_frame);
+  // Update rotation from keyframe to next iteration reference frame (aka
+  // cur_frame in current iteration).
+  keyframe_R_ref_frame_ = keyframe_R_cur_frame;
 
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...

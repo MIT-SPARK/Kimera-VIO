@@ -155,7 +155,7 @@ class StereoVisionFrontEnd {
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      const gtsam::Rot3& keyframe_R_ref_frame_,
+      const gtsam::Rot3& keyframe_R_ref_frame,
       cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
