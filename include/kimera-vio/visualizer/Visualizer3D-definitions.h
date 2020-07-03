@@ -14,29 +14,59 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <string>
+#include <unordered_map>
 #include <vector>
-
-#include <glog/logging.h>
 
 #include <opencv2/viz/widgets.hpp>
 
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/Values.h>
-
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
+#include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
-enum class VisualizationType {
-  kMesh2dTo3dSparse,  // same as MESH2DTo3D but filters out triangles
-                      // corresponding to non planar obstacles
-  kPointcloud,        // visualize 3D VIO points  (no repeated point)
-  kNone               // does not visualize map
+enum class VisualizerType {
+  //! OpenCV 3D viz, uses VTK underneath the hood.
+  OpenCV = 0u
 };
+
+enum class VisualizationType {
+  kMesh2dTo3dSparse = 0,  // same as MESH2DTo3D but filters out triangles
+                          // corresponding to non planar obstacles
+  kPointcloud = 1,        // visualize 3D VIO points  (no repeated point)
+  kNone = 2               // does not visualize map
+};
+
+typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
+typedef std::unordered_map<std::string, WidgetPtr> WidgetsMap;
+
+struct ImageToDisplay {
+  ImageToDisplay() = default;
+  ImageToDisplay(const std::string& name, const cv::Mat& image)
+      : name_(name), image_(image) {}
+
+  std::string name_;
+  cv::Mat image_;
+};
+
+struct DisplayInputBase {
+  KIMERA_POINTER_TYPEDEFS(DisplayInputBase);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayInputBase);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  DisplayInputBase() = default;
+  virtual ~DisplayInputBase() = default;
+
+  Timestamp timestamp_;
+  std::vector<ImageToDisplay> images_to_display_;
+};
+typedef ThreadsafeQueue<DisplayInputBase::UniquePtr> DisplayQueue;
 
 struct VisualizerInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerInput);
@@ -50,10 +80,9 @@ struct VisualizerInput : public PipelinePayload {
         mesher_output_(mesher_output),
         backend_output_(backend_output),
         frontend_output_(frontend_output) {
-    CHECK(mesher_output);
     CHECK(backend_output);
     CHECK(frontend_output);
-    CHECK_EQ(timestamp, mesher_output->timestamp_);
+    if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
     CHECK_EQ(timestamp, backend_output->timestamp_);
   }
@@ -65,38 +94,20 @@ struct VisualizerInput : public PipelinePayload {
   const FrontendOutput::ConstPtr frontend_output_;
 };
 
-struct ImageToDisplay {
-  ImageToDisplay() = default;
-  ImageToDisplay(const std::string& name, const cv::Mat& image)
-      : name_(name), image_(image) {}
-
-  std::string name_;
-  cv::Mat image_;
-};
-
-typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
-typedef std::unordered_map<std::string, WidgetPtr> WidgetsMap;
-
-struct VisualizerOutput {
+struct VisualizerOutput : public DisplayInputBase {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerOutput()
-      : visualization_type_(VisualizationType::kNone),
-        images_to_display_(),
+      : DisplayInputBase(),
+        visualization_type_(VisualizationType::kNone),
         widgets_(),
         frustum_pose_(cv::Affine3d::Identity()) {}
   ~VisualizerOutput() = default;
 
   VisualizationType visualization_type_;
-  std::vector<ImageToDisplay> images_to_display_;
   WidgetsMap widgets_;
   cv::Affine3d frustum_pose_;
-};
-
-enum class VisualizerType {
-  //! OpenCV 3D viz, uses VTK underneath the hood.
-  OpenCV = 0u,
 };
 
 }  // namespace VIO

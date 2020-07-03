@@ -32,6 +32,7 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
+#include "kimera-vio/logging/Logger.h"
 
 namespace VIO {
 
@@ -82,7 +83,7 @@ class EurocDataProvider : public DataProviderInterface {
   bool parseImuData(const std::string& input_dataset_path,
                     const std::string& imu_name);
 
-  bool parseGTdata(const std::string& input_dataset_path,
+  bool parseGtData(const std::string& input_dataset_path,
                    const std::string& gtSensorName);
 
   bool parseCameraData(const std::string& cam_name,
@@ -90,11 +91,23 @@ class EurocDataProvider : public DataProviderInterface {
 
   //! Getters.
   std::string getDatasetName();
-  inline std::string getLeftImgName(const size_t& k) const {
-    return getImgName("cam0", k);
+  /**
+   * @brief getLeftImgName returns the img filename given the frame number
+   * @param[in] k frame number
+   * @param[out] img_name returned filename of the img
+   * @return if k is larger than the number of frames, returns false, otw true.
+   */
+  inline bool getLeftImgName(const size_t& k, std::string* img_name) const {
+    return getImgName("cam0", k, img_name);
   }
-  inline std::string getRightImgName(const size_t& k) const {
-    return getImgName("cam1", k);
+  /**
+   * @brief getLeftImgName returns the img filename given the frame number
+   * @param[in] k frame number
+   * @param[out] img_name returned filename of the img
+   * @return if k is larger than the number of frames, returns false, otw true.
+   */
+  inline bool getRightImgName(const size_t& k, std::string* img_name) const {
+    return getImgName("cam1", k, img_name);
   }
 
   // Retrieve relative pose between timestamps.
@@ -112,18 +125,18 @@ class EurocDataProvider : public DataProviderInterface {
       const VioNavState& init_nav_state,
       const gtsam::Vector3& init_gravity);
 
-  inline size_t getNumImages() const {
-    CHECK_GT(camera_names_.size(), 0u);
-    const std::string& camera_name = camera_names_.at(0);
-    const auto& iter = camera_image_lists_.find(camera_name);
-    CHECK(iter != camera_image_lists_.end());
-    return iter->second.getNumImages();
-  }
-  inline std::string getImgName(const std::string& id, const size_t& k) const {
-    const auto& iter = camera_image_lists_.find(id);
-    CHECK(iter != camera_image_lists_.end());
-    return iter->second.img_lists_.at(k).second;
-  }
+  size_t getNumImages() const;
+  size_t getNumImagesForCamera(const std::string& camera_name) const;
+  /**
+   * @brief getImgName returns the img filename given the frame number
+   * @param[in] camera_name camera id such as "cam0"/"cam1"
+   * @param[in] k frame number
+   * @param[out] img_filename returned filename of the img
+   * @return if k is larger than the number of frames, returns false, otw true.
+   */
+  bool getImgName(const std::string& camera_name,
+                         const size_t& k,
+                         std::string* img_filename) const;
   // Retrieve absolute pose at timestamp.
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
     return getGroundTruthState(timestamp).pose_;
@@ -184,6 +197,8 @@ class EurocDataProvider : public DataProviderInterface {
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";
+
+  EurocGtLogger::UniquePtr logger_;
 };
 
 }  // namespace VIO

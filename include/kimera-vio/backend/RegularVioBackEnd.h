@@ -31,7 +31,6 @@ namespace VIO {
 
 class RegularVioBackEnd : public VioBackEnd {
  public:
-  /* ------------------------------------------------------------------------ */
   RegularVioBackEnd(const Pose3& B_Pose_leftCam,
                     const StereoCalibPtr& stereo_calibration,
                     const BackendParams& backend_params,
@@ -39,12 +38,10 @@ class RegularVioBackEnd : public VioBackEnd {
                     const BackendOutputParams& backend_output_params,
                     const bool& log_output);
 
-  /* ------------------------------------------------------------------------ */
   virtual ~RegularVioBackEnd() = default;
 
  public:
-  /* ------------------------------------------------------------------------ */
-  virtual void addVisualInertialStateAndOptimize(
+  bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,

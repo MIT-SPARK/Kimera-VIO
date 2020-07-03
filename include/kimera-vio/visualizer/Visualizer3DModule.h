@@ -22,19 +22,18 @@
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
-
-#include <opencv2/highgui/highgui_c.h>
 
 namespace VIO {
 
 class VisualizerModule
-    : public MISOPipelineModule<VisualizerInput, VisualizerOutput> {
+    : public MISOPipelineModule<VisualizerInput, DisplayInputBase> {
  public:
   KIMERA_POINTER_TYPEDEFS(VisualizerModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
-  using MISO = MISOPipelineModule<VisualizerInput, VisualizerOutput>;
+  using MISO = MISOPipelineModule<VisualizerInput, DisplayInputBase>;
 
   using VizFrontendInput = FrontendOutput::Ptr;
   using VizBackendInput = BackendOutput::Ptr;
@@ -52,9 +51,7 @@ class VisualizerModule
   inline void fillBackendQueue(const VizBackendInput& backend_payload) {
     backend_queue_.push(backend_payload);
   }
-  inline void fillMesherQueue(const VizMesherInput& mesher_payload) {
-    mesher_queue_.push(mesher_payload);
-  }
+  void fillMesherQueue(const VizMesherInput& mesher_payload);
 
  protected:
   //! Synchronize input queues. Currently doing it in a crude way:
@@ -62,21 +59,22 @@ class VisualizerModule
   //! then loop over the other queues until you get a payload that has exactly
   //! the same timestamp. Guaranteed to sync messages unless the assumption
   //! on the order of msg generation is broken.
-  virtual inline InputUniquePtr getInputPacket() override;
+  inline InputUniquePtr getInputPacket() override;
 
-  virtual OutputUniquePtr spinOnce(VisualizerInput::UniquePtr input) override;
+  OutputUniquePtr spinOnce(VisualizerInput::UniquePtr input) override;
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override;
+  void shutdownQueues() override;
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override;
+  bool hasWork() const override;
 
  private:
   //! Input Queues
   ThreadsafeQueue<VizFrontendInput> frontend_queue_;
   ThreadsafeQueue<VizBackendInput> backend_queue_;
-  ThreadsafeQueue<VizMesherInput> mesher_queue_;
+  /// Mesher queue is optional, therefore it is a unique ptr (nullptr if unused)
+  ThreadsafeQueue<VizMesherInput>::UniquePtr mesher_queue_;
 
   //! Visualizer implementation
   Visualizer3D::UniquePtr visualizer_;

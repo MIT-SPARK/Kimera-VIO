@@ -47,6 +47,8 @@ using gtsam::Rot3;
 using gtsam::StereoPoint2;
 using StereoCalibPtr = gtsam::Cal3_S2Stereo::shared_ptr;
 
+using SymbolChar = unsigned char;
+
 #define INCREMENTAL_SMOOTHER
 //#define USE_COMBINED_IMU_FACTOR
 
@@ -65,9 +67,11 @@ using Slot = long int;
 using SmartFactorMap =
     gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
-using PointWithId = std::pair<LandmarkId, gtsam::Point3>;
+using Landmark = gtsam::Point3;
+using Landmarks = std::vector<Landmark>;
+using PointWithId = std::pair<LandmarkId, Landmark>;
 using PointsWithId = std::vector<PointWithId>;
-using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
+using PointsWithIdMap = std::unordered_map<LandmarkId, Landmark>;
 using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +95,7 @@ class FeatureTrack {
 
   void print() const {
     LOG(INFO) << "Feature track with cameras: ";
-    for (size_t i = 0; i < obs_.size(); i++) {
+    for (size_t i = 0u; i < obs_.size(); i++) {
       std::cout << " " << obs_[i].first << " ";
     }
     std::cout << std::endl;
@@ -102,7 +106,7 @@ class FeatureTrack {
 // Key is the lmk_id and feature track the collection of pairs of
 // frame id and pixel location.
 // TODO(Toni): what is this doing here... should be in frontend at worst.
-using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
+using FeatureTracks = std::unordered_map<LandmarkId, FeatureTrack>;
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugVioInfo {

@@ -19,7 +19,7 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
-#include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
@@ -98,7 +98,7 @@ ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
     const gtsam::Vector3& measured_acc = imu_accgyr.block<3, 1>(0, i);
     const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
     const double& delta_t =
-        UtilsOpenCV::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
+        UtilsNumerical::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
     // TODO Shouldn't we use pim_->integrateMeasurements(); for less code
     // and efficiency??
@@ -123,9 +123,7 @@ ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
       return VIO::make_unique<gtsam::PreintegratedImuMeasurements>(
           safeCastToPreintegratedImuMeasurements(*pim_));
     }
-    default: {
-      LOG(FATAL) << "Unknown IMU Preintegration Type.";
-    }
+    default: { LOG(FATAL) << "Unknown IMU Preintegration Type."; }
   }
 }
 
@@ -136,20 +134,20 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
   std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-  gtsam::PreintegratedAhrsMeasurements pimRot(latest_imu_bias_.gyroscope(),
+  gtsam::PreintegratedAhrsMeasurements pim_rot(latest_imu_bias_.gyroscope(),
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
     const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
     const double& delta_t =
-        UtilsOpenCV::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
+        UtilsNumerical::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
-    pimRot.integrateMeasurement(measured_omega, delta_t);
+    pim_rot.integrateMeasurement(measured_omega, delta_t);
   }
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Finished preintegration for gyro aided: ";
-    pimRot.print();
+    pim_rot.print();
   }
-  return pimRot.deltaRij();
+  return pim_rot.deltaRij();
 }
 
 /* -------------------------------------------------------------------------- */

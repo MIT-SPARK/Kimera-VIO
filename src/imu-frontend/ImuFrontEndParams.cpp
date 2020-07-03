@@ -71,14 +71,23 @@ bool ImuParams::parseYAML(const std::string& filepath) {
 }
 
 void ImuParams::print() const {
-  LOG(INFO) << "------------ ImuParams::print -------------\n"
-            << "gyroscope_noise_density: " << gyro_noise_ << '\n'
-            << "gyroscope_random_walk: " << gyro_walk_ << '\n'
-            << "accelerometer_noise_density: " << acc_noise_ << '\n'
-            << "accelerometer_random_walk: " << acc_walk_ << '\n'
-            << "imu_integration_sigma: " << imu_integration_sigma_ << '\n'
-            << "imu_time_shift: " << imu_shift_ << '\n'
-            << "n_gravity: " << n_gravity_;
+  std::stringstream out;
+  PipelineParams::print(out,
+                        "gyroscope_noise_density: ",
+                        gyro_noise_,
+                        "gyroscope_random_walk: ",
+                        gyro_walk_,
+                        "accelerometer_noise_density: ",
+                        acc_noise_,
+                        "accelerometer_random_walk: ",
+                        acc_walk_,
+                        "imu_integration_sigma: ",
+                        imu_integration_sigma_,
+                        "imu_time_shift: ",
+                        imu_shift_,
+                        "n_gravity: ",
+                        n_gravity_);
+  LOG(INFO) << out.str();
 }
 
 bool ImuParams::equals(const PipelineParams& obj) const {

@@ -24,21 +24,15 @@ DEFINE_bool(images_rectified, false, "Input image data already rectified.");
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-StereoFrame::StereoFrame(const FrameId& id,
-                         const Timestamp& timestamp,
-                         const Frame& left_frame,
-                         const Frame& right_frame,
-                         const StereoMatchingParams& stereo_matching_params)
-    : id_(id),
-      timestamp_(timestamp),
+StereoFrame::StereoFrame(const FrameId &id, const Timestamp &timestamp,
+                         const Frame &left_frame, const Frame &right_frame,
+                         const StereoMatchingParams &stereo_matching_params)
+    : id_(id), timestamp_(timestamp),
       // TODO(Toni): these copies are the culprits of all evil...
-      left_frame_(left_frame),
-      right_frame_(right_frame),
-      is_rectified_(FLAGS_images_rectified),
-      is_keyframe_(false),
+      left_frame_(left_frame), right_frame_(right_frame),
+      is_rectified_(FLAGS_images_rectified), is_keyframe_(false),
       // TODO(Toni): completely useless to copy params all the time...
-      sparse_stereo_params_(stereo_matching_params),
-      baseline_(0.0) {
+      sparse_stereo_params_(stereo_matching_params), baseline_(0.0) {
   initialize(left_frame_.cam_param_, right_frame_.cam_param_);
   CHECK_EQ(id_, left_frame_.id_);
   CHECK_EQ(id_, right_frame_.id_);
@@ -47,21 +41,17 @@ StereoFrame::StereoFrame(const FrameId& id,
 }
 
 /* -------------------------------------------------------------------------- */
-StereoFrame::StereoFrame(const FrameId& id,
-                         const Timestamp& timestamp,
-                         const cv::Mat& left_image,
-                         const CameraParams& cam_param_left,
-                         const cv::Mat& right_image,
-                         const CameraParams& cam_param_right,
-                         const StereoMatchingParams& stereo_matching_params)
-    : id_(id),
-      timestamp_(timestamp),
+StereoFrame::StereoFrame(const FrameId &id, const Timestamp &timestamp,
+                         const cv::Mat &left_image,
+                         const CameraParams &cam_param_left,
+                         const cv::Mat &right_image,
+                         const CameraParams &cam_param_right,
+                         const StereoMatchingParams &stereo_matching_params)
+    : id_(id), timestamp_(timestamp),
       left_frame_(id, timestamp, cam_param_left, left_image),
       right_frame_(id, timestamp, cam_param_right, right_image),
-      is_rectified_(FLAGS_images_rectified),
-      is_keyframe_(false),
-      sparse_stereo_params_(stereo_matching_params),
-      baseline_(0.0) {
+      is_rectified_(FLAGS_images_rectified), is_keyframe_(false),
+      sparse_stereo_params_(stereo_matching_params), baseline_(0.0) {
   initialize(cam_param_left, cam_param_right);
   CHECK_EQ(id_, left_frame_.id_);
   CHECK_EQ(id_, right_frame_.id_);
@@ -69,8 +59,8 @@ StereoFrame::StereoFrame(const FrameId& id,
   CHECK_EQ(timestamp_, right_frame_.timestamp_);
 }
 
-void StereoFrame::initialize(const CameraParams& cam_param_left,
-                             const CameraParams& cam_param_right) {
+void StereoFrame::initialize(const CameraParams &cam_param_left,
+                             const CameraParams &cam_param_right) {
   // If input is rectified already
   if (is_rectified_) {
     left_img_rectified_ = left_frame_.img_;
@@ -85,8 +75,8 @@ void StereoFrame::initialize(const CameraParams& cam_param_left,
             .x();
   } else {
     // TODO(Toni): the undistRect maps should be computed once and cached!!
-    computeRectificationParameters(
-        &left_frame_.cam_param_, &right_frame_.cam_param_, &B_Pose_camLrect_);
+    computeRectificationParameters(&left_frame_.cam_param_,
+                                   &right_frame_.cam_param_, &B_Pose_camLrect_);
     // TODO REMOVE ASSUMPTION ON x aligned stereo camera, can't we just take the
     // norm?
     baseline_ = left_frame_.cam_param_.body_Pose_cam_
@@ -98,7 +88,7 @@ void StereoFrame::initialize(const CameraParams& cam_param_left,
         UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
     //! Sanity check that rectified baseline remains within 10% of the
     //! expected baseline.
-    const double& nominal_baseline = sparse_stereo_params_.nominal_baseline_;
+    const double &nominal_baseline = sparse_stereo_params_.nominal_baseline_;
     static constexpr double kBaselineTolerance = 0.10;
     if (baseline_ > (1.0 + kBaselineTolerance) * nominal_baseline ||
         baseline_ < (1.0 - kBaselineTolerance) * nominal_baseline) {
@@ -108,16 +98,12 @@ void StereoFrame::initialize(const CameraParams& cam_param_left,
                  << "(not within +/-10% bounds)";
     }
     //! Rectify and undistort images
-    cv::remap(left_frame_.img_,
-              left_img_rectified_,
+    cv::remap(left_frame_.img_, left_img_rectified_,
               left_frame_.cam_param_.undistRect_map_x_,
-              left_frame_.cam_param_.undistRect_map_y_,
-              cv::INTER_LINEAR);
-    cv::remap(right_frame_.img_,
-              right_img_rectified_,
+              left_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
+    cv::remap(right_frame_.img_, right_img_rectified_,
               right_frame_.cam_param_.undistRect_map_x_,
-              right_frame_.cam_param_.undistRect_map_y_,
-              cv::INTER_LINEAR);
+              right_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
     is_rectified_ = true;
   }
   VLOG(10) << "- size before (left): " << left_frame_.img_.rows << " x "
@@ -145,8 +131,7 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
 
   // Get rectified left keypoints.
   StatusKeypointsCV left_keypoints_rectified;
-  undistortRectifyPoints(left_frame_.keypoints_,
-                         left_frame_.cam_param_,
+  undistortRectifyPoints(left_frame_.keypoints_, left_frame_.cam_param_,
                          left_undistRectCameraMatrix_,
                          &left_keypoints_rectified);
   // TODO (actually this is compensated later on in the pipeline): This should
@@ -193,21 +178,21 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   // Options for stereo and RGB-D
   StatusKeypointsCV right_keypoints_rectified;
   switch (sparse_stereo_params_.vision_sensor_type_) {
-    case VisionSensorType::STEREO:
-      right_keypoints_rectified = getRightKeypointsRectified(
-          left_img_rectified_, right_img_rectified_, left_keypoints_rectified,
-          fx, getBaseline());
-      break;
-    case VisionSensorType::RGBD:  // just use depth to "fake right pixel
-                                  // matches"
-      right_keypoints_rectified = getRightKeypointsRectifiedRGBD(
-          left_img_rectified_, right_img_rectified_, left_keypoints_rectified,
-          fx, getBaseline(), getMapDepthFactor(), getMinDepthFactor());
-      break;
-    default:
-      LOG(FATAL) << "sparseStereoMatching: only works when "
-                    "VisionSensorType::STEREO or RGBD";
-      break;
+  case VisionSensorType::STEREO:
+    right_keypoints_rectified =
+        getRightKeypointsRectified(left_img_rectified_, right_img_rectified_,
+                                   left_keypoints_rectified, fx, getBaseline());
+    break;
+  case VisionSensorType::RGBD: // just use depth to "fake right pixel
+                               // matches"
+    right_keypoints_rectified = getRightKeypointsRectifiedRGBD(
+        left_img_rectified_, right_img_rectified_, left_keypoints_rectified, fx,
+        getBaseline(), getMapDepthFactor(), getMinDepthFactor());
+    break;
+  default:
+    LOG(FATAL) << "sparseStereoMatching: only works when "
+                  "VisionSensorType::STEREO or RGBD";
+    break;
   }
 
   // Compute the depth for each keypoints.
@@ -342,8 +327,7 @@ void StereoFrame::checkStereoFrame() const {
 // TODO: this should be in Camera
 std::pair<KeypointsCV, std::vector<KeypointStatus>>
 StereoFrame::distortUnrectifyPoints(
-    const StatusKeypointsCV& keypoints_rectified,
-    const cv::Mat map_x,
+    const StatusKeypointsCV &keypoints_rectified, const cv::Mat map_x,
     const cv::Mat map_y) {
   std::vector<KeypointStatus> pointStatuses;
   KeypointsCV points;
@@ -364,16 +348,15 @@ StereoFrame::distortUnrectifyPoints(
 /* -------------------------------------------------------------------------- */
 // TODO: this should be in Camera
 void StereoFrame::undistortRectifyPoints(
-    const KeypointsCV& left_keypoints_unrectified,
-    const CameraParams& cam_param,
-    const gtsam::Cal3_S2& rectCameraMatrix,
-    StatusKeypointsCV* left_keypoints_rectified) const {
+    const KeypointsCV &left_keypoints_unrectified,
+    const CameraParams &cam_param, const gtsam::Cal3_S2 &rectCameraMatrix,
+    StatusKeypointsCV *left_keypoints_rectified) const {
   CHECK_NOTNULL(left_keypoints_rectified)
       ->resize(left_keypoints_unrectified.size());
 
   int invalid_count = 0;
   size_t idx = 0;
-  for (const KeypointCV& px : left_keypoints_unrectified) {
+  for (const KeypointCV &px : left_keypoints_unrectified) {
     // The following undistort to a versor,
     // then we can project by the new camera matrix.
     Vector3 calibrated_versor = Frame::calibratePixel(px, cam_param);
@@ -387,10 +370,10 @@ void StereoFrame::undistortRectifyPoints(
         << "undistortRectifyPoints: versor with zero depth";
     calibrated_versor = calibrated_versor / calibrated_versor(2);
 
-    const double& fx = rectCameraMatrix.fx();
-    const double& cx = rectCameraMatrix.px();
-    const double& fy = rectCameraMatrix.fy();
-    const double& cy = rectCameraMatrix.py();
+    const double &fx = rectCameraMatrix.fx();
+    const double &cx = rectCameraMatrix.px();
+    const double &fy = rectCameraMatrix.fy();
+    const double &cy = rectCameraMatrix.py();
 
     // rectified_versor = rectCameraMatrix * calibrated_versor; -> this is done
     // manually since the matrix and the versor are incompatible types (opencv
@@ -454,39 +437,43 @@ void StereoFrame::undistortRectifyPoints(
 /* -------------------------------------------------------------------------- */
 // TODO: this should be in StereoMatcher
 cv::Mat StereoFrame::getDisparityImage() const {
-  const cv::Mat imgLeft = left_img_rectified_.clone();
-  const cv::Mat imgRight = right_img_rectified_.clone();
+  const cv::Mat &img_left = left_img_rectified_;
+  const cv::Mat &img_right = right_img_rectified_;
+
   // TODO (Toni): remove hardcoded.
-  bool isDebug = true;
-
-  cv::Mat imgDisparity(imgLeft.rows, imgLeft.cols, CV_16S);
-
   // Call the constructor for StereoBM.
-  int ndisparities = 16 * 5; /**< Range of disparity */
-  int SADWindowSize = 21;    /**< Size of the block window. Must be odd */
-  cv::Ptr<cv::StereoBM> sbm = cv::StereoBM::create(ndisparities, SADWindowSize);
+  /**< Range of disparity */
+  static constexpr int num_disparities = 16 * 5;
+  /**< Size of the block window. Must be odd */
+  static constexpr int SAD_window_size = 21;
+  cv::Ptr<cv::StereoMatcher> sbm =
+      cv::StereoBM::create(num_disparities, SAD_window_size);
 
   // Calculate the disparity image.
-  sbm->compute(imgLeft, imgRight, imgDisparity);
+  cv::Mat disparity_img(img_left.rows, img_left.cols, CV_16S);
+  sbm->compute(img_left, img_right, disparity_img);
 
-  if (isDebug) {
-    cv::Mat imgDisparity8U(imgLeft.rows, imgLeft.cols, CV_8UC1);
+  static constexpr bool is_debug = true;
+  if (is_debug) {
+    cv::Mat img_disparity_8U(img_left.rows, img_left.cols, CV_8UC1);
 
     // Check its extreme values.
-    double minVal;
-    double maxVal;
-    minMaxLoc(imgDisparity, &minVal, &maxVal);
-    LOG(INFO) << "getDisparityImage: minVal = " << minVal << " maxVal "
-              << maxVal;
+    double min_val;
+    double max_val;
+    cv::minMaxLoc(disparity_img, &min_val, &max_val);
+    LOG(INFO) << "getDisparityImage: \n"
+              << "min_val = " << min_val << '\n'
+              << "max_val = " << max_val;
 
     // Display it as a CV_8UC1 image.
-    imgDisparity.convertTo(imgDisparity8U, CV_8UC1, 255 / (maxVal - minVal));
+    disparity_img.convertTo(img_disparity_8U, CV_8UC1,
+                            255 / (max_val - min_val));
     cv::namedWindow("disparity", cv::WINDOW_NORMAL);
-    cv::imshow("disparity", imgDisparity8U);
+    cv::imshow("disparity", img_disparity_8U);
     cv::waitKey(1);
   }
 
-  return imgDisparity;
+  return disparity_img;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -501,7 +488,6 @@ void StereoFrame::setIsRectified(bool is_rectified) {
   is_rectified_ = is_rectified;
 }
 
-
 /* -------------------------------------------------------------------------- */
 // TODO: this should be in Mesher.
 // Removes triangles in the 2d mesh that have more than "max_keypoints_with_
@@ -511,10 +497,10 @@ void StereoFrame::setIsRectified(bool is_rectified) {
 // filtered_triangulation_2D.
 // If gradient_bound < 0, the check is disabled.
 void StereoFrame::filterTrianglesWithGradients(
-    const std::vector<cv::Vec6f>& original_triangulation_2D,
-    std::vector<cv::Vec6f>* filtered_triangulation_2D,
-    const float& gradient_bound,
-    const size_t& max_keypoints_with_gradient) const {
+    const std::vector<cv::Vec6f> &original_triangulation_2D,
+    std::vector<cv::Vec6f> *filtered_triangulation_2D,
+    const float &gradient_bound,
+    const size_t &max_keypoints_with_gradient) const {
   CHECK_NOTNULL(filtered_triangulation_2D);
   CHECK_NE(filtered_triangulation_2D, &original_triangulation_2D)
       << "Input original_triangulation_2D should be different that the object "
@@ -534,7 +520,7 @@ void StereoFrame::filterTrianglesWithGradients(
   // For each triangle, set to full the triangles that have near-zero gradient.
   // triangulation2Dobs_.reserve(triangulation2D.size());
   // TODO far too many loops over triangles.
-  for (const cv::Vec6f& triangle : original_triangulation_2D) {
+  for (const cv::Vec6f &triangle : original_triangulation_2D) {
     // Find all pixels with a gradient higher than gradBound.
     std::vector<std::pair<KeypointCV, double>> keypoints_with_high_gradient =
         UtilsOpenCV::FindHighIntensityInTriangle(img_grads, triangle,
@@ -548,8 +534,8 @@ void StereoFrame::filterTrianglesWithGradients(
   }
 }
 
-void StereoFrame::computeImgGradients(const cv::Mat& img,
-                                      cv::Mat* img_grads) const {
+void StereoFrame::computeImgGradients(const cv::Mat &img,
+                                      cv::Mat *img_grads) const {
   CHECK_NOTNULL(img_grads);
 
   // Compute image gradients to check intensity gradient in each triangle.
@@ -564,7 +550,7 @@ void StereoFrame::computeImgGradients(const cv::Mat& img,
 }
 
 /* -------------------------------------------------------------------------- */
-void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
+void StereoFrame::cloneRectificationParameters(const StereoFrame &sf) {
   left_frame_.cam_param_.R_rectify_ = sf.left_frame_.cam_param_.R_rectify_;
   right_frame_.cam_param_.R_rectify_ = sf.right_frame_.cam_param_.R_rectify_;
   B_Pose_camLrect_ = sf.B_Pose_camLrect_;
@@ -589,9 +575,8 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 // note also computes the rectification maps
 // TODO(Toni): this should be done much earlier and only once...
 void StereoFrame::computeRectificationParameters(
-    CameraParams* left_cam_params,
-    CameraParams* right_cam_params,
-    gtsam::Pose3* B_Pose_camLrect) {
+    CameraParams *left_cam_params, CameraParams *right_cam_params,
+    gtsam::Pose3 *B_Pose_camLrect) {
   CHECK_NOTNULL(left_cam_params);
   CHECK_NOTNULL(right_cam_params);
   CHECK_NOTNULL(B_Pose_camLrect);
@@ -608,8 +593,8 @@ void StereoFrame::computeRectificationParameters(
 
   //////////////////////////////////////////////////////////////////////////////
   // get rectification matrices
-  CameraParams& left_camera_info = *left_cam_params;
-  CameraParams& right_camera_info = *right_cam_params;
+  CameraParams &left_camera_info = *left_cam_params;
+  CameraParams &right_camera_info = *right_cam_params;
 
   // P1 and P2 are the new camera matrices, but with an extra 0 0 0 column
   cv::Mat P1, P2, Q;
@@ -620,25 +605,21 @@ void StereoFrame::computeRectificationParameters(
     VLOG(10) << "Stereo camera distortion for rectification: radtan";
     cv::stereoRectify(
         // Input
-        left_camera_info.camera_matrix_,
+        left_camera_info.K_,
         left_camera_info.distortion_coeff_,
-        right_camera_info.camera_matrix_,
+        right_camera_info.K_,
         right_camera_info.distortion_coeff_,
         left_camera_info.image_size_,
         L_Rot_R,
         L_Tran_R,
         // Output
-        left_camera_info.R_rectify_,
-        right_camera_info.R_rectify_,
-        P1,
-        P2,
-        Q);
+        left_camera_info.R_rectify_, right_camera_info.R_rectify_, P1, P2, Q);
   } else if (left_camera_info.distortion_model_ == "equidistant") {
     // Get stereo rectification
     VLOG(10) << "Stereo camera distortion for rectification: equidistant";
-    cv::fisheye::stereoRectify(left_camera_info.camera_matrix_,
+    cv::fisheye::stereoRectify(left_camera_info.K_,
                                left_camera_info.distortion_coeff_,
-                               right_camera_info.camera_matrix_,
+                               right_camera_info.K_,
                                right_camera_info.distortion_coeff_,
                                left_camera_info.image_size_,
                                L_Rot_R,
@@ -663,7 +644,7 @@ void StereoFrame::computeRectificationParameters(
            << right_camera_info.R_rectify_;
 
   // Left camera pose after rectification
-  const gtsam::Rot3& camL_Rot_camLrect =
+  const gtsam::Rot3 &camL_Rot_camLrect =
       UtilsOpenCV::cvMatToGtsamRot3(left_camera_info.R_rectify_).inverse();
   //! Fix camL position to camLrect.
   //! aka use gtsam::Point3()
@@ -672,7 +653,7 @@ void StereoFrame::computeRectificationParameters(
       left_camera_info.body_Pose_cam_.compose(camL_Pose_camLrect);
 
   // right camera pose after rectification
-  const gtsam::Rot3& camR_Rot_camRrect =
+  const gtsam::Rot3 &camR_Rot_camRrect =
       UtilsOpenCV::cvMatToGtsamRot3(right_camera_info.R_rectify_).inverse();
   gtsam::Pose3 camR_Pose_camRrect(camR_Rot_camRrect, gtsam::Point3());
   gtsam::Pose3 B_Pose_camRrect =
@@ -691,7 +672,7 @@ void StereoFrame::computeRectificationParameters(
       << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << '\n'
       << "Vio constructor: camera poses do not seem to be rectified (rot)";
   LOG_IF(FATAL, fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
-                fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3)
+                    fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3)
       << "Vio constructor: camera poses do not seem to be rectified (tran) \n"
       << "camLrect_Poe_calRrect: " << camLrect_Pose_calRrect;
 
@@ -703,7 +684,7 @@ void StereoFrame::computeRectificationParameters(
       left_camera_info.distortion_model_ == "radial-tangential") {
     // Get rectification & undistortion maps. (radtan dist. model)
     VLOG(10) << "Left camera distortion: radtan";
-    cv::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+    cv::initUndistortRectifyMap(left_camera_info.K_,
                                 left_camera_info.distortion_coeff_,
                                 left_camera_info.R_rectify_,
                                 P1,
@@ -715,7 +696,7 @@ void StereoFrame::computeRectificationParameters(
   } else if (left_camera_info.distortion_model_ == "equidistant") {
     // Get rectification & undistortion maps. (equi dist. model)
     VLOG(10) << "Left camera distortion: equidistant";
-    cv::fisheye::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+    cv::fisheye::initUndistortRectifyMap(left_camera_info.K_,
                                          left_camera_info.distortion_coeff_,
                                          left_camera_info.R_rectify_,
                                          P1,
@@ -733,19 +714,17 @@ void StereoFrame::computeRectificationParameters(
       right_camera_info.distortion_model_ == "radial-tangential") {
     // Get rectification & undistortion maps. (radtan dist. model)
     VLOG(10) << "Right camera distortion: radtan";
-    cv::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+    cv::initUndistortRectifyMap(right_camera_info.K_,
                                 right_camera_info.distortion_coeff_,
-                                right_camera_info.R_rectify_,
-                                P2,
-                                right_camera_info.image_size_,
-                                CV_32FC1,
+                                right_camera_info.R_rectify_, P2,
+                                right_camera_info.image_size_, CV_32FC1,
                                 // Output:
                                 right_camera_info.undistRect_map_x_,
                                 right_camera_info.undistRect_map_y_);
   } else if (right_camera_info.distortion_model_ == "equidistant") {
     // Get rectification & undistortion maps. (equi dist. model)
     VLOG(10) << "Right camera distortion: equidistant";
-    cv::fisheye::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+    cv::fisheye::initUndistortRectifyMap(right_camera_info.K_,
                                          right_camera_info.distortion_coeff_,
                                          right_camera_info.R_rectify_,
                                          P2,
@@ -768,8 +747,8 @@ void StereoFrame::computeRectificationParameters(
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::getRightKeypointsLKunrectified() {
-  Frame& ref_frame = left_frame_;
-  Frame& cur_frame = right_frame_;
+  Frame &ref_frame = left_frame_;
+  Frame &cur_frame = right_frame_;
 
   if (left_frame_.keypoints_.size() == 0)
     LOG(FATAL) << "computeStereo: no keypoints found";
@@ -807,14 +786,14 @@ void StereoFrame::getRightKeypointsLKunrectified() {
 
   cur_frame.keypoints_.clear();
   int nrValidDepths = 0;
-  for (int i = 0; i < px_ref.size(); i++)  // fill in right frame
+  for (int i = 0; i < px_ref.size(); i++) // fill in right frame
   {
     cur_frame.keypoints_.push_back(px_cur[i]);
 
-    if (status[i] != 0) {  // we correctly tracked the point
+    if (status[i] != 0) { // we correctly tracked the point
       nrValidDepths += 1;
     } else {
-      ref_frame.landmarks_[i] = -1;  // make point invalid
+      ref_frame.landmarks_[i] = -1; // make point invalid
     }
   }
 
@@ -828,12 +807,10 @@ void StereoFrame::getRightKeypointsLKunrectified() {
 
 /* -------------------------------------------------------------------------- */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
-    const cv::Mat left_rectified,
-    const cv::Mat right_rectified,
-    const StatusKeypointsCV& left_keypoints_rectified,
-    const double& fx,
-    const double& baseline) const {
-  int verbosity = 0;  // Change back to 0
+    const cv::Mat left_rectified, const cv::Mat right_rectified,
+    const StatusKeypointsCV &left_keypoints_rectified, const double &fx,
+    const double &baseline) const {
+  int verbosity = 0; // Change back to 0
   bool writeImageLeftRightMatching = false;
 
   // The stripe has to be places in the right image, on the left-hand-side wrt
@@ -843,26 +820,26 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
   int stripe_rows =
       sparse_stereo_params_.templ_rows_ +
       sparse_stereo_params_
-          .stripe_extra_rows_;  // must be odd; p/m stripe_extra_rows/2 pixels
-                                // to deal with rectification error
+          .stripe_extra_rows_; // must be odd; p/m stripe_extra_rows/2 pixels
+                               // to deal with rectification error
   // dimension of the search space in right camera is defined by min depth:
   // depth = fx * b / disparity => max disparity = fx * b / minDepth;
   int stripe_cols =
       std::round(fx * baseline / sparse_stereo_params_.min_point_dist_) +
-      sparse_stereo_params_.templ_cols_ + 4;  // 4 is a tolerance
+      sparse_stereo_params_.templ_cols_ + 4; // 4 is a tolerance
   // std::cout << "stripe_cols " << stripe_cols << " stripe_rows " <<
   // stripe_rows << " right_rectified.cols "<< right_rectified.cols
   //    << " minPointDist " << sparseStereoParams_.minPointDist << std::endl;
   if (stripe_cols % 2 != 1) {
     stripe_cols += 1;
-  }  // make it odd, if it is not
+  } // make it odd, if it is not
   if (stripe_cols > right_rectified.cols) {
     stripe_cols = right_rectified.cols;
-  }  // if we exagerated with the stripe columns
+  } // if we exagerated with the stripe columns
 
-  // for each point in the (rectified) left image we try to get the pixel which
-  // maximizes correlation with (rectified) right image along the (horizontal)
-  // epipolar line
+// for each point in the (rectified) left image we try to get the pixel which
+// maximizes correlation with (rectified) right image along the (horizontal)
+// epipolar line
 #ifdef USE_OMP
   Matrixf right_keypoints_rectified_matrix =
       Matrixf::Zero(2, left_keypoints_rectified.size());
@@ -875,8 +852,8 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     // std::cout << "Using " << omp_get_num_threads() << " parallel cores" <<
     // std::endl;
     if (left_keypoints_rectified[i].first !=
-        Kstatus::VALID) {  // skip invalid points (fill in with placeholders in
-                           // right)
+        Kstatus::VALID) { // skip invalid points (fill in with placeholders in
+                          // right)
       continue;
     }
 
@@ -922,10 +899,10 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     // recomputing
     if (left_keypoints_rectified_.size() > i + 1 &&
         right_keypoints_rectified_.size() > i + 1 &&
-        right_keypoints_status_.size() > i + 1 &&  // if we stored enough points
+        right_keypoints_status_.size() > i + 1 && // if we stored enough points
         left_keypoints_rectified[i].second.x ==
             left_keypoints_rectified_[i]
-                .x &&  // the query point matches the one we stored
+                .x && // the query point matches the one we stored
         left_keypoints_rectified[i].second.y ==
             left_keypoints_rectified_[i].y) {
       // we already stored the rectified pixel in the stereo frame
@@ -937,9 +914,9 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     // if the left point is invalid, we also set the right point to be invalid
     // and we move on
     if (left_keypoints_rectified[i].first !=
-        KeypointStatus::VALID) {  // skip invalid points (fill in with
-                                  // placeholders in
-                                  // right)
+        KeypointStatus::VALID) { // skip invalid points (fill in with
+                                 // placeholders in
+                                 // right)
       right_keypoints_rectified.push_back(std::make_pair(
           left_keypoints_rectified[i].first, KeypointCV(0.0, 0.0)));
       continue;
@@ -1010,9 +987,9 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
  */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     const cv::Mat left_rectified, const cv::Mat right_rectified,
-    const StatusKeypointsCV& left_keypoints_rectified, const double& fx,
-    const double& baseline, const double& depth_map_factor,
-    const double& min_depth) const {
+    const StatusKeypointsCV &left_keypoints_rectified, const double &fx,
+    const double &baseline, const double &depth_map_factor,
+    const double &min_depth) const {
   int verbosity = 0;
   bool writeImageLeftRightMatching = false;
 
@@ -1025,10 +1002,10 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     // recomputing
     if (left_keypoints_rectified_.size() > i + 1 &&
         right_keypoints_rectified_.size() > i + 1 &&
-        right_keypoints_status_.size() > i + 1 &&  // if we stored enough points
+        right_keypoints_status_.size() > i + 1 && // if we stored enough points
         left_keypoints_rectified[i].second.x ==
             left_keypoints_rectified_[i]
-                .x &&  // the query point matches the one we stored
+                .x && // the query point matches the one we stored
         left_keypoints_rectified[i].second.y ==
             left_keypoints_rectified_[i].y) {
       // we already stored the rectified pixel in the stereo frame
@@ -1040,9 +1017,9 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     // if the left point is invalid, we also set the right point to be invalid
     // and we move on
     if (left_keypoints_rectified[i].first !=
-        KeypointStatus::VALID) {  // skip invalid points (fill in with
-                                  // placeholders in
-                                  // right)
+        KeypointStatus::VALID) { // skip invalid points (fill in with
+                                 // placeholders in
+                                 // right)
       right_keypoints_rectified.push_back(std::make_pair(
           left_keypoints_rectified[i].first, KeypointCV(0.0, 0.0)));
       continue;
@@ -1063,7 +1040,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
       // compute disparity from the rgbd depth
       disparityFromRGBD = fx * baseline / depth_from_RGBD;
     } else {
-      disparityFromRGBD = 0.0;  // This will get discarded anyway
+      disparityFromRGBD = 0.0; // This will get discarded anyway
     }
 
     StatusKeypointCV right_rectified_i_candidate;
@@ -1071,14 +1048,14 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     // Adapted the conditions for a valid disparity
     if ((disparityFromRGBD >= 0.5) && (depth_from_RGBD >= min_depth) &&
         ((left_rectified_i.x - disparityFromRGBD) >
-         0)) {  // valid disparity (> 0 pixels), depth > min_depth, in the right
-                // image
-                // Use correct definition of disparity in VIO code
+         0)) { // valid disparity (> 0 pixels), depth > min_depth, in the right
+               // image
+               // Use correct definition of disparity in VIO code
       right_rectified_i_candidate =
           std::make_pair(KeypointStatus::VALID,
                          KeypointCV(left_rectified_i.x - disparityFromRGBD,
                                     left_rectified_i.y));
-    } else {  // invalid disparity
+    } else { // invalid disparity
       right_rectified_i_candidate =
           std::make_pair(KeypointStatus::NO_DEPTH, KeypointCV(0.0, 0.0));
     }
@@ -1101,7 +1078,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
 
 /* -------------------------------------------------------------------------- */
 std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
-    const cv::Mat left_rectified, const KeypointCV& left_rectified_i,
+    const cv::Mat left_rectified, const KeypointCV &left_rectified_i,
     const cv::Mat right_rectified, const int templ_cols, const int templ_rows,
     const int stripe_cols, const int stripe_rows, const double tol_corr,
     const bool debugStereoMatching) const {
@@ -1117,34 +1094,34 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
   /// CORRECTLY PLACE THE TEMPLATE (IN LEFT IMAGE) ///////////////////////////
   int temp_corner_y =
       rounded_left_rectified_i_y -
-      (templ_rows - 1) / 2;  // y-component of upper left corner of template
+      (templ_rows - 1) / 2; // y-component of upper left corner of template
   if (temp_corner_y < 0 ||
       temp_corner_y + templ_rows >
           left_rectified.rows -
-              1) {  // template exceeds bottom or top of the image
+              1) { // template exceeds bottom or top of the image
     return std::make_pair(
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0)),
-        -1.0);  // skip point too close to up or down boundary
+        -1.0); // skip point too close to up or down boundary
   }
-  int offset_temp = 0;  // compensate when the template falls off the image
+  int offset_temp = 0; // compensate when the template falls off the image
   int temp_corner_x = rounded_left_rectified_i_x - (templ_cols - 1) / 2;
   if (temp_corner_x <
-      0) {  // template exceeds on the left-hand-side of the image
-    offset_temp = temp_corner_x;  // offset_temp a bit to make the template
-                                  // inside the image
-    temp_corner_x = 0;  // because of the offset_temp, the template corner ends
-                        // up on the image border
+      0) { // template exceeds on the left-hand-side of the image
+    offset_temp = temp_corner_x; // offset_temp a bit to make the template
+                                 // inside the image
+    temp_corner_x = 0; // because of the offset_temp, the template corner ends
+                       // up on the image border
   }
   if (temp_corner_x + templ_cols >
       left_rectified.cols -
-          1) {  // template exceeds on the right-hand-side of the image
+          1) { // template exceeds on the right-hand-side of the image
     if (offset_temp != 0)
       LOG(FATAL) << "findMatchingKeypointRectified: offset_temp cannot exceed "
                     "in both directions!";
     offset_temp = (temp_corner_x + templ_cols) -
-                  (left_rectified.cols - 1);  // amount that exceeds
-    temp_corner_x -= offset_temp;  // corner has to be offset_temp to the left
-                                   // by the amount that exceeds
+                  (left_rectified.cols - 1); // amount that exceeds
+    temp_corner_x -= offset_temp; // corner has to be offset_temp to the left
+                                  // by the amount that exceeds
   }
   // create template
   cv::Rect templ_selector =
@@ -1157,27 +1134,27 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
   /// CORRECTLY PLACE THE STRIPE (IN RIGHT IMAGE) ///////////////////////////
   int stripe_corner_y =
       rounded_left_rectified_i_y -
-      (stripe_rows - 1) / 2;  // y-component of upper left corner of stripe
+      (stripe_rows - 1) / 2; // y-component of upper left corner of stripe
   if (stripe_corner_y < 0 ||
       stripe_corner_y + stripe_rows >
           right_rectified.rows -
-              1) {  // stripe exceeds bottom or top of the image
+              1) { // stripe exceeds bottom or top of the image
     return std::make_pair(
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0)),
-        -1.0);  // skip point too close to boundary
+        -1.0); // skip point too close to boundary
   }
-  int offset_stripe = 0;  // compensate when the template falls off the image
+  int offset_stripe = 0; // compensate when the template falls off the image
   int stripe_corner_x =
       rounded_left_rectified_i_x + (templ_cols - 1) / 2 -
-      stripe_cols;  // y-component of upper left corner of stripe
+      stripe_cols; // y-component of upper left corner of stripe
   if (stripe_corner_x + stripe_cols >
-      right_rectified.cols - 1) {  // stripe exceeds on the right of image
+      right_rectified.cols - 1) { // stripe exceeds on the right of image
     offset_stripe = (stripe_corner_x + stripe_cols) -
-                    (right_rectified.cols - 1);  // amount that exceeds
+                    (right_rectified.cols - 1); // amount that exceeds
     stripe_corner_x -= offset_stripe;
   }
-  if (stripe_corner_x < 0)  // stripe exceeds on the left of the image
-    stripe_corner_x = 0;    // set to left-most column
+  if (stripe_corner_x < 0) // stripe exceeds on the left of the image
+    stripe_corner_x = 0;   // set to left-most column
   // create stripe
   cv::Rect stripe_selector =
       cv::Rect(stripe_corner_x, stripe_corner_y, stripe_cols, stripe_rows);
@@ -1198,10 +1175,10 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
   // normalize( result, result, 0, 1, cv::NORM_MINMAX, -1, cv::Mat() ); // TODO:
   // do we need to normalize??
 
-  cv::Point matchLoc = minLoc;  // position within the result matrix
+  cv::Point matchLoc = minLoc; // position within the result matrix
   matchLoc.x += stripe_corner_x + (templ_cols - 1) / 2 + offset_temp;
-  matchLoc.y += stripe_corner_y + (templ_rows - 1) / 2;  // from result to image
-  KeypointCV match_px(matchLoc.x, matchLoc.y);  // our desired pixel match
+  matchLoc.y += stripe_corner_y + (templ_rows - 1) / 2; // from result to image
+  KeypointCV match_px(matchLoc.x, matchLoc.y); // our desired pixel match
 
   // debug:
   // int result_cols =  stripe_cols - templ_cols + 1;
@@ -1232,16 +1209,17 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
 
   // Refine keypoint with subpixel accuracy.
   if (sparse_stereo_params_.subpixel_refinement_) {
-    cv::TermCriteria criteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-    cv::Size winSize(10, 10);
-    cv::Size zeroZone(-1, -1);
+    static const cv::TermCriteria criteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER,
+                                           40, 0.001);
+    static const cv::Size winSize(10, 10);
+    static const cv::Size zeroZone(-1, -1);
     std::vector<cv::Point2f> corner;
-    corner.push_back(match_px);  // make in correct format for cornerSubPix
+    corner.push_back(match_px); // make in correct format for cornerSubPix
     cv::cornerSubPix(right_rectified, corner, winSize, zeroZone, criteria);
     match_px = corner[0];
   }
 
-  if (minVal < tol_corr) {  // Valid point with small mismatch wrt template
+  if (minVal < tol_corr) { // Valid point with small mismatch wrt template
     return std::make_pair(std::make_pair(KeypointStatus::VALID, match_px),
                           minVal);
   } else {
@@ -1251,8 +1229,8 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
 }
 
 /* -------------------------------------------------------------------------- */
-StereoFrame::LandmarkInfo StereoFrame::getLandmarkInfo(
-    const LandmarkId& i) const {
+StereoFrame::LandmarkInfo
+StereoFrame::getLandmarkInfo(const LandmarkId &i) const {
   // output to populate:
   LandmarkInfo lInfo;
   CHECK_EQ(left_frame_.landmarks_.size(), keypoints_3d_.size())
@@ -1261,7 +1239,7 @@ StereoFrame::LandmarkInfo StereoFrame::getLandmarkInfo(
       << "StereoFrame: scores_ size mismatch";
 
   for (size_t ind = 0; ind < left_frame_.landmarks_.size(); ind++) {
-    if (left_frame_.landmarks_.at(ind) == i) {  // this is the desired landmark
+    if (left_frame_.landmarks_.at(ind) == i) { // this is the desired landmark
       lInfo.keypoint = left_frame_.keypoints_.at(ind);
       lInfo.score = left_frame_.scores_.at(ind);
       lInfo.age = left_frame_.landmarks_age_.at(ind);
@@ -1275,9 +1253,9 @@ StereoFrame::LandmarkInfo StereoFrame::getLandmarkInfo(
 
 /* -------------------------------------------------------------------------- */
 std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
-    StatusKeypointsCV& left_keypoints_rectified,
-    StatusKeypointsCV& right_keypoints_rectified, const double& fx,
-    const double& b) const {
+    StatusKeypointsCV &left_keypoints_rectified,
+    StatusKeypointsCV &right_keypoints_rectified, const double &fx,
+    const double &b) const {
   // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
   double fx_b = fx * b;
 
@@ -1372,14 +1350,15 @@ void StereoFrame::showRectified(const int verbosity) const {
 /* -------------------------------------------------------------------------- */
 // TODO visualization (aka imshow/waitKey) must be done in the main thread...
 void StereoFrame::showImagesSideBySide(const cv::Mat imL, const cv::Mat imR,
-                                       const std::string& title,
-                                       const int& verbosity) const {
-  if (verbosity == 0) return;
+                                       const std::string &title,
+                                       const int &verbosity) const {
+  if (verbosity == 0)
+    return;
 
   cv::Mat originalLR = UtilsOpenCV::ConcatenateTwoImages(imL, imR);
   if (verbosity == 1) {
     cv::namedWindow(
-        title, cv::WINDOW_AUTOSIZE);  // moved in here to allow saving images
+        title, cv::WINDOW_AUTOSIZE); // moved in here to allow saving images
     cv::imshow("originalLR", originalLR);
     cv::waitKey(1);
   } else if (verbosity == 2) {
@@ -1391,8 +1370,8 @@ void StereoFrame::showImagesSideBySide(const cv::Mat imL, const cv::Mat imR,
 
 /* -------------------------------------------------------------------------- */
 cv::Mat StereoFrame::drawEpipolarLines(const cv::Mat img1, const cv::Mat img2,
-                                       const int& numLines,
-                                       const int& verbosity) const {
+                                       const int &numLines,
+                                       const int &verbosity) const {
   cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
   int lineGap = canvas.rows / (numLines + 1);
   for (int l = 0; l < numLines; l++) {
@@ -1429,35 +1408,35 @@ void StereoFrame::displayLeftRightMatches() const {
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::displayKeypointStats(
-    const StatusKeypointsCV& right_keypoints_rectified) const {
+    const StatusKeypointsCV &right_keypoints_rectified) const {
   int nrValid = 0;
   int nrNoLeftRect = 0;
   int nrNoRightRect = 0;
   int nrNoDepth = 0;
   int nrFailedArunRKP = 0;
-  for (const StatusKeypointCV& right_keypoint_rectified :
+  for (const StatusKeypointCV &right_keypoint_rectified :
        right_keypoints_rectified) {
     switch (right_keypoint_rectified.first) {
-      case KeypointStatus::VALID: {
-        nrValid++;
-        break;
-      }
-      case KeypointStatus::NO_LEFT_RECT: {
-        nrNoLeftRect++;
-        break;
-      }
-      case KeypointStatus::NO_RIGHT_RECT: {
-        nrNoRightRect++;
-        break;
-      }
-      case KeypointStatus::NO_DEPTH: {
-        nrNoDepth++;
-        break;
-      }
-      case KeypointStatus::FAILED_ARUN: {
-        nrFailedArunRKP++;
-        break;
-      }
+    case KeypointStatus::VALID: {
+      nrValid++;
+      break;
+    }
+    case KeypointStatus::NO_LEFT_RECT: {
+      nrNoLeftRect++;
+      break;
+    }
+    case KeypointStatus::NO_RIGHT_RECT: {
+      nrNoRightRect++;
+      break;
+    }
+    case KeypointStatus::NO_DEPTH: {
+      nrNoDepth++;
+      break;
+    }
+    case KeypointStatus::FAILED_ARUN: {
+      nrFailedArunRKP++;
+      break;
+    }
     }
   }
   LOG(INFO) << "Nr of right keypoints: " << right_keypoints_rectified.size()
@@ -1468,4 +1447,4 @@ void StereoFrame::displayKeypointStats(
             << "nrNoDepth: " << nrNoDepth;
 }
 
-}  // namespace VIO
+} // namespace VIO

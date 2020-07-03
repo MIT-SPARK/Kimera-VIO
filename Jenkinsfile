@@ -1,4 +1,5 @@
 /* Jenkinsfile for Jenkins running in a server using docker.
+ * THIS IS ONLY MEANT TO BE RUN ON THE SERVER HAVING JENKINS.
  * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
  * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v \
   jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock \
@@ -34,18 +35,33 @@ pipeline {
             stage('Build Release') {
               steps {
                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
+                            -DCMAKE_CXX_FLAGS="\
+                            -Wno-comment \
+                            -Wno-maybe-uninitialized \
+                            -Wno-parentheses \
+                            -Wno-pragma-once-outside-header \
+                            -Wno-reorder \
+                            -Wno-return-type \
+                            -Wno-sign-compare \
+                            -Wno-unused-but-set-variable \
+                            -Wno-unused-function \
+                            -Wno-unused-parameter \
+                            -Wno-unused-value \
+                            -Wno-unused-variable"',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 8']]
+                          sourceDir: '.', steps: [[args: '-j 4']]
               }
             }
             stage('Test') {
               steps {
-                wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                  wrap([$class: 'Xvfb']) {
+                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
 
-                  // Process the CTest xml output
-                  junit 'build/testresults.xml'
+                    // Process the CTest xml output
+                    junit 'build/testresults.xml'
+                  }
                 }
               }
             }
@@ -54,6 +70,10 @@ pipeline {
                 wrap([$class: 'Xvfb']) {
                   // Run performance tests.
                   // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
+                  // 1. Configure evo plotting: all plots in plots.pdf
+                  sh 'evo_config set plot_export_format pdf'
+                  sh 'evo_config set plot_split false'
+                  // 2. Run evaluation
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
@@ -84,8 +104,8 @@ pipeline {
                          title: 'VIO Timing',
                          yaxis: 'Time [ms]'
 
-                    // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+                    // Publish HTML website with plotly and pdfs of VIO performance
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, detailed_performance.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
 
                     // Archive the website
                     archiveArtifacts (
@@ -95,12 +115,10 @@ pipeline {
 
                     // Archive the params used in evaluation (if these are used is determined
                     // by the experiments yaml file in Kimera-VIO-Evaluation)
-                    // TODO(Toni): not sure why this error:
-                    // Archiving artifacts ‘$WORKSPACE/params/**/*.*’ doesn’t match anything, but ‘params/**/*.*’ does. Perhaps that’s what you mean?
-                    //archiveArtifacts (
-                    //    artifacts: '$WORKSPACE/params/**/*.*',
-                    //    fingerprint: true
-                    //)
+                    archiveArtifacts (
+                        artifacts: 'params/**/*.*',
+                        fingerprint: true
+                    )
                 }
                 failure {
                   node(null) {
@@ -124,10 +142,23 @@ pipeline {
               steps {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-                            cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
+                            -DCMAKE_CXX_FLAGS="\
+                            -Wno-comment \
+                            -Wno-maybe-uninitialized \
+                            -Wno-parentheses \
+                            -Wno-pragma-once-outside-header \
+                            -Wno-reorder \
+                            -Wno-return-type \
+                            -Wno-sign-compare \
+                            -Wno-unused-but-set-variable \
+                            -Wno-unused-function \
+                            -Wno-unused-parameter \
+                            -Wno-unused-value \
+                            -Wno-unused-variable"',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 8']]
+                          sourceDir: '.', steps: [[args: '-j 4']]
               }
             }
             stage('Test') {
@@ -152,7 +183,7 @@ pipeline {
 
 
         // Clear the source and build dirs before the next run
-        deleteDir()
+        // deleteDir()
       }
     }
     success {
@@ -178,7 +209,7 @@ pipeline {
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
       node(null) {
-        cleanWs()
+        // cleanWs()
       }
     }
   }

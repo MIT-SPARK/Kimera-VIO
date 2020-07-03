@@ -67,9 +67,9 @@ bool BackendParams::parseYAMLVioBackEndParams(
       LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
   }
 
-  int degeneracyModeId;
-  yaml_parser.getYamlParam("degeneracyMode", &degeneracyModeId);
-  switch (degeneracyModeId) {
+  int degeneracy_mode_id;
+  yaml_parser.getYamlParam("degeneracyMode", &degeneracy_mode_id);
+  switch (degeneracy_mode_id) {
     case 0:
       degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
       break;
@@ -106,6 +106,7 @@ bool BackendParams::parseYAMLVioBackEndParams(
   yaml_parser.getYamlParam("constantVelSigma", &constantVelSigma_);
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
   yaml_parser.getYamlParam("horizon", &horizon_);
+  yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
   yaml_parser.getYamlParam("useDogLeg", &useDogLeg_);
 
   return true;
@@ -147,6 +148,7 @@ bool BackendParams::equalsVioBackEndParams(const BackendParams& vp2,
       (fabs(noMotionRotationSigma_ - vp2.noMotionRotationSigma_) <= tol) &&
       (fabs(constantVelSigma_ - vp2.constantVelSigma_) <= tol) &&
       (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
+      (wildfire_threshold_ == vp2.wildfire_threshold_) &&
       (useDogLeg_ == vp2.useDogLeg_);
 }
 
@@ -190,6 +192,7 @@ void BackendParams::printVioBackEndParams() const {
             << "constantVelSigma_: " << constantVelSigma_ << '\n'
             << "numOptimize_: " << numOptimize_ << '\n'
             << "horizon_: " << horizon_ << '\n'
+            << "wildfire_threshold_: " << wildfire_threshold_ << '\n'
             << "useDogLeg_: " << useDogLeg_;
 }
 
