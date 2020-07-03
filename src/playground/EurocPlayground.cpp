@@ -1,7 +1,8 @@
 #include "kimera-vio/playground/EurocPlayground.h"
 #include "kimera-vio/mesh/MeshUtils.h"
-#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
+#include "kimera-vio/visualizer/OpenCvDisplay.h"
 #include "kimera-vio/visualizer/OpenCvDisplayParams.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 namespace VIO {
 
@@ -52,7 +53,8 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
       VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
           *vio_params_.display_params_);
   modified_display_params.hold_3d_display_ = true;
-  DisplayParams::Ptr new_display_params = std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
+  DisplayParams::Ptr new_display_params =
+      std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
   display_module_ = VIO::make_unique<DisplayModule>(
       &display_input_queue_,
       nullptr,
@@ -120,14 +122,12 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         const cv::Affine3d& left_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
-                    .compose(stereo_camera_
-                                 ->getBodyPoseLeftCamRect()));
+                    .compose(stereo_camera_->getBodyPoseLeftCamRect()));
         const cv::Affine3d& right_cam_rect_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(
                 euroc_data_provider_
                     ->getGroundTruthPose(right_frame->timestamp_)
-                    .compose(stereo_camera_
-                                 ->getBodyPoseRightCamRect()));
+                    .compose(stereo_camera_->getBodyPoseRightCamRect()));
 
         cv::Mat smaller_img;
         static constexpr double kScaleFactor = 0.1;
@@ -151,12 +151,11 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         cv::Mat disp_img =
             cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
         CHECK(stereo_frame.isRectified());
-        stereo_camera_
-            ->undistortRectifyStereoFrame(&stereo_frame);
-        stereo_camera_
-            ->stereoDisparityReconstruction(stereo_frame.getLeftImgRectified(),
-                                            stereo_frame.getRightImgRectified(),
-                                            &disp_img);
+        stereo_camera_->undistortRectifyStereoFrame(&stereo_frame);
+        stereo_camera_->stereoDisparityReconstruction(
+            stereo_frame.getLeftImgRectified(),
+            stereo_frame.getRightImgRectified(),
+            &disp_img);
         cv::Mat disp_viz_img;
         UtilsOpenCV::getDisparityVis(disp_img, disp_viz_img, 1.0);
         cv::imshow("Left Image Rectified", stereo_frame.getLeftImgRectified());
