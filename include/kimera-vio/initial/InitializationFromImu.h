@@ -16,6 +16,7 @@
 
 #include <gtsam/geometry/Pose3.h>
 
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
@@ -23,18 +24,23 @@
 
 namespace VIO {
 
-// Guess State (pose, velocity, imu bias) from IMU only:
-//  - Guesses initial state **assuming zero velocity**.
-//  - Guesses IMU bias **assuming upright vehicle**.
+/**
+ * @brief The InitializationFromImu class
+ * Guess State (pose, velocity, imu bias) from IMU only:
+ *  - Guesses initial state **assuming zero velocity**.
+ *  - Guesses IMU bias **assuming upright vehicle**.
+ */
 class InitializationFromImu {
  public:
   InitializationFromImu() = default;
   ~InitializationFromImu() = default;
 
  public:
-  static VioNavState getInitialStateEstimate(const ImuAccGyr& imu_accgyr,
+  static VioNavState getInitialStateEstimate(const ImuAccGyrS& imu_accgyr,
                                              const Vector3& global_gravity,
                                              const bool& round);
+
+  static BackendInputImuInitialization safeCast(const BackendInput& input);
 
  private:
   static inline ImuAccGyr computeAverageImuMeasurements(

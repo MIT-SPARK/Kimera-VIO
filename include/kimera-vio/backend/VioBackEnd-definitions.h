@@ -227,6 +227,7 @@ class DebugVioInfo {
 
 ////////////////////////////////////////////////////////////////////////////////
 struct BackendInput : public PipelinePayload {
+ public:
   KIMERA_POINTER_TYPEDEFS(BackendInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -241,7 +242,9 @@ struct BackendInput : public PipelinePayload {
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+  virtual ~BackendInput() = default;
 
+ public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
   // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   const TrackingStatus stereo_tracking_status_;
@@ -272,8 +275,8 @@ struct BackendInput : public PipelinePayload {
     LOG(INFO) << "Stereo Tracking Status: "
               << TrackerStatusSummary::asString(stereo_tracking_status_);
     pim_->print("PIM : ");
-    LOG_IF(INFO, stereo_ransac_body_pose_)
-        << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
+    LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: "
+                                           << *stereo_ransac_body_pose_;
   }
 };
 
@@ -332,6 +335,28 @@ struct BackendOutput : public PipelinePayload {
   const PointsWithIdMap landmarks_with_id_map_;
   const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
   const gtsam::NonlinearFactorGraph graph_;
+};
+
+/**
+ * @brief The BackendInputImuInitialization struct This payload is only used
+ * for the backend initialization from imu measurements, and as such, it only
+ * stores imu measurements.
+ */
+struct BackendInputImuInitialization : public BackendInput {
+  KIMERA_POINTER_TYPEDEFS(BackendInputImuInitialization);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInputImuInitialization);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  BackendInputImuInitialization(const Timestamp& timestamp_kf_nsec,
+                                const ImuAccGyrS& imu_acc_gyr)
+      : BackendInput(timestamp_kf_nsec,
+                     nullptr,
+                     TrackingStatus::DISABLED,
+                     nullptr,
+                     boost::none),
+        imu_acc_gyr_(imu_acc_gyr) {}
+
+ public:
+  ImuAccGyrS imu_acc_gyr_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

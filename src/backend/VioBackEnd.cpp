@@ -135,8 +135,7 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   switch (backend_state_) {
     case BackendState::Bootstrap: {
       // Initialize backend.
-      // TODO(Toni) we should do initialization here and follow the general
-      // workflow of the pipeline instead of having a different module...
+      initializeBackend(input);
       backend_state_ = BackendState::Nominal;
       backend_status = addVisualInertialStateAndOptimize(input);
       break;

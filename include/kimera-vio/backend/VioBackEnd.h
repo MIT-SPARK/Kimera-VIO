@@ -52,6 +52,7 @@
 #include "kimera-vio/factors/PointPlaneFactor.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/initial/InitializationFromImu.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
@@ -123,6 +124,55 @@ class VioBackEnd {
   // Set initial state at given pose, velocity and bias.
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
+
+  bool initializeBackend(const BackendInput& input) {
+    switch (backend_params_.autoInitialize_) {
+      case 0:
+        return initializeFromGt(input);
+      case 1:
+        return initializeFromIMU(input);
+      default:
+        LOG(FATAL) << "Wrong initialization mode.";
+    }
+    return false;
+  }
+
+  bool initializeFromGt(const BackendInput& input) {
+    // If the gtNavState is identity, the params provider probably did a
+    // mistake, although it can happen that the ground truth initial pose is
+    // identity, but this is super unlikely
+    CHECK(!backend_params_.initial_ground_truth_state_.equals(VioNavState()))
+        << "Requested initialization from Ground-Truth pose but got an "
+           "identity pose: did you parse your ground-truth correctly?";
+    return initStateAndSetPriors(VioNavStateTimestamped(
+        input.timestamp_, backend_params_.initial_ground_truth_state_));
+  }
+
+  /**
+   * @brief initializeFromIMU
+   * Assumes Zero Velocity & upright vehicle. Uses the InitializationFromIMU
+   * class.
+   * @param input BackendInput that MUST be castable to a
+   * BackendInputImuInitialization
+   * @return
+   */
+  bool initializeFromIMU(const BackendInput& input) {
+    LOG(INFO) << "------------------- Initialize Pipeline: timestamp = "
+              << input.timestamp_ << "--------------------";
+    const BackendInputImuInitialization* imu_input =
+        InitializationFromImu::safeCast(&input);
+
+    // Guess pose from IMU, assumes vehicle to be static.
+    const VioNavState& initial_state_estimate =
+        InitializationFromImu::getInitialStateEstimate(
+            imu_input.imu_acc_gyrs_,
+            imu_params_.n_gravity_,
+            backend_params_.roundOnAutoInitialize_);
+
+    // Initialize Backend using IMU data.
+    return initStateAndSetPriors(
+        VioNavStateTimestamped(input.timestamp_, initial_state_estimate));
+  }
 
  protected:
   enum class BackendState {

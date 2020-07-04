@@ -78,6 +78,30 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 /* -------------------------------------------------------------------------- */
 FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
+  switch (frontend_state_) {
+    case FrontendState::Bootstrap:
+      return bootstrapSpin(input);
+      break;
+    case FrontendState::Nominal:
+      return nominalSpin(input);
+      break;
+  }
+}
+
+FrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
+    const StereoFrontEndInputPayload& input) {
+  CHECK_EQ(frontend_state_, VIO::to_underlying(FrontendState::Bootstrap));
+
+  // Initialize members of the frontend
+  processFirstStereoFrame(input.getStereoFrame());
+
+  // Initialization done, set state to nominal
+  frontend_state_ = FrontendState::Nominal;
+}
+
+FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
+    const StereoFrontEndInputPayload& input) {
+  CHECK_EQ(frontend_state_, FrontendState::Nominal);
   // For timing
   utils::StatsCollector timing_stats_frame_rate("VioFrontEnd Frame Rate [ms]");
   utils::StatsCollector timing_stats_keyframe_rate(
@@ -202,6 +226,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
                                             feature_tracks,
                                             getTrackerInfo());
   }
+
 }
 
 /* -------------------------------------------------------------------------- */

@@ -205,32 +205,9 @@ class Pipeline {
   //! Initialize random seed for repeatability (only on the same machine).
   inline void setDeterministicPipeline() const { srand(0); }
 
-  // Initialization functions
-  /// Initialize pipeline with desired option (flag).
-  bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  /// Check if necessary to re-initialize pipeline.
-  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  /// Initialize pipeline from ground truth pose.
-  bool initializeFromGroundTruth(
-      const StereoImuSyncPacket& stereo_imu_sync_packet,
-      const VioNavState& initial_ground_truth_state);
-
-  /// Initialize pipeline from IMU readings only:
-  ///  - Guesses initial state assuming zero velocity.
-  ///  - Guesses IMU bias assuming steady upright vehicle.
-  bool initializeFromIMU(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  /// Initialize pipeline from online gravity alignment.
-  bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
   // Thread Managing
-  /// Launch frontend thread with process.
-  void launchFrontendThread();
-
-  /// Launch remaining threads with processes.
-  void launchRemainingThreads();
+  /// Launch threads for each pipeline module.
+  void launchThreads();
 
   /// Shutdown processes and queues.
   void stopThreads();
@@ -299,7 +276,6 @@ class Pipeline {
   // Atomic Flags
   //! Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_initialized_ = {false};
   std::atomic_bool is_launched_ = {false};
   std::atomic_bool is_backend_ok_ = {true};
 

@@ -16,11 +16,8 @@
 
 namespace VIO {
 
-// Guess State (pose, velocity, imu bias) from IMU only:
-//  - Guesses initial state **assuming zero velocity**.
-//  - Guesses IMU bias **assuming upright vehicle**.
 VioNavState InitializationFromImu::getInitialStateEstimate(
-    const ImuAccGyr& imu_accgyr,
+    const ImuAccGyrS& imu_accgyr,
     const Vector3& global_gravity,
     const bool& round) {
   LOG(WARNING) << "InitializationFromImu: assumes that the "
@@ -54,12 +51,27 @@ VioNavState InitializationFromImu::getInitialStateEstimate(
   return VioNavState(initial_pose_guess, velocity_guess, imu_bias_guess);
 }
 
+BackendInputImuInitialization* InitializationFromImu::safeCast(
+    BackendInput* input) {
+  try {
+    return dynamic_cast<BackendInputImuInitialization*>(input);
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting BackendInput to "
+                  "BackendInputImuInitialization, but this object is not "
+                  "a BackendInputImuInitialization!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL)
+        << "Exception caught when casting to BackendInputImuInitialization.";
+  }
+}
+
 gtsam::Pose3 InitializationFromImu::guessPoseFromImuMeasurements(
     const ImuAcc& mean_acc,
     const Vector3& global_gravity,
     const bool& round) {
   // We measure the negative of gravity. Assumes static vehicle.
-  Vector3 measured_gravity = -1 * mean_acc;
+  Vector3 measured_gravity = -1.0 * mean_acc;
   // Align measured gravity with real gravity to figure out our attitude.
   // Assumes gravity aligned along an axis.
   gtsam::Rot3 attitude_wrt_gravity =
@@ -75,4 +87,4 @@ ImuBias InitializationFromImu::guessImuBias(const ImuAccGyr& mean_accgyr,
                  mean_accgyr.tail(3));                 // Gyro
 }
 
-};  // namespace VIO
+}  // namespace VIO
