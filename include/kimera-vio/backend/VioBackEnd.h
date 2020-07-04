@@ -91,6 +91,14 @@ class VioBackEnd {
   /* ------------------------------------------------------------------------ */
   BackendOutput::UniquePtr spinOnce(const BackendInput& input);
 
+  /**
+   * @brief isInitialized Returns whether the frontend is initializing.
+   * Needs to be Thread-Safe! Therefore, frontend_state_ is atomic.
+   */
+  inline bool isInitialized() const {
+    return backend_state_ != BackendState::Bootstrap;
+  }
+
   /* ------------------------------------------------------------------------ */
   // Register (and trigger!) callback that will be called as soon as the backend
   // comes up with a new IMU bias update.
@@ -125,16 +133,20 @@ class VioBackEnd {
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
 
-  bool initializeBackend(const BackendInput& input) {
+  void initializeBackend(const BackendInput& input) {
+    CHECK(backend_state_ == BackendState::Bootstrap);
     switch (backend_params_.autoInitialize_) {
       case 0:
-        return initializeFromGt(input);
+        initializeFromGt(input);
+        break;
       case 1:
-        return initializeFromIMU(input);
+        initializeFromIMU(input);
+        break;
       default:
         LOG(FATAL) << "Wrong initialization mode.";
     }
-    return false;
+    // Signal that the backend has been initialized.
+    backend_state_ = BackendState::Nominal;
   }
 
   bool initializeFromGt(const BackendInput& input) {
@@ -159,13 +171,10 @@ class VioBackEnd {
   bool initializeFromIMU(const BackendInput& input) {
     LOG(INFO) << "------------------- Initialize Pipeline: timestamp = "
               << input.timestamp_ << "--------------------";
-    const BackendInputImuInitialization* imu_input =
-        InitializationFromImu::safeCast(&input);
-
     // Guess pose from IMU, assumes vehicle to be static.
     const VioNavState& initial_state_estimate =
         InitializationFromImu::getInitialStateEstimate(
-            imu_input.imu_acc_gyrs_,
+            input.imu_acc_gyrs_,
             imu_params_.n_gravity_,
             backend_params_.roundOnAutoInitialize_);
 
@@ -179,7 +188,7 @@ class VioBackEnd {
     Bootstrap = 0u,  //! Initialize backend
     Nominal = 1u     //! Run backend
   };
-  BackendState backend_state_;
+  std::atomic<BackendState> backend_state_;
 
   /* ------------------------------------------------------------------------ */
   // Store stereo frame info into landmarks table:

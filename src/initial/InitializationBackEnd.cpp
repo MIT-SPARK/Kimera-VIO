@@ -66,6 +66,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
         init_input_payload.status_stereo_measurements_,
         init_input_payload.tracker_status_,
         init_input_payload.pim_,
+        init_input_payload.imu_acc_gyrs_,
         init_input_payload.relative_pose_body_stereo_));
     pims.push_back(init_input_payload.pim_);
     // Bookkeeping for timestamps

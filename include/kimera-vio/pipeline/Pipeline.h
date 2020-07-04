@@ -28,14 +28,13 @@
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
-#include "kimera-vio/initial/InitializationBackEnd-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Display.h" // TODO(Toni): separate ocv display
+#include "kimera-vio/visualizer/Display.h"  // TODO(Toni): separate ocv display
 #include "kimera-vio/visualizer/DisplayModule.h"
-#include "kimera-vio/visualizer/Visualizer3D.h" // TODO(Toni): separate ocv viz
+#include "kimera-vio/visualizer/Visualizer3D.h"  // TODO(Toni): separate ocv viz
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {
@@ -205,6 +204,11 @@ class Pipeline {
   //! Initialize random seed for repeatability (only on the same machine).
   inline void setDeterministicPipeline() const { srand(0); }
 
+  inline bool isInitialized() const {
+    return vio_frontend_module_->isInitialized() &&
+           vio_backend_module_->isInitialized();
+  }
+
   // Thread Managing
   /// Launch threads for each pipeline module.
   void launchThreads();
@@ -247,10 +251,6 @@ class Pipeline {
 
   //! Stereo vision frontend payloads.
   StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
-
-  // Online initialization frontend queue.
-  ThreadsafeQueue<InitializationInputPayload::UniquePtr>
-      initialization_frontend_output_queue_;
 
   //! Backend
   VioBackEndModule::UniquePtr vio_backend_module_;

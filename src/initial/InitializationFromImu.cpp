@@ -51,21 +51,6 @@ VioNavState InitializationFromImu::getInitialStateEstimate(
   return VioNavState(initial_pose_guess, velocity_guess, imu_bias_guess);
 }
 
-BackendInputImuInitialization* InitializationFromImu::safeCast(
-    BackendInput* input) {
-  try {
-    return dynamic_cast<BackendInputImuInitialization*>(input);
-  } catch (const std::bad_cast& e) {
-    LOG(ERROR) << "Seems that you are casting BackendInput to "
-                  "BackendInputImuInitialization, but this object is not "
-                  "a BackendInputImuInitialization!";
-    LOG(FATAL) << e.what();
-  } catch (...) {
-    LOG(FATAL)
-        << "Exception caught when casting to BackendInputImuInitialization.";
-  }
-}
-
 gtsam::Pose3 InitializationFromImu::guessPoseFromImuMeasurements(
     const ImuAcc& mean_acc,
     const Vector3& global_gravity,

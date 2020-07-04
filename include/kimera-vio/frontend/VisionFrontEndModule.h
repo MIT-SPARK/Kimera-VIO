@@ -46,6 +46,10 @@ class StereoVisionFrontEndModule
  public:
   virtual OutputUniquePtr spinOnce(StereoImuSyncPacket::UniquePtr input);
 
+  inline bool isInitialized() const {
+    return vio_frontend_->isInitialized();
+  }
+
   //! Imu related
   inline void updateAndResetImuBias(const ImuBias& imu_bias) const {
     vio_frontend_->updateAndResetImuBias(imu_bias);

@@ -134,10 +134,8 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   bool backend_status = false;
   switch (backend_state_) {
     case BackendState::Bootstrap: {
-      // Initialize backend.
       initializeBackend(input);
-      backend_state_ = BackendState::Nominal;
-      backend_status = addVisualInertialStateAndOptimize(input);
+      backend_status = true;
       break;
     }
     case BackendState::Nominal: {

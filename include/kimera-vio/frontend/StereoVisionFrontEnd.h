@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <atomic>
 
 #include <boost/shared_ptr.hpp>  // used for opengv
 
@@ -71,6 +72,14 @@ class StereoVisionFrontEnd {
     imu_frontend_->updateBias(imu_bias);
   }
 
+  /**
+   * @brief isInitialized Returns whether the frontend is initializing.
+   * Needs to be Thread-Safe! Therefore, frontend_state_ is atomic.
+   */
+  inline bool isInitialized() const {
+    return frontend_state_ != FrontendState::Bootstrap;
+  }
+
   /* ------------------------------------------------------------------------ */
   // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
   // thread-safe.
@@ -117,11 +126,11 @@ class StereoVisionFrontEnd {
     Bootstrap = 0u,  //! Initialize frontend
     Nominal = 1u     //! Run frontend
   };
-  FrontendState frontend_state_;
+  std::atomic<FrontendState> frontend_state_;
 
   /* ------------------------------------------------------------------------ */
   // Frontend initialization.
-  StereoFrame processFirstStereoFrame(const StereoFrame& firstFrame);
+  void processFirstStereoFrame(const StereoFrame& firstFrame);
 
   /**
    * @brief bootstrapSpin SpinOnce used when initializing the frontend.
@@ -139,7 +148,6 @@ class StereoVisionFrontEnd {
    */
   FrontendOutput::UniquePtr nominalSpin(
       const StereoFrontEndInputPayload& input);
-
 
   /* ------------------------------------------------------------------------ */
   // Frontend main function.

@@ -128,18 +128,22 @@ Pipeline::Pipeline(const VioParams& params,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
-  vio_frontend_module_->registerOutputCallback(
-      [&backend_input_queue](const FrontendOutput::Ptr& output) {
-        if (output->is_keyframe_) {
-          //! Only push to backend input queue if it is a keyframe!
-          backend_input_queue.push(VIO::make_unique<BackendInput>(
-              output->stereo_frame_lkf_.getTimestamp(),
-              output->status_stereo_measurements_,
-              output->tracker_status_,
-              output->pim_,
-              output->relative_pose_body_stereo_));
-        }
-      });
+  vio_frontend_module_->registerOutputCallback([&backend_input_queue](
+      const FrontendOutput::Ptr& output) {
+    CHECK(output);
+    if (output->is_keyframe_) {
+      //! Only push to backend input queue if it is a keyframe!
+      backend_input_queue.push(VIO::make_unique<BackendInput>(
+          output->stereo_frame_lkf_.getTimestamp(),
+          output->status_stereo_measurements_,
+          output->tracker_status_,
+          output->pim_,
+          output->imu_acc_gyrs_,
+          output->relative_pose_body_stereo_));
+    } else {
+      VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
+    }
+  });
 
   //! Params for what the backend outputs.
   // TODO(Toni): put this into backend params.
@@ -327,26 +331,31 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
-  while (!shutdown_ &&      // Loop while not explicitly shutdown.
-         is_backend_ok_ &&  // Loop while backend is fine.
-         (                  // data is not yet consumed.
-             !(!data_provider_module_->isWorking() &&
-               (stereo_frontend_input_queue_.isShutdown() ||
-                stereo_frontend_input_queue_.empty()) &&
-               !vio_frontend_module_->isWorking() &&
-               (backend_input_queue_.isShutdown() ||
-                backend_input_queue_.empty()) &&
-               !vio_backend_module_->isWorking() &&
-               (mesher_module_ ? !mesher_module_->isWorking() : true) &&
-               (lcd_module_ ? !lcd_module_->isWorking() : true) &&
-               (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
-               (display_input_queue_.isShutdown() ||
-                display_input_queue_.empty()) &&
-               (display_module_ ? !display_module_->isWorking() : true)))) {
+  while (
+      !shutdown_ &&         // Loop while not explicitly shutdown.
+      is_backend_ok_ &&     // Loop while backend is fine.
+      (!isInitialized() ||  // Pipeline is not initialized and
+                            // data is not yet consumed.
+       !(!data_provider_module_->isWorking() &&
+         (stereo_frontend_input_queue_.isShutdown() ||
+          stereo_frontend_input_queue_.empty()) &&
+         !vio_frontend_module_->isWorking() &&
+         (backend_input_queue_.isShutdown() || backend_input_queue_.empty()) &&
+         !vio_backend_module_->isWorking() &&
+         (mesher_module_ ? !mesher_module_->isWorking() : true) &&
+         (lcd_module_ ? !lcd_module_->isWorking() : true) &&
+         (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
+         (display_input_queue_.isShutdown() || display_input_queue_.empty()) &&
+         (display_module_ ? !display_module_->isWorking() : true)))) {
     // Note that the values in the log below might be different than the
     // evaluation above since they are separately evaluated at different times.
     VLOG(1) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
+            << "Pipeline initialized? " << isInitialized() << '\n'
+            << "Frontend initialized? " << vio_frontend_module_->isInitialized()
+            << '\n'
+            << "Backend initialized? " << vio_backend_module_->isInitialized()
+            << '\n'
             << "Data provider is working? "
             << data_provider_module_->isWorking() << '\n'
             << "Frontend input queue shutdown? "
@@ -366,14 +375,14 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
             << "LCD is working? "
             << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
             << "Visualizer is working? "
-            << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
+            << (visualizer_module_ ? visualizer_module_->isWorking() : false)
             << '\n'
             << "Display Input queue shutdown? "
             << display_input_queue_.isShutdown() << '\n'
             << "Display Input queue empty? " << display_input_queue_.empty()
             << '\n'
             << "Displayer is working? "
-            << (display_module_ ? !display_module_->isWorking() : false);
+            << (display_module_ ? display_module_->isWorking() : false);
 
     VLOG_IF(5, mesher_module_) << "Mesher is working? "
                                << mesher_module_->isWorking();
@@ -413,14 +422,14 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
           << "LCD is working? "
           << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
           << "Visualizer is working? "
-          << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
+          << (visualizer_module_ ? visualizer_module_->isWorking() : false)
           << '\n'
           << "Display Input queue shutdown? "
           << display_input_queue_.isShutdown() << '\n'
           << "Display Input queue empty? " << display_input_queue_.empty()
           << '\n'
           << "Displayer is working? "
-          << (display_module_ ? !display_module_->isWorking() : false);
+          << (display_module_ ? display_module_->isWorking() : false);
   if (!shutdown_) shutdown();
   return true;
 }
@@ -480,9 +489,8 @@ void Pipeline::launchThreads() {
     LOG(INFO) << "Pipeline Modules launched (parallel_run set to "
               << parallel_run_ << ").";
   } else {
-    LOG(INFO)
-        << "Pipeline Modules running in sequential mode"
-        << " (parallel_run set to " << parallel_run_ << ").";
+    LOG(INFO) << "Pipeline Modules running in sequential mode"
+              << " (parallel_run set to " << parallel_run_ << ").";
   }
 }
 

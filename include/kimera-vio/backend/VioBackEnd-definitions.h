@@ -236,19 +236,22 @@ struct BackendInput : public PipelinePayload {
       const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
       const TrackingStatus& stereo_tracking_status,
       const ImuFrontEnd::PimPtr& pim,
+      //! Raw imu msgs for backend init only
+      const ImuAccGyrS& imu_acc_gyrs,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
+        imu_acc_gyrs_(imu_acc_gyrs),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
-  virtual ~BackendInput() = default;
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
   // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   const TrackingStatus stereo_tracking_status_;
   ImuFrontEnd::PimPtr pim_;
+  ImuAccGyrS imu_acc_gyrs_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 
  public:
@@ -335,28 +338,6 @@ struct BackendOutput : public PipelinePayload {
   const PointsWithIdMap landmarks_with_id_map_;
   const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
   const gtsam::NonlinearFactorGraph graph_;
-};
-
-/**
- * @brief The BackendInputImuInitialization struct This payload is only used
- * for the backend initialization from imu measurements, and as such, it only
- * stores imu measurements.
- */
-struct BackendInputImuInitialization : public BackendInput {
-  KIMERA_POINTER_TYPEDEFS(BackendInputImuInitialization);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInputImuInitialization);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  BackendInputImuInitialization(const Timestamp& timestamp_kf_nsec,
-                                const ImuAccGyrS& imu_acc_gyr)
-      : BackendInput(timestamp_kf_nsec,
-                     nullptr,
-                     TrackingStatus::DISABLED,
-                     nullptr,
-                     boost::none),
-        imu_acc_gyr_(imu_acc_gyr) {}
-
- public:
-  ImuAccGyrS imu_acc_gyr_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

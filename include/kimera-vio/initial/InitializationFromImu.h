@@ -40,8 +40,6 @@ class InitializationFromImu {
                                              const Vector3& global_gravity,
                                              const bool& round);
 
-  static BackendInputImuInitialization safeCast(const BackendInput& input);
-
  private:
   static inline ImuAccGyr computeAverageImuMeasurements(
       const ImuAccGyrS& imu_accgyr) {
