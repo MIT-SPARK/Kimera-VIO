@@ -112,6 +112,8 @@ struct VioParams : public PipelineParams {
   MultiCameraParams camera_params_;
   //! Pipeline Modules paramters
   FrontendParams frontend_params_;
+  //! Mind that this is shared btw the vio pipeline and dataprovider,
+  //!  so that any changes to this pointer will affect both.
   BackendParams::Ptr backend_params_;
   LoopClosureDetectorParams lcd_params_;
   //! General Pipeline parameters

@@ -75,6 +75,13 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
                                << ") is smaller than value for"
                                << " initial_k (" << initial_k_ << ").";
   current_k_ = initial_k_;
+
+  // Parse the actual dataset first, then run it.
+  if (!shutdown_ && !dataset_parsed_) {
+    LOG(INFO) << "Parsing Euroc dataset...";
+    parse();
+    dataset_parsed_ = true;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,16 +98,14 @@ EurocDataProvider::~EurocDataProvider() {
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spin() {
-  // Parse the actual dataset first, then run it.
-  if (!shutdown_ && !dataset_parsed_) {
-    // Ideally we would parse at the ctor level, but the IMU callback needs
-    // to be registered first.
-    LOG(INFO) << "Parsing Euroc dataset...";
-    parse();
-    dataset_parsed_ = true;
-  }
-
   if (dataset_parsed_) {
+    // First, fill IMU callback
+    CHECK(imu_single_callback_)
+        << "Did you forget to register the IMU callback?";
+    for (const ImuMeasurement& imu_meas : imu_measurements_) {
+      imu_single_callback_(imu_meas);
+    }
+
     // Spin.
     CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
@@ -212,8 +217,6 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
   Timestamp previous_timestamp = -1;
 
   // Read/store imu measurements, line by line.
-  ImuMeasurements imu_meas;
-  CHECK(imu_single_callback_) << "Did you forget to register the IMU callback?";
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
     gtsam::Vector6 gyroAccData;
@@ -236,8 +239,8 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
     double normRotRate = gyroAccData.head(3).norm();
     if (normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
-    //! Send IMU measurement to the VIO pipeline.
-    imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
+    //! Store imu measurements
+    imu_measurements_.push_back(ImuMeasurement(timestamp, imu_accgyr));
 
     if (previous_timestamp == -1) {
       // Do nothing.

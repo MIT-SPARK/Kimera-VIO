@@ -229,6 +229,8 @@ class Pipeline {
   }
 
   // VIO parameters
+  //! Mind that the backend params is shared with the dataprovider which might
+  //! modify them to add the ground truth initial 3d pose
   BackendParams::ConstPtr backend_params_;
   FrontendParams frontend_params_;
   ImuParams imu_params_;
