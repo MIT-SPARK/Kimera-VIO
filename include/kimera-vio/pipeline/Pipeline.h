@@ -32,9 +32,9 @@
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Display.h"  // TODO(Toni): separate ocv display
+#include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayModule.h"
-#include "kimera-vio/visualizer/Visualizer3D.h"  // TODO(Toni): separate ocv viz
+#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {
@@ -133,8 +133,6 @@ class Pipeline {
     vio_backend_module_->registerOutputCallback(callback);
   }
 
-  // TODO(marcus): once we have a base class for StereoVisionFrontend, we need
-  // that type to go here instead.
   //! Register external callback to output the VIO frontend results.
   inline void registerFrontendOutputCallback(
       const StereoVisionFrontEndModule::OutputCallback& callback) {
@@ -200,8 +198,8 @@ class Pipeline {
   void spinSequential();
 
  private:
-  // TODO(Toni) Still does not make RANSAC repeatable across different machines.
   //! Initialize random seed for repeatability (only on the same machine).
+  //! Still does not make RANSAC repeatable across different machines.
   inline void setDeterministicPipeline() const { srand(0); }
 
   inline bool isInitialized() const {
@@ -236,9 +234,6 @@ class Pipeline {
   ImuParams imu_params_;
   BackendType backend_type_;
   bool parallel_run_;
-
-  // TODO(Toni): Remove this?
-  int init_frame_id_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;
@@ -278,7 +273,6 @@ class Pipeline {
   // Atomic Flags
   //! Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_launched_ = {false};
   std::atomic_bool is_backend_ok_ = {true};
 
   // Pipeline Callbacks
