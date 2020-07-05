@@ -161,11 +161,11 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
     }
 
     // Generate extra optional backend ouputs.
-    const bool kOutputLmkMap =
+    static const bool kOutputLmkMap =
         backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
-    const bool kMinLmkObs =
+    static const bool kMinLmkObs =
         backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
-    const bool kOutputLmkTypeMap =
+    static const bool kOutputLmkTypeMap =
         backend_output_params_.output_lmk_id_to_lmk_type_map_;
     LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
     PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
@@ -1077,6 +1077,8 @@ bool VioBackEnd::optimize(
 
       // Debug.
       postDebug(total_start_time, start_time);
+    } else {
+      LOG(ERROR) << "Smoother is not ok! Not updating backend state.";
     }
   }
   return is_smoother_ok;
