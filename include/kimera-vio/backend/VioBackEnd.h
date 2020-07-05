@@ -136,14 +136,17 @@ class VioBackEnd {
   void initializeBackend(const BackendInput& input) {
     CHECK(backend_state_ == BackendState::Bootstrap);
     switch (backend_params_.autoInitialize_) {
-      case 0:
+      case 0: {
         initializeFromGt(input);
         break;
-      case 1:
+      }
+      case 1: {
         initializeFromIMU(input);
         break;
-      default:
+      }
+      default: {
         LOG(FATAL) << "Wrong initialization mode.";
+      }
     }
     // Signal that the backend has been initialized.
     backend_state_ = BackendState::Nominal;
