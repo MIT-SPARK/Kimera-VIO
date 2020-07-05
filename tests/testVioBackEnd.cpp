@@ -239,7 +239,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     vio->spinOnce(BackendInput(timestamp_k,
                                all_measurements[k],
                                tracker_status_valid.kfTrackingStatus_stereo_,
-                               pim));
+                               pim,
+                               imu_accgyr));
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
@@ -400,7 +401,8 @@ TEST(testVio, DISABLED_robotMovingWithConstantVelocityBundleAdjustment) {
         timestamp_k,
         all_measurements[k],
         tracker_status_valid.kfTrackingStatus_stereo_,
-        pim);
+        pim,
+        imu_accgyr);
 
     // Create artificially noisy "RANSAC" pose measurements
     gtsam::Pose3 random_pose = (poses[k - 1].first).between(poses[k].first) *

@@ -414,6 +414,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
 }
 
 // TODO(Toni): completely change this test...
+/**
 TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // Things to test:
   // 1. Feature detection (from tracker)
@@ -587,3 +588,4 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
     EXPECT_LT((v_expected - v_actual).norm(), 0.1);
   }
 }
+**/
