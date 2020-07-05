@@ -219,24 +219,26 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
   // Read/store imu measurements, line by line.
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
-    gtsam::Vector6 gyroAccData;
-    for (size_t i = 0; i < 7; i++) {
+    gtsam::Vector6 gyr_acc_data;
+    for (size_t i = 0u; i < gyr_acc_data.size() + 1u; i++) {
       int idx = line.find_first_of(',');
       if (i == 0) {
         timestamp = std::stoll(line.substr(0, idx));
       } else {
-        gyroAccData(i - 1) = std::stod(line.substr(0, idx));
+        gyr_acc_data(i - 1) = std::stod(line.substr(0, idx));
       }
       line = line.substr(idx + 1);
     }
+    CHECK_GT(timestamp, previous_timestamp)
+        << "Euroc IMU data is not in chronological order!";
     Vector6 imu_accgyr;
     // Acceleration first!
-    imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
+    imu_accgyr << gyr_acc_data.tail(3), gyr_acc_data.head(3);
 
-    double normAcc = gyroAccData.tail(3).norm();
+    double normAcc = gyr_acc_data.tail(3).norm();
     if (normAcc > maxNormAcc) maxNormAcc = normAcc;
 
-    double normRotRate = gyroAccData.head(3).norm();
+    double normRotRate = gyr_acc_data.head(3).norm();
     if (normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
     //! Store imu measurements
