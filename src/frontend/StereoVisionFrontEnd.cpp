@@ -217,11 +217,11 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<FrontendOutput>(
-        stereoFrame_lkf_->isKeyframe(),
+        true,
         status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
         getRelativePoseBodyStereo(),
-        *stereoFrame_lkf_,
+        *stereoFrame_lkf_, //! This is really the current keyframe in this if
         pim,
         input.getImuAccGyrs(),
         feature_tracks,
@@ -232,7 +232,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
 
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<FrontendOutput>(stereoFrame_lkf_->isKeyframe(),
+    return VIO::make_unique<FrontendOutput>(false,
                                             status_stereo_measurements,
                                             TrackingStatus::INVALID,
                                             getRelativePoseBodyStereo(),
