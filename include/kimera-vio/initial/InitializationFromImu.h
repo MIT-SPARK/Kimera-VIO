@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
@@ -36,9 +37,10 @@ class InitializationFromImu {
   ~InitializationFromImu() = default;
 
  public:
-  static VioNavState getInitialStateEstimate(const ImuAccGyrS& imu_accgyr,
-                                             const Vector3& global_gravity,
-                                             const bool& round);
+  static VioNavState getInitialStateEstimate(
+      const ImuAccGyrS& imu_accgyr,
+      const gtsam::Vector3& global_gravity,
+      const bool& round);
 
  private:
   static inline ImuAccGyr computeAverageImuMeasurements(
@@ -48,11 +50,11 @@ class InitializationFromImu {
 
   static gtsam::Pose3 guessPoseFromImuMeasurements(
       const ImuAcc& mean_acc,
-      const Vector3& global_gravity,
+      const gtsam::Vector3& global_gravity,
       const bool& round);
 
   static ImuBias guessImuBias(const ImuAccGyr& mean_accgyr,
-                              const Vector3& local_gravity);
+                              const gtsam::Vector3& local_gravity);
 };
 
 }  // namespace VIO
