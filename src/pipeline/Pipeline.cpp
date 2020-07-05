@@ -404,6 +404,11 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
                "idle.";
   VLOG(1) << "shutdown_: " << shutdown_ << '\n'
           << "VIO pipeline status: \n"
+          << "Pipeline initialized? " << isInitialized() << '\n'
+          << "Frontend initialized? " << vio_frontend_module_->isInitialized()
+          << '\n'
+          << "Backend initialized? " << vio_backend_module_->isInitialized()
+          << '\n'
           << "Data provider is working? " << data_provider_module_->isWorking()
           << '\n'
           << "Frontend input queue shutdown? "
