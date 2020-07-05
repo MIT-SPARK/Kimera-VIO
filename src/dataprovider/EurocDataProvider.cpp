@@ -58,6 +58,7 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       initial_k_(initial_k),
       final_k_(final_k),
       pipeline_params_(vio_params),
+      imu_measurements_(),
       logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
                                       : nullptr) {
   // Start processing dataset from frame initial_k.
@@ -80,6 +81,7 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
   if (!shutdown_ && !dataset_parsed_) {
     LOG(INFO) << "Parsing Euroc dataset...";
     parse();
+    CHECK_GT(imu_measurements_.size(), 0u);
     dataset_parsed_ = true;
   }
 }
