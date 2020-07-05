@@ -102,7 +102,11 @@ bool EurocDataProvider::spin() {
     // First, fill IMU callback
     CHECK(imu_single_callback_)
         << "Did you forget to register the IMU callback?";
+    Timestamp previous_timestamp = -1;
     for (const ImuMeasurement& imu_meas : imu_measurements_) {
+      CHECK_GT(imu_meas.timestamp_, previous_timestamp)
+          << "Euroc IMU data is not in chronological order!";
+      previous_timestamp = imu_meas.timestamp_;
       imu_single_callback_(imu_meas);
     }
 
@@ -244,10 +248,7 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
     //! Store imu measurements
     imu_measurements_.push_back(ImuMeasurement(timestamp, imu_accgyr));
 
-    if (previous_timestamp == -1) {
-      // Do nothing.
-      previous_timestamp = timestamp;
-    } else {
+    if (previous_timestamp != -1) {
       sumOfDelta += (timestamp - previous_timestamp);
       double deltaMismatch = std::fabs(
           static_cast<double>(timestamp - previous_timestamp -
@@ -256,8 +257,8 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
       deltaCount += 1u;
-      previous_timestamp = timestamp;
     }
+    previous_timestamp = timestamp;
   }
 
   // Converted to seconds.
