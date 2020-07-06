@@ -458,7 +458,7 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   gtsam::NonlinearFactorGraph pgo_nfg = lcd_detector_->getPGOnfg();
 
   EXPECT_EQ(pgo_trajectory.size(), 2);
-  EXPECT_EQ(pgo_nfg.size(), 1);
+  EXPECT_EQ(pgo_nfg.size(), 2);
 }
 
 TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
@@ -488,15 +488,15 @@ TEST_F(LCDFixture, spinOnce) {
   CHECK(lcd_detector_);
   CHECK(ref1_stereo_frame_);
   LcdOutput::Ptr output_0 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_ref1_, FrameId(1), *ref1_stereo_frame_, gtsam::Pose3()));
+      timestamp_ref1_, FrameId(0), *ref1_stereo_frame_, gtsam::Pose3()));
 
   CHECK(ref2_stereo_frame_);
   LcdOutput::Ptr output_1 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_ref2_, FrameId(2), *ref2_stereo_frame_, gtsam::Pose3()));
+      timestamp_ref2_, FrameId(1), *ref2_stereo_frame_, gtsam::Pose3()));
 
   CHECK(cur1_stereo_frame_);
   LcdOutput::Ptr output_2 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_cur1_, FrameId(3), *cur1_stereo_frame_, gtsam::Pose3()));
+      timestamp_cur1_, FrameId(2), *cur1_stereo_frame_, gtsam::Pose3()));
 
   EXPECT_EQ(output_0->is_loop_closure_, false);
   EXPECT_EQ(output_0->timestamp_kf_, 0);
