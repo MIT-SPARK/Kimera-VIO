@@ -82,6 +82,12 @@ class EurocDataProvider : public DataProviderInterface {
    */
   bool spinOnce();
 
+  /**
+   * @brief sendImuData We send IMU data first (before frames) so that the VIO
+   * pipeline can query all IMU data between frames.
+   */
+  void sendImuData() const;
+
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset();
 
@@ -199,6 +205,8 @@ class EurocDataProvider : public DataProviderInterface {
 
   //! Flag to signal when the dataset has been parsed.
   bool dataset_parsed_ = false;
+  //! Flag to signal if the IMU data has been sent to the VIO pipeline
+  bool is_imu_data_sent_ = false;
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
@@ -206,6 +214,7 @@ class EurocDataProvider : public DataProviderInterface {
 
   //! Pre-stored imu-measurements
   std::vector<ImuMeasurement> imu_measurements_;
+
 
   EurocGtLogger::UniquePtr logger_;
 };

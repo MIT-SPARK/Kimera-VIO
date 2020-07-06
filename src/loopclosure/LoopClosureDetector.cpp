@@ -135,12 +135,16 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
   timestamp_map_[input.cur_kf_id_] = input.timestamp_kf_;
+  // TODO: W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
 
   switch (lcd_state_) {
     case LcdState::Bootstrap: {
       initializePGO(odom_factor);
+      // This should be out above (and remove the one inside
+      // addOdometryFactorAndOptimize. Not doing it now bcs code assumes that
+      // addOdometryFactorAndOptimize does that...
       W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
       break;
     }
