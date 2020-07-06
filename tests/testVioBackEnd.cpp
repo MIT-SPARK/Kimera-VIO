@@ -127,6 +127,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   BackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
   vioParams.horizon_ = 100;
+  // Make initial pose non identity to avoid activating the inner safety check.
+  gtsam::Vector6 eps_xi;
+  eps_xi << 0.01, 0.0, 0.0, 0.0, 0.0, 0.0;
+  vioParams.initial_ground_truth_state_.pose_ = gtsam::Pose3::Expmap(eps_xi);
 
   ImuParams imu_params;
   imu_params.gyro_noise_ = 0.00016968;
@@ -293,6 +297,10 @@ TEST(testVio, DISABLED_robotMovingWithConstantVelocityBundleAdjustment) {
   vioParams.smartNoiseSigma_ = 0.001;
   vioParams.outlierRejection_ = 100;
   vioParams.betweenTranslationPrecision_ = 1;
+  // Make initial pose non identity to avoid activating the inner safety check.
+  gtsam::Vector6 eps_xi;
+  eps_xi << 0.01, 0.0, 0.0, 0.0, 0.0, 0.0;
+  vioParams.initial_ground_truth_state_.pose_ = gtsam::Pose3::Expmap(eps_xi);
 
   ImuParams imu_params;
   imu_params.gyro_noise_ = 0.00016968;
