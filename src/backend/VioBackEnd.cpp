@@ -1537,7 +1537,6 @@ void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
   isam_param->setEvaluateNonlinearError(false);  // only for debugging
   isam_param->enableDetailedResults = false;     // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  if (VLOG_IS_ON(1)) isam_param->print("isam_param");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1617,25 +1616,26 @@ void VioBackEnd::setSmartFactorsParams(
 
 /* --------------------------- PRINTERS ------------------------------------- */
 /// Printers.
-// THIS IS NOT THREAD-SAFE !!
 void VioBackEnd::print() const {
-  LOG(INFO) << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
-            << ")))))))))))))))))))))))))))))))) ";
+  backend_params_.print();
+
+  smoother_->params().print(std::string(10, '.') + "** ISAM2 Parameters **" +
+                            std::string(10, '.'));
+
+  LOG(INFO) << "Used stereo calibration in backend: ";
   if (FLAGS_minloglevel < 1) {
     stereo_cal_->print("\n stereoCal_\n");
   }
-  backend_params_.print();
 
-  LOG(INFO) << "\n B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
+  LOG(INFO) << "** Backend Initial Members: \n"
+            << "B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
             << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
             << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
             << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'
             << "imu_bias_prev_kf_" << imu_bias_prev_kf_ << '\n'
             << "last_id_ " << last_kf_id_ << '\n'
             << "cur_id_ " << curr_kf_id_ << '\n'
-            << "landmark_count_ " << landmark_count_ << '\n'
-            << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
-            << "))))))))))))))))))))))))))))))))) ";
+            << "landmark_count_ " << landmark_count_;
 }
 
 void VioBackEnd::printFeatureTracks() const {

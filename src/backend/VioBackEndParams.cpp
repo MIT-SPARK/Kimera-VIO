@@ -219,7 +219,7 @@ void BackendParams::printVioBackEndParams() const {
       "Use Dog Leg",
       useDogLeg_);
   LOG(INFO) << out.str();
-  LOG(INFO) << "** Backend INITIALIZATION parameters **\n"
+  LOG(INFO) << "** Backend Iinitialization Parameters **\n"
             << "initial_ground_truth_state_: ";
   initial_ground_truth_state_.print();
 }
