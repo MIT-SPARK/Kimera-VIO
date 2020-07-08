@@ -208,8 +208,11 @@ void VioBackEnd::registerImuBiasUpdateCallback(
   // Update imu bias just in case. This is useful specially because the
   // backend initializes the imu bias to some value. So whoever is asking
   // to register this callback should have the newest imu bias.
-  CHECK(imu_bias_update_callback_);
-  imu_bias_update_callback_(imu_bias_lkf_);
+  // But the imu bias is new iff the backend is already initialized.
+  if (backend_state_ != BackendState::Bootstrap) {
+    CHECK(imu_bias_update_callback_);
+    imu_bias_update_callback_(imu_bias_lkf_);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
