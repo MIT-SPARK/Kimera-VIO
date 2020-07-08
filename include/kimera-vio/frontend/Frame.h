@@ -81,8 +81,8 @@ class Frame : public PipelinePayload {
   /* ------------------------------------------------------------------------ */
   size_t getNrValidKeypoints() const {
     // TODO: can we cache this value?
-    size_t count = 0;
-    for (size_t i = 0; i < landmarks_.size(); i++) {
+    size_t count = 0u;
+    for (size_t i = 0u; i < landmarks_.size(); i++) {
       if (landmarks_.at(i) != -1)  // It is valid.
         count += 1;
     }
@@ -92,14 +92,14 @@ class Frame : public PipelinePayload {
   /* ------------------------------------------------------------------------ */
   KeypointsCV getValidKeypoints() const {
     // TODO: can we cache this result?
-    KeypointsCV validKeypoints;
+    KeypointsCV valid_keypoints;
     CHECK_EQ(landmarks_.size(), keypoints_.size());
-    for (size_t i = 0; i < landmarks_.size(); i++) {
+    for (size_t i = 0u; i < landmarks_.size(); i++) {
       if (landmarks_.at(i) != -1) {  // It is valid.
-        validKeypoints.push_back(keypoints_.at(i));
+        valid_keypoints.push_back(keypoints_.at(i));
       }
     }
-    return validKeypoints;
+    return valid_keypoints;
   }
 
   /* ------------------------------------------------------------------------ */

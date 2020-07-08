@@ -59,12 +59,7 @@ class CameraParams : public PipelineParams {
         K_(),
         distortion_model_(),
         distortion_coeff_(),
-        distortion_coeff_mat_(),
-        undistort_rectify_map_x_(),
-        undistort_rectify_map_y_(),
-        R_rectify_(),
-        P_(),
-        is_stereo_with_camera_ids_() {}
+        distortion_coeff_mat_() {}
   virtual ~CameraParams() = default;
 
   // Parse YAML file describing camera parameters.
@@ -105,21 +100,6 @@ class CameraParams : public PipelineParams {
   DistortionModel distortion_model_;
   std::vector<double> distortion_coeff_;
   cv::Mat distortion_coeff_mat_;
-
-  // TODO(Toni): Legacy, pls remove.
-  cv::Mat undistort_rectify_map_x_;
-  cv::Mat undistort_rectify_map_y_;
-
-  // TODO(Toni): why do we have rectification stuff here? This should be
-  // for stereo cameras only...
-  // Rotation resulting from rectification.
-  cv::Mat R_rectify_;
-
-  // Camera matrix after rectification.
-  cv::Mat P_;
-
-  //! List of Cameras which share field of view with this one: i.e. stereo.
-  std::vector<CameraId> is_stereo_with_camera_ids_;
 
  public:
   static void convertDistortionVectorToMatrix(

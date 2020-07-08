@@ -285,6 +285,13 @@ class UtilsOpenCV {
                                     const bool randomColor = false);
 
   /* ------------------------------------------------------------------------ */
+  static void showImagesSideBySide(const cv::Mat& img_left,
+                                   const cv::Mat& img_right,
+                                   const std::string& title,
+                                   const bool& show_images,
+                                   const bool& save_images);
+
+  /* ------------------------------------------------------------------------ */
   static cv::Mat DrawCircles(
       const cv::Mat img,
       const StatusKeypointsCV& imagePoints,
@@ -304,7 +311,6 @@ class UtilsOpenCV {
       const cv::Mat img2,
       const std::vector<cv::Point2f>& corners2,
       const std::vector<cv::DMatch>& matches);
-
 
   /* ------------------------------------------------------------------------ */
   //  find max absolute value of matrix entry

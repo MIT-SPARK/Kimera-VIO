@@ -257,7 +257,6 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   }
 
   EXPECT_EQ(stereo_frame.keypoints_3d_.size(), nfeatures);
-  EXPECT_EQ(stereo_frame.keypoints_depth_.size(), nfeatures);
   EXPECT_EQ(stereo_frame.left_keypoints_rectified_.size(), nfeatures);
   EXPECT_EQ(stereo_frame.right_keypoints_rectified_.size(), nfeatures);
 }

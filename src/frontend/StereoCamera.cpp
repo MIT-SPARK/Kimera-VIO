@@ -37,16 +37,14 @@
 namespace VIO {
 
 StereoCamera::StereoCamera(const CameraParams& left_cam_params,
-                           const CameraParams& right_cam_params,
-                           const StereoMatchingParams& stereo_matching_params)
+                           const CameraParams& right_cam_params)
     : undistorted_rectified_stereo_camera_impl_(),
       stereo_calibration_(nullptr),
-      baseline_(0.0),
+      stereo_baseline_(0.0),
       left_cam_params_(left_cam_params),
       right_cam_params_(right_cam_params),
       left_cam_undistort_rectifier_(nullptr),
-      right_cam_undistort_rectifier_(nullptr),
-      stereo_matching_params_(stereo_matching_params) {
+      right_cam_undistort_rectifier_(nullptr) {
   computeRectificationParameters(left_cam_params,
                                  right_cam_params,
                                  &R1_,
@@ -73,8 +71,8 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
   // https://github.com/opencv/opencv/blob/master/modules/calib3d/src/calibration.cpp
   // NOTE: OpenCV pose convention is the opposite, therefore the missing -1.0
   CHECK_NE(Q_.at<double>(3, 2), 0.0);
-  baseline_ = 1.0 / Q_.at<double>(3, 2);
-  CHECK_GT(baseline_, 0.0);
+  stereo_baseline_ = 1.0 / Q_.at<double>(3, 2);
+  CHECK_GT(stereo_baseline_, 0.0);
 
   //! Create stereo camera calibration after rectification and undistortion.
   const gtsam::Cal3_S2& left_undist_rect_cam_mat =
@@ -85,7 +83,7 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
                                                left_undist_rect_cam_mat.skew(),
                                                left_undist_rect_cam_mat.px(),
                                                left_undist_rect_cam_mat.py(),
-                                               baseline_);
+                                               stereo_baseline_);
 
   //! Create undistort rectifiers: these should be called after
   //! computeRectificationParameters.
@@ -175,90 +173,6 @@ void StereoCamera::backProject(const KeypointsCV& kps,
   }
 }
 
-void StereoCamera::stereoDisparityReconstruction(const cv::Mat& left_img,
-                                                 const cv::Mat& right_img,
-                                                 cv::Mat* disparity_img) {
-  CHECK_NOTNULL(disparity_img);
-  CHECK_EQ(disparity_img->cols, left_img.cols);
-  CHECK_EQ(right_img.cols, left_img.cols);
-  CHECK_EQ(disparity_img->rows, left_img.rows);
-  CHECK_EQ(right_img.rows, left_img.rows);
-  CHECK_EQ(right_img.type(), left_img.type());
-  CHECK_EQ(disparity_img->type(), CV_32F);
-
-  // Setup stereo matcher
-  cv::Ptr<cv::StereoMatcher> stereo_matcher;
-  if (use_sgbm_) {
-    int mode;
-    if (use_mode_HH_) {
-      mode = cv::StereoSGBM::MODE_HH;
-    } else {
-      mode = cv::StereoSGBM::MODE_SGBM;
-    }
-    stereo_matcher = cv::StereoSGBM::create(min_disparity_,
-                                            num_disparities_,
-                                            sad_window_size_,
-                                            p1_,
-                                            p2_,
-                                            disp_12_max_diff_,
-                                            pre_filter_cap_,
-                                            uniqueness_ratio_,
-                                            speckle_window_size_,
-                                            speckle_range_,
-                                            mode);
-  } else {
-    cv::Ptr<cv::StereoBM> sbm =
-        cv::StereoBM::create(num_disparities_, sad_window_size_);
-
-    sbm->setPreFilterType(pre_filter_type_);
-    sbm->setPreFilterSize(pre_filter_size_);
-    sbm->setPreFilterCap(pre_filter_cap_);
-    sbm->setMinDisparity(min_disparity_);
-    sbm->setTextureThreshold(texture_threshold_);
-    sbm->setUniquenessRatio(uniqueness_ratio_);
-    sbm->setSpeckleRange(speckle_range_);
-    sbm->setSpeckleWindowSize(speckle_window_size_);
-    if (!ROI1_.empty() && !ROI2_.empty()) {
-      sbm->setROI1(ROI1_);
-      sbm->setROI2(ROI2_);
-    } else {
-      LOG(WARNING) << "ROIs are empty.";
-    }
-
-    stereo_matcher = sbm;
-  }
-
-  // Reconstruct scene
-  stereo_matcher->compute(left_img, right_img, *disparity_img);
-
-  // Optionally, post-filter disparity
-  if (post_filter_disparity_) {
-    // Use disparity post-filter
-    // wls_filter = createDisparityWLSFilter(left_matcher);
-    // Ptr<StereoMatcher> right_matcher = createRightMatcher(left_matcher);
-    // See
-    // https://docs.opencv.org/3.3.1/d3/d14/tutorial_ximgproc_disparity_filtering.html#gsc.tab=0
-  }
-
-  // Optionally, smooth the disparity image
-  if (median_blur_disparity_) {
-    cv::medianBlur(*disparity_img, *disparity_img, 5);
-  }
-
-  static constexpr bool debug = false;
-  if (debug) {
-    // cv::Mat raw_disp_vis;
-    // cv::ximgproc::getDisparityVis(left_disp,raw_disp_vis,vis_mult);
-    // cv::namedWindow("raw disparity", WINDOW_AUTOSIZE);
-    // cv::imshow("raw disparity", raw_disp_vis);
-    // cv::Mat filtered_disp_vis;
-    // cv::ximgproc::getDisparityVis(filtered_disp,filtered_disp_vis,vis_mult);
-    // cv::namedWindow("filtered disparity", WINDOW_AUTOSIZE);
-    // cv::imshow("filtered disparity", filtered_disp_vis);
-    // cv::waitKey();
-  }
-}
-
 void StereoCamera::backProjectDisparityTo3D(const cv::Mat& disparity_img,
                                             cv::Mat* depth) {
   CHECK_NOTNULL(depth);
@@ -323,16 +237,16 @@ void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) {
   CHECK_NOTNULL(stereo_frame);
   LOG_IF(WARNING, stereo_frame->isRectified())
       << "Rectifying already rectified stereo frame ...";
-  stereo_frame->setIsRectified(true);
   //! Rectify and undistort images using precomputed maps.
-  CHECK(left_cam_undistort_rectifier_ != nullptr);
+  CHECK(left_cam_undistort_rectifier_);
+  cv::Mat left_img_rectified;
   left_cam_undistort_rectifier_->undistortRectifyImage(
-      stereo_frame->getLeftFrameMutable()->img_,
-      &stereo_frame->left_img_rectified_);
-  CHECK(right_cam_undistort_rectifier_ != nullptr);
+      stereo_frame->getLeftFrame().img_, &left_img_rectified);
+  CHECK(right_cam_undistort_rectifier_);
+  cv::Mat right_img_rectified;
   right_cam_undistort_rectifier_->undistortRectifyImage(
-      stereo_frame->getRightFrameMutable()->img_,
-      &stereo_frame->right_img_rectified_);
+      stereo_frame->getRightFrame().img_, &right_img_rectified);
+  stereo_frame->setRectifiedImages(left_img_rectified, right_img_rectified);
 }
 
 void StereoCamera::computeRectificationParameters(

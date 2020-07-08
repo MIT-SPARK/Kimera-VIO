@@ -32,6 +32,7 @@ DEFINE_bool(visualize_feature_predictions,
             "from IMU.");
 
 namespace VIO {
+
 Tracker::Tracker(const FrontendParams& tracker_params,
                  const CameraParams& camera_params,
                  DisplayQueue* display_queue)
@@ -804,8 +805,7 @@ void Tracker::removeOutliersStereo(const std::vector<int>& inliers,
   findOutliers(*matches_ref_cur, inliers, &outliers);
 
   // Remove outliers: outliers cannot be a vector of size_t because opengv
-  // uses
-  // a vector of int.
+  // uses a vector of int.
   for (const size_t& out : outliers) {
     const KeypointMatch& kp_match = (*matches_ref_cur)[out];
     ref_stereoFrame->right_keypoints_status_.at(kp_match.first) =

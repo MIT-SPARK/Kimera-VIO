@@ -51,121 +51,33 @@ class StereoFrame {
 
   StereoFrame(const FrameId& id,
               const Timestamp& timestamp,
-              const cv::Mat& left_image,
-              const CameraParams& cam_param_left,
-              const cv::Mat& right_image,
-              const CameraParams& cam_param_right,
-              const StereoMatchingParams& stereo_matching_params);
-
-  StereoFrame(const FrameId& id,
-              const Timestamp& timestamp,
               const Frame& left_frame,
               const Frame& right_frame,
               const StereoMatchingParams& stereo_matching_params);
 
-  void initialize(const CameraParams& cam_param_left,
-                  const CameraParams& cam_param_right);
+  void setRectifiedImages(const cv::Mat& left_rectified_img,
+                          const cv::Mat& right_rectified_img);
 
  public:
-  struct LandmarkInfo {
-    KeypointCV keypoint;
-    double score;
-    int age;
-    gtsam::Vector3 keypoint_3d;
-  };
-
-  cv::Mat left_img_rectified_;
-  cv::Mat right_img_rectified_;
-
   // TODO these guys are flying around the code, as they are publicly accessible
   // by anyone... To make this self-contained and thread-safe, there should be
   // getters for each one of these, but this has the caveat of making copies
   // everytime a getter is called. Better would be to add them to a
   // Output queue.
-  KeypointsCV left_keypoints_rectified_;
-  KeypointsCV right_keypoints_rectified_;
-  std::vector<KeypointStatus> right_keypoints_status_;
-  std::vector<double> keypoints_depth_;
   //! in the ref frame of the UNRECTIFIED left frame
-  std::vector<Vector3> keypoints_3d_;
 
  public:
-  /* ------------------------------------------------------------------------ */
-  void setIsKeyframe(bool is_kf);
+  inline void setIsKeyframe(bool is_kf);
 
-  /* ------------------------------------------------------------------------ */
-  void setIsRectified(bool is_rectified);
 
-  /* ------------------------------------------------------------------------ */
-  // For each keypoint in the left frame, get
-  // (i) keypoint in right frame,
-  // (ii) depth,
-  // (iii) corresponding 3D point.
-  void sparseStereoMatching(const int verbosity = 0);
-
-  /* ------------------------------------------------------------------------ */
   void checkStereoFrame() const;
 
-  /* ------------------------------------------------------------------------ */
-  LandmarkInfo getLandmarkInfo(const LandmarkId& i) const;
-
-  /* ------------------------------------------------------------------------ */
-  // Compute rectification parameters.
-  static void computeRectificationParameters(
-      CameraParams* left_cam_params,  // left_frame_.cam_param_
-      CameraParams* right_cam_params,
-      gtsam::Pose3* B_Pose_camLrect);
-
-  // TODO the functions below are just public for testing... fix that.
-  /* ------------------------------------------------------------------------ */
-  void undistortRectifyPoints(
-      const KeypointsCV& left_keypoints_unrectified,
-      const CameraParams& cam_param,
-      const gtsam::Cal3_S2& rectCameraMatrix,
-      StatusKeypointsCV* left_keypoints_rectified) const;
-
-  /* ------------------------------------------------------------------------ */
-  // TODO do not return containers by value.
-  StatusKeypointsCV getRightKeypointsRectified(
-      const cv::Mat left_rectified,
-      const cv::Mat right_rectified,
-      const StatusKeypointsCV& left_keypoints_rectified,
-      const double& fx,
-      const double& getBaseline) const;
-
-  StatusKeypointsCV getRightKeypointsRectifiedRGBD(
-      const cv::Mat left_rectified,
-      const cv::Mat right_rectified,
-      const StatusKeypointsCV& left_keypoints_rectified,
-      const double& fx,
-      const double& getBaseline,
-      const double& getDepthMapFactor,
-      const double& getMinDepth) const;
-
-  /* ------------------------------------------------------------------------ */
   std::vector<double> getDepthFromRectifiedMatches(
       StatusKeypointsCV& left_keypoints_rectified,
       StatusKeypointsCV& right_keypoints_rectified,
       const double& fx,
-      const double& getBaseline) const;
-
-  /* ------------------------------------------------------------------------ */
-  static std::pair<KeypointsCV, std::vector<KeypointStatus>>
-  distortUnrectifyPoints(const StatusKeypointsCV& keypoints_rectified,
-                         const cv::Mat map_x,
-                         const cv::Mat map_y);
-
-  /* ------------------------------------------------------------------------ */
-  std::pair<StatusKeypointCV, double> findMatchingKeypointRectified(
-      const cv::Mat left_rectified,
-      const KeypointCV& left_rectified_i,
-      const cv::Mat right_rectified,
-      const int templ_cols,
-      const int templ_rows,
-      const int stripe_cols,
-      const int stripe_rows,
-      const double tol_corr,
-      const bool debugStereoMatching = false) const;
+      const double& baseline,
+      const StereoMatchingParams& stereo_matching_params) const;
 
  public:
   /// Getters
@@ -174,27 +86,9 @@ class StereoFrame {
   inline Timestamp getTimestamp() const { return timestamp_; }
 
   // NOT THREAD-SAFE, needs critical section.
-  inline bool isRectified() const { return is_rectified_; }
   inline bool isKeyframe() const { return is_keyframe_; }
-  inline gtsam::Pose3 getBPoseCamLRect() const {
-    CHECK(is_rectified_);
-    return B_Pose_camLrect_;
-  }
-  inline double getBaseline() const { return baseline_; }
-  inline StereoMatchingParams getSparseStereoParams() const {
-    return sparse_stereo_params_;
-  }
-  inline double getMinDepthFactor() const {
-    return sparse_stereo_params_.min_depth_factor_;
-  }
-  inline double getMapDepthFactor() const {
-    return sparse_stereo_params_.map_depth_factor_;
-  }
-  inline gtsam::Cal3_S2 getLeftUndistRectCamMat() const {
-    return left_undistRectCameraMatrix_;
-  }
-  inline gtsam::Cal3_S2 getRightUndistRectCamMat() const {
-    return right_undistRectCameraMatrix_;
+  inline void isRectified() const {
+    return left_img_rectified_ && right_img_rectified_;
   }
 
   // NON-THREAD SAFE.
@@ -204,85 +98,69 @@ class StereoFrame {
   // modify class members is EVIL.
   inline Frame* getLeftFrameMutable() { return &left_frame_; }
   inline Frame* getRightFrameMutable() { return &right_frame_; }
-  // NON-THREAD SAFe, Get rectified images
+  // NON-THREAD SAFE, Get rectified images
+  //! Return rectified images, assumes the images have already been computed.
+  //! Note that we return const images, since these should not be modified
+  //! by the user.
   inline const cv::Mat& getLeftImgRectified() const {
-    CHECK(is_rectified_);
-    return left_img_rectified_;
+    CHECK(left_img_rectified_);
+    return *left_img_rectified_;
   }
   inline const cv::Mat& getRightImgRectified() const {
-    CHECK(is_rectified_);
-    return right_img_rectified_;
+    CHECK(right_img_rectified_);
+    return *right_img_rectified_;
   }
 
  private:
+  //! Unique id of this stereo frame (the user must ensure it is unique).
   const FrameId id_;
+  //! Timestamp of this stereo frame.
   const Timestamp timestamp_;
 
+  //! Original monocular left/right frames: these contain features as well.
   Frame left_frame_;
   Frame right_frame_;
 
-  bool is_rectified_;  // make sure to do that on each captured image
+  //! If this stereo frame is a keyframe
   bool is_keyframe_;
 
-  StereoMatchingParams sparse_stereo_params_;
+  //! Rectified undistorted images for sparse stereo epipolar matching
+  //! If the pointers are nullptr, the images have not been computed yet.
+  std::unique_ptr<cv::Mat> left_img_rectified_;
+  std::unique_ptr<cv::Mat> right_img_rectified_;
 
-  // TODO(TONI): all of this should be in StereoCamera!!
-  // QUANTITIES AFTER RECTIFICATION
-  // Note: rectification is something that belongs to a stereo camera,
-  // and that's why these are stored here!
-  gtsam::Cal3_S2 left_undistRectCameraMatrix_;
-  gtsam::Cal3_S2 right_undistRectCameraMatrix_;
-  //! Pose of the left camera wrt the body frame after rectification!
-  gtsam::Pose3 B_Pose_camLrect_;
-  double baseline_;
+  //! Left/right keypoints being tracked expressed as rectified/undistorted
+  KeypointsCV left_keypoints_rectified_;
+  KeypointsCV right_keypoints_rectified_;
+
+  //! 3D positions of the stereo points as given by reprojection using stereo
+  //! disparity
+  std::vector<gtsam::Vector3> keypoints_3d_;
+
+  //! Validity status of the right keypoint detection
+  std::vector<KeypointStatus> right_keypoints_status_;
 
  private:
-  /* ------------------------------------------------------------------------ */
-  // Given an image img, computes its gradients in img_grads.
-  void computeImgGradients(const cv::Mat& img, cv::Mat* img_grads) const;
-
-  /* ------------------------------------------------------------------------ */
-  // Use optical flow to get right frame correspondences.
-  // deprecated
-  void getRightKeypointsLKunrectified();
-
-  /* ------------------------------------------------------------------------ */
-  // Get disparity image:
-  // https://github.com/opencv/opencv/blob/master/samples/cpp/tutorial_code/calib3d/stereoBM/SBM_Sample.cpp
-  // TODO imshow has to be called in the main thread.
-  cv::Mat getDisparityImage() const;
-
-  /* ------------------------------------------------------------------------ */
-  void print() const;
-
-  /* ------------------------------------------------------------------------ */
+  //! Visualization functions
   void showOriginal(const int verbosity) const;
-
-  /* ------------------------------------------------------------------------ */
-  // TODO visualization (aka imshow/waitKey) must be done in the main thread...
-  void showRectified(const int verbosity) const;
-
-  /* ------------------------------------------------------------------------ */
-  // TODO visualization (aka imshow/waitKey) must be done in the main thread...
+  void showRectified(const bool& visualize,
+                     const bool& write) const;
   void showImagesSideBySide(const cv::Mat imL,
                             const cv::Mat imR,
                             const std::string& title,
                             const int& verbosity = 0) const;
-
-  /* ------------------------------------------------------------------------ */
   cv::Mat drawEpipolarLines(const cv::Mat img1,
                             const cv::Mat img2,
                             const int& numLines = 20,
                             const int& verbosity = 0) const;
+  void showLeftRightMatches() const;
 
-  /* ------------------------------------------------------------------------ */
-  // TODO visualization (aka imshow/waitKey) must be done in the main thread...
-  void displayLeftRightMatches() const;
-
-  /* ------------------------------------------------------------------------ */
-  // Visualize statistics on the performance of the sparse stereo matching
-  void displayKeypointStats(
+  //! Printers
+  void printKeypointStats(
       const StatusKeypointsCV& right_keypoints_rectified) const;
+  void print() const;
+
+
 };
 
 }  // namespace VIO

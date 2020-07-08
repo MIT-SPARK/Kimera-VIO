@@ -124,7 +124,6 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     clearFrame(sf->getLeftFrameMutable());
     clearFrame(sf->getRightFrameMutable());
     sf->keypoints_3d_.clear();
-    sf->keypoints_depth_.clear();
     sf->right_keypoints_status_.clear();
   }
 
@@ -134,9 +133,8 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     const int num_keypoints = sf->getLeftFrame().landmarks_.size();
 
     // left.y == right.y
-    // keypoints_3d[i](2) == keypoints_depth_[i]
     // (right_keypoints_status[i] == valid && right_frame_.keypoints_[i] != 0)
-    // OR (right_keypoints_status[i] != valid && keypoints_depth_[i] == 0)
+    // OR (right_keypoints_status[i] != valid)
 
     // right_keypoints_status_.size
     if (sf->right_keypoints_status_.size() != num_keypoints) {
@@ -167,23 +165,15 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
       }
     }
 
-    // keypoints_depth_.size
-    if (sf->keypoints_depth_.size() != num_keypoints) {
-      sf->keypoints_depth_ = std::vector<double>(num_keypoints);
-      for (int i = 0; i < num_keypoints; i++) {
-        if (sf->right_keypoints_status_[i] == KeypointStatus::VALID) {
-          sf->keypoints_depth_[i] = 1;
-        } else {
-          sf->keypoints_depth_[i] = 0;
-        }
-      }
-    }
-
     // keypoints_3d_.size
     if (sf->keypoints_3d_.size() != num_keypoints) {
       sf->keypoints_3d_ = std::vector<Vector3>(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        sf->keypoints_3d_[i](2) = sf->keypoints_depth_[i];
+        if (sf->right_keypoints_status_[i] == KeypointStatus::VALID) {
+          sf->keypoints_3d_[i](2) = 1;
+        } else {
+          sf->keypoints_3d_[i](2) = 0;
+        }
       }
     }
 
@@ -529,7 +519,6 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // KeypointsCV left_keypoints_rectified_;
   // KeypointsCV right_keypoints_rectified_;
   // vector<Kstatus> right_keypoints_status_;
-  // vector<double> keypoints_depth_;
   // vector<Vector3> keypoints_3d_;
 
   // The test data is simple enough so that all left corners have unique and
@@ -589,7 +578,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     double depth_expect = depth_gt[idx_gt];
-    double depth_actual = sf.keypoints_depth_[i];
+    double depth_actual = sf.keypoints_3d_[i](2);
     EXPECT_NEAR(depth_expect, depth_actual, 1e-2);
   }
 
@@ -597,8 +586,8 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     double depth_expect = depth_gt[idx_gt];
-    double depth_actual = sf.keypoints_depth_[i];
-    gtsam::Vector3 v_expected =
+    double depth_actual = sf.keypoints_3d_[i](2);
+    Vector3 v_expected =
         Frame::calibratePixel(KeypointCV(left_distort_corners[idx_gt].x(),
                                          left_distort_corners[idx_gt].y()),
                               left_frame.cam_param_);

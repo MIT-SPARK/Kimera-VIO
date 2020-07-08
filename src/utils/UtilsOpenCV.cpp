@@ -693,6 +693,28 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
     cv::waitKey(1);
   }
 }
+
+void UtilsOpenCV::showImagesSideBySide(const cv::Mat& img_left,
+                                       const cv::Mat& img_right,
+                                       const std::string& title,
+                                       const bool& show_images,
+                                       const bool& save_images) {
+  cv::Mat original_left_right =
+      UtilsOpenCV::concatenateTwoImages(img_left, img_right);
+
+  if (show_images) {
+    // Moved in here to allow saving images
+    cv::namedWindow(title, cv::WINDOW_AUTOSIZE);
+    cv::imshow("Original Left/Right images", original_left_right);
+    cv::waitKey(1);
+  }
+
+  if (save_images) {
+    std::string img_name = "./outputImages/" + title + ".png";
+    cv::imwrite(img_name, original_left_right);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 //  find max absolute value of matrix entry
 double UtilsOpenCV::MaxAbsValue(gtsam::Matrix M) {

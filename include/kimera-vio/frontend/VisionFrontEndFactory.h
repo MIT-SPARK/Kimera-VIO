@@ -27,14 +27,24 @@ class VisionFrontEndFactory {
   VisionFrontEndFactory() = delete;
   virtual ~VisionFrontEndFactory() = default;
 
+  template <class... Args>
   static StereoVisionFrontEnd::UniquePtr createFrontend(
       const FrontendType& frontend_type,
-      const ImuParams& imu_params,
-      const ImuBias& imu_initial_bias,
-      const FrontendParams& frontend_params,
-      const CameraParams& camera_params,
-      DisplayQueue* display_queue,
-      bool log_output);
+      Args&&... args) {
+    switch (frontend_type) {
+      case FrontendType::kStereoImu: {
+        return VIO::make_unique<StereoVisionFrontEnd>(
+            std::forward<Args>(args)...);
+      }
+      default: {
+        LOG(FATAL) << "Requested fronetnd type is not supported.\n"
+                   << "Currently supported frontend types:\n"
+                   << "0: Stereo + IMU \n"
+                   << " but requested frontend: "
+                   << static_cast<int>(frontend_type);
+      }
+    }
+  }
 };
 
 }  // namespace VIO

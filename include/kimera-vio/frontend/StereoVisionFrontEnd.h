@@ -28,6 +28,7 @@
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
@@ -58,11 +59,10 @@ class StereoVisionFrontEnd {
                        const ImuBias& imu_initial_bias,
                        const FrontendParams& tracker_params,
                        const CameraParams& camera_params,
+                       const StereoCamera& stereo_camera,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);
-  virtual ~StereoVisionFrontEnd() {
-    LOG(INFO) << "StereoVisionFrontEnd destructor called.";
-  }
+  virtual ~StereoVisionFrontEnd();
 
  public:
   /* ------------------------------------------------------------------------ */
@@ -169,8 +169,8 @@ class StereoVisionFrontEnd {
                               TrackingStatusPose* status_pose_stereo);
 
   /* ------------------------------------------------------------------------ */
-  inline static void printTrackingStatus(const TrackingStatus& status,
-                                         const std::string& type = "mono") {
+  static void printTrackingStatus(const TrackingStatus& status,
+                                  const std::string& type = "mono") {
     LOG(INFO) << "Status " << type << ": "
               << TrackerStatusSummary::asString(status);
   }
@@ -253,6 +253,12 @@ class StereoVisionFrontEnd {
   // Set of functionalities for tracking.
   Tracker tracker_;
 
+  // A stereo camera
+  StereoCamera stereo_camera_;
+
+  // Set of functionalities for stereo matching
+  StereoMatcher stereo_matcher_;
+
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;
 
@@ -272,6 +278,9 @@ class StereoVisionFrontEnd {
 
   // Frontend logger.
   std::unique_ptr<FrontendLogger> logger_;
+
+  // Parameters
+  FrontendParams frontend_params_;
 };
 
 }  // namespace VIO

@@ -126,6 +126,7 @@ Pipeline::Pipeline(const VioParams& params,
           gtsam::imuBias::ConstantBias(),
           params.frontend_params_,
           params.camera_params_.at(0),
+          *stereo_camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below

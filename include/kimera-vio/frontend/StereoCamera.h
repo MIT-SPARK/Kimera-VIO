@@ -16,7 +16,6 @@
 
 #include <Eigen/Core>
 
-#include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 
 #include <gtsam/geometry/Cal3_S2Stereo.h>
@@ -38,17 +37,17 @@ class StereoCamera {
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoCamera);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using Baseline = double;
+
   /**
    * @brief StereoCamera definition of what a Stereo Camera is. Computes
    * rectification and undistortion parameters that can be readily applied
    * to stereo images.
    * @param left_cam_params
    * @param right_cam_params
-   * @param stereo_matching_params
    */
   StereoCamera(const CameraParams& left_cam_params,
-               const CameraParams& right_cam_params,
-               const StereoMatchingParams& stereo_matching_params);
+               const CameraParams& right_cam_params);
 
   virtual ~StereoCamera() = default;
 
@@ -109,17 +108,6 @@ class StereoCamera {
                    LandmarksCV* lmks) const;
 
   /**
-   * @brief stereoDisparityReconstruction
-   * Given left and right images reconstructs a dense disparity image.
-   * @param left_img
-   * @param right_img
-   * @param disparity_img
-   */
-  void stereoDisparityReconstruction(const cv::Mat& left_img,
-                                     const cv::Mat& right_img,
-                                     cv::Mat* disparity_img);
-
-  /**
    * @brief backProjectDisparityTo3D Given a disparity image, it
    * @param disparity_img
    * Input single-channel 8-bit unsigned, 16-bit signed, 32-bit signed or 32-bit
@@ -173,6 +161,8 @@ class StereoCamera {
     CHECK_EQ(ROI1_, ROI2_);
     return cv::Size(ROI1_.x, ROI1_.y);
   }
+  inline cv::Rect getROI1() const { return ROI1_; }
+  inline cv::Rect getROI2() const { return ROI2_; }
 
   /**
    * @brief rectifyUndistortStereoFrame
@@ -230,8 +220,7 @@ class StereoCamera {
   CameraParams left_cam_params_;
   CameraParams right_cam_params_;
 
-  //! Parameters for dense stereo matching
-  StereoMatchingParams stereo_matching_params_;
+  //! Undistortion rectification pre-computed maps for cv::remap
   UndistorterRectifier::UniquePtr left_cam_undistort_rectifier_;
   UndistorterRectifier::UniquePtr right_cam_undistort_rectifier_;
 
@@ -249,32 +238,11 @@ class StereoCamera {
   /// cv::reprojectImageTo3D or cv::stereoRectify).
   cv::Mat Q_;
 
+  //! Regions of interest in the left/right image.
   cv::Rect ROI1_, ROI2_;
 
   //! Stereo baseline
-  double baseline_;
-
-  // TODO(Toni): put on its own struct, dense stereo depth reconstruction
-  //! Dense Stereo Reconstruction params
-  bool use_sgbm_ = true;
-  bool post_filter_disparity_ = false;
-  bool median_blur_disparity_ = false;
-  int pre_filter_cap_ = 31;
-  int sad_window_size_ = 11;
-  int min_disparity_ = 1;
-  int num_disparities_ = 64;
-  int uniqueness_ratio_ = 0;
-  int speckle_range_ = 3;
-  int speckle_window_size_ = 500;
-  // bm parameters
-  int texture_threshold_ = 0;
-  int pre_filter_type_ = cv::StereoBM::PREFILTER_XSOBEL;
-  int pre_filter_size_ = 9;
-  // sgbm parameters
-  int p1_ = 120;
-  int p2_ = 240;
-  int disp_12_max_diff_ = -1;
-  bool use_mode_HH_ = true;
+  Baseline stereo_baseline_;
 };
 
 }  // namespace VIO

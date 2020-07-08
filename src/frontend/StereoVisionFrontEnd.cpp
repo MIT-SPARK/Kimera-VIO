@@ -47,6 +47,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuBias& imu_initial_bias,
     const FrontendParams& frontend_params,
     const CameraParams& camera_params,
+    const StereoCamera& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output)
     : frontend_state_(FrontendState::Bootstrap),
@@ -57,7 +58,10 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       frame_count_(0),
       keyframe_count_(0),
       feature_detector_(nullptr),
+      frontend_params_(frontend_params),
       tracker_(frontend_params, camera_params, display_queue),
+      stereo_camera_(stereo_camera),
+      stereo_matcher_(stereo_camera, frontend_params.stereo_matching_params_),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       display_queue_(display_queue),
@@ -74,6 +78,10 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
 
   if (VLOG_IS_ON(1)) tracker_.tracker_params_.print();
+}
+
+StereoVisionFrontEnd::~StereoVisionFrontEnd() {
+  LOG(INFO) << "StereoVisionFrontEnd destructor called.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -266,7 +274,10 @@ void StereoVisionFrontEnd::processFirstStereoFrame(
   feature_detector_->featureDetection(left_frame);
 
   // Get 3D points via stereo.
-  stereoFrame_k_->sparseStereoMatching();
+  stereo_camera_.undistortRectifyStereoFrame(stereoFrame_k_);
+  stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_);
+  stereoFrame_k_->sparseStereoMatching(
+      frontend_params_.stereo_matching_params_);
 
   // Prepare for next iteration.
   stereoFrame_km1_ = stereoFrame_k_;
@@ -293,17 +304,25 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                                        stereoFrame_km1_->getTimestamp())
           << " (timestamp diff: "
           << cur_frame.getTimestamp() - stereoFrame_km1_->getTimestamp() << ")";
+  auto start_time = utils::Timer::tic();
 
   // TODO this copies the stereo frame!!
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
+  Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
 
-  /////////////////////// TRACKING /////////////////////////////////////////////
+  /////////////////////// DETECTION ////////////////////////////////////////////
+  // Perform feature detection (note: this must be after RANSAC,
+  // since if we discard more features, we need to extract more)
+  CHECK(feature_detector_);
+  feature_detector_->featureDetection(left_frame_k);
+
+  /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
   // We need to use the frame to frame rotation.
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
   tracker_.featureTracking(stereoFrame_km1_->getLeftFrameMutable(),
-                           stereoFrame_k_->getLeftFrameMutable(),
+                           left_frame_k,
                            ref_frame_R_cur_frame);
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
@@ -334,20 +353,27 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
-    ++keyframe_count_;  // mainly for debugging
-
-    VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++"
-            << "Keyframe after: "
+    VLOG(2) << "Keyframe after [s]: "
             << UtilsNumerical::NsecToSec(stereoFrame_k_->getTimestamp() -
-                                         last_keyframe_timestamp_)
-            << " sec.";
+                                         last_keyframe_timestamp_);
+    // If its been long enough, make it a keyframe
+    last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
+    stereoFrame_k_->setIsKeyframe(true);
+    ++keyframe_count_;  // mainly for debugging
 
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
         << tracker_.tracker_params_.min_number_features_ << ").";
 
-    double sparse_stereo_time = 0;
+    ///////////////////// STEREO TRACKING //////////////////////////////////////
+    // Get 3D points via stereo (only for keyframes, this is expensive).
+    start_time = utils::Timer::tic();
+    stereoFrame_k_->sparseStereoMatching(
+        frontend_params_.stereo_matching_params_);
+    double sparse_stereo_time = utils::Timer::toc(start_time).count();
+    ////////////////////////////////////////////////////////////////////////////
+
     if (tracker_.tracker_params_.useRANSAC_) {
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
@@ -356,12 +382,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                            left_frame_lkf,
                            left_frame_k,
                            &status_pose_mono);
-
-      // STEREO geometric outlier rejection
-      // get 3D points via stereo
-      start_time = utils::Timer::tic();
-      stereoFrame_k_->sparseStereoMatching();
-      sparse_stereo_time = utils::Timer::toc(start_time).count();
 
       TrackingStatusPose status_pose_stereo;
       outlierRejectionStereo(keyframe_R_cur_frame,
@@ -383,20 +403,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                             "stereo");
       }
     }
-    // If its been long enough, make it a keyframe
-    last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
-    stereoFrame_k_->setIsKeyframe(true);
-
-    // Perform feature detection (note: this must be after RANSAC,
-    // since if we discard more features, we need to extract more)
-    CHECK(feature_detector_);
-    feature_detector_->featureDetection(left_frame_k);
-
-    // Get 3D points via stereo, including newly extracted
-    // (this might be only for the visualization).
-    start_time = utils::Timer::tic();
-    stereoFrame_k_->sparseStereoMatching();
-    sparse_stereo_time += utils::Timer::toc(start_time).count();
 
     // Log images if needed.
     if (logger_ &&
@@ -424,8 +430,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     smart_stereo_measurements = getSmartStereoMeasurements(*stereoFrame_k_);
     double get_smart_stereo_meas_time = utils::Timer::toc(start_time).count();
 
-    VLOG(2) << "timeClone: " << clone_rect_params_time << '\n'
-            << "timeSparseStereo: " << sparse_stereo_time << '\n'
+    VLOG(2) << "timeSparseStereo: " << sparse_stereo_time << '\n'
             << "timeGetMeasurements: " << get_smart_stereo_meas_time;
   } else {
     stereoFrame_k_->setIsKeyframe(false);
@@ -556,8 +561,8 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();
     if (!tracker_.tracker_params_.useStereoTracking_) {
-      LOG(WARNING) << "getSmartStereoMeasurements: dropping stereo information!"
-                      " (set useStereoTracking_ = true to use it)";
+      LOG_EVERY_N(WARNING, 10) << "Dropping stereo information! (set "
+                                  "useStereoTracking_ = true to use it)";
     }
     if (tracker_.tracker_params_.useStereoTracking_ &&
         rightKeypoints_status.at(i) == KeypointStatus::VALID) {

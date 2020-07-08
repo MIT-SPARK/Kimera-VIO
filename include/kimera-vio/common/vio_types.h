@@ -37,7 +37,7 @@ using Matrices3f = std::vector<Matrix3f, Eigen::aligned_allocator<Matrix3f>>;
 using Vectors3f = std::vector<Vector3f, Eigen::aligned_allocator<Vector3f>>;
 
 // TODO(Toni): make a class enum.
-enum KeypointStatus {
+enum class KeypointStatus {
   VALID,
   NO_LEFT_RECT,
   NO_RIGHT_RECT,
@@ -59,7 +59,8 @@ using KeypointCV = cv::Point2f;
 using KeypointsCV = std::vector<KeypointCV>;
 using StatusKeypointCV = std::pair<KeypointStatus, KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
-using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
+using BearingVectors =
+    std::vector<gtsam::Vector3, Eigen::aligned_allocator<gtsam::Vector3>>;
 
 // TODO(Toni): move make unique and  to underlying to another file...
 // Add compatibility for c++11's lack of make_unique.

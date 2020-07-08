@@ -529,7 +529,6 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->versors_.clear();
   right_frame_mutable->scores_.clear();
   stereo_frame->keypoints_3d_.clear();
-  stereo_frame->keypoints_depth_.clear();
   stereo_frame->left_keypoints_rectified_.clear();
   stereo_frame->right_keypoints_rectified_.clear();
 
@@ -541,7 +540,6 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->versors_.reserve(keypoints.size());
   right_frame_mutable->scores_.reserve(keypoints.size());
   stereo_frame->keypoints_3d_.reserve(keypoints.size());
-  stereo_frame->keypoints_depth_.reserve(keypoints.size());
   stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
   stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
 
@@ -563,7 +561,6 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   CHECK_EQ(left_frame_mutable->versors_.size(), num_kp);
   CHECK_EQ(left_frame_mutable->scores_.size(), num_kp);
   CHECK_EQ(stereo_frame->keypoints_3d_.size(), num_kp);
-  CHECK_EQ(stereo_frame->keypoints_depth_.size(), num_kp);
   CHECK_EQ(stereo_frame->left_keypoints_rectified_.size(), num_kp);
   CHECK_EQ(stereo_frame->right_keypoints_rectified_.size(), num_kp);
 }
