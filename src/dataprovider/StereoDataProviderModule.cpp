@@ -61,12 +61,10 @@ StereoDataProviderModule::getInputPacket() {
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);
     vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
-        StereoFrame(
-            left_frame_id,
-            timestamp,
-            *mono_imu_sync_packet->frame_,  // this copies...
-            *right_frame_payload,           // this copies...
-            stereo_matching_params_),       // TODO(Toni): these params should
+        StereoFrame(left_frame_id,
+                    timestamp,
+                    *mono_imu_sync_packet->frame_,  // this copies...
+                    *right_frame_payload),          // this copies...
         // be given in PipelineParams.
         mono_imu_sync_packet->imu_stamps_,
         mono_imu_sync_packet->imu_accgyr_));

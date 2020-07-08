@@ -16,60 +16,68 @@
 
 #include <glog/logging.h>
 
+#include <opencv2/calib3d.hpp>
+
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
-StereoMatcher::StereoMatcher(
-    const StereoCamera& stereo_camera,
-    const StereoMatchingParams& stereo_matching_params);
+StereoMatcher::StereoMatcher(const StereoCamera::Ptr& stereo_camera,
+                             const StereoMatchingParams& stereo_matching_params)
+    : stereo_camera_(stereo_camera),
+      stereo_matching_params_(stereo_matching_params),
+      dense_stereo_params_() {}
 
 void StereoMatcher::denseStereoReconstruction(
     const cv::Mat& left_img_rectified,
     const cv::Mat& right_img_rectified,
     cv::Mat* disparity_img) {
   CHECK_NOTNULL(disparity_img);
-  CHECK_EQ(disparity_img->cols, left_img.cols);
-  CHECK_EQ(right_img.cols, left_img.cols);
-  CHECK_EQ(disparity_img->rows, left_img.rows);
-  CHECK_EQ(right_img.rows, left_img.rows);
-  CHECK_EQ(right_img.type(), left_img.type());
+  CHECK_EQ(disparity_img->cols, left_img_rectified.cols);
+  CHECK_EQ(right_img_rectified.cols, left_img_rectified.cols);
+  CHECK_EQ(disparity_img->rows, left_img_rectified.rows);
+  CHECK_EQ(right_img_rectified.rows, left_img_rectified.rows);
+  CHECK_EQ(right_img_rectified.type(), left_img_rectified.type());
   CHECK_EQ(disparity_img->type(), CV_32F);
+  CHECK(stereo_camera_);
 
   // Setup stereo matcher
   cv::Ptr<cv::StereoMatcher> cv_stereo_matcher;
-  if (use_sgbm_) {
+  if (dense_stereo_params_.use_sgbm_) {
     int mode;
-    if (use_mode_HH_) {
+    if (dense_stereo_params_.use_mode_HH_) {
       mode = cv::StereoSGBM::MODE_HH;
     } else {
       mode = cv::StereoSGBM::MODE_SGBM;
     }
-    cv_stereo_matcher = cv::StereoSGBM::create(min_disparity_,
-                                               num_disparities_,
-                                               sad_window_size_,
-                                               p1_,
-                                               p2_,
-                                               disp_12_max_diff_,
-                                               pre_filter_cap_,
-                                               uniqueness_ratio_,
-                                               speckle_window_size_,
-                                               speckle_range_,
-                                               mode);
+    cv_stereo_matcher =
+        cv::StereoSGBM::create(dense_stereo_params_.min_disparity_,
+                               dense_stereo_params_.num_disparities_,
+                               dense_stereo_params_.sad_window_size_,
+                               dense_stereo_params_.p1_,
+                               dense_stereo_params_.p2_,
+                               dense_stereo_params_.disp_12_max_diff_,
+                               dense_stereo_params_.pre_filter_cap_,
+                               dense_stereo_params_.uniqueness_ratio_,
+                               dense_stereo_params_.speckle_window_size_,
+                               dense_stereo_params_.speckle_range_,
+                               mode);
   } else {
     cv::Ptr<cv::StereoBM> sbm =
-        cv::StereoBM::create(num_disparities_, sad_window_size_);
+        cv::StereoBM::create(dense_stereo_params_.num_disparities_,
+                             dense_stereo_params_.sad_window_size_);
 
-    sbm->setPreFilterType(pre_filter_type_);
-    sbm->setPreFilterSize(pre_filter_size_);
-    sbm->setPreFilterCap(pre_filter_cap_);
-    sbm->setMinDisparity(min_disparity_);
-    sbm->setTextureThreshold(texture_threshold_);
-    sbm->setUniquenessRatio(uniqueness_ratio_);
-    sbm->setSpeckleRange(speckle_range_);
-    sbm->setSpeckleWindowSize(speckle_window_size_);
-    const auto& roi1 = stereo_camera_.getROI1();
-    const auto& roi2 = stereo_camera_.getROI2();
+    sbm->setPreFilterType(dense_stereo_params_.pre_filter_type_);
+    sbm->setPreFilterSize(dense_stereo_params_.pre_filter_size_);
+    sbm->setPreFilterCap(dense_stereo_params_.pre_filter_cap_);
+    sbm->setMinDisparity(dense_stereo_params_.min_disparity_);
+    sbm->setTextureThreshold(dense_stereo_params_.texture_threshold_);
+    sbm->setUniquenessRatio(dense_stereo_params_.uniqueness_ratio_);
+    sbm->setSpeckleRange(dense_stereo_params_.speckle_range_);
+    sbm->setSpeckleWindowSize(dense_stereo_params_.speckle_window_size_);
+    const auto& roi1 = stereo_camera_->getROI1();
+    const auto& roi2 = stereo_camera_->getROI2();
     if (!roi1.empty() && !roi2.empty()) {
       sbm->setROI1(roi1);
       sbm->setROI2(roi2);
@@ -81,10 +89,11 @@ void StereoMatcher::denseStereoReconstruction(
   }
 
   // Reconstruct scene
-  cv_stereo_matcher->compute(left_img, right_img, *disparity_img);
+  cv_stereo_matcher->compute(
+      left_img_rectified, right_img_rectified, *disparity_img);
 
   // Optionally, post-filter disparity
-  if (post_filter_disparity_) {
+  if (dense_stereo_params_.post_filter_disparity_) {
     // Use disparity post-filter
     // wls_filter = createDisparityWLSFilter(left_matcher);
     // Ptr<StereoMatcher> right_matcher = createRightMatcher(left_matcher);
@@ -93,7 +102,7 @@ void StereoMatcher::denseStereoReconstruction(
   }
 
   // Optionally, smooth the disparity image
-  if (median_blur_disparity_) {
+  if (dense_stereo_params_.median_blur_disparity_) {
     cv::medianBlur(*disparity_img, *disparity_img, 5);
   }
 
@@ -111,14 +120,32 @@ void StereoMatcher::denseStereoReconstruction(
   }
 }
 
+void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
+  CHECK_NOTNULL(stereo_frame);
+  //! Undistort rectify left/right images
+  CHECK(!stereo_frame->isRectified());
+  stereo_camera_->undistortRectifyStereoFrame(stereo_frame);
+  CHECK(stereo_frame->isRectified());
+  //! Undistort rectify left keypoints
+  CHECK_GT(stereo_frame->left_frame_.keypoints_.size(), 0u)
+      << "Call feature detection on left frame first...";
+  stereo_camera_->undistortRectifyPoints(
+      stereo_frame->left_frame_.keypoints_,
+      &stereo_frame->left_keypoints_rectified_);
+  sparseStereoReconstruction(stereo_frame->left_img_rectified_,
+                             stereo_frame->right_img_rectified_,
+                             stereo_frame->left_keypoints_rectified_,
+                             &stereo_frame->right_keypoints_rectified_);
+}
+
 void StereoMatcher::sparseStereoReconstruction(
     const cv::Mat& left_img_rectified,
     const cv::Mat& right_img_rectified,
     const StatusKeypointsCV& left_keypoints_rectified,
     StatusKeypointsCV* right_keypoints_rectified) {
   CHECK_NOTNULL(right_keypoints_rectified);
-  // Get calibration values
-  const auto& stereo_calib = stereo_camera_.getStereoCalib();
+  CHECK(stereo_camera_);
+  const auto& stereo_calib = stereo_camera_->getStereoCalib();
   CHECK(stereo_calib);
   const auto& baseline = stereo_calib->baseline();
   const auto& fx = stereo_calib->fx();

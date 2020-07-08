@@ -21,7 +21,9 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
       display_input_queue_("display_input_queue"),
       imu_data_(),
       left_frame_queue_("left_frame_queue"),
-      right_frame_queue_("right_frame_queue") {
+      right_frame_queue_("right_frame_queue"),
+      stereo_camera_(nullptr),
+      stereo_matcher_(nullptr) {
   // Set sequential mode
   vio_params_.parallel_run_ = false;
 
@@ -70,8 +72,9 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
   // Create Stereo Camera
   stereo_camera_ = VIO::make_unique<StereoCamera>(
       vio_params_.camera_params_.at(0),
-      vio_params_.camera_params_.at(1),
-      vio_params_.frontend_params_.stereo_matching_params_);
+      vio_params_.camera_params_.at(1));
+  stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+      stereo_camera_, vio_params_.frontend_params_.stereo_matching_params_);
 }
 
 void EurocPlayground::visualizeGtData(const bool& viz_traj,
@@ -152,7 +155,8 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
             cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
         CHECK(stereo_frame.isRectified());
         stereo_camera_->undistortRectifyStereoFrame(&stereo_frame);
-        stereo_camera_->stereoDisparityReconstruction(
+        CHECK(stereo_matcher_);
+        stereo_matcher_->denseStereoReconstruction(
             stereo_frame.getLeftImgRectified(),
             stereo_frame.getRightImgRectified(),
             &disp_img);
@@ -189,10 +193,10 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         mesh_packet_.left_cam_rect_pose_ = left_cam_rect_pose;
         // Shouldn't we send rectified images?
         mesh_packet_.left_image_rect_ =
-            stereo_frame.left_img_rectified_.clone();
+            stereo_frame.getLeftImgRectified().clone();
         mesh_packet_.right_cam_rect_pose_ = right_cam_rect_pose;
         mesh_packet_.right_image_rect =
-            stereo_frame.right_img_rectified_.clone();
+            stereo_frame.getRightImgRectified().clone();
 
         LOG(INFO) << "Converting depth to pcl.";
         // Reshape as a list of 3D points, same channels,
@@ -209,7 +213,7 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
             if (isValidPoint(xyz)) {
               valid_depth.push_back(xyz);
               const auto& grey_value =
-                  stereo_frame.left_img_rectified_.at<uint8_t>(u, v);
+                  mesh_packet_.left_image_rect_.at<uint8_t>(u, v);
               // We recolor the depth map for disambiguation of original
               // viewpoint
               valid_colors.push_back(

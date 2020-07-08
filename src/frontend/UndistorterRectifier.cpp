@@ -24,7 +24,8 @@ namespace VIO {
 
 UndistorterRectifier::UndistorterRectifier(const cv::Mat& P,
                                            const CameraParams& cam_params,
-                                           const cv::Mat& R) {
+                                           const cv::Mat& R)
+    : P_(P), R_(R), cam_params_(cam_params) {
   initUndistortRectifyMaps(cam_params, R, P, &map_x_, &map_y_);
 }
 
@@ -40,6 +41,82 @@ void UndistorterRectifier::undistortRectifyImage(const cv::Mat& img,
             remap_interpolation_type_,
             remap_use_constant_border_type_ ? cv::BORDER_CONSTANT
                                             : cv::BORDER_REPLICATE);
+}
+
+void UndistorterRectifier::undistortRectifyKeypoints(
+    const KeypointsCV& keypoints,
+    KeypointsCV* undistorted_keypoints) {
+  CHECK_NOTNULL(undistorted_keypoints)->clear();
+  switch (cam_params_.distortion_model_) {
+    case DistortionModel::RADTAN: {
+      cv::undistortPoints(keypoints,
+                          *undistorted_keypoints,
+                          cam_params_.K_,
+                          cam_params_.distortion_coeff_mat_,
+                          R_,
+                          P_);
+    } break;
+    case DistortionModel::EQUIDISTANT: {
+      cv::fisheye::undistortPoints(keypoint,
+                                   *undistorted_keypoints,
+                                   cam_params_.K_,
+                                   cam_params_.distortion_coeff_mat_,
+                                   R_,
+                                   P_);
+    } break;
+    default: { LOG(FATAL) << "Unknown distortion model."; }
+  }
+}
+
+void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
+    const KeypointsCV& distorted_kps,
+    const KeypointsCV& undistorted_kps,
+    StatusKeypointsCV* status_kps,
+    const float& pixel_tol) {
+  CHECK_NOTNULL(status_kps)->clear();
+  CHECK_EQ(distorted_kps.size(), undistorted_kps.size());
+  status_kps->reserve(distorted_kps.size());
+  for (size_t i = 0u; i < undistorted_kps.size(); i++) {
+    const KeypointCV& distorted_kp = distorted_kps[i];
+    const KeypointCV& undistorted_kp = undistorted_kps[i];
+    bool cropped = UtilsOpenCV::cropToSize(&undistorted_kp, map_x_.size);
+
+    // TODO(Toni): would be nicer to interpolate exact position.
+    float expected_distorted_kp_x = map_x_.at<float>(
+        std::round(undistorted_kp.y), std::round(undistorted_kp.x));
+    float expected_distorted_kp_y = map_y_.at<float>(
+        std::round(undistorted_kp.y), std::round(undistorted_kp.x));
+
+    if (cropped) {
+      VLOG(10) << "Undistorted Rectified keypoint out of image!\n"
+               << "Keypoint undistorted: \n"
+               << undistorted_kp << '\n'
+               << "Image Size (map x size): " << map_x_.size;
+      status_kps->push_back(
+          std::make_pair(KeypointStatus::NO_LEFT_RECT, px_undistRect));
+    } else {
+      if (std::fabs(distorted_kp.x - expected_distorted_kp_x) > pixel_tol ||
+          std::fabs(distorted_kp.y - expected_distorted_kp_y) > pixel_tol) {
+        // Mark as invalid all pixels that were undistorted out of the frame
+        // and for which the undistorted rectified keypoint remaps close to
+        // the distorted unrectified pixel.
+        VLOG(10) << "Pixel mismatch when checking undistortRectification! \n"
+                 << "Actual undistorted Keypoint: \n"
+                 << " - x: " << undistorted_kp.x << '\n'
+                 << " - y: " << undistorted_kp.y << '\n'
+                 << "Expected undistorted Keypoint: \n"
+                 << " - x: " << expected_distorted_kp_x << '\n'
+                 << " - y: " << expected_distorted_kp_y;
+        // Invalid points.
+        status_kps->push_back(
+            std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
+      } else {
+        // Point is valid!
+        status_kps->push_back(
+            std::make_pair(KeypointStatus::VALID, undistorted_kp));
+      }
+    }
+  }
 }
 
 void UndistorterRectifier::initUndistortRectifyMaps(

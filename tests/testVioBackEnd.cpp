@@ -205,7 +205,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
   for (const auto& pose : poses) {
     gtsam::PinholeCamera<Cal3_S2> cam_left(pose.first, cam_params);
     gtsam::PinholeCamera<Cal3_S2> cam_right(pose.second, cam_params);
-    SmartStereoMeasurements measurement_frame;
+    StereoMeasurements measurement_frame;
     for (int l_id = 0; l_id < num_pts; l_id++) {
       Point2 pt_left = cam_left.project2(pts[l_id]);
       Point2 pt_right = cam_right.project2(pts[l_id]);

@@ -233,19 +233,36 @@ void StereoCamera::backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
   }
 }
 
+void StereoCamera::undistortRectifyLeftKeypoints(
+    const KeypointsCV& keypoints,
+    StatusKeypointsCV* status_keypoints_rectified) {
+  KeypointsCV undistorted_rectified_keypoints;
+  CHECK(left_cam_undistort_rectifier_);
+  left_cam_undistort_rectifier_->undistortRectifyKeypoints(
+      keypoints, &undistorted_rectified_keypoints);
+  left_cam_undistort_rectifier_->checkUndistortedRectifiedLeftKeypoints(
+      keypoints, undistorted_rectified_keypoints, status_keypoints_rectified);
+}
+
 void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) {
   CHECK_NOTNULL(stereo_frame);
+  //! Warn if stupid behavior from user
   LOG_IF(WARNING, stereo_frame->isRectified())
       << "Rectifying already rectified stereo frame ...";
-  //! Rectify and undistort images using precomputed maps.
+
+  //! Left img
   CHECK(left_cam_undistort_rectifier_);
   cv::Mat left_img_rectified;
   left_cam_undistort_rectifier_->undistortRectifyImage(
       stereo_frame->getLeftFrame().img_, &left_img_rectified);
+
+  //! Right img
   CHECK(right_cam_undistort_rectifier_);
   cv::Mat right_img_rectified;
   right_cam_undistort_rectifier_->undistortRectifyImage(
       stereo_frame->getRightFrame().img_, &right_img_rectified);
+
+  //! Update stereo_frame
   stereo_frame->setRectifiedImages(left_img_rectified, right_img_rectified);
 }
 

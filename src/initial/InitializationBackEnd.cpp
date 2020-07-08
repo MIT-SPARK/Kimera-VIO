@@ -248,7 +248,7 @@ void InitializationBackEnd::addInitialVisualState(
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
-  SmartStereoMeasurements smartStereoMeasurements_kf =
+  StereoMeasurements smartStereoMeasurements_kf =
       status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:

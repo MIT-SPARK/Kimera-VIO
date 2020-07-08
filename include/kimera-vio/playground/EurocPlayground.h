@@ -26,6 +26,7 @@
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayFactory.h"
@@ -90,6 +91,7 @@ public:
 
   //! Stereo Camera to back/project and do stereo dense reconstruction.
   StereoCamera::Ptr stereo_camera_;
+  StereoMatcher::UniquePtr stereo_matcher_;
 
   DisplayModule::UniquePtr display_module_;
   DisplayModule::InputQueue display_input_queue_;

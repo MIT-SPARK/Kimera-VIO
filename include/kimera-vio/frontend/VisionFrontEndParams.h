@@ -82,7 +82,7 @@ protected:
   // STEREO parameters:
   double intra_keyframe_time_ns_ = 0.2 * 10e6;
   size_t min_number_features_ = 0u;
-  // if set to false pipeline reduces to monocular tracking
+  //! If set to false, pipeline reduces to monocular tracking.
   bool useStereoTracking_ = true;
 
   // others:

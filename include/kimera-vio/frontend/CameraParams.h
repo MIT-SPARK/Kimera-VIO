@@ -9,7 +9,7 @@
 /**
  * @file   CameraParams.h
  * @brief  Parameters describing a monocular camera.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
  */
 
 #pragma once
@@ -35,8 +35,10 @@ enum class DistortionModel {
   EQUIDISTANT,
 };
 
-/*
- * Class describing camera parameters.
+/**
+ * @brief The CameraParams class Contains intrinsics and extrinsics of a single
+ * camera, as well as distortion coefficients. Also has some miscellaneous
+ * information (frame_rate, image_size, etc).
  */
 class CameraParams : public PipelineParams {
  public:
@@ -62,13 +64,18 @@ class CameraParams : public PipelineParams {
         distortion_coeff_mat_() {}
   virtual ~CameraParams() = default;
 
-  // Parse YAML file describing camera parameters.
+  /**
+   * @brief parseYAML
+   * Parse YAML file describing camera parameters.
+   * @param filepath Path to the yaml file with the params
+   * @return
+   */
   bool parseYAML(const std::string& filepath) override;
 
-  // Display all params.
+  //! Display all params.
   void print() const override;
 
-  // Assert equality up to a tolerance.
+  //! Assert equality up to a tolerance.
   bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
 
  protected:
@@ -77,26 +84,26 @@ class CameraParams : public PipelineParams {
   }
 
  public:
-  // Id of the camera
+  //! Id of the camera
   CameraId camera_id_;
 
-  // Camera model: pinhole, etc
+  //! Camera model: pinhole, etc
   std::string camera_model_;
 
-  // fu, fv, cu, cv
+  //! fu, fv, cu, cv
   Intrinsics intrinsics_;
-  // OpenCV structures: needed to compute the undistortion map.
-  // 3x3 camera matrix K (last row is {0,0,1})
+  //! OpenCV structures: needed to compute the undistortion map.
+  //! 3x3 camera matrix K (last row is {0,0,1})
   cv::Mat K_;
 
-  // Sensor extrinsics wrt body-frame
+  //! Sensor extrinsics wrt body-frame
   gtsam::Pose3 body_Pose_cam_;
 
-  // Image info.
+  //! Image info.
   double frame_rate_;
   cv::Size image_size_;
 
-  // Distortion parameters
+  //! Distortion parameters
   DistortionModel distortion_model_;
   std::vector<double> distortion_coeff_;
   cv::Mat distortion_coeff_mat_;

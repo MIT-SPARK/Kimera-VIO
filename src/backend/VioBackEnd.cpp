@@ -285,7 +285,7 @@ bool VioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
-  const SmartStereoMeasurements& smart_stereo_measurements_kf =
+  const StereoMeasurements& smart_stereo_measurements_kf =
       status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
@@ -666,7 +666,7 @@ void VioBackEnd::computeStateCovariance() {
 // class...
 void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     const int& frame_num,
-    const SmartStereoMeasurements& stereo_meas_kf,
+    const StereoMeasurements& stereo_meas_kf,
     LandmarkIds* landmarks_kf) {
   CHECK_NOTNULL(landmarks_kf);
 

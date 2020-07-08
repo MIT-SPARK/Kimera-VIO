@@ -198,7 +198,7 @@ class VioBackEnd {
   // returns landmarks observed in current frame.
   void addStereoMeasurementsToFeatureTracks(
       const int& frameNum,
-      const SmartStereoMeasurements& stereoMeasurements_kf,
+      const StereoMeasurements& stereoMeasurements_kf,
       LandmarkIds* landmarks_kf);
 
   /* ------------------------------------------------------------------------ */

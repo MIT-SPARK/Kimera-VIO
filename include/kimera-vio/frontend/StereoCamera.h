@@ -171,6 +171,17 @@ class StereoCamera {
   void undistortRectifyStereoFrame(StereoFrame* stereo_frame);
 
   /**
+   * @brief undistortRectifyLeftKeypoints Undistorts and rectifies left keypoints
+   * using the left camera distortion and rectification parameters.
+   * Further provides a KeypointStatus on the keypoints so that out of image
+   * and/or badly undistorted-rectified keypoints can be discarded.
+   * @param keypoints
+   * @param status_keypoints
+   */
+  void undistortRectifyLeftKeypoints(const KeypointsCV& keypoints,
+                                     StatusKeypointsCV* status_keypoints);
+
+  /**
    * @brief computeRectificationParameters
    *
    * Outputs new rotation matrices R1,R2

@@ -30,9 +30,10 @@ StereoFrame::StereoFrame(const FrameId& id,
       // TODO(Toni): remove these copies
       left_frame_(left_frame),
       right_frame_(right_frame),
-      left_img_rectified_(nullptr),
-      right_img_rectified_(nullptr),
-      is_keyframe_(false) {
+      is_keyframe_(false),
+      is_rectified_(false),
+      left_img_rectified_(),
+      right_img_rectified_() {
   CHECK_EQ(id_, left_frame_.id_);
   CHECK_EQ(id_, right_frame_.id_);
   CHECK_EQ(timestamp_, left_frame_.timestamp_);
@@ -60,7 +61,6 @@ void StereoFrame::checkStereoFrame() const {
   CHECK_EQ(right_keypoints_rectified_.size(), nrLeftKeypoints)
       << "checkStereoFrame: right_keypoints_rectified_.size()";
 
-  double tol = 1e-4;
   for (size_t i = 0; i < nrLeftKeypoints; i++) {
     if (right_keypoints_status_[i] == KeypointStatus::VALID) {
       CHECK_LE(fabs(right_keypoints_rectified_[i].y -
@@ -81,7 +81,8 @@ void StereoFrame::checkStereoFrame() const {
           << "checkStereoFrame: keypoints_3d_[i] has nonpositive "
              "for valid point: "
           << keypoints_3d_[i](2) << '\n'
-          << "right_keypoints_status_[i] " << right_keypoints_status_[i] << '\n'
+          << "right_keypoints_status_[i] "
+          << to_underlying(right_keypoints_status_[i]) << '\n'
           << "left_frame_.keypoints_[i] " << left_frame_.keypoints_[i] << '\n'
           << "right_frame_.keypoints_[i] " << right_frame_.keypoints_[i] << '\n'
           << "left_keypoints_rectified_[i] " << left_keypoints_rectified_[i]
@@ -92,6 +93,44 @@ void StereoFrame::checkStereoFrame() const {
           << "checkStereoFrame: keypoints_3d_[i] has positive "
              "for nonvalid point: "
           << keypoints_3d_[i](2);
+    }
+  }
+}
+
+void StereoFrame::checkStatusRightKeypoints(
+    DebugTrackerInfo* debug_info) const {
+  CHECK_NOTNULL(debug_info);
+  debug_info->nrValidRKP_ = 0;
+  debug_info->nrNoLeftRectRKP_ = 0;
+  debug_info->nrNoRightRectRKP_ = 0;
+  debug_info->nrNoDepthRKP_ = 0;
+  debug_info->nrFailedArunRKP_ = 0;
+  for (const KeypointStatus& right_keypoint_status : right_keypoints_status_) {
+    switch (right_keypoint_status) {
+      case KeypointStatus::VALID: {
+        debug_info->nrValidRKP_++;
+        break;
+      }
+      case KeypointStatus::NO_LEFT_RECT: {
+        debug_info->nrNoLeftRectRKP_++;
+        break;
+      }
+      case KeypointStatus::NO_RIGHT_RECT: {
+        debug_info->nrNoRightRectRKP_++;
+        break;
+      }
+      case KeypointStatus::NO_DEPTH: {
+        debug_info->nrNoDepthRKP_++;
+        break;
+      }
+      case KeypointStatus::FAILED_ARUN: {
+        debug_info->nrFailedArunRKP_++;
+        break;
+      }
+      default: {
+        LOG(FATAL) << "Unknown keypoint status.";
+        break;
+      }
     }
   }
 }
@@ -154,6 +193,46 @@ std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
   return depths;
 }
 
+void StereoFrame::getSmartStereoMeasurements(
+    StereoMeasurements* smart_stereo_measurements,
+    const bool& use_stereo_measurements) const {
+  CHECK_NOTNULL(smart_stereo_measurements)->clear();
+
+  // Sanity check first.
+  CHECK(is_rectified_) << "Stereo pair is not rectified";
+  // Checks dimensionality of the feature vectors. This may be expensive!
+  checkStereoFrame();
+
+  const LandmarkIds& landmark_ids = left_frame_.landmarks_;
+  smart_stereo_measurements->reserve(landmark_ids.size());
+  for (size_t i = 0u; i < landmark_ids.size(); i++) {
+    const LandmarkId& lmk_id = landmark_ids.at(i);
+    if (lmk_id == -1) {
+      continue;  // skip invalid points
+    }
+
+    // TODO implicit conversion float to double increases floating-point
+    // precision!
+    const KeypointCV& left_kpt = left_keypoints_rectified_.at(i);
+    const double& uL = left_kpt.x;
+    const double& v = left_kpt.y;
+    // Initialize to missing pixel information.
+    double uR = std::numeric_limits<double>::quiet_NaN();
+    LOG_IF_EVERY_N(WARNING, !use_stereo_measurements, 10)
+        << "Dropping stereo information: uR = NaN! (set "
+           "useStereoTracking_ = true to use it)";
+
+    if (use_stereo_measurements &&
+        right_keypoints_status_.at(i) == KeypointStatus::VALID) {
+      // TODO implicit conversion float to double increases floating-point
+      // precision!
+      uR = right_keypoints_rectified_.at(i).x;
+    }
+    smart_stereo_measurements->push_back(
+        std::make_pair(lmk_id, gtsam::StereoPoint2(uL, uR, v)));
+  }
+}
+
 void StereoFrame::print() const {
   LOG(INFO) << "=====================\n"
             << "id_: " << id_ << '\n'
@@ -169,6 +248,17 @@ void StereoFrame::print() const {
             << right_frame_.cam_param_.body_Pose_cam_;
 }
 
+cv::Mat StereoFrame::drawLeftRightCornersMatches(
+    const std::vector<cv::DMatch>& matches,
+    const bool& random_color) const {
+  return UtilsOpenCV::DrawCornersMatches(left_img_rectified_,
+                                         left_keypoints_rectified_,
+                                         right_img_rectified_,
+                                         right_keypoints_rectified_,
+                                         matches,
+                                         random_color);
+}
+
 void StereoFrame::showOriginal(const int verbosity) const {
   showImagesSideBySide(
       left_frame_.img_, right_frame_.img_, "original: left-right", verbosity);
@@ -176,10 +266,9 @@ void StereoFrame::showOriginal(const int verbosity) const {
 
 void StereoFrame::showRectified(const bool& visualize,
                                 const bool& write) const {
-  CHECK(left_img_rectified_);
-  CHECK(right_img_rectified_);
+  CHECK(is_rectified_);
   cv::Mat canvas_undistorted_rectified =
-      drawEpipolarLines(*left_img_rectified_, *right_img_rectified_, 15);
+      drawEpipolarLines(left_img_rectified_, right_img_rectified_, 15);
   if (write) {
     std::string img_name =
         "./outputImages/rectified_" + std::to_string(id_) + ".png";

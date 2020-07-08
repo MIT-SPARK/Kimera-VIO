@@ -187,7 +187,7 @@ bool RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
-  const SmartStereoMeasurements& smart_stereo_measurements_kf =
+  const StereoMeasurements& smart_stereo_measurements_kf =
       status_smart_stereo_measurements_kf.second;
 
   // Extract relevant information from stereo frame.

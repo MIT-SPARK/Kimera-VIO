@@ -98,7 +98,7 @@ class StereoVisionFrontEnd {
   /* ------------------------------------------------------------------------ */
   // Returns extracted left and right rectified features in a suitable format
   // for VIO.
-  SmartStereoMeasurementsUniquePtr getSmartStereoMeasurements(
+  StereoMeasurementsUniquePtr getSmartStereoMeasurements(
       const StereoFrame& stereoFrame_kf) const;
 
   /* ------------------------------------------------------------------------ */
@@ -220,8 +220,8 @@ class StereoVisionFrontEnd {
 
   /* ------------------------------------------------------------------------ */
   // Get tracker info.
-  inline DebugTrackerInfo getTrackerInfo() {
-    return tracker_.getTrackerDebugInfo();
+  inline DebugTrackerInfo getTrackerInfo() const {
+    return tracker_.debug_info_;
   }
 
  private:
@@ -254,7 +254,7 @@ class StereoVisionFrontEnd {
   Tracker tracker_;
 
   // A stereo camera
-  StereoCamera stereo_camera_;
+  StereoCamera::Ptr stereo_camera_;
 
   // Set of functionalities for stereo matching
   StereoMatcher stereo_matcher_;

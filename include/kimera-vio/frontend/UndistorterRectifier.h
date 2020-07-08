@@ -56,6 +56,31 @@ class UndistorterRectifier {
    */
   void undistortRectifyImage(const cv::Mat& img, cv::Mat* undistorted_img);
 
+  /**
+   * @brief undistortRectifyKeypoints Undistorts and rectifies a sparse set of
+   * keypoints (instead of a whole image), using OpenCV undistortPoints.
+   *
+   * OpenCV undistortPoints (this does not use the remap function, but an
+   * iterative approach to find the undistorted keypoints...).
+   * Check OpenCV documentation for details about this function.
+   *
+   * It uses the internal camera parameters, and the optional R_ and P_ matrices
+   * as provided at construction (by cv::stereoRectify). If R_/P_ are identity
+   * no rectification is performed and the resulting keypoints are in normalized
+   * coordinates.
+   * @param keypoints Distorted and unrectified keypoints
+   * @param undistorted_keypoints Undistorted and rectified keypoints.
+   */
+  void undistortRectifyKeypoints(const KeypointsCV& keypoints,
+                                 KeypointsCV* undistorted_keypoints);
+
+  void checkUndistortedRectifiedLeftKeypoints(
+      const KeypointsCV& distorted_kpts,
+      const KeypointsCV& undistorted_kpts,
+      StatusKeypointsCV* status_kpts,
+      // This tolerance is huge...
+      const float& pixel_tolerance = 2.0f);
+
  protected:
   /**
    * @brief initUndistortRectifyMaps Initialize pixel to pixel maps for
@@ -93,6 +118,11 @@ class UndistorterRectifier {
  protected:
   cv::Mat map_x_;
   cv::Mat map_y_;
+
+  cv::Mat P_;
+  cv::Mat R_;
+
+  CameraParams cam_params_;
 
   // Replicate instead of constant is more efficient for GPUs to calculate.
   bool remap_use_constant_border_type_ = false;

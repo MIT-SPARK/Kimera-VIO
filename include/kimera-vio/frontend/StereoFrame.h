@@ -39,6 +39,7 @@
 #include "kimera-vio/frontend/StereoFrame-definitions.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/utils/UtilsGeometry.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 
@@ -47,30 +48,55 @@ class StereoFrame {
   // TODO(Toni) Do it pls...
   // KIMERA_DELETE_COPY_CONSTRUCTORS(StereoFrame);
   KIMERA_POINTER_TYPEDEFS(StereoFrame);
-  // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   StereoFrame(const FrameId& id,
               const Timestamp& timestamp,
               const Frame& left_frame,
-              const Frame& right_frame,
-              const StereoMatchingParams& stereo_matching_params);
+              const Frame& right_frame);
+  ~StereoFrame() = default;
 
+ public:
+  /// Setters
+  inline void setIsKeyframe(bool is_kf);
   void setRectifiedImages(const cv::Mat& left_rectified_img,
                           const cv::Mat& right_rectified_img);
 
- public:
-  // TODO these guys are flying around the code, as they are publicly accessible
-  // by anyone... To make this self-contained and thread-safe, there should be
-  // getters for each one of these, but this has the caveat of making copies
-  // everytime a getter is called. Better would be to add them to a
-  // Output queue.
-  //! in the ref frame of the UNRECTIFIED left frame
+  /// Getters
+  inline FrameId getFrameId() const { return id_; }
+  inline Timestamp getTimestamp() const { return timestamp_; }
 
- public:
-  inline void setIsKeyframe(bool is_kf);
+  inline bool isKeyframe() const { return is_keyframe_; }
+  inline bool isRectified() const { return is_rectified_; }
 
+  inline const Frame& getLeftFrame() const { return left_frame_; }
+  inline const Frame& getRightFrame() const { return right_frame_; }
 
-  void checkStereoFrame() const;
+  // NON-THREAD SAFE, and potentially very hazardous, giving away rights to
+  // modify class members is EVIL.
+  inline Frame* getLeftFrameMutable() { return &left_frame_; }
+  inline Frame* getRightFrameMutable() { return &right_frame_; }
+
+  //! Return rectified images, assumes the images have already been computed.
+  //! Note that we return const images, since these should not be modified
+  //! by the user.
+  inline const cv::Mat getLeftImgRectified() const {
+    CHECK(is_rectified_);
+    return left_img_rectified_;
+  }
+  inline const cv::Mat getRightImgRectified() const {
+    CHECK(is_rectified_);
+    return right_img_rectified_;
+  }
+
+  inline StatusKeypointsCV getLeftKptsRectified() const {
+    CHECK(is_rectified_);
+    return left_keypoints_rectified_;
+  }
+  inline StatusKeypointsCV getRightKptsRectified() const {
+    CHECK(is_rectified_);
+    return right_keypoints_rectified_;
+  }
 
   std::vector<double> getDepthFromRectifiedMatches(
       StatusKeypointsCV& left_keypoints_rectified,
@@ -79,37 +105,55 @@ class StereoFrame {
       const double& baseline,
       const StereoMatchingParams& stereo_matching_params) const;
 
- public:
-  /// Getters
-  // Thread-safe.
-  inline FrameId getFrameId() const { return id_; }
-  inline Timestamp getTimestamp() const { return timestamp_; }
+  void getSmartStereoMeasurements(StereoMeasurements* smart_stereo_measurements,
+                                  const bool& use_stereo_measurements) const;
 
-  // NOT THREAD-SAFE, needs critical section.
-  inline bool isKeyframe() const { return is_keyframe_; }
-  inline void isRectified() const {
-    return left_img_rectified_ && right_img_rectified_;
-  }
+  /// Checkers
+  void checkStereoFrame() const;
+  /**
+   * @brief checkStatusRightKeypoints Fill debug tracker info for logging with
+   * keypoint status statistics
+   * @param[out] debug_info Debug tracker info structure to update with stats.
+   */
+  void checkStatusRightKeypoints(DebugTrackerInfo* debug_info) const;
 
-  // NON-THREAD SAFE.
-  inline const Frame& getLeftFrame() const { return left_frame_; }
-  inline const Frame& getRightFrame() const { return right_frame_; }
-  // NON-THREAD SAFE, and potentially very hazardous, giving away rights to
-  // modify class members is EVIL.
-  inline Frame* getLeftFrameMutable() { return &left_frame_; }
-  inline Frame* getRightFrameMutable() { return &right_frame_; }
-  // NON-THREAD SAFE, Get rectified images
-  //! Return rectified images, assumes the images have already been computed.
-  //! Note that we return const images, since these should not be modified
-  //! by the user.
-  inline const cv::Mat& getLeftImgRectified() const {
-    CHECK(left_img_rectified_);
-    return *left_img_rectified_;
-  }
-  inline const cv::Mat& getRightImgRectified() const {
-    CHECK(right_img_rectified_);
-    return *right_img_rectified_;
-  }
+  /// Drawing functions
+  /**
+   * @brief drawCornersMatches
+   * (friend function to avoid granting full access on the
+   * stereo frame members to everyone).
+   * @param stereo_frame_1
+   * @param stereo_frame_2
+   * @param matches
+   * @param random_color
+   * @return
+   */
+  friend cv::Mat drawCornersMatches(const StereoFrame& stereo_frame_1,
+                                    const StereoFrame& stereo_frame_2,
+                                    const std::vector<cv::DMatch>& matches,
+                                    const bool& random_color);
+
+  cv::Mat drawLeftRightCornersMatches(const std::vector<cv::DMatch>& matches,
+                                      const bool& random_color) const;
+
+ private:
+  //! Visualization functions
+  void showOriginal(const int verbosity) const;
+  void showRectified(const bool& visualize, const bool& write) const;
+  void showImagesSideBySide(const cv::Mat imL,
+                            const cv::Mat imR,
+                            const std::string& title,
+                            const int& verbosity = 0) const;
+  cv::Mat drawEpipolarLines(const cv::Mat img1,
+                            const cv::Mat img2,
+                            const int& numLines = 20,
+                            const bool& verbosity = false) const;
+  void showLeftRightMatches() const;
+
+  //! Printers
+  void printKeypointStats(
+      const StatusKeypointsCV& right_keypoints_rectified) const;
+  void print() const;
 
  private:
   //! Unique id of this stereo frame (the user must ensure it is unique).
@@ -124,43 +168,40 @@ class StereoFrame {
   //! If this stereo frame is a keyframe
   bool is_keyframe_;
 
+  bool is_rectified_;
   //! Rectified undistorted images for sparse stereo epipolar matching
-  //! If the pointers are nullptr, the images have not been computed yet.
-  std::unique_ptr<cv::Mat> left_img_rectified_;
-  std::unique_ptr<cv::Mat> right_img_rectified_;
+  //! If the flag is_rectified_ is not true,
+  //! the images have not been computed yet.
+  cv::Mat left_img_rectified_;
+  cv::Mat right_img_rectified_;
 
   //! Left/right keypoints being tracked expressed as rectified/undistorted
-  KeypointsCV left_keypoints_rectified_;
-  KeypointsCV right_keypoints_rectified_;
+  //! points with validity flag.
+  StatusKeypointsCV left_keypoints_rectified_;
+  StatusKeypointsCV right_keypoints_rectified_;
 
   //! 3D positions of the stereo points as given by reprojection using stereo
   //! disparity
   std::vector<gtsam::Vector3> keypoints_3d_;
 
-  //! Validity status of the right keypoint detection
-  std::vector<KeypointStatus> right_keypoints_status_;
-
- private:
-  //! Visualization functions
-  void showOriginal(const int verbosity) const;
-  void showRectified(const bool& visualize,
-                     const bool& write) const;
-  void showImagesSideBySide(const cv::Mat imL,
-                            const cv::Mat imR,
-                            const std::string& title,
-                            const int& verbosity = 0) const;
-  cv::Mat drawEpipolarLines(const cv::Mat img1,
-                            const cv::Mat img2,
-                            const int& numLines = 20,
-                            const int& verbosity = 0) const;
-  void showLeftRightMatches() const;
-
-  //! Printers
-  void printKeypointStats(
-      const StatusKeypointsCV& right_keypoints_rectified) const;
-  void print() const;
-
-
+  /// Friends with access rights to the StereoFrame inner members.
+  //! StereoMatcher computes the right keypoints for the left keypoints using
+  //! the rectified left/right frames and left keypoints.
+  friend class StereoMatcher;
 };
+
+//! Define stereo frame friend class
+cv::Mat drawCornersMatches(const StereoFrame& stereo_frame_1,
+                           const StereoFrame& stereo_frame_2,
+                           const std::vector<cv::DMatch>& matches,
+                           const bool& random_color) {
+  return UtilsOpenCV::DrawCornersMatches(
+      stereo_frame_1.left_img_rectified_,
+      stereo_frame_1.left_keypoints_rectified_,
+      stereo_frame_2.left_img_rectified_,
+      stereo_frame_2.left_keypoints_rectified_,
+      matches,
+      random_color);
+}
 
 }  // namespace VIO

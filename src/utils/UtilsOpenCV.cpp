@@ -610,6 +610,7 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
   }
   return canvas;
 }
+
 /* -------------------------------------------------------------------------- */
 cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
                                  const StatusKeypointsCV& imagePoints,

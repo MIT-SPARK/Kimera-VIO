@@ -29,8 +29,8 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionFrontEndParams.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
@@ -100,9 +100,6 @@ class Tracker {
                             StereoFrame* cur_stereoFrame,
                             KeypointMatches* matches_ref_cur);
 
-  void checkStatusRightKeypoints(
-      const std::vector<KeypointStatus>& right_keypoints_status);
-
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers
   cv::Mat getTrackerImage(
@@ -143,8 +140,9 @@ class Tracker {
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
-  // Get tracker info
-  inline DebugTrackerInfo getTrackerDebugInfo() { return debug_info_; }
+ public:
+  //! Debug info (its public to allow stereo frames to populate it).
+  DebugTrackerInfo debug_info_;
 
  private:
   // Incremental id assigned to new landmarks.
@@ -157,9 +155,6 @@ class Tracker {
   // Feature tracking uses the optical flow predictor to have a better guess of
   // where the features moved from frame to frame.
   OpticalFlowPredictor::UniquePtr optical_flow_predictor_;
-
-  // Debug info.
-  DebugTrackerInfo debug_info_;
 
   // Display queue: push to this queue if you want to display an image.
   DisplayQueue* display_queue_;

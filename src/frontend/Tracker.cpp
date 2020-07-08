@@ -731,39 +731,6 @@ void Tracker::findOutliers(const KeypointMatches& matches_ref_cur,
   }
 }
 
-void Tracker::checkStatusRightKeypoints(
-    const std::vector<KeypointStatus>& right_keypoints_status) {
-  debug_info_.nrValidRKP_ = 0;
-  debug_info_.nrNoLeftRectRKP_ = 0;
-  debug_info_.nrNoRightRectRKP_ = 0;
-  debug_info_.nrNoDepthRKP_ = 0;
-  debug_info_.nrFailedArunRKP_ = 0;
-  for (const KeypointStatus& right_keypoint_status : right_keypoints_status) {
-    switch (right_keypoint_status) {
-      case KeypointStatus::VALID: {
-        debug_info_.nrValidRKP_++;
-        break;
-      }
-      case KeypointStatus::NO_LEFT_RECT: {
-        debug_info_.nrNoLeftRectRKP_++;
-        break;
-      }
-      case KeypointStatus::NO_RIGHT_RECT: {
-        debug_info_.nrNoRightRectRKP_++;
-        break;
-      }
-      case KeypointStatus::NO_DEPTH: {
-        debug_info_.nrNoDepthRKP_++;
-        break;
-      }
-      case KeypointStatus::FAILED_ARUN: {
-        debug_info_.nrFailedArunRKP_++;
-        break;
-      }
-    }
-  }
-}
-
 // TODO(Toni): this and findOutliers can be greatly optimized...
 void Tracker::removeOutliersMono(const std::vector<int>& inliers,
                                  Frame* ref_frame,
