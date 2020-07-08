@@ -401,6 +401,16 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     stereoFrame_k_->setIsKeyframe(false);
   }
 
+  // Update keyframe to reference frame for next iteration.
+  if (stereoFrame_k_->isKeyframe()) {
+    // Reset relative rotation if we have a keyframe.
+    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+  } else {
+    // Update rotation from keyframe to next iteration reference frame (aka
+    // cur_frame in current iteration).
+    keyframe_R_ref_frame_ = keyframe_R_cur_frame;
+  }
+
   // Reset frames.
   stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();

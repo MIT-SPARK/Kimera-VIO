@@ -155,7 +155,7 @@ class StereoVisionFrontEnd {
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      const gtsam::Rot3& keyframe_R_ref_frame_,
+      const gtsam::Rot3& keyframe_R_ref_frame,
       cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
@@ -239,6 +239,7 @@ class StereoVisionFrontEnd {
 
   // Rotation from last keyframe to reference frame
   // We use this to calculate the rotation btw reference frame and current frame
+  // Whenever a keyframe is created, we reset it to identity.
   gtsam::Rot3 keyframe_R_ref_frame_;
 
   // Counters.
