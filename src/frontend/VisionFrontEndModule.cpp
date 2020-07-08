@@ -31,25 +31,4 @@ StereoVisionFrontEndModule::spinOnce(StereoImuSyncPacket::UniquePtr input) {
   return vio_frontend_->spinOnce(*input);
 }
 
-//! Frontend Initialization
-StereoFrame StereoVisionFrontEndModule::processFirstStereoFrame(
-    const StereoFrame& first_frame) {
-  return vio_frontend_->processFirstStereoFrame(first_frame);
-}
-
-void StereoVisionFrontEndModule::resetFrontendAfterOnlineAlignment(
-    const gtsam::Vector3& gravity,
-    gtsam::Vector3& gyro_bias) {
-  vio_frontend_->resetFrontendAfterOnlineAlignment(gravity, gyro_bias);
-}
-
-void StereoVisionFrontEndModule::prepareFrontendForOnlineAlignment() {
-  vio_frontend_->prepareFrontendForOnlineAlignment();
-}
-
-// Check values in frontend for initial bundle adjustment for online alignment
-void StereoVisionFrontEndModule::checkFrontendForOnlineAlignment() {
-  vio_frontend_->checkFrontendForOnlineAlignment();
-}
-
-} // namespace VIO
+}  // namespace VIO

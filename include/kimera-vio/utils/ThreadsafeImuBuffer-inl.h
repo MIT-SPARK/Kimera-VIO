@@ -73,7 +73,7 @@ inline void ThreadsafeImuBuffer::addMeasurements(
   size_t num_samples = timestamps_nanoseconds.cols();
   CHECK_GT(num_samples, 0u);
 
-  for (size_t idx = 0; idx < num_samples; ++idx) {
+  for (size_t idx = 0u; idx < num_samples; ++idx) {
     addMeasurement(timestamps_nanoseconds(idx), imu_measurements.col(idx));
   }
 }

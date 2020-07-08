@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <atomic>
 
 #include <boost/shared_ptr.hpp>  // used for opengv
 
@@ -71,6 +72,14 @@ class StereoVisionFrontEnd {
     imu_frontend_->updateBias(imu_bias);
   }
 
+  /**
+   * @brief isInitialized Returns whether the frontend is initializing.
+   * Needs to be Thread-Safe! Therefore, frontend_state_ is atomic.
+   */
+  inline bool isInitialized() const {
+    return frontend_state_ != FrontendState::Bootstrap;
+  }
+
   /* ------------------------------------------------------------------------ */
   // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
   // thread-safe.
@@ -85,44 +94,6 @@ class StereoVisionFrontEnd {
     imu_frontend_->updateBias(imu_bias);
     imu_frontend_->resetIntegrationWithCachedBias();
   }
-
-  /* ------------------------------------------------------------------------ */
-  // Prepare frontend for initial bundle adjustment for online alignment
-  void prepareFrontendForOnlineAlignment() {
-    LOG(WARNING) << "Preparing frontend for online alignment!\n";
-    updateAndResetImuBias(
-        gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
-    resetGravity(Vector3::Zero());
-    forceFiveThreePointMethod(true);
-    CHECK(force_53point_ransac_);
-    CHECK_DOUBLE_EQ(getGravity().norm(), 0.0);
-    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), 0.0);
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Check values in frontend for initial bundle adjustment for online alignment
-  void checkFrontendForOnlineAlignment() {
-    CHECK(force_53point_ransac_);
-    CHECK_DOUBLE_EQ(getGravity().norm(), 0.0);
-    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), 0.0);
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Reset frontend after initial bundle adjustment for online alignment
-  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3& gravity,
-                                         gtsam::Vector3& gyro_bias) {
-    LOG(WARNING) << "Resetting frontend after online alignment!\n";
-    forceFiveThreePointMethod(false);
-    resetGravity(gravity);
-    gtsam::imuBias::ConstantBias final_bias(gtsam::Vector3::Zero(), gyro_bias);
-    updateAndResetImuBias(final_bias);
-    CHECK_DOUBLE_EQ(getGravity().norm(), gravity.norm());
-    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), gyro_bias.norm());
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Frontend initialization.
-  StereoFrame processFirstStereoFrame(const StereoFrame& firstFrame);
 
   /* ------------------------------------------------------------------------ */
   // Returns extracted left and right rectified features in a suitable format
@@ -151,11 +122,38 @@ class StereoVisionFrontEnd {
   }
 
  private:
+  enum class FrontendState {
+    Bootstrap = 0u,  //! Initialize frontend
+    Nominal = 1u     //! Run frontend
+  };
+  std::atomic<FrontendState> frontend_state_;
+
+  /* ------------------------------------------------------------------------ */
+  // Frontend initialization.
+  void processFirstStereoFrame(const StereoFrame& firstFrame);
+
+  /**
+   * @brief bootstrapSpin SpinOnce used when initializing the frontend.
+   * @param input
+   * @return
+   */
+  FrontendOutput::UniquePtr bootstrapSpin(
+      const StereoFrontEndInputPayload& input);
+
+  /**
+   * @brief nominalSpin SpinOnce used when in nominal mode after initialization
+   * (bootstrap)
+   * @param input
+   * @return
+   */
+  FrontendOutput::UniquePtr nominalSpin(
+      const StereoFrontEndInputPayload& input);
+
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      const gtsam::Rot3& keyframe_R_ref_frame_,
+      const gtsam::Rot3& keyframe_R_ref_frame,
       cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
@@ -239,6 +237,7 @@ class StereoVisionFrontEnd {
 
   // Rotation from last keyframe to reference frame
   // We use this to calculate the rotation btw reference frame and current frame
+  // Whenever a keyframe is created, we reset it to identity.
   gtsam::Rot3 keyframe_R_ref_frame_;
 
   // Counters.

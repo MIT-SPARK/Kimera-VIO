@@ -20,7 +20,6 @@
 
 namespace VIO {
 
-// TODO(x): make a general vision frontend... (mono/stereo/rgb-d/multicam...)
 class StereoVisionFrontEndModule
     : public SIMOPipelineModule<StereoImuSyncPacket, FrontendOutput> {
  public:
@@ -47,8 +46,9 @@ class StereoVisionFrontEndModule
  public:
   virtual OutputUniquePtr spinOnce(StereoImuSyncPacket::UniquePtr input);
 
-  //! Frontend Initialization
-  StereoFrame processFirstStereoFrame(const StereoFrame& first_frame);
+  inline bool isInitialized() const {
+    return vio_frontend_->isInitialized();
+  }
 
   //! Imu related
   inline void updateAndResetImuBias(const ImuBias& imu_bias) const {
@@ -58,20 +58,10 @@ class StereoVisionFrontEndModule
     return vio_frontend_->getCurrentImuBias();
   }
 
-  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3& gravity,
-                                         gtsam::Vector3& gyro_bias);
-
   //! Callbacks
   inline void updateImuBias(const ImuBias& imu_bias) const {
     vio_frontend_->updateImuBias(imu_bias);
   }
-
- public:
-  // TODO: Remove these calls below!
-  void prepareFrontendForOnlineAlignment();
-
-  // Check values in frontend for initial bundle adjustment for online alignment
-  void checkFrontendForOnlineAlignment();
 
  private:
   StereoVisionFrontEnd::UniquePtr vio_frontend_;

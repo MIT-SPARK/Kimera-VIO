@@ -38,12 +38,15 @@ class VioPipelineFixture : public ::testing::Test {
     // this function repeatedly within the same test.
     destroyPipeline();
     LOG(INFO) << "Building pipeline.";
-    vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
+    //! Mind that the dataset_parser_ has to be built before the pipeline
+    //! because the backend_params are updated with the ground-truth pose
+    //! when parsing the dataset.
     dataset_parser_ = VIO::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/MicroEurocDataset",
         initial_k,
         final_k,
         vio_params);
+    vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
     connectVioPipeline();
   }
 
