@@ -129,13 +129,13 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   vioParams.horizon_ = 100;
 
   ImuParams imu_params;
-  imu_params.gyro_noise_ = 0.00016968;
-  imu_params.acc_noise_ = 0.002;
-  imu_params.gyro_walk_ = 1.9393e-05;
-  imu_params.acc_walk_ = 0.003;
+  imu_params.gyro_noise_density_ = 0.00016968;
+  imu_params.acc_noise_density_ = 0.002;
+  imu_params.gyro_random_walk_ = 1.9393e-05;
+  imu_params.acc_random_walk_ = 0.003;
   imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
   imu_params.imu_integration_sigma_ = 1.0;
-  imu_params.nominal_rate_ = 200.0;
+  imu_params.nominal_sampling_time_s_ = 200.0;
   // TODO(Toni): test with Combined, I think it actually fails now...
   imu_params.imu_preintegration_type_ =
       ImuPreintegrationType::kPreintegratedImuMeasurements;
@@ -294,13 +294,13 @@ TEST(testVio, DISABLED_robotMovingWithConstantVelocityBundleAdjustment) {
   vioParams.betweenTranslationPrecision_ = 1;
 
   ImuParams imu_params;
-  imu_params.gyro_noise_ = 0.00016968;
-  imu_params.acc_noise_ = 0.002;
-  imu_params.gyro_walk_ = 1.9393e-05;
-  imu_params.acc_walk_ = 0.003;
+  imu_params.gyro_noise_density_ = 0.00016968;
+  imu_params.acc_noise_density_ = 0.002;
+  imu_params.gyro_random_walk_ = 1.9393e-05;
+  imu_params.acc_random_walk_ = 0.003;
   imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
   imu_params.imu_integration_sigma_ = 1.0;
-  imu_params.nominal_rate_ = 200.0;
+  imu_params.nominal_sampling_time_s_ = 200.0;
 
   // Create 3D points
   std::vector<Point3> pts = CreateScene();

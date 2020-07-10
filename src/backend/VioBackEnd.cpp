@@ -771,22 +771,24 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
               gtsam::Symbol('b', from_id),
               safeCastToPreintegratedImuMeasurements(pim)));
 
-      static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
-                                                          Vector3(0, 0, 0));
+      static const gtsam::imuBias::ConstantBias zero_bias(
+          gtsam::Vector3(0.0, 0.0, 0.0), gtsam::Vector3(0.0, 0.0, 0.0));
 
       // Factor to discretize and move normalize by the interval between
       // measurements:
-      CHECK_NE(imu_params_.nominal_rate_, 0.0)
-          << "Nominal IMU rate param cannot be 0.";
+      CHECK_NE(imu_params_.nominal_sampling_time_s_, 0.0)
+          << "Nominal IMU sampling time cannot be 0 s.";
       // sqrt(nominal_imu_rate_) to discretize, then
-      // pim_->deltaTij() / nominalImuRate_ to count the nr of IMU measurements.
+      // sqrt(pim_->deltaTij() / nominalImuRate_) to count the nr of IMU
+      // measurements.
       // therefore pim_.deltaTij() / sqrt(nominal_imu_rate);
-      const double d = pim.deltaTij() / std::sqrt(imu_params_.nominal_rate_);
-      Vector6 biasSigmas;
-      biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
-      biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
+      const double d =
+          pim.deltaTij() / std::sqrt(imu_params_.nominal_sampling_time_s_);
+      gtsam::Vector6 bias_sigmas;
+      bias_sigmas.head<3>().setConstant(d * imu_params_.acc_random_walk_);
+      bias_sigmas.tail<3>().setConstant(d * imu_params_.gyro_random_walk_);
       const gtsam::SharedNoiseModel& bias_noise_model =
-          gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
+          gtsam::noiseModel::Diagonal::Sigmas(bias_sigmas);
 
       new_imu_prior_and_other_factors_.push_back(
           boost::make_shared<
