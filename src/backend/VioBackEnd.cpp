@@ -781,9 +781,8 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
       // sqrt(nominal_imu_rate_) to discretize, then
       // sqrt(pim_->deltaTij() / nominalImuRate_) to count the nr of IMU
       // measurements.
-      // therefore pim_.deltaTij() / sqrt(nominal_imu_rate);
-      const double d =
-          pim.deltaTij() / std::sqrt(imu_params_.nominal_sampling_time_s_);
+      // therefore sqrt(pim_.deltaTij())
+      const double d = std::sqrt(pim.deltaTij());
       gtsam::Vector6 bias_sigmas;
       bias_sigmas.head<3>().setConstant(d * imu_params_.acc_random_walk_);
       bias_sigmas.tail<3>().setConstant(d * imu_params_.gyro_random_walk_);
