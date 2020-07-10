@@ -778,9 +778,10 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
       // measurements:
       CHECK_NE(imu_params_.nominal_rate_, 0.0)
           << "Nominal IMU rate param cannot be 0.";
-      // 1/sqrt(nominalImuRate_) to discretize, then
-      // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-      const double d = std::sqrt(pim.deltaTij() / imu_params_.nominal_rate_);
+      // sqrt(nominal_imu_rate_) to discretize, then
+      // pim_->deltaTij() / nominalImuRate_ to count the nr of IMU measurements.
+      // therefore pim_.deltaTij() / sqrt(nominal_imu_rate);
+      const double d = pim.deltaTij() / std::sqrt(imu_params_.nominal_rate_);
       Vector6 biasSigmas;
       biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
       biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
