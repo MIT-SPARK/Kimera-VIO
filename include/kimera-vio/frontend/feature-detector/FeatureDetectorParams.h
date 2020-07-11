@@ -42,7 +42,9 @@ struct SubPixelCornerFinderParams : public PipelineParams {
   /// Termination criteria defined in terms of change in error and maximum
   /// number of iterations
   cv::TermCriteria term_criteria_ =
-      cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 10, 0.01);
+      cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT,
+                       10,
+                       0.01);
   cv::Size window_size_ = cv::Size(10, 10);
   cv::Size zero_zone_ = cv::Size(-1, -1);
 };

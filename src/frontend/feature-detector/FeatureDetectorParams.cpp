@@ -41,7 +41,7 @@ void SubPixelCornerFinderParams::print() const {
 
 bool SubPixelCornerFinderParams::parseYAML(const std::string& filepath) {
   YamlParser yaml_parser(filepath);
-  term_criteria_.type = CV_TERMCRIT_EPS + CV_TERMCRIT_ITER;
+  term_criteria_.type = cv::TermCriteria::EPS + cv::TermCriteria::COUNT;
   yaml_parser.getYamlParam("max_iters", &term_criteria_.maxCount);
   yaml_parser.getYamlParam("epsilon_error", &term_criteria_.epsilon);
   int window_size = 0;

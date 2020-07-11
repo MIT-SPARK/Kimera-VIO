@@ -43,7 +43,7 @@ KittiDataProvider::KittiDataProvider()
 }
 
 cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
-  cv::Mat img = cv::imread(img_name, CV_LOAD_IMAGE_UNCHANGED);
+  cv::Mat img = cv::imread(img_name, cv::ImreadModes::IMREAD_UNCHANGED);
   LOG_IF(FATAL, img.empty()) << "Failed to load image: " << img_name;
   // cv::imshow("check", img);
   // cv::waitKey(0);
