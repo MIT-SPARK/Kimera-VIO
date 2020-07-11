@@ -176,6 +176,8 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
 
   // FAST specific params
   yaml_parser.getYamlParam("fast_thresh", &fast_thresh_);
+
+  return true;
 }
 
 bool FeatureDetectorParams::equals(const FeatureDetectorParams& tp2,

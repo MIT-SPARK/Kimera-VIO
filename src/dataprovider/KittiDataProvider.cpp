@@ -205,6 +205,7 @@ bool Earlier_time_imu(std::pair<Timestamp, int>& a,
 
 bool KittiDataProvider::parseImuData(const std::string& input_dataset_path,
                                      KittiData* kitti_data) {
+  return false;
 }
 
 /* -------------------------------------------------------------------------- */
