@@ -6,6 +6,10 @@
     - Running in parallel (default): `parallel_run=1`.
     - Running in sequential mode: `parallel_run=0`. Or, if using the example script, use the `-s` flag at commandline.
 - Log output in csv files: gflag `log_output=true`. Or, if using the example script, use the `-log` commandline argument. By default, log files will be saved in `output_logs` directory.
+- Running on slower hardware: We provide flags to scale certain parameters to decrease computational load (at the potential expense of accuracy):
+    - Fast mode: gflag `--fast`. This currently scales down the parameters `maxNumberFeaturesPerFrame` and `horizon`
+    - Faster mode: gflag `--faster`. This currently scales down the parameters `maxNumberFeaturesPerFrame` and `horizon` twice.
+
 
 ## Loop Closure Detector
 
