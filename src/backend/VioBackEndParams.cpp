@@ -109,11 +109,13 @@ bool BackendParams::parseYAMLVioBackEndParams(const YamlParser& yaml_parser) {
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
   yaml_parser.getYamlParam("horizon", &horizon_);
   if (FLAGS_fast or FLAGS_faster) {
-    double ratio = std::pow(horizon_performance_scaling_, (FLAGS_fast ? 1 : 2));
+    // default to faster if both are active
+    double ratio =
+        std::pow(horizon_performance_scaling_, (FLAGS_faster ? 2 : 1));
     double old_horizon = horizon_;
     horizon_ = ratio * old_horizon;
     LOG(WARNING) << "Decreased horizon from " << old_horizon << " to "
-                 << horizon_ << " for " << (FLAGS_fast ? "fast" : "faster")
+                 << horizon_ << " for " << (FLAGS_faster ? "faster" : "fast")
                  << " performance mode";
   }
 

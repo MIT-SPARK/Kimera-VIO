@@ -12,14 +12,16 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include <string>
-
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
+
+#include <string>
 
 #include "kimera-vio/backend/VioBackEndParams.h"
 
 DECLARE_string(test_data_path);
+DECLARE_bool(fast);
+DECLARE_bool(faster);
 
 namespace VIO {
 
@@ -75,6 +77,70 @@ TEST(testVioBackEndParams, equals) {
   vp2.smartNoiseSigma_ += 1e-5;  // small perturbation
 
   EXPECT_TRUE(!vp.equals(vp2));
+}
+
+TEST(testVioBackEndParams, FastAndFasterModifications) {
+  // check that fast and faster appropriately adjust the number of features
+  double default_value = 0.0;
+  {  // default parameter closure
+    BackendParams vp;
+    vp.parseYAML(std::string(FLAGS_test_data_path) +
+                 "/ForVIO/vioParameters.yaml");
+    default_value = vp.horizon_;
+  }
+
+  double fast_value = 0.0;
+  {  // fast parameter closure
+    google::FlagSaver saver;
+    FLAGS_fast = true;
+    BackendParams vp;
+    vp.parseYAML(std::string(FLAGS_test_data_path) +
+                 "/ForVIO/vioParameters.yaml");
+    fast_value = vp.horizon_;
+  }
+
+  double faster_value = 0.0;
+  {  // faster parameter closure
+    google::FlagSaver saver;
+    FLAGS_faster = true;
+    BackendParams vp;
+    vp.parseYAML(std::string(FLAGS_test_data_path) +
+                 "/ForVIO/vioParameters.yaml");
+    faster_value = vp.horizon_;
+  }
+  EXPECT_NE(default_value, 0.0);
+  EXPECT_NE(fast_value, 0.0);
+  EXPECT_NE(faster_value, 0.0);
+  EXPECT_LE(fast_value, default_value);
+  EXPECT_LE(faster_value, fast_value);
+  double fast_to_default_ratio = fast_value / default_value;
+  double faster_to_fast_ratio = faster_value / fast_value;
+  EXPECT_NEAR(fast_to_default_ratio, faster_to_fast_ratio, 1.0e-6);
+}
+
+TEST(testVioBackEndParams, FastAndFasterConflict) {
+  // check that fast and faster together results in faster configuration
+  double faster_value = 0.0;
+  {  // fast parameter closure
+    google::FlagSaver saver;
+    FLAGS_faster = true;
+    BackendParams vp;
+    vp.parseYAML(std::string(FLAGS_test_data_path) +
+                 "/ForVIO/vioParameters.yaml");
+    faster_value = vp.horizon_;
+  }
+
+  double combined_value = 0.0;
+  {  // faster parameter closure
+    google::FlagSaver saver;
+    FLAGS_fast = true;
+    FLAGS_faster = true;
+    BackendParams vp;
+    vp.parseYAML(std::string(FLAGS_test_data_path) +
+                 "/ForVIO/vioParameters.yaml");
+    combined_value = vp.horizon_;
+  }
+  EXPECT_EQ(faster_value, combined_value);
 }
 
 }  // namespace VIO

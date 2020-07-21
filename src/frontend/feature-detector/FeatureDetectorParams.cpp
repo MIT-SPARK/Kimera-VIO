@@ -170,13 +170,14 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
 
   yaml_parser.getYamlParam("maxFeaturesPerFrame", &max_features_per_frame_);
   if (FLAGS_fast or FLAGS_faster) {
+    // ternary operator order defaults to faster if fast and faster are true
     double ratio =
-        std::pow(num_features_performance_scaling_, (FLAGS_fast ? 1 : 2));
+        std::pow(num_features_performance_scaling_, (FLAGS_faster ? 2 : 1));
     int old_num = max_features_per_frame_;
     max_features_per_frame_ = static_cast<int>(std::floor(ratio * old_num));
     LOG(WARNING) << "Decreased from " << old_num << " to "
                  << max_features_per_frame_ << " maximum features for "
-                 << (FLAGS_fast ? "fast" : "faster") << " performance mode";
+                 << (FLAGS_faster ? "faster" : "fast") << " performance mode";
   }
 
   // GFTT specific parameters
