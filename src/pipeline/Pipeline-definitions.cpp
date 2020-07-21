@@ -16,6 +16,9 @@
 
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include "kimera-vio/backend/RegularVioBackEndParams.h"
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
@@ -26,8 +29,11 @@
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
+// flags to tune computational performance at the expense of accuracy
+DEFINE_bool(fast, false, "Decrease number of features and horizon size");
+DEFINE_bool(faster,
+            false,
+            "Decrease number of features and horizon size even more");
 
 namespace VIO {
 
@@ -77,6 +83,9 @@ VioParams::VioParams(const std::string& params_folder_path,
 }
 
 bool VioParams::parseYAML(const std::string& folder_path) {
+  if (FLAGS_fast and FLAGS_faster) {
+    LOG(WARNING) << "Both fast and faster selected; defaulting to faster";
+  }
   // Create a parser for pipeline params.
   YamlParser yaml_parser(folder_path + '/' + pipeline_params_filename_);
   int backend_type;
@@ -136,6 +145,8 @@ void VioParams::print() const {
   lcd_params_.print();
   LOG(INFO) << "Frontend Type: " << VIO::to_underlying(frontend_type_);
   LOG(INFO) << "Backend Type: " << VIO::to_underlying(backend_type_);
+  LOG(INFO) << "Performance Mode: "
+            << (FLAGS_faster ? "faster" : (FLAGS_fast ? "fast" : "normal"));
   LOG(INFO) << "Running VIO in " << (parallel_run_ ? "parallel" : "sequential")
             << " mode.";
 }

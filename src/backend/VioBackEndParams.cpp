@@ -16,6 +16,9 @@
 
 #include <utility>
 
+DECLARE_bool(fast);
+DECLARE_bool(faster);
+
 namespace VIO {
 
 BackendParams::BackendParams() : PipelineParams("Backend Parameters") {
@@ -35,8 +38,7 @@ bool BackendParams::parseYAML(const std::string& filepath) {
   return parseYAMLVioBackEndParams(yaml_parser);
 }
 
-bool BackendParams::parseYAMLVioBackEndParams(
-    const YamlParser& yaml_parser) {
+bool BackendParams::parseYAMLVioBackEndParams(const YamlParser& yaml_parser) {
   // INITIALIZATION
   yaml_parser.getYamlParam("autoInitialize", &autoInitialize_);
   yaml_parser.getYamlParam("roundOnAutoInitialize", &roundOnAutoInitialize_);
@@ -106,6 +108,15 @@ bool BackendParams::parseYAMLVioBackEndParams(
   yaml_parser.getYamlParam("constantVelSigma", &constantVelSigma_);
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
   yaml_parser.getYamlParam("horizon", &horizon_);
+  if (FLAGS_fast or FLAGS_faster) {
+    double ratio = std::pow(horizon_performance_scaling_, (FLAGS_fast ? 1 : 2));
+    double old_horizon = horizon_;
+    horizon_ = ratio * old_horizon;
+    LOG(WARNING) << "Decreased horizon from " << old_horizon << " to "
+                 << horizon_ << " for " << (FLAGS_fast ? "fast" : "faster")
+                 << " performance mode";
+  }
+
   yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
   yaml_parser.getYamlParam("useDogLeg", &useDogLeg_);
 
@@ -113,7 +124,7 @@ bool BackendParams::parseYAMLVioBackEndParams(
 }
 
 bool BackendParams::equalsVioBackEndParams(const BackendParams& vp2,
-                                              double tol) const {
+                                           double tol) const {
   return
       // INITIALIZATION
       (autoInitialize_ == vp2.autoInitialize_) &&

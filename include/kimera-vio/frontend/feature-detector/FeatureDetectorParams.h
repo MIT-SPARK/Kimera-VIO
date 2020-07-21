@@ -47,7 +47,6 @@ struct SubPixelCornerFinderParams : public PipelineParams {
   cv::Size zero_zone_ = cv::Size(-1, -1);
 };
 
-
 struct FeatureDetectorParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(FeatureDetectorParams);
@@ -67,6 +66,9 @@ struct FeatureDetectorParams : public PipelineParams {
   }
 
  public:
+  //! Factor to decrease features by in "fast" or "faster" mode
+  static constexpr double num_features_performance_scaling_ = 2.0 / 3.0;
+
   FeatureDetectorType feature_detector_type_ = FeatureDetectorType::GFTT;
   //! Maximum amount of features to be detected per frame.
   int max_features_per_frame_ = 400;

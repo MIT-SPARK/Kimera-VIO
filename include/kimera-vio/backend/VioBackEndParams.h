@@ -14,18 +14,17 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <gtsam/base/Vector.h>
+#include <gtsam/slam/SmartFactorParams.h>
 #include <stdlib.h>
+
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include <gtsam/base/Vector.h>
-#include <gtsam/slam/SmartFactorParams.h>
-
-#include <glog/logging.h>
 
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
@@ -87,6 +86,9 @@ class BackendParams : public PipelineParams {
   void printVioBackEndParams() const;
 
  public:
+  //! Factor to decrease horizon by in "fast" or "faster" mode
+  static constexpr double horizon_performance_scaling_ = 11.0 / 12.0;
+
   //! Initialization params
   int autoInitialize_ = 0;
   double initialPositionSigma_ = 0.00001;

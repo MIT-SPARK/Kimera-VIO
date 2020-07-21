@@ -13,10 +13,14 @@
  */
 
 #include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
+
 #include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
 #include "kimera-vio/utils/YamlParser.h"
+
+DECLARE_bool(fast);
+DECLARE_bool(faster);
 
 namespace VIO {
 
@@ -165,6 +169,15 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
   }
 
   yaml_parser.getYamlParam("maxFeaturesPerFrame", &max_features_per_frame_);
+  if (FLAGS_fast or FLAGS_faster) {
+    double ratio =
+        std::pow(num_features_performance_scaling_, (FLAGS_fast ? 1 : 2));
+    int old_num = max_features_per_frame_;
+    max_features_per_frame_ = static_cast<int>(std::floor(ratio * old_num));
+    LOG(WARNING) << "Decreased from " << old_num << " to "
+                 << max_features_per_frame_ << " maximum features for "
+                 << (FLAGS_fast ? "fast" : "faster") << " performance mode";
+  }
 
   // GFTT specific parameters
   yaml_parser.getYamlParam("quality_level", &quality_level_);
