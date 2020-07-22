@@ -57,6 +57,6 @@ This is useful for example for the Euroc dataset `V1_01_*` where we are given a 
 
 ## Running on slower hardware
 
-- See [this directory](params/EurocFast) for a configuration that is faster (but potentially less accurate)
+- See [this directory](../params/EurocFaster) for a configuration that is faster (but potentially less accurate)
   - If even less computational overhead is needed, another configuration would be `maxFeaturePerFrame=200` and `horizon=4.5`
 
