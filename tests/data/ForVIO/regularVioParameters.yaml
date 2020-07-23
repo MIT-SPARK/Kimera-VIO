@@ -1,13 +1,6 @@
 %YAML:1.0
 backend_modality: 0
-#IMU PARAMETERS
-gyroNoiseDensity: 0.00013
-accNoiseDensity: 0.001
-imuIntegrationSigma: 1e-5
-gyroBiasSigma: 1.92e-05
-accBiasSigma: 0.001
-n_gravity: [-10, 2, -7.81]
-nominalImuRate: 1e-04
+
 #INITIALIZATION PARAMETERS
 autoInitialize: 0
 roundOnAutoInitialize: 1
