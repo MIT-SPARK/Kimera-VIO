@@ -7,3 +7,7 @@
 --log_mesh=false
 --log_accumulated_mesh=false
 --displayed_trajectory_length=-1
+--save_frontend_images=true
+--log_feature_tracks=true
+--log_mono_tracking_images=true
+--log_stereo_matching_images=true
