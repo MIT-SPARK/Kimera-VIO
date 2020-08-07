@@ -234,11 +234,11 @@ class UtilsOpenCV {
   // add circles in the image at desired position/size/color
   static void DrawCirclesInPlace(
       cv::Mat& img,
-      const std::vector<cv::Point2f>& imagePoints,
+      const KeypointsCV& image_points,
       const cv::Scalar& color = cv::Scalar(0, 255, 0),
-      const double msize = 3,
-      const std::vector<int>& pointIds = std::vector<int>(),
-      const int remId = 1e9);
+      const double& msize = 3,
+      const std::vector<int>& point_ids = std::vector<int>(),
+      const int& rem_id = 1e9);
 
   /* ------------------------------------------------------------------------ */
   // add squares in the image at desired position/size/color
@@ -278,11 +278,11 @@ class UtilsOpenCV {
   /* ------------------------------------------------------------------------ */
   // Draw corner matches and return results as a new mat.
   static cv::Mat DrawCornersMatches(const cv::Mat& img1,
-                                    const std::vector<cv::Point2f>& corners1,
+                                    const KeypointsCV& corners1,
                                     const cv::Mat& img2,
-                                    const std::vector<cv::Point2f>& corners2,
+                                    const KeypointsCV& corners2,
                                     const std::vector<cv::DMatch>& matches,
-                                    const bool randomColor = false);
+                                    const bool& randomColor = false);
 
   /* ------------------------------------------------------------------------ */
   static void showImagesSideBySide(const cv::Mat& img_left,
@@ -291,18 +291,34 @@ class UtilsOpenCV {
                                    const bool& show_images,
                                    const bool& save_images);
 
+  cv::Scalar UtilsOpenCV::getColorFromKeypointStatus(
+      const KeypointStatus& kpt_status);
+
   /* ------------------------------------------------------------------------ */
   static cv::Mat DrawCircles(
       const cv::Mat img,
       const StatusKeypointsCV& imagePoints,
       const std::vector<double>& circleSizes = std::vector<double>());
 
-  /* ------------------------------------------------------------------------ */
+  /**
+   * @brief DrawCircles
+   * @param img
+   * @param imagePoints
+   * @param circle_colors
+   * @param circle_sizes
+   * @param display_with_size
+   * if true size of circles is proportional to depth
+   * @param display_with_text
+   * if true display text with depth
+   * @return
+   */
   static cv::Mat DrawCircles(
       const cv::Mat img,
-      const KeypointsCV& imagePoints,
-      const std::vector<cv::Scalar>& circleColors = std::vector<cv::Scalar>(),
-      const std::vector<double>& circleSizes = std::vector<double>());
+      const KeypointsCV& image_points,
+      const std::vector<cv::Scalar>& circle_colors = std::vector<cv::Scalar>(),
+      const std::vector<double>& circle_sizes = std::vector<double>(),
+      const bool& display_with_size = false,
+      const bool& display_with_text = true);
 
   /* ------------------------------------------------------------------------ */
   static void DrawCornersMatchesOneByOne(

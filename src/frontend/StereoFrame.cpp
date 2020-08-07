@@ -61,7 +61,7 @@ void StereoFrame::checkStereoFrame() const {
   CHECK_EQ(right_keypoints_rectified_.size(), nrLeftKeypoints)
       << "checkStereoFrame: right_keypoints_rectified_.size()";
 
-  for (size_t i = 0; i < nrLeftKeypoints; i++) {
+  for (size_t i = 0u; i < nrLeftKeypoints; i++) {
     if (right_keypoints_status_[i] == KeypointStatus::VALID) {
       CHECK_LE(fabs(right_keypoints_rectified_[i].y -
                     left_keypoints_rectified_[i].y),

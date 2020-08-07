@@ -62,6 +62,19 @@ using StatusKeypointsCV = std::vector<StatusKeypointCV>;
 using BearingVectors =
     std::vector<gtsam::Vector3, Eigen::aligned_allocator<gtsam::Vector3>>;
 
+// TODO(Toni): we wouldn't need this if we didn't use vector of pairs.
+static void getValidKeypointsFromStatusKeypointsCV(
+    const StatusKeypointsCV& status_kpts_cv,
+    KeypointsCV* valid_kpts) const {
+  CHECK_NOTNULL(valid_kpts)->clear();
+  valid_kpts->resize(status_kpts_cv.size());
+  for (const StatusKeypointCV& status_kpt: status_kpts_cv) {
+    if (status_kpt.first == KeypointStatus::VALID) {
+      valid_kpts->push_back(status_kpt.second);
+    }
+  }
+}
+
 // TODO(Toni): move make unique and  to underlying to another file...
 // Add compatibility for c++11's lack of make_unique.
 template <typename T, typename... Args>
