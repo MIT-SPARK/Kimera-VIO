@@ -280,12 +280,6 @@ class LoopClosureDetector {
   void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Initializes the RobustSolver member with no prior, or a neutral
-   *  starting pose.
-   */
-  void initializePGO();
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Initializes the RobustSolver member with an initial prior factor,
    *  which can be the first OdometryFactor given by the backend.
    * @param[in] factor An OdometryFactor representing the pose between the
@@ -350,10 +344,16 @@ class LoopClosureDetector {
                            gtsam::Pose3* bodyCur_T_bodyRef);
 
  private:
+  enum class LcdState {
+    Bootstrap, //! Lcd is initializing
+    Nominal    //! Lcd is running in nominal mode
+  };
+  LcdState lcd_state_ = LcdState::Bootstrap;
+
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
-  const bool log_output_ = {false};
-  bool set_intrinsics_ = {false};
+  const bool log_output_ = false;
+  bool set_intrinsics_ = false;
 
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;
