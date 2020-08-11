@@ -34,6 +34,7 @@
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -46,8 +47,7 @@ class EurocDataProvider : public DataProviderInterface {
   KIMERA_POINTER_TYPEDEFS(EurocDataProvider);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Ctors
-  //! Ctor from params.
+  //! Ctor with params.
   EurocDataProvider(const std::string& dataset_path,
                     const int& initial_k,
                     const int& final_k,
@@ -90,6 +90,7 @@ class EurocDataProvider : public DataProviderInterface {
   bool spinOnce();
 
   /**
+<<<<<<< HEAD
    * @brief parse Parses Euroc dataset. This is done already in spin() and
    * does not need to be called by the user. Left in public for experimentation.
    */
@@ -100,6 +101,14 @@ class EurocDataProvider : public DataProviderInterface {
    * different Euroc format.
    * @return
    */
+=======
+   * @brief sendImuData We send IMU data first (before frames) so that the VIO
+   * pipeline can query all IMU data between frames.
+   */
+  void sendImuData() const;
+
+  // Parse camera, gt, and imu data if using different Euroc format.
+>>>>>>> bcede7cf66a1dcaeb0620974586c771bdd010172
   bool parseDataset();
 
   //! Parsers
@@ -212,10 +221,16 @@ class EurocDataProvider : public DataProviderInterface {
 
   //! Flag to signal when the dataset has been parsed.
   bool dataset_parsed_ = false;
+  //! Flag to signal if the IMU data has been sent to the VIO pipeline
+  bool is_imu_data_sent_ = false;
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";
+
+  //! Pre-stored imu-measurements
+  std::vector<ImuMeasurement> imu_measurements_;
+
 
   EurocGtLogger::UniquePtr logger_;
 };

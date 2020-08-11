@@ -53,7 +53,8 @@ namespace VIO {
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
     bool log_output)
-    : lcd_params_(lcd_params),
+    : lcd_state_(LcdState::Bootstrap),
+      lcd_params_(lcd_params),
       log_output_(log_output),
       set_intrinsics_(false),
       orb_feature_detector_(),
@@ -128,23 +129,35 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
     setIntrinsics(input.stereo_frame_);
   }
   CHECK_EQ(set_intrinsics_, true);
-  CHECK_GT(input.cur_kf_id_, 0);
+  CHECK_GE(input.cur_kf_id_, 0);
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
-  timestamp_map_[input.cur_kf_id_ - 1] = input.timestamp_kf_;
+  timestamp_map_[input.cur_kf_id_] = input.timestamp_kf_;
+  // TODO: W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
 
-  // Initialize PGO with first frame if needed.
-  if (odom_factor.cur_key_ == 1) {
-    initializePGO(odom_factor);
+  switch (lcd_state_) {
+    case LcdState::Bootstrap: {
+      initializePGO(odom_factor);
+      // This should be out above (and remove the one inside
+      // addOdometryFactorAndOptimize. Not doing it now bcs code assumes that
+      // addOdometryFactorAndOptimize does that...
+      W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
+      break;
+    }
+    case LcdState::Nominal: {
+      // TODO(marcus): need a better check than this:
+      CHECK_GT(pgo_->calculateEstimate().size(), 0);
+      addOdometryFactorAndOptimize(odom_factor);
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unrecognized LCD state.";
+    }
   }
-
-  // TODO(marcus): need a better check than this:
-  CHECK_GT(pgo_->calculateEstimate().size(), 0);
-  addOdometryFactorAndOptimize(odom_factor);
 
   // Process the StereoFrame and check for a loop closure with previous ones.
   LoopResult loop_result;
@@ -184,7 +197,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   const gtsam::Values& pgo_states = pgo_->calculateEstimate();
   const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactorsUnsafe();
 
-  LcdOutput::UniquePtr output_payload;
+  LcdOutput::UniquePtr output_payload = nullptr;
   if (loop_result.isLoop()) {
     output_payload =
         VIO::make_unique<LcdOutput>(true,
@@ -868,27 +881,22 @@ bool LoopClosureDetector::recoverPoseGivenRot(
 }
 
 /* ------------------------------------------------------------------------ */
-void LoopClosureDetector::initializePGO() {
-  gtsam::NonlinearFactorGraph init_nfg;
-  gtsam::Values init_val;
-  init_val.insert(gtsam::Symbol(0), gtsam::Pose3());
-
-  CHECK(pgo_);
-  pgo_->update(init_nfg, init_val);
-}
-
-/* ------------------------------------------------------------------------ */
 void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
+  CHECK_EQ(factor.cur_key_, 0u);
+  CHECK(lcd_state_ == LcdState::Bootstrap);
+
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
 
-  init_val.insert(gtsam::Symbol(0), factor.W_Pose_Blkf_);
+  init_val.insert(gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_);
 
   init_nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-      gtsam::Symbol(0), factor.W_Pose_Blkf_, factor.noise_));
+      gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_, factor.noise_));
 
   CHECK(pgo_);
   pgo_->update(init_nfg, init_val);
+
+  lcd_state_ = LcdState::Nominal;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -897,31 +905,29 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
 // that the extra check in here isn't needed...
 void LoopClosureDetector::addOdometryFactorAndOptimize(
     const OdometryFactor& factor) {
+  CHECK(lcd_state_ == LcdState::Nominal);
+
   W_Pose_Blkf_estimates_.push_back(factor.W_Pose_Blkf_);
-  CHECK(factor.cur_key_ <= W_Pose_Blkf_estimates_.size())
-      << "LoopClosureDetector: new odometry factor has a key that is too high.";
+
+  CHECK_LE(factor.cur_key_, W_Pose_Blkf_estimates_.size())
+      << "New odometry factor has a key that is too high.";
 
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  if (factor.cur_key_ > 1) {
-    value.insert(gtsam::Symbol(factor.cur_key_ - 1), factor.W_Pose_Blkf_);
+  CHECK_GT(factor.cur_key_, 0u);
+  value.insert(gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_);
 
-    gtsam::Pose3 B_llkf_Pose_lkf =
-        W_Pose_Blkf_estimates_.at(factor.cur_key_ - 2)
-            .between(factor.W_Pose_Blkf_);
+  gtsam::Pose3 B_llkf_Pose_lkf = W_Pose_Blkf_estimates_.at(factor.cur_key_ - 1)
+                                     .between(factor.W_Pose_Blkf_);
 
-    nfg.add(
-        gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol(factor.cur_key_ - 2),
-                                           gtsam::Symbol(factor.cur_key_ - 1),
-                                           B_llkf_Pose_lkf,
-                                           factor.noise_));
+  nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol(factor.cur_key_ - 1),
+                                             gtsam::Symbol(factor.cur_key_),
+                                             B_llkf_Pose_lkf,
+                                             factor.noise_));
 
-    CHECK(pgo_);
-    pgo_->update(nfg, value);
-  } else {
-    LOG(WARNING) << "LoopClosureDetector: Not enough factors for optimization.";
-  }
+  CHECK(pgo_);
+  pgo_->update(nfg, value);
 }
 
 /* ------------------------------------------------------------------------ */

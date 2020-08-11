@@ -134,11 +134,8 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   bool backend_status = false;
   switch (backend_state_) {
     case BackendState::Bootstrap: {
-      // Initialize backend.
-      // TODO(Toni) we should do initialization here and follow the general
-      // workflow of the pipeline instead of having a different module...
-      backend_state_ = BackendState::Nominal;
-      backend_status = addVisualInertialStateAndOptimize(input);
+      initializeBackend(input);
+      backend_status = true;
       break;
     }
     case BackendState::Nominal: {
@@ -164,11 +161,11 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
     }
 
     // Generate extra optional backend ouputs.
-    const bool kOutputLmkMap =
+    static const bool kOutputLmkMap =
         backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
-    const bool kMinLmkObs =
+    static const bool kMinLmkObs =
         backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
-    const bool kOutputLmkTypeMap =
+    static const bool kOutputLmkTypeMap =
         backend_output_params_.output_lmk_id_to_lmk_type_map_;
     LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
     PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
@@ -211,8 +208,11 @@ void VioBackEnd::registerImuBiasUpdateCallback(
   // Update imu bias just in case. This is useful specially because the
   // backend initializes the imu bias to some value. So whoever is asking
   // to register this callback should have the newest imu bias.
-  CHECK(imu_bias_update_callback_);
-  imu_bias_update_callback_(imu_bias_lkf_);
+  // But the imu bias is new iff the backend is already initialized.
+  if (backend_state_ != BackendState::Bootstrap) {
+    CHECK(imu_bias_update_callback_);
+    imu_bias_update_callback_(imu_bias_lkf_);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1080,6 +1080,8 @@ bool VioBackEnd::optimize(
 
       // Debug.
       postDebug(total_start_time, start_time);
+    } else {
+      LOG(ERROR) << "Smoother is not ok! Not updating backend state.";
     }
   }
   return is_smoother_ok;
@@ -1538,7 +1540,6 @@ void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
   isam_param->setEvaluateNonlinearError(false);  // only for debugging
   isam_param->enableDetailedResults = false;     // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  if (VLOG_IS_ON(1)) isam_param->print("isam_param");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1618,25 +1619,26 @@ void VioBackEnd::setSmartFactorsParams(
 
 /* --------------------------- PRINTERS ------------------------------------- */
 /// Printers.
-// THIS IS NOT THREAD-SAFE !!
 void VioBackEnd::print() const {
-  LOG(INFO) << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
-            << ")))))))))))))))))))))))))))))))) ";
+  backend_params_.print();
+
+  smoother_->params().print(std::string(10, '.') + "** ISAM2 Parameters **" +
+                            std::string(10, '.'));
+
+  LOG(INFO) << "Used stereo calibration in backend: ";
   if (FLAGS_minloglevel < 1) {
     stereo_cal_->print("\n stereoCal_\n");
   }
-  backend_params_.print();
 
-  LOG(INFO) << "\n B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
+  LOG(INFO) << "** Backend Initial Members: \n"
+            << "B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
             << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
             << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
             << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'
             << "imu_bias_prev_kf_" << imu_bias_prev_kf_ << '\n'
             << "last_id_ " << last_kf_id_ << '\n'
             << "cur_id_ " << curr_kf_id_ << '\n'
-            << "landmark_count_ " << landmark_count_ << '\n'
-            << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
-            << "))))))))))))))))))))))))))))))))) ";
+            << "landmark_count_ " << landmark_count_;
 }
 
 void VioBackEnd::printFeatureTracks() const {

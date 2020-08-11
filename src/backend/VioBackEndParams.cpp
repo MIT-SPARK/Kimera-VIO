@@ -35,8 +35,7 @@ bool BackendParams::parseYAML(const std::string& filepath) {
   return parseYAMLVioBackEndParams(yaml_parser);
 }
 
-bool BackendParams::parseYAMLVioBackEndParams(
-    const YamlParser& yaml_parser) {
+bool BackendParams::parseYAMLVioBackEndParams(const YamlParser& yaml_parser) {
   // INITIALIZATION
   yaml_parser.getYamlParam("autoInitialize", &autoInitialize_);
   yaml_parser.getYamlParam("roundOnAutoInitialize", &roundOnAutoInitialize_);
@@ -113,7 +112,7 @@ bool BackendParams::parseYAMLVioBackEndParams(
 }
 
 bool BackendParams::equalsVioBackEndParams(const BackendParams& vp2,
-                                              double tol) const {
+                                           double tol) const {
   return
       // INITIALIZATION
       (autoInitialize_ == vp2.autoInitialize_) &&
@@ -153,47 +152,76 @@ bool BackendParams::equalsVioBackEndParams(const BackendParams& vp2,
 }
 
 void BackendParams::printVioBackEndParams() const {
-  LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
-            << "** INITIALIZATION parameters **\n"
-            << "autoInitialize_: " << autoInitialize_ << '\n'
+  static const int kCenter = PipelineParams::kTotalWidth / 2;
+  std::stringstream out;
+  PipelineParams::print(
+      out,
+      std::string(kCenter, '.') + "** Initialization parameters **",
+      "",
+      "Automatic Initialization",
+      autoInitialize_,
+      "Round on autoinit",
+      roundOnAutoInitialize_,
+      "Sigmas:",
+      "",
+      "Initial Position Sigma",
+      initialPositionSigma_,
+      "Initiail Roll Pitch Sigma",
+      initialRollPitchSigma_,
+      "Initial Yaw Sigma",
+      initialYawSigma_,
+      "Initial Velocity Sigma",
+      initialVelocitySigma_,
+      "Initial Acc Bias Sigma",
+      initialAccBiasSigma_,
+      "Initial Gyro Bias Sigma",
+      initialGyroBiasSigma_,
+      std::string(kCenter, '.') + "** Vision parameters **",
+      "",
+      "Linearization Mode: hessian, implicit_schur, jacobian_q, jacobian_svd",
+      linearizationMode_,
+      "Degeneracy Mode: ignore_degeneracy, zero_on_degeneracy, handle_infinity",
+      degeneracyMode_,
+      "Rank Tolerance",
+      rankTolerance_,
+      "Landmark Distance Threshold",
+      landmarkDistanceThreshold_,
+      "Outlier Rejection",
+      outlierRejection_,
+      "Retriangulation Threshold",
+      retriangulationThreshold_,
+      "Add Btw Stereo Factors",
+      addBetweenStereoFactors_,
+      "Btw Rotation Precision",
+      betweenRotationPrecision_,
+      "Btw Translation Precision",
+      betweenTranslationPrecision_,
+      std::string(kCenter, '.') + "** Optimization parameters **",
+      "",
+      "Relinearize Threshold",
+      relinearizeThreshold_,
+      "Relinearize Skip",
+      relinearizeSkip_,
+      "Zero Velocity Sigma",
+      zeroVelocitySigma_,
+      "No Motion Position Sigma",
+      noMotionPositionSigma_,
+      "No Motion Rotation Sigma",
+      noMotionRotationSigma_,
+      "Constant Velocity Sigma",
+      constantVelSigma_,
+      "Optimization Iterations",
+      numOptimize_,
+      "Horizon",
+      horizon_,
+      "Isam Wildfire Threshold",
+      wildfire_threshold_,
+      "Use Dog Leg",
+      useDogLeg_);
+  LOG(INFO) << out.str();
+  LOG(INFO) << "** Backend Iinitialization Parameters **\n"
             << "initial_ground_truth_state_: ";
   initial_ground_truth_state_.print();
-  LOG(INFO) << "roundOnAutoInitialize_: " << roundOnAutoInitialize_ << '\n'
-            << "initialPositionSigma: " << initialPositionSigma_ << '\n'
-            << "initialRollPitchSigma: " << initialRollPitchSigma_ << '\n'
-            << "initialYawSigma: " << initialYawSigma_ << '\n'
-            << "initialVelocitySigma: " << initialVelocitySigma_ << '\n'
-            << "initialAccBiasSigma: " << initialAccBiasSigma_ << '\n'
-            << "initialGyroBiasSigma: " << initialGyroBiasSigma_ << '\n'
-
-            << "** VISION parameters **\n"
-            << "linearizationMode_: " << linearizationMode_
-            << " HESSIAN, IMPLICIT_SCHUR, JACOBIAN_Q, JACOBIAN_SVD \n"
-            << "degeneracyMode_: " << degeneracyMode_
-            << " IGNORE_DEGENERACY, ZERO_ON_DEGENERACY, HANDLE_INFINITY \n"
-            << "rankTolerance_: " << rankTolerance_ << '\n'
-            << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_
-            << '\n'
-            << "outlierRejection_: " << outlierRejection_ << '\n'
-            << "retriangulationThreshold_: " << retriangulationThreshold_
-            << '\n'
-            << "addBetweenStereoFactors_: " << addBetweenStereoFactors_ << '\n'
-            << "betweenRotationPrecision_: " << betweenRotationPrecision_
-            << '\n'
-            << "betweenTranslationPrecision_: " << betweenTranslationPrecision_
-            << '\n'
-
-            << "** OPTIMIZATION parameters **\n"
-            << "relinearizeThreshold_: " << relinearizeThreshold_ << '\n'
-            << "relinearizeSkip_: " << relinearizeSkip_ << '\n'
-            << "zeroVelocitySigma_: " << zeroVelocitySigma_ << '\n'
-            << "noMotionPositionSigma_: " << noMotionPositionSigma_ << '\n'
-            << "noMotionRotationSigma_: " << noMotionRotationSigma_ << '\n'
-            << "constantVelSigma_: " << constantVelSigma_ << '\n'
-            << "numOptimize_: " << numOptimize_ << '\n'
-            << "horizon_: " << horizon_ << '\n'
-            << "wildfire_threshold_: " << wildfire_threshold_ << '\n'
-            << "useDogLeg_: " << useDogLeg_;
 }
 
 }  // namespace VIO
