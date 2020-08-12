@@ -109,7 +109,11 @@ bool EurocDataProvider::spin() {
     if (!is_imu_data_sent_) {
       // First, send all the IMU data. The flag is to avoid sending it several
       // times if we are running in sequential mode.
-      sendImuData();
+      if (imu_single_callback_) {
+        sendImuData();
+      } else {
+        LOG(ERROR) << "Imu callback not registered! Not sending IMU data.";
+      }
       is_imu_data_sent_ = true;
     }
 
