@@ -300,8 +300,8 @@ bool Pipeline::spinViz() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once each pipeline module.
-  // CHECK(data_provider_module_);
-  // data_provider_module_->spin();
+  // CHECK(stereo_data_provider_module_);
+  // stereo_data_provider_module_->spin();
 
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();

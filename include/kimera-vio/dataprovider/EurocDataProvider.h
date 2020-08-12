@@ -90,16 +90,16 @@ class EurocDataProvider : public DataProviderInterface {
   bool spinOnce();
 
   /**
-   * @brief sendImuData We send IMU data first (before frames) so that the VIO
-   * pipeline can query all IMU data between frames.
-   */
-  void sendImuData() const;
-
-  /**
    * @brief parse Parses Euroc dataset. This is done already in spin() and
    * does not need to be called by the user. Left in public for experimentation.
    */
   void parse();
+
+  /**
+   * @brief sendImuData We send IMU data first (before frames) so that the VIO
+   * pipeline can query all IMU data between frames.
+   */
+  void sendImuData() const;
 
   /**
    * @brief parseDataset Parse camera, gt, and imu data if using
