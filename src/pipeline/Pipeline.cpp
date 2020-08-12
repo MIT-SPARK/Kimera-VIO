@@ -299,8 +299,8 @@ bool Pipeline::spinViz() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once each pipeline module.
-  // CHECK(data_provider_module_);
-  // data_provider_module_->spin();
+  // CHECK(stereo_data_provider_module_);
+  // stereo_data_provider_module_->spin();
 
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();
@@ -339,7 +339,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
       is_backend_ok_ &&     // Loop while backend is fine.
       (!isInitialized() ||  // Pipeline is not initialized and
                             // data is not yet consumed.
-       !(!data_provider_module_->isWorking() &&
+       !(!stereo_data_provider_module_->isWorking() &&
          (stereo_frontend_input_queue_.isShutdown() ||
           stereo_frontend_input_queue_.empty()) &&
          !vio_frontend_module_->isWorking() &&
@@ -412,7 +412,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
           << '\n'
           << "Backend initialized? " << vio_backend_module_->isInitialized()
           << '\n'
-          << "Data provider is working? " << data_provider_module_->isWorking()
+          << "Data provider is working? " << stereo_data_provider_module_->isWorking()
           << '\n'
           << "Frontend input queue shutdown? "
           << stereo_frontend_input_queue_.isShutdown() << '\n'
