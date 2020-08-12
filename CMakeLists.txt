@@ -43,7 +43,7 @@ if(NOT TARGET DBoW2::DBoW2)
 endif()
 find_package(KimeraRPGO REQUIRED)
 # Pangolin is optional
-find_package(Pangolin)
+find_package(Pangolin QUIET)
 
 ### External Dependencies
 include(ExternalProject)
@@ -157,6 +157,8 @@ if(Pangolin_FOUND)
       ${Pangolin_INCLUDE_DIRS}
   )
   target_compile_definitions(${PROJECT_NAME} PRIVATE Pangolin_FOUND=1)
+else(Pangolin_FOUND)
+  message(STATUS "Pangolin not found.")
 endif(Pangolin_FOUND)
 
 target_compile_options(${PROJECT_NAME}
