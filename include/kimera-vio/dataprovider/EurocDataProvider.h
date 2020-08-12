@@ -90,25 +90,22 @@ class EurocDataProvider : public DataProviderInterface {
   bool spinOnce();
 
   /**
-<<<<<<< HEAD
    * @brief parse Parses Euroc dataset. This is done already in spin() and
    * does not need to be called by the user. Left in public for experimentation.
    */
   void parse();
 
   /**
-   * @brief parseDataset Parse camera, gt, and imu data if using
-   * different Euroc format.
-   * @return
-   */
-=======
    * @brief sendImuData We send IMU data first (before frames) so that the VIO
    * pipeline can query all IMU data between frames.
    */
   void sendImuData() const;
 
-  // Parse camera, gt, and imu data if using different Euroc format.
->>>>>>> bcede7cf66a1dcaeb0620974586c771bdd010172
+  /**
+   * @brief parseDataset Parse camera, gt, and imu data if using
+   * different Euroc format.
+   * @return
+   */
   bool parseDataset();
 
   //! Parsers
