@@ -65,7 +65,7 @@ using BearingVectors =
 // TODO(Toni): we wouldn't need this if we didn't use vector of pairs.
 static void getValidKeypointsFromStatusKeypointsCV(
     const StatusKeypointsCV& status_kpts_cv,
-    KeypointsCV* valid_kpts) const {
+    KeypointsCV* valid_kpts) {
   CHECK_NOTNULL(valid_kpts)->clear();
   valid_kpts->resize(status_kpts_cv.size());
   for (const StatusKeypointCV& status_kpt: status_kpts_cv) {

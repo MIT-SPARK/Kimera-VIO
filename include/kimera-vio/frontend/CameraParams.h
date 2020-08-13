@@ -55,10 +55,10 @@ class CameraParams : public PipelineParams {
         camera_id_(),
         camera_model_(),
         intrinsics_(),
+        K_(),
         body_Pose_cam_(),
         frame_rate_(),
         image_size_(),
-        K_(),
         distortion_model_(),
         distortion_coeff_(),
         distortion_coeff_mat_() {}

@@ -278,9 +278,9 @@ class UtilsOpenCV {
   /* ------------------------------------------------------------------------ */
   // Draw corner matches and return results as a new mat.
   static cv::Mat DrawCornersMatches(const cv::Mat& img1,
-                                    const KeypointsCV& corners1,
+                                    const StatusKeypointsCV& corners1,
                                     const cv::Mat& img2,
-                                    const KeypointsCV& corners2,
+                                    const StatusKeypointsCV& corners2,
                                     const std::vector<cv::DMatch>& matches,
                                     const bool& randomColor = false);
 
@@ -291,7 +291,7 @@ class UtilsOpenCV {
                                    const bool& show_images,
                                    const bool& save_images);
 
-  cv::Scalar UtilsOpenCV::getColorFromKeypointStatus(
+  cv::Scalar getColorFromKeypointStatus(
       const KeypointStatus& kpt_status);
 
   /* ------------------------------------------------------------------------ */

@@ -52,8 +52,6 @@ void StereoFrame::checkStereoFrame() const {
       << "checkStereoFrame: left_frame_.scores.size()";
   CHECK_EQ(right_frame_.keypoints_.size(), nrLeftKeypoints)
       << "checkStereoFrame: right_frame_.keypoints_.size()";
-  CHECK_EQ(right_keypoints_status_.size(), nrLeftKeypoints)
-      << "checkStereoFrame: right_keypoints_status_.size()";
   CHECK_EQ(keypoints_3d_.size(), nrLeftKeypoints)
       << "checkStereoFrame: keypoints_3d_.size()";
   CHECK_EQ(left_keypoints_rectified_.size(), nrLeftKeypoints)
@@ -62,16 +60,16 @@ void StereoFrame::checkStereoFrame() const {
       << "checkStereoFrame: right_keypoints_rectified_.size()";
 
   for (size_t i = 0u; i < nrLeftKeypoints; i++) {
-    if (right_keypoints_status_[i] == KeypointStatus::VALID) {
-      CHECK_LE(fabs(right_keypoints_rectified_[i].y -
-                    left_keypoints_rectified_[i].y),
+    if (right_keypoints_rectified_[i].first == KeypointStatus::VALID) {
+      CHECK_LE(fabs(right_keypoints_rectified_[i].second.y -
+                    left_keypoints_rectified_[i].second.y),
                3)
           << "checkStereoFrame: rectified keypoints have different y "
-          << right_keypoints_rectified_[i].y << " vs. "
-          << left_keypoints_rectified_[i].y;
+          << right_keypoints_rectified_[i].second.y << " vs. "
+          << left_keypoints_rectified_[i].second.y;
     }
 
-    if (right_keypoints_status_[i] == KeypointStatus::VALID) {
+    if (right_keypoints_rectified_[i].first == KeypointStatus::VALID) {
       CHECK_NE(fabs(right_frame_.keypoints_[i].x) +
                    fabs(right_frame_.keypoints_[i].y),
                0)
@@ -81,13 +79,14 @@ void StereoFrame::checkStereoFrame() const {
           << "checkStereoFrame: keypoints_3d_[i] has nonpositive "
              "for valid point: "
           << keypoints_3d_[i](2) << '\n'
-          << "right_keypoints_status_[i] "
-          << to_underlying(right_keypoints_status_[i]) << '\n'
           << "left_frame_.keypoints_[i] " << left_frame_.keypoints_[i] << '\n'
           << "right_frame_.keypoints_[i] " << right_frame_.keypoints_[i] << '\n'
-          << "left_keypoints_rectified_[i] " << left_keypoints_rectified_[i]
           << '\n'
-          << "right_keypoints_rectified_[i] " << right_keypoints_rectified_[i];
+          << "right_keypoints_rectified_[i] st "
+          << to_underlying(right_keypoints_rectified_[i].first)
+          << '\n'
+          << "right_keypoints_rectified_[i] kp "
+          << right_keypoints_rectified_[i].second;
     } else {
       CHECK_LE(keypoints_3d_[i](2), 0)
           << "checkStereoFrame: keypoints_3d_[i] has positive "
@@ -105,7 +104,8 @@ void StereoFrame::checkStatusRightKeypoints(
   debug_info->nrNoRightRectRKP_ = 0;
   debug_info->nrNoDepthRKP_ = 0;
   debug_info->nrFailedArunRKP_ = 0;
-  for (const KeypointStatus& right_keypoint_status : right_keypoints_status_) {
+  for (const StatusKeypointCV& right_keypoint : right_keypoints_rectified_) {
+    KeypointStatus right_keypoint_status = right_keypoint.first;
     switch (right_keypoint_status) {
       case KeypointStatus::VALID: {
         debug_info->nrValidRKP_++;
@@ -213,7 +213,7 @@ void StereoFrame::getSmartStereoMeasurements(
 
     // TODO implicit conversion float to double increases floating-point
     // precision!
-    const KeypointCV& left_kpt = left_keypoints_rectified_.at(i);
+    KeypointCV& left_kpt = left_keypoints_rectified_.at(i).second;
     const double& uL = left_kpt.x;
     const double& v = left_kpt.y;
     // Initialize to missing pixel information.
@@ -223,7 +223,7 @@ void StereoFrame::getSmartStereoMeasurements(
            "useStereoTracking_ = true to use it)";
 
     if (use_stereo_measurements &&
-        right_keypoints_status_.at(i) == KeypointStatus::VALID) {
+        right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
       uR = right_keypoints_rectified_.at(i).x;

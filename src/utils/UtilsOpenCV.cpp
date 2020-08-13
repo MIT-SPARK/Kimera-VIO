@@ -620,9 +620,9 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
     // Trace a line from the image on the left to the one image on the right
     cv::line(canvas, corner_1.first, corner_2 + pt_offset, color);
     // Draw circles (colored depending on status)
-    cv::circle(canvas, corners_with_status_1[match.queryIdx], 3, color, 2);
+    cv::circle(canvas, corners_with_status_1[match.queryIdx].second, 3, color, 2);
     cv::circle(
-        canvas, corners_with_status_2[match.trainIdx] + pt_offset, 3, color, 2);
+        canvas, corners_with_status_2[match.trainIdx].second + pt_offset, 3, color, 2);
   }
 
   return canvas;

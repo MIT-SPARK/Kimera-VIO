@@ -57,7 +57,7 @@ void UndistorterRectifier::undistortRectifyKeypoints(
                           P_);
     } break;
     case DistortionModel::EQUIDISTANT: {
-      cv::fisheye::undistortPoints(keypoint,
+      cv::fisheye::undistortPoints(keypoints,
                                    *undistorted_keypoints,
                                    cam_params_.K_,
                                    cam_params_.distortion_coeff_mat_,
@@ -69,17 +69,17 @@ void UndistorterRectifier::undistortRectifyKeypoints(
 }
 
 void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
-    const KeypointsCV& distorted_kps,
-    const KeypointsCV& undistorted_kps,
+    KeypointsCV& distorted_kps,
+    KeypointsCV& undistorted_kps,
     StatusKeypointsCV* status_kps,
     const float& pixel_tol) {
   CHECK_NOTNULL(status_kps)->clear();
   CHECK_EQ(distorted_kps.size(), undistorted_kps.size());
   status_kps->reserve(distorted_kps.size());
   for (size_t i = 0u; i < undistorted_kps.size(); i++) {
-    const KeypointCV& distorted_kp = distorted_kps[i];
-    const KeypointCV& undistorted_kp = undistorted_kps[i];
-    bool cropped = UtilsOpenCV::cropToSize(&undistorted_kp, map_x_.size);
+    KeypointCV& distorted_kp = distorted_kps[i];
+    KeypointCV& undistorted_kp = undistorted_kps[i];
+    bool cropped = UtilsOpenCV::cropToSize(&undistorted_kp, map_x_.size());
 
     // TODO(Toni): would be nicer to interpolate exact position.
     float expected_distorted_kp_x = map_x_.at<float>(
@@ -93,7 +93,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
                << undistorted_kp << '\n'
                << "Image Size (map x size): " << map_x_.size;
       status_kps->push_back(
-          std::make_pair(KeypointStatus::NO_LEFT_RECT, px_undistRect));
+          std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
     } else {
       if (std::fabs(distorted_kp.x - expected_distorted_kp_x) > pixel_tol ||
           std::fabs(distorted_kp.y - expected_distorted_kp_y) > pixel_tol) {
