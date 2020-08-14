@@ -37,6 +37,7 @@ struct FrontendOutput : public PipelinePayload {
                  const StatusStereoMeasurementsPtr& status_stereo_measurements,
                  const TrackingStatus& tracker_status,
                  const gtsam::Pose3& relative_pose_body_stereo,
+                 const gtsam::Pose3& b_Pose_camL_rect,
                  const StereoFrame& stereo_frame_lkf,
                  // Use rvalue reference: FrontendOutput owns pim now.
                  const ImuFrontEnd::PimPtr& pim,
@@ -48,6 +49,7 @@ struct FrontendOutput : public PipelinePayload {
         status_stereo_measurements_(status_stereo_measurements),
         tracker_status_(tracker_status),
         relative_pose_body_stereo_(relative_pose_body_stereo),
+        b_Pose_camL_rect_(b_Pose_camL_rect),
         stereo_frame_lkf_(stereo_frame_lkf),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
@@ -61,6 +63,7 @@ struct FrontendOutput : public PipelinePayload {
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
+  const gtsam::Pose3 b_Pose_camL_rect_;
   const StereoFrame stereo_frame_lkf_;
   const ImuFrontEnd::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;

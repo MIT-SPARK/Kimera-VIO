@@ -27,6 +27,7 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/utils/Macros.h"
@@ -52,7 +53,7 @@ class Tracker {
    * @param camera_params Parameters for the camera used for tracking.
    */
   Tracker(const FrontendParams& tracker_params,
-          const CameraParams& camera_params,
+          const StereoCamera::Ptr& stereo_camera,
           DisplayQueue* display_queue = nullptr);
 
   // Tracker parameters.
@@ -148,9 +149,9 @@ class Tracker {
   // Incremental id assigned to new landmarks.
   LandmarkId landmark_count_;
 
-  // Camera params for the camera used to track: currently we only use K if the
-  // rotational optical flow predictor is used
-  const CameraParams camera_params_;
+  // StereoCamera object for the camera we are tracking. We use the left camera.
+  // TODO(marcus): this should be general to all camera types!
+  StereoCamera::Ptr stereo_camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of
   // where the features moved from frame to frame.

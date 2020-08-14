@@ -29,6 +29,8 @@
 #include <DBoW2/DBoW2.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
@@ -58,6 +60,8 @@ class LoopClosureDetector {
    *  instantiated and output/statistics are logged at every spinOnce().
    */
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
+                      const StereoCamera::Ptr& stereo_camera,
+                      const StereoMatchingParams& stereo_matching_params,
                       bool log_output);
 
   /* ------------------------------------------------------------------------ */
@@ -370,6 +374,8 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
+  StereoCamera::Ptr stereo_camera_;
+  StereoMatcher::UniquePtr stereo_matcher_;
 
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
@@ -408,10 +414,15 @@ class LcdFactory {
   static LoopClosureDetector::UniquePtr createLcd(
       const LoopClosureDetectorType& lcd_type,
       const LoopClosureDetectorParams& lcd_params,
+      const StereoCamera::Ptr& stereo_camera,
+      const StereoMatchingParams& stereo_matching_params,
       bool log_output) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
-        return VIO::make_unique<LoopClosureDetector>(lcd_params, log_output);
+        return VIO::make_unique<LoopClosureDetector>(lcd_params,
+                                                     stereo_camera,
+                                                     stereo_matching_params,
+                                                     log_output);
       }
       default: {
         LOG(FATAL) << "Requested loop closure detector type is not supported.\n"

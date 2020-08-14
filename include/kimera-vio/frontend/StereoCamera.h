@@ -164,6 +164,22 @@ class StereoCamera {
   inline cv::Rect getROI1() const { return ROI1_; }
   inline cv::Rect getROI2() const { return ROI2_; }
 
+  inline const CameraParams getLeftCamParams() const { return left_cam_params_; }
+
+  inline const CameraParams getRightCamParams() const { return right_cam_params_; }
+
+  inline const cv::Mat getP1() const { return P1_; }
+
+  inline const cv::Mat getP2() const { return P2_; }
+
+  inline const cv::Mat getR1() const { return R1_; }
+
+  inline const cv::Mat getR2() const { return R2_; }
+
+  inline const cv::Mat getQ() const { return Q_; }
+
+  inline const Baseline getBaseline() const { return stereo_baseline_; }
+
   /**
    * @brief rectifyUndistortStereoFrame
    * @param stereo_frame
@@ -178,7 +194,7 @@ class StereoCamera {
    * @param keypoints
    * @param status_keypoints
    */
-  void undistortRectifyLeftKeypoints(const KeypointsCV& keypoints,
+  void undistortRectifyLeftKeypoints(KeypointsCV& keypoints,
                                      StatusKeypointsCV* status_keypoints);
 
   /**

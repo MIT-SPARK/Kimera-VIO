@@ -1442,10 +1442,18 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz) {
   const StereoFrame& stereo_frame =
       mesher_payload.frontend_output_->stereo_frame_lkf_;
+  const StatusKeypointsCV& right_keypoints = 
+      stereo_frame.getRightKptsRectified();
+  std::vector<KeypointStatus> right_keypoint_status;
+  right_keypoint_status.reserve(right_keypoints.size());
+  for (const StatusKeypointCV& kpt : right_keypoints) {
+    right_keypoint_status.push_back(kpt.first);
+  }
+
   updateMesh3D(mesher_payload.backend_output_->landmarks_with_id_map_,
                stereo_frame.getLeftFrame().keypoints_,
-               stereo_frame.right_keypoints_status_,
-               stereo_frame.keypoints_3d_,
+               right_keypoint_status,
+               stereo_frame.get3DKpts(),
                stereo_frame.getLeftFrame().landmarks_,
                mesher_payload.backend_output_->W_State_Blkf_.pose_.compose(
                    mesher_params_.B_Pose_camLrect_),

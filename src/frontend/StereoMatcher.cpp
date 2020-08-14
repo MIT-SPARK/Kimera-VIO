@@ -76,8 +76,8 @@ void StereoMatcher::denseStereoReconstruction(
     sbm->setUniquenessRatio(dense_stereo_params_.uniqueness_ratio_);
     sbm->setSpeckleRange(dense_stereo_params_.speckle_range_);
     sbm->setSpeckleWindowSize(dense_stereo_params_.speckle_window_size_);
-    const auto& roi1 = stereo_camera_->getROI1();
-    const auto& roi2 = stereo_camera_->getROI2();
+    const cv::Rect& roi1 = stereo_camera_->getROI1();
+    const cv::Rect& roi2 = stereo_camera_->getROI2();
     if (!roi1.empty() && !roi2.empty()) {
       sbm->setROI1(roi1);
       sbm->setROI2(roi2);
@@ -129,7 +129,7 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   //! Undistort rectify left keypoints
   CHECK_GT(stereo_frame->left_frame_.keypoints_.size(), 0u)
       << "Call feature detection on left frame first...";
-  stereo_camera_->undistortRectifyPoints(
+  stereo_camera_->undistortRectifyLeftKeypoints(
       stereo_frame->left_frame_.keypoints_,
       &stereo_frame->left_keypoints_rectified_);
   sparseStereoReconstruction(stereo_frame->left_img_rectified_,

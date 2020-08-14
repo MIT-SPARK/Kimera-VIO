@@ -211,6 +211,8 @@ gtsam::Pose3 UtilsOpenCV::openGvTfToGtsamPose3(
 
 /* -------------------------------------------------------------------------- */
 // Crops pixel coordinates avoiding that it falls outside image
+// TODO(marcus): is it possible to make this return a new keypoint?
+//   we can't have any const refs with keypoints because of this...
 bool UtilsOpenCV::cropToSize(KeypointCV* px, const cv::Size& size) {
   CHECK_NOTNULL(px);
   bool cropped = false;
@@ -586,11 +588,37 @@ cv::Mat UtilsOpenCV::concatenateTwoImages(const cv::Mat& left_img,
 
 /* -------------------------------------------------------------------------- */
 // Draw corner matches and return results as a new mat.
+// TODO(marcus): color the keypoints based on status!
 cv::Mat UtilsOpenCV::DrawCornersMatches(
     const cv::Mat& img1,
     const StatusKeypointsCV& corners_with_status_1,
     const cv::Mat& img2,
     const StatusKeypointsCV& corners_with_status_2,
+    const std::vector<cv::DMatch>& matches,
+    const bool& random_color) {
+  KeypointsCV keypoints_1, keypoints_2;
+  keypoints_1.reserve(corners_with_status_1.size());
+  keypoints_2.reserve(corners_with_status_2.size());
+
+  for (int i = 0; i < corners_with_status_1.size(); i++) {
+    keypoints_1.push_back(corners_with_status_1[i].second);
+  }
+
+  for (int i = 0; i < corners_with_status_2.size(); i++) {
+    keypoints_2.push_back(corners_with_status_2[i].second);
+  }
+
+  return DrawCornersMatches(
+      img1, keypoints_1, img2, keypoints_2, matches, random_color);
+}
+
+/* -------------------------------------------------------------------------- */
+// Draw corner matches and return results as a new mat.
+cv::Mat UtilsOpenCV::DrawCornersMatches(
+    const cv::Mat& img1,
+    const KeypointsCV& corners_1,
+    const cv::Mat& img2,
+    const KeypointsCV& corners_2,
     const std::vector<cv::DMatch>& matches,
     const bool& random_color) {
   cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
@@ -608,21 +636,13 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
     }
 
     // TODO TONI REUSE THE OTHER FUNCTIONS!!!!
-    const StatusKeypointCV& corner_status_1 =
-        corners_with_status_1[match.queryIdx];
-    const KeypointStatus& status_1 = corner_status_1.first;
-    const KeypointCV& corner_1 = corner_status_1.second;
-    const StatusKeypointCV& corner_status_2 =
-        corners_with_status_2[match.trainIdx];
-    const KeypointStatus& status_2 = corner_status_2.first;
-    const KeypointCV& corner_2 = corner_status_2.second;
+    const KeypointCV& corner_1 = corners_1[match.queryIdx];
+    const KeypointCV& corner_2 = corners_2[match.trainIdx];
 
     // Trace a line from the image on the left to the one image on the right
-    cv::line(canvas, corner_1.first, corner_2 + pt_offset, color);
-    // Draw circles (colored depending on status)
-    cv::circle(canvas, corners_with_status_1[match.queryIdx].second, 3, color, 2);
-    cv::circle(
-        canvas, corners_with_status_2[match.trainIdx].second + pt_offset, 3, color, 2);
+    cv::line(canvas, corner_1, corner_2 + pt_offset, color);
+    cv::circle(canvas, corners_1[match.queryIdx], 3, color, 2);
+    cv::circle(canvas, corners_2[match.trainIdx] + pt_offset, 3, color, 2);
   }
 
   return canvas;
@@ -656,12 +676,12 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
 
 cv::Scalar UtilsOpenCV::getColorFromKeypointStatus(
     const KeypointStatus& kpt_status) {
-  static constexpr cv::Scalar green = cv::Scalar(0, 255, 0);
-  static constexpr cv::Scalar red = cv::Scalar(0, 0, 255);
+  static const cv::Scalar green = cv::Scalar(0, 255, 0);
+  static const cv::Scalar red = cv::Scalar(0, 0, 255);
   if (kpt_status == KeypointStatus::VALID) {
-    circle_colors.push_back(green);
+    return green;
   } else {
-    circle_colors.push_back(red);
+    return red;
   }
 }
 

@@ -116,8 +116,7 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
           left_frame->id_,
           left_frame->timestamp_,
           *left_frame,
-          *right_frame,
-          vio_params_.frontend_params_.stereo_matching_params_);
+          *right_frame);
 
       CHECK(stereo_camera_);
       if ((left_frame->id_ % subsample_n) == 0u) {

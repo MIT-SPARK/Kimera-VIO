@@ -46,7 +46,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const FrontendParams& frontend_params,
-    const CameraParams& camera_params,
     const StereoCamera::Ptr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output)
@@ -59,9 +58,9 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       keyframe_count_(0),
       feature_detector_(nullptr),
       frontend_params_(frontend_params),
-      tracker_(frontend_params, camera_params, display_queue),
+      tracker_(frontend_params, stereo_camera, display_queue),
       stereo_camera_(stereo_camera),
-      stereo_matcher_(*stereo_camera, frontend_params.stereo_matching_params_),
+      stereo_matcher_(stereo_camera, frontend_params.stereo_matching_params_),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       display_queue_(display_queue),
@@ -113,6 +112,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
                                           nullptr,
                                           TrackingStatus::DISABLED,
                                           getRelativePoseBodyStereo(),
+                                          stereo_camera_->getBodyPoseLeftCamRect(),
                                           *stereoFrame_lkf_,
                                           nullptr,
                                           input.getImuAccGyrs(),
@@ -228,6 +228,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
         status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
         getRelativePoseBodyStereo(),
+        stereo_camera_->getBodyPoseLeftCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input.getImuAccGyrs(),
@@ -239,15 +240,17 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
 
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<FrontendOutput>(false,
-                                            status_stereo_measurements,
-                                            TrackingStatus::INVALID,
-                                            getRelativePoseBodyStereo(),
-                                            *stereoFrame_lkf_,
-                                            pim,
-                                            input.getImuAccGyrs(),
-                                            feature_tracks,
-                                            getTrackerInfo());
+    return VIO::make_unique<FrontendOutput>(
+        false,
+        status_stereo_measurements,
+        TrackingStatus::INVALID,
+        getRelativePoseBodyStereo(),
+        stereo_camera_->getBodyPoseLeftCamRect(),
+        * stereoFrame_lkf_,
+        pim,
+        input.getImuAccGyrs(),
+        feature_tracks,
+        getTrackerInfo());
   }
 }
 
@@ -365,8 +368,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     ///////////////////// STEREO TRACKING //////////////////////////////////////
     // Get 3D points via stereo (only for keyframes, this is expensive).
     start_time = utils::Timer::tic();
-    stereoFrame_k_->sparseStereoMatching(
-        frontend_params_.stereo_matching_params_);
+    stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
     double sparse_stereo_time = utils::Timer::toc(start_time).count();
     ////////////////////////////////////////////////////////////////////////////
 
@@ -537,10 +539,8 @@ StereoMeasurementsUniquePtr StereoVisionFrontEnd::getSmartStereoMeasurements(
   // Extract relevant info from the stereo frame:
   // essentially the landmark if and the left/right pixel measurements.
   const LandmarkIds& landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
-  const KeypointsCV& leftKeypoints = stereoFrame_kf.left_keypoints_rectified_;
-  const KeypointsCV& rightKeypoints = stereoFrame_kf.right_keypoints_rectified_;
-  const std::vector<KeypointStatus>& rightKeypoints_status =
-      stereoFrame_kf.right_keypoints_status_;
+  const StatusKeypointsCV& leftKeypoints = stereoFrame_kf.getLeftKptsRectified();
+  const StatusKeypointsCV& rightKeypoints = stereoFrame_kf.getRightKptsRectified();
 
   // Pack information in landmark structure.
   StereoMeasurementsUniquePtr smart_stereo_measurements =
@@ -553,8 +553,8 @@ StereoMeasurementsUniquePtr StereoVisionFrontEnd::getSmartStereoMeasurements(
 
     // TODO implicit conversion float to double increases floating-point
     // precision!
-    const double& uL = leftKeypoints.at(i).x;
-    const double& v = leftKeypoints.at(i).y;
+    const double& uL = leftKeypoints.at(i).second.x;
+    const double& v = leftKeypoints.at(i).second.y;
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();
     if (!tracker_.tracker_params_.useStereoTracking_) {
@@ -562,10 +562,10 @@ StereoMeasurementsUniquePtr StereoVisionFrontEnd::getSmartStereoMeasurements(
                                   "useStereoTracking_ = true to use it)";
     }
     if (tracker_.tracker_params_.useStereoTracking_ &&
-        rightKeypoints_status.at(i) == KeypointStatus::VALID) {
+        rightKeypoints.at(i).first == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
-      uR = rightKeypoints.at(i).x;
+      uR = rightKeypoints.at(i).second.x;
     }
     smart_stereo_measurements->push_back(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
@@ -606,10 +606,12 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   // stereoFrame_k_->keypoints_depth_
 
   std::vector<cv::DMatch> matches;
+  const StatusKeypointsCV& right_status_keypoints = 
+      stereoFrame_k_->getRightKptsRectified();
   if (left_frame_k.keypoints_.size() == right_frame_k.keypoints_.size()) {
     for (size_t i = 0; i < left_frame_k.keypoints_.size(); i++) {
       if (left_frame_k.landmarks_[i] != -1 &&
-          stereoFrame_k_->right_keypoints_status_[i] == KeypointStatus::VALID) {
+          right_status_keypoints[i].first == KeypointStatus::VALID) {
         matches.push_back(cv::DMatch(i, i, 0));
       }
     }
@@ -645,7 +647,12 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   // Display rectified, plot matches.
   static constexpr bool kUseRandomColor = false;
   cv::Mat img_left_right_rectified =
-      stereoFrame_k_.drawCornersMatches(matches, kUseRandomColor);
+      UtilsOpenCV::DrawCornersMatches(stereoFrame_k_->getLeftImgRectified(),
+                                      stereoFrame_k_->getLeftKptsRectified(),
+                                      stereoFrame_k_->getRightImgRectified(),
+                                      stereoFrame_k_->getRightKptsRectified(),
+                                      matches,
+                                      kUseRandomColor);
   cv::putText(img_left_right_rectified,
               "S(Rect):" + std::to_string(keyframe_count_),
               KeypointCV(10, 15),
@@ -708,10 +715,10 @@ void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
   // Display rectified, plot matches.
   static constexpr bool kUseRandomColor = false;
   cv::Mat img_left_lkf_kf_rectified =
-      drawCornersMatches(stereoFrame_lkf_,
-                         stereoFrame_k_,
-                         matches,
-                         kUseRandomColor);
+      StereoFrame::drawCornersMatches(stereoFrame_lkf_,
+                                      stereoFrame_k_,
+                                      matches,
+                                      kUseRandomColor);
   cv::putText(img_left_lkf_kf_rectified,
               "M(Rect):" + std::to_string(keyframe_count_ - 1) + "-" +
                   std::to_string(keyframe_count_),
@@ -736,7 +743,7 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyMono() const {
   // lkfBody_T_kBody = lkfBody_T_lkfCamera *  lkfCamera_T_kCamera_ *
   // kCamera_T_kBody = body_Pose_cam_ * lkf_T_k_mono_ * body_Pose_cam_^-1
   gtsam::Pose3 body_Pose_cam_ =
-      stereoFrame_lkf_->getBPoseCamLRect();  // of the left camera!!
+      stereo_camera_->getBodyPoseLeftCamRect();  // of the left camera!!
   return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_mono_ *
          body_Pose_cam_.inverse();
 }
@@ -746,7 +753,7 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyMono() const {
 // RANSAC
 gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
   gtsam::Pose3 body_Pose_cam_ =
-      stereoFrame_lkf_->getBPoseCamLRect();  // of the left camera!!
+      stereo_camera_->getBodyPoseLeftCamRect();  // of the left camera!!
   return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ *
          body_Pose_cam_.inverse();
 }

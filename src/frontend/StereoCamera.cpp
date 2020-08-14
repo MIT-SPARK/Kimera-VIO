@@ -234,7 +234,7 @@ void StereoCamera::backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
 }
 
 void StereoCamera::undistortRectifyLeftKeypoints(
-    const KeypointsCV& keypoints,
+    KeypointsCV& keypoints,
     StatusKeypointsCV* status_keypoints_rectified) {
   KeypointsCV undistorted_rectified_keypoints;
   CHECK(left_cam_undistort_rectifier_);

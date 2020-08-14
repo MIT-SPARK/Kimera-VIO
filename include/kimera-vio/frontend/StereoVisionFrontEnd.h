@@ -58,8 +58,7 @@ class StereoVisionFrontEnd {
   StereoVisionFrontEnd(const ImuParams& imu_params,
                        const ImuBias& imu_initial_bias,
                        const FrontendParams& tracker_params,
-                       const CameraParams& camera_params,
-                       const StereoCamera& stereo_camera,
+                       const StereoCamera::Ptr& stereo_camera,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);
   virtual ~StereoVisionFrontEnd();
@@ -229,11 +228,11 @@ class StereoVisionFrontEnd {
   // owners, instead they should be passed around.
   // Stereo Frames
   // Current frame
-  std::shared_ptr<StereoFrame> stereoFrame_k_;
+  StereoFrame::Ptr stereoFrame_k_;
   // Last frame
-  std::shared_ptr<StereoFrame> stereoFrame_km1_;
+  StereoFrame::Ptr stereoFrame_km1_;
   // Last keyframe
-  std::shared_ptr<StereoFrame> stereoFrame_lkf_;
+  StereoFrame::Ptr stereoFrame_lkf_;
 
   // Rotation from last keyframe to reference frame
   // We use this to calculate the rotation btw reference frame and current frame

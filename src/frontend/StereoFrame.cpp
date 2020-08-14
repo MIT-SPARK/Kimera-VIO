@@ -213,7 +213,7 @@ void StereoFrame::getSmartStereoMeasurements(
 
     // TODO implicit conversion float to double increases floating-point
     // precision!
-    KeypointCV& left_kpt = left_keypoints_rectified_.at(i).second;
+    const KeypointCV& left_kpt = left_keypoints_rectified_.at(i).second;
     const double& uL = left_kpt.x;
     const double& v = left_kpt.y;
     // Initialize to missing pixel information.
@@ -226,7 +226,7 @@ void StereoFrame::getSmartStereoMeasurements(
         right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
-      uR = right_keypoints_rectified_.at(i).x;
+      uR = right_keypoints_rectified_.at(i).second.x;
     }
     smart_stereo_measurements->push_back(
         std::make_pair(lmk_id, gtsam::StereoPoint2(uL, uR, v)));
@@ -246,6 +246,20 @@ void StereoFrame::print() const {
             << left_frame_.cam_param_.body_Pose_cam_ << '\n'
             << "right_frame_.cam_param_.body_Pose_cam_: "
             << right_frame_.cam_param_.body_Pose_cam_;
+}
+
+cv::Mat StereoFrame::drawCornersMatches(
+    const StereoFrame::Ptr& stereo_frame_1,
+    const StereoFrame::Ptr& stereo_frame_2,
+    const std::vector<cv::DMatch>& matches,
+    const bool& random_color) {
+  return UtilsOpenCV::DrawCornersMatches(
+      stereo_frame_1->getLeftImgRectified(),
+      stereo_frame_1->getLeftKptsRectified(),
+      stereo_frame_2->getLeftImgRectified(),
+      stereo_frame_2->getLeftKptsRectified(),
+      matches,
+      random_color);
 }
 
 cv::Mat StereoFrame::drawLeftRightCornersMatches(

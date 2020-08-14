@@ -237,7 +237,7 @@ class Pipeline {
   bool parallel_run_;
 
   //! Definition of sensor rig used
-  StereoCamera::UniquePtr stereo_camera_;
+  StereoCamera::Ptr stereo_camera_;
 
   // Pipeline Modules
   //! Data provider.

@@ -52,6 +52,8 @@ namespace VIO {
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
+    const StereoCamera::Ptr& stereo_camera,
+    const StereoMatchingParams& stereo_matching_params,
     bool log_output)
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
@@ -65,6 +67,8 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_tp_wrapper_(nullptr),
       latest_bowvec_(),
       B_Pose_camLrect_(),
+      stereo_camera_(stereo_camera),
+      stereo_matcher_(nullptr),
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
       logger_(nullptr) {
@@ -73,6 +77,10 @@ LoopClosureDetector::LoopClosureDetector(
   gtsam::Vector6 sigmas;
   sigmas << 0.01, 0.01, 0.01, 0.1, 0.1, 0.1;
   shared_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+
+  // Sparse stereo reconstruction members
+  stereo_matcher_ = 
+      VIO::make_unique<StereoMatcher>(stereo_camera_, stereo_matching_params);
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
@@ -261,7 +269,7 @@ FrameId LoopClosureDetector::processAndAddFrame(
                                 db_frames_.size(),
                                 cp_stereo_frame.getFrameId(),
                                 keypoints,
-                                cp_stereo_frame.keypoints_3d_,
+                                cp_stereo_frame.get3DKpts(),
                                 descriptors_vec,
                                 descriptors_mat,
                                 cp_stereo_frame.getLeftFrame().versors_));
@@ -489,7 +497,7 @@ void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
   lcd_params_.focal_length_ = intrinsics[0];
   lcd_params_.principle_point_ = cv::Point2d(intrinsics[2], intrinsics[3]);
 
-  B_Pose_camLrect_ = stereo_frame.getBPoseCamLRect();
+  B_Pose_camLrect_ = stereo_camera_->getBodyPoseLeftCamRect();
   set_intrinsics_ = true;
 }
 
@@ -528,9 +536,9 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.clear();
   right_frame_mutable->versors_.clear();
   right_frame_mutable->scores_.clear();
-  stereo_frame->keypoints_3d_.clear();
-  stereo_frame->left_keypoints_rectified_.clear();
-  stereo_frame->right_keypoints_rectified_.clear();
+  stereo_frame->get3DKptsMutable()->clear();
+  stereo_frame->getLeftKptsRectifiedMutable()->clear();
+  stereo_frame->getRightKptsRectifiedMutable()->clear();
 
   // Reserve space in all relevant fields
   left_frame_mutable->keypoints_.reserve(keypoints.size());
@@ -539,9 +547,9 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.reserve(keypoints.size());
   right_frame_mutable->versors_.reserve(keypoints.size());
   right_frame_mutable->scores_.reserve(keypoints.size());
-  stereo_frame->keypoints_3d_.reserve(keypoints.size());
-  stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
-  stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
+  stereo_frame->get3DKptsMutable()->reserve(keypoints.size());
+  stereo_frame->getLeftKptsRectifiedMutable()->reserve(keypoints.size());
+  stereo_frame->getRightKptsRectifiedMutable()->reserve(keypoints.size());
 
   // stereo_frame->setIsRectified(false);
 
@@ -554,15 +562,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   }
 
   // Automatically match keypoints in right image with those in left.
-  stereo_frame->sparseStereoMatching();
-
-  size_t num_kp = keypoints.size();
-  CHECK_EQ(left_frame_mutable->keypoints_.size(), num_kp);
-  CHECK_EQ(left_frame_mutable->versors_.size(), num_kp);
-  CHECK_EQ(left_frame_mutable->scores_.size(), num_kp);
-  CHECK_EQ(stereo_frame->keypoints_3d_.size(), num_kp);
-  CHECK_EQ(stereo_frame->left_keypoints_rectified_.size(), num_kp);
-  CHECK_EQ(stereo_frame->right_keypoints_rectified_.size(), num_kp);
+  stereo_matcher_->sparseStereoReconstruction(stereo_frame);
+  stereo_frame->checkStereoFrame();
 }
 
 /* ------------------------------------------------------------------------ */

@@ -358,7 +358,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   VLOG(10) << "Starting trajectory visualization...";
   addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
       input.backend_output_->W_State_Blkf_.pose_.compose(
-          input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect())));
+          input.frontend_output_->b_Pose_camL_rect_)));
   // Generate line through all poses
   visualizeTrajectory3D(&output->widgets_);
   // Generate frustums for the last 10 poses.

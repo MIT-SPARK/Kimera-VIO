@@ -72,10 +72,33 @@ class StereoFrame {
   inline const Frame& getLeftFrame() const { return left_frame_; }
   inline const Frame& getRightFrame() const { return right_frame_; }
 
+  inline StatusKeypointsCV getLeftKptsRectified() const {
+    CHECK(is_rectified_);
+    return left_keypoints_rectified_;
+  }
+  inline StatusKeypointsCV getRightKptsRectified() const {
+    CHECK(is_rectified_);
+    return right_keypoints_rectified_;
+  }
+  inline const std::vector<gtsam::Vector3> get3DKpts() const {
+    return keypoints_3d_;
+  }
+
   // NON-THREAD SAFE, and potentially very hazardous, giving away rights to
   // modify class members is EVIL.
   inline Frame* getLeftFrameMutable() { return &left_frame_; }
   inline Frame* getRightFrameMutable() { return &right_frame_; }
+  inline StatusKeypointsCV* getLeftKptsRectifiedMutable() {
+    CHECK(is_rectified_);
+    return &left_keypoints_rectified_;
+  }
+  inline StatusKeypointsCV* getRightKptsRectifiedMutable() {
+    CHECK(is_rectified_);
+    return &right_keypoints_rectified_;
+  }
+  inline std::vector<gtsam::Vector3>* get3DKptsMutable() {
+    return &keypoints_3d_;
+  }
 
   //! Return rectified images, assumes the images have already been computed.
   //! Note that we return const images, since these should not be modified
@@ -87,15 +110,6 @@ class StereoFrame {
   inline const cv::Mat getRightImgRectified() const {
     CHECK(is_rectified_);
     return right_img_rectified_;
-  }
-
-  inline StatusKeypointsCV getLeftKptsRectified() const {
-    CHECK(is_rectified_);
-    return left_keypoints_rectified_;
-  }
-  inline StatusKeypointsCV getRightKptsRectified() const {
-    CHECK(is_rectified_);
-    return right_keypoints_rectified_;
   }
 
   std::vector<double> getDepthFromRectifiedMatches(
@@ -128,8 +142,8 @@ class StereoFrame {
    * @param random_color
    * @return
    */
-  friend cv::Mat drawCornersMatches(const StereoFrame& stereo_frame_1,
-                                    const StereoFrame& stereo_frame_2,
+  static cv::Mat drawCornersMatches(const StereoFrame::Ptr& stereo_frame_1,
+                                    const StereoFrame::Ptr& stereo_frame_2,
                                     const std::vector<cv::DMatch>& matches,
                                     const bool& random_color);
 
@@ -189,19 +203,5 @@ class StereoFrame {
   //! the rectified left/right frames and left keypoints.
   friend class StereoMatcher;
 };
-
-//! Define stereo frame friend class
-cv::Mat drawCornersMatches(const StereoFrame& stereo_frame_1,
-                           const StereoFrame& stereo_frame_2,
-                           const std::vector<cv::DMatch>& matches,
-                           const bool& random_color) {
-  return UtilsOpenCV::DrawCornersMatches(
-      stereo_frame_1.left_img_rectified_,
-      stereo_frame_1.left_keypoints_rectified_,
-      stereo_frame_2.left_img_rectified_,
-      stereo_frame_2.left_keypoints_rectified_,
-      matches,
-      random_color);
-}
 
 }  // namespace VIO

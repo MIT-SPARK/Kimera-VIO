@@ -100,10 +100,9 @@ Pipeline::Pipeline(const VioParams& params,
 
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u) << "Only stereo camera support.";
-  stereo_camera_ = VIO::make_unique<StereoCamera>(
+  stereo_camera_ = std::make_shared<StereoCamera>(
       params.camera_params_.at(0),
-      params.camera_params_.at(1),
-      params.frontend_params_.stereo_matching_params_);
+      params.camera_params_.at(1));
 
   //! Create DataProvider
   stereo_data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
@@ -125,8 +124,7 @@ Pipeline::Pipeline(const VioParams& params,
           params.imu_params_,
           gtsam::imuBias::ConstantBias(),
           params.frontend_params_,
-          params.camera_params_.at(0),
-          *stereo_camera_,
+          stereo_camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
@@ -242,6 +240,8 @@ Pipeline::Pipeline(const VioParams& params,
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
+                              stereo_camera_,
+                              params.frontend_params_.stereo_matching_params_,
                               FLAGS_log_output));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(

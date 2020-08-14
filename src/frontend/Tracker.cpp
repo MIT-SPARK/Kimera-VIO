@@ -34,11 +34,11 @@ DEFINE_bool(visualize_feature_predictions,
 namespace VIO {
 
 Tracker::Tracker(const FrontendParams& tracker_params,
-                 const CameraParams& camera_params,
+                 const StereoCamera::Ptr& stereo_camera,
                  DisplayQueue* display_queue)
     : landmark_count_(0),
       tracker_params_(tracker_params),
-      camera_params_(camera_params),
+      stereo_camera_(stereo_camera),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
       display_queue_(display_queue),
@@ -47,8 +47,8 @@ Tracker::Tracker(const FrontendParams& tracker_params,
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
-          camera_params_.K_,
-          camera_params_.image_size_);
+          stereo_camera_->getLeftCamParams().K_,
+          stereo_camera_->getLeftCamParams().image_size_);
 
   // Setup Mono Ransac
   mono_ransac_.threshold_ = tracker_params_.ransac_threshold_mono_;
@@ -356,16 +356,16 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
 
   gtsam::Pose3 camLrectlkf_P_camLrectkf = camLlkf_P_camLkf;
   // check if we have to compensate for rectification (if we have a valid
-  // R_rectify_ )
-  if (ref_frame->cam_param_.R_rectify_.rows == 3 &&
-      cur_frame->cam_param_.R_rectify_.rows == 3) {
-    gtsam::Rot3 camLrect_R_camL_ref =
-        UtilsOpenCV::cvMatToGtsamRot3(ref_frame->cam_param_.R_rectify_);
-    gtsam::Rot3 camLrect_R_camL_cut =
-        UtilsOpenCV::cvMatToGtsamRot3(cur_frame->cam_param_.R_rectify_);
+  // left-cam rectification matrix )
+  // TODO(marcus): assumes both frames from same stereocam and both are left.
+  // TODO(marcus): can we simplify? We don't need both rot mats...
+  const cv::Mat& R1 = stereo_camera_->getR1();
+  if (R1.rows == 3) {
+    gtsam::Rot3 camLrect_R_camL_ref = UtilsOpenCV::cvMatToGtsamRot3(R1);
+    gtsam::Rot3 camLrect_R_camL_cur = UtilsOpenCV::cvMatToGtsamRot3(R1);
     camLrectlkf_P_camLrectkf =
         gtsam::Pose3(camLrect_R_camL_ref, Point3()) * camLlkf_P_camLkf *
-        gtsam::Pose3(camLrect_R_camL_cut.inverse(), Point3());
+        gtsam::Pose3(camLrect_R_camL_cur.inverse(), Point3());
   }
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
@@ -382,15 +382,15 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
     const Matrix3& stereoPtCov,
     boost::optional<gtsam::Matrix3> Rmat) {
   gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(
-      static_cast<double>(stereoFrame.left_keypoints_rectified_[pointId].x),
-      static_cast<double>(stereoFrame.right_keypoints_rectified_[pointId].x),
+      static_cast<double>(stereoFrame.getLeftKptsRectified()[pointId].second.x),
+      static_cast<double>(stereoFrame.getRightKptsRectified()[pointId].second.x),
       static_cast<double>(
-          stereoFrame.left_keypoints_rectified_[pointId].y));  // uL_, uR_, v_;
+          stereoFrame.getLeftKptsRectified()[pointId].second.y));  // uL_, uR_, v_;
 
   Matrix3 Jac_point3_sp2;  // jacobian of the back projection
   Vector3 point3_i_gtsam =
       stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2).vector();
-  Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
+  Vector3 point3_i = stereoFrame.get3DKpts().at(pointId);
   // TODO(Toni): Adapt value of this threshold for different calibration
   // models!
   // (1e-1)
@@ -429,18 +429,8 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // Stereo point covariance: for covariance propagation.
   Matrix3 stereoPtCov = Matrix3::Identity();  // 3 px std in each direction
 
-  // Create stereo camera.
-  const gtsam::Cal3_S2& left_undist_rect_cam_mat =
-      ref_stereoFrame.getLeftUndistRectCamMat();
-  gtsam::Cal3_S2Stereo::shared_ptr K =
-      boost::make_shared<gtsam::Cal3_S2Stereo>(left_undist_rect_cam_mat.fx(),
-                                               left_undist_rect_cam_mat.fy(),
-                                               left_undist_rect_cam_mat.skew(),
-                                               left_undist_rect_cam_mat.px(),
-                                               left_undist_rect_cam_mat.py(),
-                                               ref_stereoFrame.getBaseline());
-  // In the ref frame of the left camera.
-  gtsam::StereoCamera stereoCam(gtsam::Pose3(), K);
+  // Create stereo camera in the ref frame of the left camera.
+  gtsam::StereoCamera stereoCam(gtsam::Pose3(), stereo_camera_->getStereoCalib());
 
   double timeMatchingAndAllocation_p =
       utils::Timer::toc(start_time_tic).count();
@@ -657,9 +647,11 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   f_cur.reserve(n_matches);
   BearingVectors f_ref;
   f_ref.reserve(n_matches);
+  std::vector<gtsam::Vector3> ref_keypoints_3d = ref_stereoFrame.get3DKpts();
+  std::vector<gtsam::Vector3> cur_keypoints_3d = cur_stereoFrame.get3DKpts();
   for (const KeypointMatch& it : matches_ref_cur) {
-    f_ref.push_back(ref_stereoFrame.keypoints_3d_.at(it.first));
-    f_cur.push_back(cur_stereoFrame.keypoints_3d_.at(it.second));
+    f_ref.push_back(ref_keypoints_3d.at(it.first));
+    f_cur.push_back(cur_keypoints_3d.at(it.second));
   }
 
   // Setup problem (3D-3D adapter) -
@@ -773,17 +765,24 @@ void Tracker::removeOutliersStereo(const std::vector<int>& inliers,
 
   // Remove outliers: outliers cannot be a vector of size_t because opengv
   // uses a vector of int.
+  StatusKeypointsCV* ref_right_keypoints = 
+      ref_stereoFrame->getRightKptsRectifiedMutable();
+  StatusKeypointsCV* cur_right_keypoints = 
+      cur_stereoFrame->getRightKptsRectifiedMutable();
+  std::vector<gtsam::Vector3>* ref_keypoints_3d = 
+      ref_stereoFrame->get3DKptsMutable();
+  std::vector<gtsam::Vector3>* cur_keypoints_3d = 
+      cur_stereoFrame->get3DKptsMutable();
+
   for (const size_t& out : outliers) {
     const KeypointMatch& kp_match = (*matches_ref_cur)[out];
-    ref_stereoFrame->right_keypoints_status_.at(kp_match.first) =
+    ref_right_keypoints->at(kp_match.first).first =
         KeypointStatus::FAILED_ARUN;
-    ref_stereoFrame->keypoints_depth_.at(kp_match.first) = 0.0;
-    ref_stereoFrame->keypoints_3d_.at(kp_match.first) = Vector3::Zero();
+    ref_keypoints_3d->at(kp_match.first) = Vector3::Zero();
 
-    cur_stereoFrame->right_keypoints_status_.at(kp_match.second) =
+    cur_right_keypoints->at(kp_match.second).first =
         KeypointStatus::FAILED_ARUN;
-    cur_stereoFrame->keypoints_depth_.at(kp_match.second) = 0.0;
-    cur_stereoFrame->keypoints_3d_.at(kp_match.second) = Vector3::Zero();
+    cur_keypoints_3d->at(kp_match.second) = Vector3::Zero();
   }
 
   // Store only inliers from now on.
@@ -845,14 +844,18 @@ void Tracker::findMatchingStereoKeypoints(
     const KeypointMatches& matches_ref_cur_mono,
     KeypointMatches* matches_ref_cur_stereo) {
   CHECK_NOTNULL(matches_ref_cur_stereo)->clear();
+
+  const StatusKeypointsCV& ref_right_keypoints = 
+      ref_stereoFrame.getRightKptsRectified();
+  const StatusKeypointsCV& cur_right_keypoints = 
+      cur_stereoFrame.getRightKptsRectified();
+
   for (size_t i = 0; i < matches_ref_cur_mono.size(); ++i) {
     const size_t& ind_ref = matches_ref_cur_mono[i].first;
     const size_t& ind_cur = matches_ref_cur_mono[i].second;
     // At this point we already discarded keypoints with landmark = -1
-    if (ref_stereoFrame.right_keypoints_status_[ind_ref] ==
-            KeypointStatus::VALID &&
-        cur_stereoFrame.right_keypoints_status_[ind_cur] ==
-            KeypointStatus::VALID) {
+    if (ref_right_keypoints[ind_ref].first == KeypointStatus::VALID &&
+        cur_right_keypoints[ind_cur].first == KeypointStatus::VALID) {
       // Pair of points that has 3D in both stereoFrames.
       matches_ref_cur_stereo->push_back(matches_ref_cur_mono[i]);
     }
