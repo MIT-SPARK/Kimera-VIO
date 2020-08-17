@@ -20,6 +20,7 @@
 
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/mesh/MeshUtils.h"  // a bit weird... it's for isValidPoint.
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
@@ -33,17 +34,21 @@ class StereoCameraFixture : public ::testing::Test {
   StereoCameraFixture()
       : vio_params_(FLAGS_test_data_path + "/EurocParams"),
         stereo_camera_(nullptr),
+        stereo_matcher_(nullptr),
         left_frame_queue_("left_frame_queue"),
         right_frame_queue_("right_frame_queue"),
         window_() {
     // Parse data
     parseEuroc();
     // Create Stereo Camera
-    stereo_camera_ = VIO::make_unique<StereoCamera>(
+    stereo_camera_ = std::make_shared<StereoCamera>(
         vio_params_.camera_params_.at(0),
-        vio_params_.camera_params_.at(1),
-        vio_params_.frontend_params_.stereo_matching_params_);
+        vio_params_.camera_params_.at(1));
     CHECK(stereo_camera_);
+    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+        stereo_camera_,
+        vio_params_.frontend_params_.stereo_matching_params_);
+    CHECK(stereo_matcher_);
   }
   ~StereoCameraFixture() override = default;
 
@@ -149,7 +154,8 @@ class StereoCameraFixture : public ::testing::Test {
   // Default Parms
   //! Params
   VioParams vio_params_;
-  StereoCamera::UniquePtr stereo_camera_;
+  StereoCamera::Ptr stereo_camera_;
+  StereoMatcher::UniquePtr stereo_matcher_;
 
   EurocDataProvider::UniquePtr euroc_data_provider_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
@@ -179,15 +185,14 @@ TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
       left_frame->id_,
       left_frame->timestamp_,
       *left_frame,
-      *right_frame,
-      vio_params_.frontend_params_.stereo_matching_params_);
+      *right_frame);
 
   // Compute depth map just to see.
   cv::Mat disp_img =
       cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
   CHECK(stereo_frame.isRectified());
   stereo_camera_->undistortRectifyStereoFrame(&stereo_frame);
-  stereo_camera_->stereoDisparityReconstruction(
+  stereo_matcher_->denseStereoReconstruction(
       stereo_frame.getLeftImgRectified(),
       stereo_frame.getRightImgRectified(),
       &disp_img);

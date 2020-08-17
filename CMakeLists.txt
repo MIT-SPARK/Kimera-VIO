@@ -222,7 +222,7 @@ if(BUILD_TESTS)
     tests/testVioParams.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp
-    tests/testStereoCamera.cpp
+    tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp
@@ -250,7 +250,7 @@ if(BUILD_TESTS)
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp
     tests/testTimer.cpp
-    tests/testTracker.cpp
+    tests/testTracker.cpp # NEEDS UPDATE
     tests/testUtilsOpenCV.cpp
     tests/testUtilsNumerical.cpp
     tests/testInitializationFromImu.cpp
@@ -258,7 +258,7 @@ if(BUILD_TESTS)
     tests/testVioBackEndParams.cpp
     tests/testVisionFrontEndParams.cpp
     tests/testFeatureDetectorParams.cpp
-    # tests/testVisualizer3D.cpp # NEEDS UPDATE
+    tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )

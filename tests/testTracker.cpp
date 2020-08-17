@@ -25,6 +25,7 @@
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/utils/Timer.h"
@@ -41,8 +42,10 @@ using namespace cv;
 static const double tol = 1e-7;
 // TODO initializing null pointers is prone to errors!!
 // TODO use test fixture!!
-static Frame *ref_frame, *cur_frame;
-static StereoFrame *ref_stereo_frame, *cur_stereo_frame;
+static Frame::Ptr ref_frame, cur_frame;
+static StereoFrame::Ptr ref_stereo_frame, cur_stereo_frame;
+static VIO::StereoCamera::Ptr stereo_camera;
+static VIO::StereoMatcher::UniquePtr stereo_matcher;
 static const FrameId id_ref = 0, id_cur = 1;
 static const int64_t timestamp_ref = 1000, timestamp_cur = 2000;
 static string stereo_test_data_path(FLAGS_test_data_path +
@@ -76,46 +79,60 @@ class TestTracker : public ::testing::Test {
     string img_name_cur_left = stereo_test_data_path + "left_img_1.png";
     string img_name_cur_right = stereo_test_data_path + "right_img_1.png";
 
-    // Data for testing "geometricOutlierRejectionMono"
-    // !!! TODO THIS IS ALLOCATING MEMORY BUT THERE IS NO DELETE !!!
-    ref_frame =
-        new Frame(id_ref,
-                  timestamp_ref,
-                  cam_params_left,
-                  UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
-    cur_frame =
-        new Frame(id_cur,
-                  timestamp_cur,
-                  cam_params_left,
-                  UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
+        // Data for testing "geometricOutlierRejectionMono"
+        // !!! TODO THIS IS ALLOCATING MEMORY BUT THERE IS NO DELETE !!!
+        ref_frame = std::make_shared<Frame>(
+            id_ref,
+            timestamp_ref,
+            cam_params_left,
+            UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
+    cur_frame = std::make_shared<Frame>(
+        id_cur,
+        timestamp_cur,
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
     FrontendParams tp;
 
-    ref_stereo_frame = new StereoFrame(
+    ref_stereo_frame = std::make_shared<StereoFrame>(
         id_ref,
         timestamp_ref,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_ref,
+              timestamp_ref,
+              cam_params_left, 
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref_left, 
+                  tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_ref,
+              timestamp_ref,
+              cam_params_right,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref_right,
+                  tp.stereo_matching_params_.equalize_image_)));
 
-    ref_stereo_frame->sparseStereoMatching();  // only initialize rectification
-
-    cur_stereo_frame = new StereoFrame(
+    cur_stereo_frame = std::make_shared<StereoFrame>(
         id_cur,
         timestamp_cur,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_cur,
+              timestamp_cur,
+              cam_params_left, 
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur_left, 
+                  tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_cur,
+              timestamp_cur,
+              cam_params_right,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur_right,
+                  tp.stereo_matching_params_.equalize_image_)));
 
-    cur_stereo_frame->sparseStereoMatching();  // only initialize rectification
+    stereo_camera =
+        std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
+    stereo_matcher = VIO::make_unique<VIO::StereoMatcher>(
+        stereo_camera, tp.stereo_matching_params_);
+
+    stereo_matcher->sparseStereoReconstruction(ref_stereo_frame.get());
+    stereo_matcher->sparseStereoReconstruction(cur_stereo_frame.get());
   }
 
   Vector3 IntersectVersorPlane(const Vector3& versor,
@@ -316,8 +333,8 @@ class TestTracker : public ::testing::Test {
     }
 
     // Add the versors to the stereo frames
-    sf_ref->keypoints_3d_.push_back(v_ref);
-    sf_cur->keypoints_3d_.push_back(v_cur);
+    sf_ref->get3DKptsMutable()->push_back(v_ref);
+    sf_cur->get3DKptsMutable()->push_back(v_cur);
 
     // create ref stereo camera
     Rot3 camLrect_R_camL = UtilsOpenCV::cvMatToGtsamRot3(
@@ -330,7 +347,7 @@ class TestTracker : public ::testing::Test {
                           ref_left_undist_rect_cam_mat.px(),
                           ref_left_undist_rect_cam_mat.py(),
                           sf_ref->getBaseline()));
-    StereoCamera stereoCam = StereoCamera(Pose3(), K_ref);
+    VIO::StereoCamera stereoCam = VIO::StereoCamera(Pose3(), K_ref);
 
     StereoPoint2 sp2 = stereoCam.project(camLrect_R_camL.rotate(Point3(v_ref)));
     sf_ref->left_keypoints_rectified_.push_back(KeypointCV(sp2.uL(), sp2.v()));
@@ -499,7 +516,7 @@ class TestTracker : public ::testing::Test {
   }
 
   pair<Vector3, Matrix3> monteCarloSampleCovariance(
-      const StereoCamera stereoCam,
+      const VIO::StereoCamera stereoCam,
       const StereoPoint2 stereoPoint,
       const Matrix3 stereoPtCov) {
     Vector3 meanVector = stereoCam.backproject2(stereoPoint).vector();

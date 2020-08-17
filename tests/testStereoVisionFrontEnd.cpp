@@ -29,6 +29,7 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
@@ -83,24 +84,30 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     ref_stereo_frame = std::make_shared<StereoFrame>(
         id_ref,
         timestamp_ref,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_ref,
+              timestamp_ref,
+              cam_params_left,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref_left, tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_ref,
+              timestamp_ref,
+              cam_params_right,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref_right, tp.stereo_matching_params_.equalize_image_)));
 
     cur_stereo_frame = std::make_shared<StereoFrame>(
         id_cur,
         timestamp_cur,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_cur,
+              timestamp_cur,
+              cam_params_left,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur_left, tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_cur,
+              timestamp_cur,
+              cam_params_right,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur_right, tp.stereo_matching_params_.equalize_image_)));
 
     // Imu Params
     imu_params_.acc_walk_ = 1;
@@ -123,8 +130,8 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   void clearStereoFrame(std::shared_ptr<StereoFrame>& sf) {
     clearFrame(sf->getLeftFrameMutable());
     clearFrame(sf->getRightFrameMutable());
-    sf->keypoints_3d_.clear();
-    sf->right_keypoints_status_.clear();
+    sf->get3DKptsMutable()->clear();
+    sf->getRightKptsRectifiedMutable()->clear();
   }
 
   void fillStereoFrame(std::shared_ptr<StereoFrame>& sf) {
@@ -137,10 +144,11 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     // OR (right_keypoints_status[i] != valid)
 
     // right_keypoints_status_.size
-    if (sf->right_keypoints_status_.size() != num_keypoints) {
-      sf->right_keypoints_status_ = std::vector<KeypointStatus>(num_keypoints);
+    if (sf->getRightKptsRectified().size() != num_keypoints) {
+      sf->getRightKptsRectifiedMutable()->resize(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        sf->right_keypoints_status_[i] = KeypointStatus::VALID;
+        sf->getRightKptsRectifiedMutable()->at(i).first = KeypointStatus::VALID;
+        sf->getRightKptsRectifiedMutable()->at(i).second = KeypointCV();
       }
     }
 
@@ -156,7 +164,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     if (sf->getRightFrame().keypoints_.size() != num_keypoints) {
       sf->getRightFrameMutable()->keypoints_ = KeypointsCV(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        if (sf->right_keypoints_status_[i] == KeypointStatus::VALID) {
+        if (sf->getRightKptsRectified()[i].first == KeypointStatus::VALID) {
           sf->getRightFrameMutable()->keypoints_[i] =
               KeypointCV(i + 20, i + (i % 3 - 1));
         } else {
@@ -166,25 +174,20 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     }
 
     // keypoints_3d_.size
-    if (sf->keypoints_3d_.size() != num_keypoints) {
-      sf->keypoints_3d_ = std::vector<Vector3>(num_keypoints);
+    if (sf->get3DKpts().size() != num_keypoints) {
+      sf->get3DKptsMutable()->resize(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        if (sf->right_keypoints_status_[i] == KeypointStatus::VALID) {
-          sf->keypoints_3d_[i](2) = 1;
+        if (sf->getRightKptsRectified()[i].first == KeypointStatus::VALID) {
+          sf->get3DKptsMutable()->at(i)(2) = 1;
         } else {
-          sf->keypoints_3d_[i](2) = 0;
+          sf->get3DKptsMutable()->at(i)(2) = 0;
         }
       }
     }
 
     // left_keypoints_rectified.size
-    if (sf->left_keypoints_rectified_.size() != num_keypoints) {
-      sf->left_keypoints_rectified_ = KeypointsCV(num_keypoints);
-    }
-
-    // right_keypoints_rectified.size
-    if (sf->right_keypoints_rectified_.size() != num_keypoints) {
-      sf->right_keypoints_rectified_ = KeypointsCV(num_keypoints);
+    if (sf->getLeftKptsRectified().size() != num_keypoints) {
+      sf->getLeftKptsRectifiedMutable()->resize(num_keypoints);
     }
   }
 
@@ -323,10 +326,14 @@ TEST_F(StereoVisionFrontEndFixture, getRelativePoseBodyStereo) {
 TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   clearStereoFrame(ref_stereo_frame);
   ref_stereo_frame->setIsKeyframe(true);
-  ref_stereo_frame->setIsRectified(true);
 
+  VIO::StereoCamera::Ptr stereo_camera = 
+      std::make_shared<StereoCamera>(CameraParams(), CameraParams());
   StereoVisionFrontEnd st(
-      imu_params_, ImuBias{}, FrontendParams(), CameraParams());
+      imu_params_, 
+      ImuBias{}, 
+      FrontendParams(), 
+      stereo_camera);
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -345,9 +352,10 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     double v = rand() % 600;
     ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(i);
     ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
-    ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_status_.push_back(KeypointStatus::VALID);
+    ref_stereo_frame->getLeftKptsRectifiedMutable()->push_back(
+        StatusKeypointCV(KeypointStatus::VALID, cv::Point2f(uL, v)));
+    ref_stereo_frame->getRightKptsRectifiedMutable()->push_back(
+        StatusKeypointCV(KeypointStatus::VALID, cv::Point2f(uL, v)));
   }
 
   // right keypoints invalid!
@@ -358,10 +366,10 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(i +
                                                                   num_valid);
     ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
-    ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_status_.push_back(
-        KeypointStatus::NO_RIGHT_RECT);
+    ref_stereo_frame->getLeftKptsRectifiedMutable()->push_back(
+        StatusKeypointCV(KeypointStatus::NO_RIGHT_RECT, cv::Point2f(uL, v)));
+    ref_stereo_frame->getRightKptsRectifiedMutable()->push_back(
+        StatusKeypointCV(KeypointStatus::NO_RIGHT_RECT, cv::Point2f(uL, v)));
   }
 
   // landmark missing!
@@ -371,9 +379,10 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     double v = rand() % 600;
     ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(-1);
     ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
-    ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_status_.push_back(KeypointStatus::VALID);
+    ref_stereo_frame->getLeftKptsRectifiedMutable()->push_back(
+        StatusKeypointCV(KeypointStatus::VALID, cv::Point2f(uL, v)));
+    ref_stereo_frame->getRightKptsRectifiedMutable()->push_back(
+        StatusKeypointCV(KeypointStatus::VALID, cv::Point2f(uL, v)));
   }
 
   fillStereoFrame(ref_stereo_frame);
@@ -393,13 +402,13 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     // synthesized following a simple convention:
     //         landmark_[i] = i; for landmark_[i] != -1;
     int landmark_id = s.first;
-    EXPECT_EQ(ref_stereo_frame->left_keypoints_rectified_[landmark_id].x,
+    EXPECT_EQ(ref_stereo_frame->getLeftKptsRectified()[landmark_id].second.x,
               s.second.uL());
-    EXPECT_EQ(ref_stereo_frame->left_keypoints_rectified_[landmark_id].y,
+    EXPECT_EQ(ref_stereo_frame->getLeftKptsRectified()[landmark_id].second.y,
               s.second.v());
-    if (ref_stereo_frame->right_keypoints_status_[landmark_id] ==
+    if (ref_stereo_frame->getRightKptsRectified()[landmark_id].first ==
         KeypointStatus::VALID) {
-      EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_[landmark_id].x,
+      EXPECT_EQ(ref_stereo_frame->getRightKptsRectified()[landmark_id].second.x,
                 s.second.uR());
     } else {
       EXPECT_TRUE(std::isnan(s.second.uR()));
@@ -449,20 +458,29 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   StereoFrame first_stereo_frame(
       0,
       0,
-      UtilsOpenCV::ReadAndConvertToGrayScale(
-          img_name_left, p.stereo_matching_params_.equalize_image_),
-      cam_params_left,
-      UtilsOpenCV::ReadAndConvertToGrayScale(
-          img_name_right, p.stereo_matching_params_.equalize_image_),
-      cam_params_right,
-      p.stereo_matching_params_);
+      Frame(0, 
+            0, 
+            cam_params_left, 
+            UtilsOpenCV::ReadAndConvertToGrayScale(
+               img_name_left, p.stereo_matching_params_.equalize_image_)),
+      Frame(0,
+            0,
+            cam_params_right,
+            UtilsOpenCV::ReadAndConvertToGrayScale(
+                img_name_right, p.stereo_matching_params_.equalize_image_)));
 
   // Load the expected corners
   std::vector<gtsam::Point2> left_distort_corners =
       loadCorners(synthetic_stereo_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
-  StereoVisionFrontEnd st(imu_params_, ImuBias(), p, cam_params_left);
+  VIO::Camera::Ptr left_camera = std::make_shared<VIO::Camera>(cam_params_left);
+  VIO::Camera::Ptr right_camera = std::make_shared<VIO::Camera>(cam_params_right);
+  VIO::StereoCamera::Ptr stereo_camera =
+      std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
+
+  StereoVisionFrontEnd st(imu_params_, ImuBias(), p, stereo_camera);
+
   EXPECT_FALSE(st.isInitialized());
   ImuStampS fake_imu_stamps;
   fake_imu_stamps.setZero(1, 3);
@@ -537,12 +555,12 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   std::vector<gtsam::Point2> left_rect_corners =
       convertCornersAcrossCameras(left_undistort_corners,
                                   gtsam_left_cam_calib,
-                                  sf.getLeftUndistRectCamMat());
+                                  left_camera->getCalibration());
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     const gtsam::Point2& pt_expect = left_rect_corners[idx_gt];
-    gtsam::Point2 pt_actual(sf.left_keypoints_rectified_[i].x,
-                            sf.left_keypoints_rectified_[i].y);
+    gtsam::Point2 pt_actual(sf.getLeftKptsRectified()[i].second.x,
+                            sf.getLeftKptsRectified()[i].second.y);
     EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
   }
 
@@ -557,18 +575,18 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   std::vector<gtsam::Point2> right_rect_corners =
       convertCornersAcrossCameras(right_undistort_corners,
                                   gtsam_right_cam_calib,
-                                  sf.getRightUndistRectCamMat());
+                                  right_camera->getCalibration());
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     const gtsam::Point2& pt_expect = right_rect_corners[idx_gt];
-    gtsam::Point2 pt_actual(sf.right_keypoints_rectified_[i].x,
-                            sf.right_keypoints_rectified_[i].y);
+    gtsam::Point2 pt_actual(sf.getRightKptsRectified()[i].second.x,
+                            sf.getRightKptsRectified()[i].second.y);
     EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
   }
 
   // right_keypoints_status_
-  for (const auto& status : sf.right_keypoints_status_) {
-    EXPECT_EQ(status, KeypointStatus::VALID);
+  for (const auto& status : sf.getRightKptsRectified()) {
+    EXPECT_EQ(status.first, KeypointStatus::VALID);
   }
 
   // keypoints depth
@@ -578,7 +596,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     double depth_expect = depth_gt[idx_gt];
-    double depth_actual = sf.keypoints_3d_[i](2);
+    double depth_actual = sf.get3DKpts()[i](2);
     EXPECT_NEAR(depth_expect, depth_actual, 1e-2);
   }
 
@@ -586,13 +604,13 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     double depth_expect = depth_gt[idx_gt];
-    double depth_actual = sf.keypoints_3d_[i](2);
+    double depth_actual = sf.get3DKpts()[i](2);
     Vector3 v_expected =
         Frame::calibratePixel(KeypointCV(left_distort_corners[idx_gt].x(),
                                          left_distort_corners[idx_gt].y()),
                               left_frame.cam_param_);
     v_expected = v_expected * (depth_gt[idx_gt]);
-    gtsam::Vector3 v_actual = sf.keypoints_3d_[i];
+    gtsam::Vector3 v_actual = sf.get3DKpts()[i];
     EXPECT_LT((v_expected - v_actual).norm(), 0.1);
   }
 }

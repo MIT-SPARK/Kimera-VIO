@@ -30,7 +30,7 @@
 static constexpr int default_timeout = 100000;
 static constexpr int no_timeout = std::numeric_limits<int>::max();
 
-DECLARE_bool(images_rectified);
+// DECLARE_bool(images_rectified);
 
 /* ************************************************************************** */
 // Testing data
@@ -41,7 +41,7 @@ class TestStereoDataProviderModule : public ::testing::Test {
   TestStereoDataProviderModule() {
     // Set google flags to assume image is already rectified--makes dummy params
     // easier
-    FLAGS_images_rectified = true;
+    // FLAGS_images_rectified = true;
 
     // Create the output queue
     output_queue_ =
@@ -60,7 +60,9 @@ class TestStereoDataProviderModule : public ::testing::Test {
         });
   }
 
-  ~TestStereoDataProviderModule() { FLAGS_images_rectified = false; }
+  ~TestStereoDataProviderModule() { 
+    // FLAGS_images_rectified = false;
+  }
 
  protected:
   VIO::StereoVisionFrontEndModule::InputQueue::UniquePtr output_queue_;
@@ -94,8 +96,7 @@ class TestStereoDataProviderModule : public ::testing::Test {
 
     VIO::CameraParams makeDumyCameraParams() {
       VIO::CameraParams dummy_params;
-      dummy_params.R_rectify_ = cv::Mat::zeros(3, 3, CV_32F);
-      dummy_params.P_ = cv::Mat::zeros(3, 3, CV_32F);
+      // TODO(marcus): should we set K_ and body_Pose_cam_?
       return dummy_params;
     }
 

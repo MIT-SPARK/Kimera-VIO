@@ -24,6 +24,8 @@
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
@@ -45,6 +47,9 @@ class LCDFixture : public ::testing::Test {
   LCDFixture()
       : lcd_test_data_path_(FLAGS_test_data_path +
                             std::string("/ForLoopClosureDetector")),
+        frontend_params_(),
+        stereo_camera_(nullptr),
+        stereo_matcher_(nullptr),
         lcd_detector_(nullptr),
         ref1_to_cur1_pose_(),
         ref2_to_cur2_pose_(),
@@ -62,6 +67,19 @@ class LCDFixture : public ::testing::Test {
         timestamp_cur2_(4000) {
     // First set value of vocabulary path for LoopClosureDetector
     FLAGS_vocabulary_path = "../vocabulary/ORBvoc.yml";
+    frontend_params_.parseYAML(FLAGS_test_data_path + "/FrontendParams.yaml");
+
+    // Initialize CameraParams for both frames
+    cam_params_left_.parseYAML(lcd_test_data_path_ + "/sensorLeft.yaml");
+    cam_params_right_.parseYAML(lcd_test_data_path_ + "/sensorRight.yaml");
+
+    // Initialize stereo camera and matcher
+    stereo_camera_ =
+        std::make_shared<StereoCamera>(cam_params_left_, cam_params_right_);
+    CHECK(stereo_camera_);
+    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+        stereo_camera_, frontend_params_.stereo_matching_params_);
+    CHECK(stereo_matcher_);
 
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_test_data_path_ + "/testLCDParameters.yaml");
@@ -70,7 +88,11 @@ class LCDFixture : public ::testing::Test {
         FLAGS_test_data_path +
         std::string("/ForLoopClosureDetector/small_voc.yml.gz");
 
-    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
+    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+        params, 
+        stereo_camera_, 
+        frontend_params_.stereo_matching_params_, 
+        false);
 
     ref1_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),
@@ -96,11 +118,6 @@ class LCDFixture : public ::testing::Test {
 
  protected:
   void initializeData() {
-    // Initialize CameraParams for both frames
-    CameraParams cam_params_left, cam_params_right;
-    cam_params_left.parseYAML(lcd_test_data_path_ + "/sensorLeft.yaml");
-    cam_params_right.parseYAML(lcd_test_data_path_ + "/sensorRight.yaml");
-
     std::string img_name_ref1_left = lcd_test_data_path_ + "/left_img_0.png";
     std::string img_name_ref1_right = lcd_test_data_path_ + "/right_img_0.png";
 
@@ -121,70 +138,90 @@ class LCDFixture : public ::testing::Test {
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_ref1_,
         timestamp_ref1_,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_ref1_,
+              timestamp_ref1_,
+              cam_params_left_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref1_left, 
+                  tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_ref1_,
+              timestamp_ref1_,
+              cam_params_right_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref1_right, 
+                  tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
         ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
     ref1_stereo_frame_->setIsKeyframe(true);
-    ref1_stereo_frame_->sparseStereoMatching();
+    stereo_matcher_->sparseStereoReconstruction(ref1_stereo_frame_.get());
 
     cur1_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_cur1_,
         timestamp_cur1_,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_cur1_,
+              timestamp_cur1_,
+              cam_params_left_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur1_left,
+                  tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_cur1_,
+              timestamp_cur1_,
+              cam_params_right_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur1_right,
+                  tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
         cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
     cur1_stereo_frame_->setIsKeyframe(true);
-    cur1_stereo_frame_->sparseStereoMatching();
+    stereo_matcher_->sparseStereoReconstruction(cur1_stereo_frame_.get());
 
     ref2_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_ref2_,
         timestamp_ref2_,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_ref2_,
+              timestamp_ref2_,
+              cam_params_left_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                img_name_ref2_left,
+                tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_ref2_,
+              timestamp_ref2_,
+              cam_params_right_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_ref2_right,
+                  tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
         ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
     ref2_stereo_frame_->setIsKeyframe(true);
-    ref2_stereo_frame_->sparseStereoMatching();
+    stereo_matcher_->sparseStereoReconstruction(ref2_stereo_frame_.get());
 
     cur2_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_cur2_,
         timestamp_cur2_,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_left, tp.stereo_matching_params_.equalize_image_),
-        cam_params_left,
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_right, tp.stereo_matching_params_.equalize_image_),
-        cam_params_right,
-        tp.stereo_matching_params_);
+        Frame(id_cur2_,
+              timestamp_cur2_,
+              cam_params_left_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur2_left,
+                  tp.stereo_matching_params_.equalize_image_)),
+        Frame(id_cur2_,
+              timestamp_cur2_,
+              cam_params_right_,
+              UtilsOpenCV::ReadAndConvertToGrayScale(
+                  img_name_cur2_right,
+                  tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
         cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);
     cur2_stereo_frame_->setIsKeyframe(true);
-    cur2_stereo_frame_->sparseStereoMatching();
+    stereo_matcher_->sparseStereoReconstruction(cur2_stereo_frame_.get());
 
     // Set intrinsics for essential matrix calculation:
     CHECK(lcd_detector_);
@@ -198,15 +235,21 @@ class LCDFixture : public ::testing::Test {
  protected:
   // Data-related members
   std::string lcd_test_data_path_;
+  FrontendParams frontend_params_;
+  CameraParams cam_params_left_, cam_params_right_;
+
+  // Stereo members
+  StereoCamera::Ptr stereo_camera_;
+  StereoMatcher::UniquePtr stereo_matcher_;
 
   // LCD members
-  std::unique_ptr<LoopClosureDetector> lcd_detector_;
+  LoopClosureDetector::UniquePtr lcd_detector_;
 
   // Stored frame members
   gtsam::Pose3 ref1_pose_, ref2_pose_, cur1_pose_, cur2_pose_;
   gtsam::Pose3 ref1_to_cur1_pose_, ref2_to_cur2_pose_;
-  std::unique_ptr<StereoFrame> ref1_stereo_frame_, cur1_stereo_frame_;
-  std::unique_ptr<StereoFrame> ref2_stereo_frame_, cur2_stereo_frame_;
+  StereoFrame::UniquePtr ref1_stereo_frame_, cur1_stereo_frame_;
+  StereoFrame::UniquePtr ref2_stereo_frame_, cur2_stereo_frame_;
   const FrameId id_ref1_;
   const FrameId id_cur1_;
   const FrameId id_ref2_;
@@ -256,9 +299,9 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
               Frame::calibratePixel(keypoints[i].pt, left_frame.cam_param_));
   }
 
-  EXPECT_EQ(stereo_frame.keypoints_3d_.size(), nfeatures);
-  EXPECT_EQ(stereo_frame.left_keypoints_rectified_.size(), nfeatures);
-  EXPECT_EQ(stereo_frame.right_keypoints_rectified_.size(), nfeatures);
+  EXPECT_EQ(stereo_frame.get3DKpts().size(), nfeatures);
+  EXPECT_EQ(stereo_frame.getLeftKptsRectified().size(), nfeatures);
+  EXPECT_EQ(stereo_frame.getRightKptsRectified().size(), nfeatures);
 }
 
 TEST_F(LCDFixture, processAndAddFrame) {
