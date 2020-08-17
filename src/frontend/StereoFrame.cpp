@@ -135,12 +135,6 @@ void StereoFrame::checkStatusRightKeypoints(
   }
 }
 
-void StereoFrame::setIsKeyframe(bool is_kf) {
-  is_keyframe_ = is_kf;
-  left_frame_.isKeyframe_ = is_kf;
-  right_frame_.isKeyframe_ = is_kf;
-}
-
 std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
     StatusKeypointsCV& left_keypoints_rectified,
     StatusKeypointsCV& right_keypoints_rectified,
@@ -273,6 +267,8 @@ cv::Mat StereoFrame::drawLeftRightCornersMatches(
                                          random_color);
 }
 
+// TODO(marcus): should we get rid of both these functions?
+// They should be in UtilsOpenCV...
 void StereoFrame::showOriginal(const int verbosity) const {
   showImagesSideBySide(
       left_frame_.img_, right_frame_.img_, "original: left-right", verbosity);
@@ -291,6 +287,25 @@ void StereoFrame::showRectified(const bool& visualize,
   if (visualize) {
     cv::imshow("Rectified!", canvas_undistorted_rectified);
     cv::waitKey(1);
+  }
+}
+
+void StereoFrame::showImagesSideBySide(const cv::Mat imL,
+                                       const cv::Mat imR,
+                                       const std::string& title,
+                                       const int& verbosity) const {
+  if (verbosity == 0) return;
+
+  cv::Mat originalLR = UtilsOpenCV::concatenateTwoImages(imL, imR);
+  if (verbosity == 1) {
+    cv::namedWindow(
+        title, cv::WINDOW_AUTOSIZE);  // moved in here to allow saving images
+    cv::imshow("originalLR", originalLR);
+    cv::waitKey(1);
+  } else if (verbosity == 2) {
+    std::string img_name =
+        "./outputImages/" + title + std::to_string(id_) + ".png";
+    cv::imwrite(img_name, originalLR);
   }
 }
 

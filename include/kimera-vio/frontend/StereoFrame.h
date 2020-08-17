@@ -58,7 +58,11 @@ class StereoFrame {
 
  public:
   /// Setters
-  inline void setIsKeyframe(bool is_kf);
+  inline void setIsKeyframe(bool is_kf) {
+    is_keyframe_ = is_kf;
+    left_frame_.isKeyframe_ = is_kf;
+    right_frame_.isKeyframe_ = is_kf;
+  }
   void setRectifiedImages(const cv::Mat& left_rectified_img,
                           const cv::Mat& right_rectified_img);
 
@@ -72,15 +76,15 @@ class StereoFrame {
   inline const Frame& getLeftFrame() const { return left_frame_; }
   inline const Frame& getRightFrame() const { return right_frame_; }
 
-  inline StatusKeypointsCV getLeftKptsRectified() const {
+  inline const StatusKeypointsCV& getLeftKptsRectified() const {
     CHECK(is_rectified_);
     return left_keypoints_rectified_;
   }
-  inline StatusKeypointsCV getRightKptsRectified() const {
+  inline const StatusKeypointsCV& getRightKptsRectified() const {
     CHECK(is_rectified_);
     return right_keypoints_rectified_;
   }
-  inline const std::vector<gtsam::Vector3> get3DKpts() const {
+  inline const std::vector<gtsam::Vector3>& get3DKpts() const {
     return keypoints_3d_;
   }
 
@@ -103,6 +107,7 @@ class StereoFrame {
   //! Return rectified images, assumes the images have already been computed.
   //! Note that we return const images, since these should not be modified
   //! by the user.
+  // TODO(marcus): why not return const reference?
   inline const cv::Mat getLeftImgRectified() const {
     CHECK(is_rectified_);
     return left_img_rectified_;

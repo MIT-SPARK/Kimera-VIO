@@ -69,16 +69,17 @@ void UndistorterRectifier::undistortRectifyKeypoints(
 }
 
 void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
-    KeypointsCV& distorted_kps,
-    KeypointsCV& undistorted_kps,
+    const KeypointsCV& distorted_kps,
+    const KeypointsCV& undistorted_kps,
     StatusKeypointsCV* status_kps,
     const float& pixel_tol) {
   CHECK_NOTNULL(status_kps)->clear();
   CHECK_EQ(distorted_kps.size(), undistorted_kps.size());
   status_kps->reserve(distorted_kps.size());
   for (size_t i = 0u; i < undistorted_kps.size(); i++) {
-    KeypointCV& distorted_kp = distorted_kps[i];
-    KeypointCV& undistorted_kp = undistorted_kps[i];
+    // cropToSize modifies keypoints, so we have to copy.
+    KeypointCV distorted_kp = distorted_kps[i];
+    KeypointCV undistorted_kp = undistorted_kps[i];
     bool cropped = UtilsOpenCV::cropToSize(&undistorted_kp, map_x_.size());
 
     // TODO(Toni): would be nicer to interpolate exact position.

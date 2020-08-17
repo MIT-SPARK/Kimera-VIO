@@ -75,8 +75,8 @@ class UndistorterRectifier {
                                  KeypointsCV* undistorted_keypoints);
 
   void checkUndistortedRectifiedLeftKeypoints(
-      KeypointsCV& distorted_kpts,
-      KeypointsCV& undistorted_kpts,
+      const KeypointsCV& distorted_kpts,
+      const KeypointsCV& undistorted_kpts,
       StatusKeypointsCV* status_kpts,
       // This tolerance is huge...
       const float& pixel_tolerance = 2.0f);
