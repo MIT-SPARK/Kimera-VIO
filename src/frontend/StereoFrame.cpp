@@ -9,7 +9,9 @@
 /**
  * @file   Frame.h
  * @brief  Class describing a pair of stereo images
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
+ * @author Marcus Abate
  */
 
 #include "kimera-vio/frontend/StereoFrame.h"
@@ -44,6 +46,7 @@ void StereoFrame::setRectifiedImages(const cv::Mat& left_rectified_img,
                                      const cv::Mat& right_rectified_img) {
   left_img_rectified_ = left_rectified_img;
   right_img_rectified_ = right_rectified_img;
+  is_rectified_ = true;  // TODO(marcus): should happen only after left_keypoints_rectified_ is set!
 }
 
 void StereoFrame::checkStereoFrame() const {
@@ -133,58 +136,6 @@ void StereoFrame::checkStatusRightKeypoints(
       }
     }
   }
-}
-
-std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
-    StatusKeypointsCV& left_keypoints_rectified,
-    StatusKeypointsCV& right_keypoints_rectified,
-    const double& fx,
-    const double& baseline,
-    const StereoMatchingParams& stereo_matching_params) const {
-  // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
-  double fx_b = fx * baseline;
-
-  std::vector<double> depths;
-  CHECK_EQ(left_keypoints_rectified.size(), right_keypoints_rectified.size())
-      << "getDepthFromRectifiedMatches: size mismatch!";
-
-  int nrValidDepths = 0;
-  // disparity = left_px.x - right_px.x, hence we check: right_px.x < left_px.x
-  for (size_t i = 0; i < left_keypoints_rectified.size(); i++) {
-    if (left_keypoints_rectified[i].first == KeypointStatus::VALID &&
-        right_keypoints_rectified[i].first == KeypointStatus::VALID) {
-      KeypointCV left_px = left_keypoints_rectified[i].second;
-      KeypointCV right_px = right_keypoints_rectified[i].second;
-      double disparity = left_px.x - right_px.x;
-      if (disparity >= 0.0) {
-        // Valid.
-        nrValidDepths += 1;
-        double depth = fx_b / disparity;
-        if (depth < stereo_matching_params.min_point_dist_ ||
-            depth > stereo_matching_params.max_point_dist_) {
-          right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
-          depths.push_back(0.0);
-        } else {
-          depths.push_back(depth);
-        }
-      } else {
-        // Right match was wrong.
-        right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
-        depths.push_back(0.0);
-      }
-    } else {
-      // Something is wrong.
-      if (left_keypoints_rectified[i].first != KeypointStatus::VALID) {
-        // We cannot have a valid right, without a valid left keypoint.
-        right_keypoints_rectified[i].first = left_keypoints_rectified[i].first;
-      }
-      depths.push_back(0.0);
-    }
-  }
-  CHECK_EQ(left_keypoints_rectified.size(), depths.size())
-      << "getDepthFromRectifiedMatches: depths size mismatch!";
-
-  return depths;
 }
 
 void StereoFrame::getSmartStereoMeasurements(

@@ -221,7 +221,7 @@ if(BUILD_TESTS)
     tests/testPipeline.cpp
     tests/testVioParams.cpp
     tests/testEurocPlayground.cpp
-    tests/testCamera.cpp
+    tests/testCamera.cpp # NEEDS UPDATE
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp

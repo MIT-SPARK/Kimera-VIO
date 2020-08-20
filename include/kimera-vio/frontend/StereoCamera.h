@@ -10,6 +10,7 @@
  * @file   StereoCamera.h
  * @brief  Class describing a StereoCamera.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #pragma once
@@ -196,6 +197,10 @@ class StereoCamera {
    */
   void undistortRectifyLeftKeypoints(const KeypointsCV& keypoints,
                                      StatusKeypointsCV* status_keypoints);
+
+  void distortUnrectifyRightKeypoints(
+      const StatusKeypointsCV& status_keypoints,
+      KeypointsCV* keypoints);
 
   /**
    * @brief computeRectificationParameters

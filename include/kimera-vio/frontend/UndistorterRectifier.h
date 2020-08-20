@@ -10,6 +10,7 @@
  * @file   UndistorterRectifier.h
  * @brief  Class to undistort (and rectify) images.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #pragma once
@@ -80,6 +81,9 @@ class UndistorterRectifier {
       StatusKeypointsCV* status_kpts,
       // This tolerance is huge...
       const float& pixel_tolerance = 2.0f);
+
+  void distortUnrectifyKeypoints(const StatusKeypointsCV& keypoints_rectified,
+                                 KeypointsCV* keypoints_unrectified) const;
 
  protected:
   /**

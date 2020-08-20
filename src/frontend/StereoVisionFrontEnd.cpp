@@ -292,6 +292,7 @@ void StereoVisionFrontEnd::processFirstStereoFrame(
 /* -------------------------------------------------------------------------- */
 // FRONTEND WORKHORSE
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
+// TODO(marcus): const ref cur_frame mutable members are modified! label is misleading
 StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
@@ -312,8 +313,9 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   /////////////////////// DETECTION ////////////////////////////////////////////
   // Perform feature detection (note: this must be after RANSAC,
   // since if we discard more features, we need to extract more)
-  CHECK(feature_detector_);
-  feature_detector_->featureDetection(left_frame_k);
+  // TODO(marcus): can we use both feature_detector and featureTracking?
+  // CHECK(feature_detector_);
+  // feature_detector_->featureDetection(left_frame_k);
 
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
@@ -370,6 +372,10 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     start_time = utils::Timer::tic();
     stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
     double sparse_stereo_time = utils::Timer::toc(start_time).count();
+    LOG(INFO) << "leftkpts " << stereoFrame_k_->getLeftKptsRectified().size();
+    LOG(INFO) << "rightkpts: " << stereoFrame_k_->getRightKptsRectified().size();
+    LOG(INFO) << "leftkpts frame " << stereoFrame_k_->getLeftFrame().keypoints_.size();
+    LOG(INFO) << "rightkpts frame " << stereoFrame_k_->getRightFrame().keypoints_.size();
     ////////////////////////////////////////////////////////////////////////////
 
     if (tracker_.tracker_params_.useRANSAC_) {

@@ -536,6 +536,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.clear();
   right_frame_mutable->versors_.clear();
   right_frame_mutable->scores_.clear();
+  stereo_frame->getDepthKptsMutable()->clear();
   stereo_frame->get3DKptsMutable()->clear();
   stereo_frame->getLeftKptsRectifiedMutable()->clear();
   stereo_frame->getRightKptsRectifiedMutable()->clear();
@@ -547,6 +548,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.reserve(keypoints.size());
   right_frame_mutable->versors_.reserve(keypoints.size());
   right_frame_mutable->scores_.reserve(keypoints.size());
+  stereo_frame->getDepthKptsMutable()->reserve(keypoints.size());
   stereo_frame->get3DKptsMutable()->reserve(keypoints.size());
   stereo_frame->getLeftKptsRectifiedMutable()->reserve(keypoints.size());
   stereo_frame->getRightKptsRectifiedMutable()->reserve(keypoints.size());

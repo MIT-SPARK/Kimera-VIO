@@ -10,6 +10,7 @@
  * @file   StereoMatcher.h
  * @brief  Class describing a stereo matching algorithms.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #pragma once
@@ -94,7 +95,11 @@ class StereoMatcher {
       const double& baseline,
       StatusKeypointsCV* right_keypoints_rectified) const;
 
- protected:
+  void getDepthFromRectifiedMatches(
+      StatusKeypointsCV& left_keypoints_rectified,
+      StatusKeypointsCV& right_keypoints_rectified,
+      std::vector<double>* keypoints_depth) const;
+
   /**
    * @brief searchRightKeypointEpipolar
    * @param left_img_rectified

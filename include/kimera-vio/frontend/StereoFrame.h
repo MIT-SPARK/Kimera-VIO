@@ -9,7 +9,9 @@
 /**
  * @file   Frame.h
  * @brief  Class describing a pair of stereo images
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
+ * @author Marcus Abate
  */
 
 #pragma once
@@ -63,6 +65,9 @@ class StereoFrame {
     left_frame_.isKeyframe_ = is_kf;
     right_frame_.isKeyframe_ = is_kf;
   }
+  inline void setIsRectified(bool is_rect) {
+    is_rectified_ = is_rect;
+  }
   void setRectifiedImages(const cv::Mat& left_rectified_img,
                           const cv::Mat& right_rectified_img);
 
@@ -84,6 +89,9 @@ class StereoFrame {
     CHECK(is_rectified_);
     return right_keypoints_rectified_;
   }
+  inline const std::vector<double>& getDepthKpts() const {
+    return keypoints_depth_;
+  }
   inline const std::vector<gtsam::Vector3>& get3DKpts() const {
     return keypoints_3d_;
   }
@@ -93,12 +101,13 @@ class StereoFrame {
   inline Frame* getLeftFrameMutable() { return &left_frame_; }
   inline Frame* getRightFrameMutable() { return &right_frame_; }
   inline StatusKeypointsCV* getLeftKptsRectifiedMutable() {
-    CHECK(is_rectified_);
     return &left_keypoints_rectified_;
   }
   inline StatusKeypointsCV* getRightKptsRectifiedMutable() {
-    CHECK(is_rectified_);
     return &right_keypoints_rectified_;
+  }
+  inline std::vector<double>* getDepthKptsMutable() {
+    return &keypoints_depth_;
   }
   inline std::vector<gtsam::Vector3>* get3DKptsMutable() {
     return &keypoints_3d_;
@@ -116,13 +125,6 @@ class StereoFrame {
     CHECK(is_rectified_);
     return right_img_rectified_;
   }
-
-  std::vector<double> getDepthFromRectifiedMatches(
-      StatusKeypointsCV& left_keypoints_rectified,
-      StatusKeypointsCV& right_keypoints_rectified,
-      const double& fx,
-      const double& baseline,
-      const StereoMatchingParams& stereo_matching_params) const;
 
   void getSmartStereoMeasurements(StereoMeasurements* smart_stereo_measurements,
                                   const bool& use_stereo_measurements) const;
@@ -198,6 +200,10 @@ class StereoFrame {
   //! points with validity flag.
   StatusKeypointsCV left_keypoints_rectified_;
   StatusKeypointsCV right_keypoints_rectified_;
+
+  //! Depths of keypoints
+  // TODO(marcus): we got rid of this for a reason, find out what to replace it with...
+  std::vector<double> keypoints_depth_;
 
   //! 3D positions of the stereo points as given by reprojection using stereo
   //! disparity

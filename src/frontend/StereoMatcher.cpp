@@ -123,7 +123,12 @@ void StereoMatcher::denseStereoReconstruction(
 void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   CHECK_NOTNULL(stereo_frame);
   //! Undistort rectify left/right images
-  CHECK(!stereo_frame->isRectified());
+  // CHECK(!stereo_frame->isRectified());
+  // TODO(marcus): LoopClosureDetector rewrites stereoframes that are already
+  //   rectified using this function! That's why the above check doesn't work...
+  if (stereo_frame->isRectified()) {
+    LOG(WARNING) << "sparseStereoMatching: StereoFrame is already rectified!";
+  }
   stereo_camera_->undistortRectifyStereoFrame(stereo_frame);
   CHECK(stereo_frame->isRectified());
   //! Undistort rectify left keypoints
@@ -136,6 +141,34 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
                              stereo_frame->right_img_rectified_,
                              stereo_frame->left_keypoints_rectified_,
                              &stereo_frame->right_keypoints_rectified_);
+  //! Fill out keypoint depths
+  // TODO(marcus): we are trying to replace this method with something else?
+  getDepthFromRectifiedMatches(stereo_frame->left_keypoints_rectified_,
+                               stereo_frame->right_keypoints_rectified_,
+                               &stereo_frame->keypoints_depth_);
+  //! Fill out right frame keypoints
+  CHECK_EQ(stereo_frame->right_frame_.keypoints_.size(), 0);
+  CHECK_GT(stereo_frame->right_keypoints_rectified_.size(), 0);
+  stereo_camera_->distortUnrectifyRightKeypoints(
+      stereo_frame->right_keypoints_rectified_,
+      &stereo_frame->right_frame_.keypoints_);
+  //! Fill out 3D keypoints in ref frame of left camera
+  gtsam::Rot3 camLrect_R_camL =
+      UtilsOpenCV::cvMatToGtsamRot3(stereo_camera_->getR1());
+  for (size_t i = 0; i < stereo_frame->right_keypoints_rectified_.size(); i++) {
+    if (stereo_frame->right_keypoints_rectified_[i].first == 
+        KeypointStatus::VALID) {
+      Vector3 versor = camLrect_R_camL.rotate(
+          stereo_frame->left_frame_.versors_[i]);
+      CHECK_GE(versor(2), 1e-3)
+          << "sparseStereoMatching: found point with nonpositive depth!";
+      // keypoints_depth_ is not the norm of the vector, it is the z component.
+      stereo_frame->keypoints_3d_.push_back(
+          versor * stereo_frame->keypoints_depth_[i] / versor(2));
+    } else {
+      stereo_frame->keypoints_3d_.push_back(Vector3::Zero());
+    }
+  }
 }
 
 void StereoMatcher::sparseStereoReconstruction(
@@ -390,6 +423,59 @@ void StereoMatcher::searchRightKeypointEpipolar(
     *right_keypoint_rectified =
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, match_px);
   }
+}
+
+void StereoMatcher::getDepthFromRectifiedMatches(
+    StatusKeypointsCV& left_keypoints_rectified,
+    StatusKeypointsCV& right_keypoints_rectified,
+    std::vector<double>* keypoints_depth) const {
+  // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
+  double fx_b =
+      stereo_camera_->getStereoCalib()->fx() * stereo_camera_->getBaseline();
+
+  CHECK_EQ(left_keypoints_rectified.size(), right_keypoints_rectified.size())
+      << "getDepthFromRectifiedMatches: size mismatch!";
+  keypoints_depth->reserve(left_keypoints_rectified.size());
+
+  int nrValidDepths = 0;
+  // disparity = left_px.x - right_px.x, hence we check: right_px.x < left_px.x
+  size_t i = 0;
+  for (i = 0; i < left_keypoints_rectified.size(); i++) {
+    if (left_keypoints_rectified[i].first == KeypointStatus::VALID &&
+        right_keypoints_rectified[i].first == KeypointStatus::VALID) {
+      KeypointCV left_px = left_keypoints_rectified[i].second;
+      KeypointCV right_px = right_keypoints_rectified[i].second;
+      double disparity = left_px.x - right_px.x;
+      if (disparity >= 0.0) {
+        // Valid.
+        nrValidDepths += 1;
+        double depth = fx_b / disparity;
+        if (depth < stereo_matching_params_.min_point_dist_ ||
+            depth > stereo_matching_params_.max_point_dist_) {
+          right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
+          keypoints_depth->push_back(0.0);
+        } else {
+          keypoints_depth->push_back(depth);
+        }
+      } else {
+        // Right match was wrong.
+        right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
+        keypoints_depth->push_back(0.0);
+      }
+    } else {
+      // Something is wrong.
+      if (left_keypoints_rectified[i].first != KeypointStatus::VALID) {
+        // We cannot have a valid right, without a valid left keypoint.
+        // LOG(WARNING) 
+        //     << "Cannot have a valid right kpt without also a valid left kpt!";
+        right_keypoints_rectified[i].first =
+            left_keypoints_rectified[i].first;
+      }
+      keypoints_depth->push_back(0.0);
+    }
+  }
+  CHECK_EQ(left_keypoints_rectified.size(), keypoints_depth->size())
+      << "getDepthFromRectifiedMatches: depths size mismatch!";
 }
 
 }  // namespace VIO

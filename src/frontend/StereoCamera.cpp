@@ -244,6 +244,13 @@ void StereoCamera::undistortRectifyLeftKeypoints(
       keypoints, undistorted_rectified_keypoints, status_keypoints_rectified);
 }
 
+void StereoCamera::distortUnrectifyRightKeypoints(
+    const StatusKeypointsCV& status_keypoints_rectified,
+    KeypointsCV* keypoints) {
+  right_cam_undistort_rectifier_->distortUnrectifyKeypoints(
+      status_keypoints_rectified, keypoints);
+}
+
 void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) {
   CHECK_NOTNULL(stereo_frame);
   //! Warn if stupid behavior from user

@@ -120,6 +120,24 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
   }
 }
 
+void UndistorterRectifier::distortUnrectifyKeypoints(
+    const StatusKeypointsCV& keypoints_rectified,
+    KeypointsCV* keypoints_unrectified) const {
+  CHECK(keypoints_unrectified);
+  keypoints_unrectified->clear();
+  keypoints_unrectified->reserve(keypoints_rectified.size());
+  for (size_t i = 0; i < keypoints_rectified.size(); i++) {
+    if (keypoints_rectified[i].first == KeypointStatus::VALID) {
+      KeypointCV px = keypoints_rectified[i].second;
+      auto x = map_x_.at<float>(round(px.y), round(px.x));
+      auto y = map_y_.at<float>(round(px.y), round(px.x));
+      keypoints_unrectified->push_back(KeypointCV(x, y));
+    } else {
+      keypoints_unrectified->push_back(KeypointCV(0.0, 0.0));
+    }
+  }
+}
+
 void UndistorterRectifier::initUndistortRectifyMaps(
     const CameraParams& cam_params,
     const cv::Mat& R,
