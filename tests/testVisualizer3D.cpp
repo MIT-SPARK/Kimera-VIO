@@ -10,6 +10,7 @@
  * @file   testVisualizer3D.cpp
  * @brief  test Visualizer3D
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #include <algorithm>
@@ -27,6 +28,7 @@
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
+#include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 
 DECLARE_string(test_data_path);
 
@@ -35,27 +37,27 @@ namespace VIO {
 class VisualizerFixture : public ::testing::Test {
  public:
   VisualizerFixture()
-      : camera_params_("left"),
+      : camera_params_(),
         img_(),
         img_name_(),
         frame_(nullptr),
         viz_type_(VisualizationType::kMesh2dTo3dSparse),
         backend_type_(BackendType::kStereoImu),
         visualizer_(nullptr) {
-    camera_params_.R_rectify_ = (cv::Mat_<double>(3, 3) << pose_vector_[0],
-                                 pose_vector_[1],
-                                 pose_vector_[2],
-                                 pose_vector_[4],
-                                 pose_vector_[5],
-                                 pose_vector_[6],
-                                 pose_vector_[8],
-                                 pose_vector_[9],
-                                 pose_vector_[10]);
+    // camera_params_.R_rectify_ = (cv::Mat_<double>(3, 3) << pose_vector_[0],
+    //                              pose_vector_[1],
+    //                              pose_vector_[2],
+    //                              pose_vector_[4],
+    //                              pose_vector_[5],
+    //                              pose_vector_[6],
+    //                              pose_vector_[8],
+    //                              pose_vector_[9],
+    //                              pose_vector_[10]);
     img_name_ = std::string(FLAGS_test_data_path) + "/chessboard_small.png";
     img_ = UtilsOpenCV::ReadAndConvertToGrayScale(img_name_);
     // Construct a frame from image name, and extract keypoints/landmarks.
     frame_ = constructFrame(true);
-    visualizer_ = VIO::make_unique<OpenCvVisualizer3D>(viz_type_, backend_type_);
+    visualizer_ = VIO::make_unique<VIO::OpenCvVisualizer3D>(viz_type_, backend_type_);
   }
 
  protected:
@@ -72,7 +74,7 @@ class VisualizerFixture : public ::testing::Test {
         VIO::make_unique<Frame>(id, tmp, CameraParams(), img_);
 
     if (extract_corners) {
-      frame->extractCorners();
+      UtilsOpenCV::ExtractCorners(frame->img_, &frame->keypoints_);
       // Populate landmark structure with fake data.
       for (int i = 0; i < frame->keypoints_.size(); i++) {
         frame->landmarks_.push_back(i);
@@ -100,7 +102,7 @@ class VisualizerFixture : public ::testing::Test {
   std::unique_ptr<Frame> frame_;
   VisualizationType viz_type_;
   BackendType backend_type_;
-  OpenCvVisualizer3D::UniquePtr visualizer_;
+  VIO::OpenCvVisualizer3D::UniquePtr visualizer_;
 };
 
 TEST_F(VisualizerFixture, spinOnce) {
@@ -120,17 +122,17 @@ TEST_F(VisualizerFixture, spinOnce) {
                                       LmkIdToLmkTypeMap());
   FrontendOutput::Ptr frontend_output = std::make_shared<FrontendOutput>(
       true,
-      StatusStereoMeasurements(),
+      StatusStereoMeasurementsPtr(),
       TrackingStatus(),
+      gtsam::Pose3(),
       gtsam::Pose3(),
       StereoFrame(FrameId(),
                   timestamp,
-                  cv::Mat(),
-                  camera_params_,
-                  cv::Mat(),
-                  camera_params_,
-                  StereoMatchingParams()),
-      ImuFrontEnd::PreintegratedImuMeasurements(),
+                  Frame(FrameId(), timestamp, camera_params_, cv::Mat()),
+                  Frame(FrameId(), timestamp, camera_params_, cv::Mat())),
+      ImuFrontEnd::PimPtr(),
+      ImuAccGyrS(),
+      cv::Mat(),
       DebugTrackerInfo());
   VisualizerInput visualizer_input(
       timestamp, mesher_output, backend_output, frontend_output);

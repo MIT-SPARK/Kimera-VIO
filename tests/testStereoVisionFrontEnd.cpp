@@ -11,6 +11,7 @@
  * @brief  test StereoVisionFrontEnd
  * @author Antoni Rosinol
  * @author Luca Carlone
+ * @author Marcus Abate
  */
 
 #include <algorithm>
@@ -52,9 +53,8 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
   // Helper function
   void initializeData() {
-    CameraParams cam_params_left, cam_params_right;
-    cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
-    cam_params_right.parseYAML(stereo_FLAGS_test_data_path +
+    cam_params_left_.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
+    cam_params_right_.parseYAML(stereo_FLAGS_test_data_path +
                                "/sensorRight.yaml");
 
     std::string img_name_ref_left =
@@ -71,12 +71,12 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     ref_frame = std::make_shared<Frame>(
         id_ref,
         timestamp_ref,
-        cam_params_left,
+        cam_params_left_,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
     cur_frame = std::make_shared<Frame>(
         id_cur,
         timestamp_cur,
-        cam_params_left,
+        cam_params_left_,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
     FrontendParams tp;
@@ -86,12 +86,12 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         timestamp_ref,
         Frame(id_ref,
               timestamp_ref,
-              cam_params_left,
+              cam_params_left_,
               UtilsOpenCV::ReadAndConvertToGrayScale(
                   img_name_ref_left, tp.stereo_matching_params_.equalize_image_)),
         Frame(id_ref,
               timestamp_ref,
-              cam_params_right,
+              cam_params_right_,
               UtilsOpenCV::ReadAndConvertToGrayScale(
                   img_name_ref_right, tp.stereo_matching_params_.equalize_image_)));
 
@@ -100,12 +100,12 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         timestamp_cur,
         Frame(id_cur,
               timestamp_cur,
-              cam_params_left,
+              cam_params_left_,
               UtilsOpenCV::ReadAndConvertToGrayScale(
                   img_name_cur_left, tp.stereo_matching_params_.equalize_image_)),
         Frame(id_cur,
               timestamp_cur,
-              cam_params_right,
+              cam_params_right_,
               UtilsOpenCV::ReadAndConvertToGrayScale(
                   img_name_cur_right, tp.stereo_matching_params_.equalize_image_)));
 
@@ -257,6 +257,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   const FrameId id_cur = 1u;
   const Timestamp timestamp_ref = 1000u;
   const Timestamp timestamp_cur = 2000u;
+  CameraParams cam_params_left_, cam_params_right_;
 
   ImuParams imu_params_;
   std::string stereo_FLAGS_test_data_path;
@@ -327,13 +328,10 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   clearStereoFrame(ref_stereo_frame);
   ref_stereo_frame->setIsKeyframe(true);
 
-  VIO::StereoCamera::Ptr stereo_camera = 
-      std::make_shared<StereoCamera>(CameraParams(), CameraParams());
-  StereoVisionFrontEnd st(
-      imu_params_, 
-      ImuBias{}, 
-      FrontendParams(), 
-      stereo_camera);
+  VIO::StereoCamera::Ptr stereo_camera =
+      std::make_shared<VIO::StereoCamera>(cam_params_left_, cam_params_right_);
+
+  StereoVisionFrontEnd st(imu_params_, ImuBias(), FrontendParams(), stereo_camera);
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -385,6 +383,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
         StatusKeypointCV(KeypointStatus::VALID, cv::Point2f(uL, v)));
   }
 
+  ref_stereo_frame->setIsRectified(true);
   fillStereoFrame(ref_stereo_frame);
   // Call the function!
   StereoMeasurements ssm;

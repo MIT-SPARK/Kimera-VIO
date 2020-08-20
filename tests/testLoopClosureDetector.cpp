@@ -67,7 +67,7 @@ class LCDFixture : public ::testing::Test {
         timestamp_cur2_(4000) {
     // First set value of vocabulary path for LoopClosureDetector
     FLAGS_vocabulary_path = "../vocabulary/ORBvoc.yml";
-    frontend_params_.parseYAML(FLAGS_test_data_path + "/FrontendParams.yaml");
+    frontend_params_.parseYAML(lcd_test_data_path_ + "/FrontendParams.yaml");
 
     // Initialize CameraParams for both frames
     cam_params_left_.parseYAML(lcd_test_data_path_ + "/sensorLeft.yaml");
