@@ -310,13 +310,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
 
-  /////////////////////// DETECTION ////////////////////////////////////////////
-  // Perform feature detection (note: this must be after RANSAC,
-  // since if we discard more features, we need to extract more)
-  // TODO(marcus): can we use both feature_detector and featureTracking?
-  // CHECK(feature_detector_);
-  // feature_detector_->featureDetection(left_frame_k);
-
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
   // We need to use the frame to frame rotation.
@@ -367,15 +360,19 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
         << tracker_.tracker_params_.min_number_features_ << ").";
 
+    /////////////////////// DETECTION ////////////////////////////////////////
+    // Perform feature detection (note: this must be after RANSAC,
+    // since if we discard more features, we need to extract more)
+    // TODO(marcus): why was this moved up before the featureTracking call?
+    // TODO(marcus): above comment suggests this should go below ransac...
+    CHECK(feature_detector_);
+    feature_detector_->featureDetection(left_frame_k);
+
     ///////////////////// STEREO TRACKING //////////////////////////////////////
     // Get 3D points via stereo (only for keyframes, this is expensive).
     start_time = utils::Timer::tic();
     stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
     double sparse_stereo_time = utils::Timer::toc(start_time).count();
-    LOG(INFO) << "leftkpts " << stereoFrame_k_->getLeftKptsRectified().size();
-    LOG(INFO) << "rightkpts: " << stereoFrame_k_->getRightKptsRectified().size();
-    LOG(INFO) << "leftkpts frame " << stereoFrame_k_->getLeftFrame().keypoints_.size();
-    LOG(INFO) << "rightkpts frame " << stereoFrame_k_->getRightFrame().keypoints_.size();
     ////////////////////////////////////////////////////////////////////////////
 
     if (tracker_.tracker_params_.useRANSAC_) {
