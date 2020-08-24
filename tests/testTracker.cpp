@@ -908,7 +908,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
   test_configurations.push_back(std::make_tuple(false, 80, 40, 0));
   // Test case 4: Noisy/Outlier test, Planar scene, 80 inliers, 40 outliers,
   // noise_level 1
-  test_configurations.push_back(std::make_tuple(true, 80, 40, 0.1));
+  test_configurations.push_back(std::make_tuple(true, 80, 40, 0.01));
 
   for (size_t testId = 0; testId < test_configurations.size(); testId++) {
     auto test_conf = test_configurations.at(testId);
