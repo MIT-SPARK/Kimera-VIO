@@ -27,9 +27,9 @@ DECLARE_string(test_data_path);
 
 namespace VIO {
 
-class MonoCameraFixture : public ::testing::Test {
+class CameraFixture : public ::testing::Test {
  public:
-  MonoCameraFixture()
+  CameraFixture()
       : vio_params_(FLAGS_test_data_path + "/EurocParams"),
         mono_camera_(nullptr),
         left_frame_queue_("left_frame_queue"),
@@ -41,7 +41,7 @@ class MonoCameraFixture : public ::testing::Test {
     mono_camera_ = VIO::make_unique<Camera>(vio_params_.camera_params_.at(0));
     CHECK(mono_camera_);
   }
-  ~MonoCameraFixture() override = default;
+  ~CameraFixture() override = default;
 
  protected:
   void SetUp() override {}
@@ -55,9 +55,9 @@ class MonoCameraFixture : public ::testing::Test {
 
     // Register Callbacks
     euroc_data_provider_->registerLeftFrameCallback(std::bind(
-        &MonoCameraFixture::fillLeftFrameQueue, this, std::placeholders::_1));
+        &CameraFixture::fillLeftFrameQueue, this, std::placeholders::_1));
     euroc_data_provider_->registerRightFrameCallback(std::bind(
-        &MonoCameraFixture::fillRightFrameQueue, this, std::placeholders::_1));
+        &CameraFixture::fillRightFrameQueue, this, std::placeholders::_1));
 
     // Parse Euroc dataset.
     // Since we run in sequential mode, we need to spin it till it finishes.
@@ -153,7 +153,7 @@ class MonoCameraFixture : public ::testing::Test {
   cv::viz::Viz3d window_;
 };
 
-TEST_F(MonoCameraFixture, project) {
+TEST_F(CameraFixture, project) {
   LandmarksCV lmks;
   lmks.push_back(LandmarkCV(0.0, 0.0, 1.0));
   lmks.push_back(LandmarkCV(0.0, 0.0, 2.0));
@@ -183,7 +183,7 @@ TEST_F(MonoCameraFixture, project) {
   compareKeypoints(expected_kpts, actual_kpts, 0.0001f);
 }
 
-TEST_F(MonoCameraFixture, projectCheirality) {
+TEST_F(CameraFixture, projectCheirality) {
   // landmark behind camera
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   // Make it easy first, use identity pose and simple intrinsics
@@ -197,7 +197,7 @@ TEST_F(MonoCameraFixture, projectCheirality) {
                gtsam::CheiralityException);
 }
 
-TEST_F(MonoCameraFixture, backProjectSingleSimple) {
+TEST_F(CameraFixture, backProjectSingleSimple) {
   // Easy test first, back-project keypoint at the center of the image with
   // a given depth.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
@@ -216,7 +216,7 @@ TEST_F(MonoCameraFixture, backProjectSingleSimple) {
   EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
 }
 
-TEST_F(MonoCameraFixture, backProjectMultipleSimple) {
+TEST_F(CameraFixture, backProjectMultipleSimple) {
   // Easy test first, back-project keypoints at the center of the image with
   // different depths.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
@@ -239,7 +239,7 @@ TEST_F(MonoCameraFixture, backProjectMultipleSimple) {
   compareLandmarks(actual_lmks, expected_lmks, 0.0001);
 }
 
-TEST_F(MonoCameraFixture, backProjectSingleTopLeft) {
+TEST_F(CameraFixture, backProjectSingleTopLeft) {
   // Back-project keypoint at the center of the image with a given depth.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   double fx = 3.0 / 2.0;
@@ -261,7 +261,7 @@ TEST_F(MonoCameraFixture, backProjectSingleTopLeft) {
   EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
 }
 
-TEST_F(MonoCameraFixture, backProjectSingleRandom) {
+TEST_F(CameraFixture, backProjectSingleRandom) {
   // Back-project keypoint at the center of the image with a given depth.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   double fx = 30.9 / 2.2;
@@ -284,7 +284,7 @@ TEST_F(MonoCameraFixture, backProjectSingleRandom) {
   EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
 }
 
-TEST_F(MonoCameraFixture, backProjectMultipleComplex) {
+TEST_F(CameraFixture, backProjectMultipleComplex) {
   // Back-project keypoints at the center of the image with
   // different depths.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);

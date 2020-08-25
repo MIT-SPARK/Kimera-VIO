@@ -126,9 +126,6 @@ class StereoFrame {
     return right_img_rectified_;
   }
 
-  void getSmartStereoMeasurements(StereoMeasurements* smart_stereo_measurements,
-                                  const bool& use_stereo_measurements) const;
-
   /// Checkers
   void checkStereoFrame() const;
   /**

@@ -82,6 +82,9 @@ class Camera {
   inline gtsam::Pose3 getBodyPoseCam() const {
     return cam_params_.body_Pose_cam_;
   }
+  inline gtsam::Pose3 getBodyPoseCamRect() const {
+    LOG(FATAL) << "UNIMPLEMENTED";
+  }
 
  protected:
   CameraParams cam_params_;

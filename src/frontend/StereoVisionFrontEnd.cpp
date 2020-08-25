@@ -49,13 +49,11 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const StereoCamera::Ptr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output)
-    : frontend_state_(FrontendState::Bootstrap),
+    : VisionFrontEnd(imu_params, imu_initial_bias, display_queue),
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
       keyframe_R_ref_frame_(gtsam::Rot3::identity()),
-      frame_count_(0),
-      keyframe_count_(0),
       feature_detector_(nullptr),
       frontend_params_(frontend_params),
       tracker_(frontend_params, stereo_camera, display_queue),
@@ -63,14 +61,11 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       stereo_matcher_(stereo_camera, frontend_params.stereo_matching_params_),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
-      display_queue_(display_queue),
       logger_(nullptr) {  // Only for debugging and visualization.
   CHECK(stereo_camera_);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
       frontend_params.feature_detector_params_);
-
-  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
 
   if (VLOG_IS_ON(1)) tracker_.tracker_params_.print();
   if (log_output) {
@@ -82,21 +77,7 @@ StereoVisionFrontEnd::~StereoVisionFrontEnd() {
   LOG(INFO) << "StereoVisionFrontEnd destructor called.";
 }
 
-/* -------------------------------------------------------------------------- */
-FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
-    const StereoFrontEndInputPayload& input) {
-  switch (frontend_state_) {
-    case FrontendState::Bootstrap: {
-      return bootstrapSpin(input);
-    } break;
-    case FrontendState::Nominal: {
-      return nominalSpin(input);
-    } break;
-    default: { LOG(FATAL) << "Unrecognized frontend state."; } break;
-  }
-}
-
-FrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
+StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
     const StereoFrontEndInputPayload& input) {
   CHECK(frontend_state_ == FrontendState::Bootstrap);
 
@@ -108,7 +89,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
 
   // Create mostly unvalid output, to send the imu_acc_gyrs to the backend.
   CHECK(stereoFrame_lkf_);
-  return VIO::make_unique<FrontendOutput>(stereoFrame_lkf_->isKeyframe(),
+  return VIO::make_unique<StereoFrontendOutput>(stereoFrame_lkf_->isKeyframe(),
                                           nullptr,
                                           TrackingStatus::DISABLED,
                                           getRelativePoseBodyStereo(),
@@ -120,7 +101,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
                                           getTrackerInfo());
 }
 
-FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
+StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
     const StereoFrontEndInputPayload& input) {
   CHECK(frontend_state_ == FrontendState::Nominal);
   // For timing
@@ -223,7 +204,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
 
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
-    return VIO::make_unique<FrontendOutput>(
+    return VIO::make_unique<StereoFrontendOutput>(
         true,
         status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
@@ -240,7 +221,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
 
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<FrontendOutput>(
+    return VIO::make_unique<StereoFrontendOutput>(
         false,
         status_stereo_measurements,
         TrackingStatus::INVALID,
@@ -428,9 +409,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     // Get relevant info for keyframe.
     start_time = utils::Timer::tic();
-    stereoFrame_k_->getSmartStereoMeasurements(
-        &smart_stereo_measurements,
-        tracker_.tracker_params_.useStereoTracking_);
+    getSmartStereoMeasurements(stereoFrame_k_, &smart_stereo_measurements);
     double get_smart_stereo_meas_time = utils::Timer::toc(start_time).count();
 
     VLOG(2) << "timeSparseStereo: " << sparse_stereo_time << '\n'
@@ -454,7 +433,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
-  return VIO::make_unique<StatusStereoMeasurements>(
+  return std::make_shared<StatusStereoMeasurements>(
       std::make_pair(trackerStatusSummary_,
                      // TODO(Toni): please, fix this, don't use std::pair...
                      // copies, manyyyy copies: actually thousands of copies...
@@ -531,23 +510,24 @@ void StereoVisionFrontEnd::outlierRejectionStereo(
 
 /* -------------------------------------------------------------------------- */
 // TODO(Toni): THIS FUNCTION CAN BE GREATLY OPTIMIZED...
-StereoMeasurementsUniquePtr StereoVisionFrontEnd::getSmartStereoMeasurements(
-    const StereoFrame& stereoFrame_kf) const {
+void StereoVisionFrontEnd::getSmartStereoMeasurements(
+    const StereoFrame::Ptr& stereoFrame_kf,
+    StereoMeasurements* smart_stereo_measurements) const {
   // Sanity check first.
-  CHECK(stereoFrame_kf.isRectified())
+  CHECK_NOTNULL(smart_stereo_measurements);
+  CHECK(stereoFrame_kf->isRectified())
       << "getSmartStereoMeasurements: stereo pair is not rectified";
   // Checks dimensionality of the feature vectors.
-  stereoFrame_kf.checkStereoFrame();
+  stereoFrame_kf->checkStereoFrame();
 
   // Extract relevant info from the stereo frame:
   // essentially the landmark if and the left/right pixel measurements.
-  const LandmarkIds& landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
-  const StatusKeypointsCV& leftKeypoints = stereoFrame_kf.getLeftKptsRectified();
-  const StatusKeypointsCV& rightKeypoints = stereoFrame_kf.getRightKptsRectified();
+  const LandmarkIds& landmarkId_kf = stereoFrame_kf->getLeftFrame().landmarks_;
+  const StatusKeypointsCV& leftKeypoints = stereoFrame_kf->getLeftKptsRectified();
+  const StatusKeypointsCV& rightKeypoints = stereoFrame_kf->getRightKptsRectified();
 
   // Pack information in landmark structure.
-  StereoMeasurementsUniquePtr smart_stereo_measurements =
-      VIO::make_unique<StereoMeasurements>();
+  smart_stereo_measurements->clear();
   smart_stereo_measurements->reserve(landmarkId_kf.size());
   for (size_t i = 0; i < landmarkId_kf.size(); ++i) {
     if (landmarkId_kf.at(i) == -1) {
@@ -573,7 +553,6 @@ StereoMeasurementsUniquePtr StereoVisionFrontEnd::getSmartStereoMeasurements(
     smart_stereo_measurements->push_back(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
-  return smart_stereo_measurements;
 }
 
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {

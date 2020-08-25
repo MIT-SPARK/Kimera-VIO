@@ -387,9 +387,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   fillStereoFrame(ref_stereo_frame);
   // Call the function!
   StereoMeasurements ssm;
-  auto ssm_ptr = st.getSmartStereoMeasurements(*ref_stereo_frame);
-  CHECK(ssm_ptr);
-  ssm = *ssm_ptr;
+  st.getSmartStereoMeasurements(ref_stereo_frame, &ssm);
 
   // Verify the correctness of the results!
   EXPECT_EQ(ssm.size(), num_valid + num_right_missing);
@@ -487,7 +485,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   fake_imu_acc_gyr.setRandom(6, 3);
   StereoImuSyncPacket input(
       first_stereo_frame, fake_imu_stamps, fake_imu_acc_gyr);
-  FrontendOutput::UniquePtr output = st.spinOnce(input);
+  StereoFrontendOutput::UniquePtr output = st.spinOnce(input);
   EXPECT_TRUE(st.isInitialized());
   ASSERT_TRUE(output);
   const StereoFrame& sf = output->stereo_frame_lkf_;

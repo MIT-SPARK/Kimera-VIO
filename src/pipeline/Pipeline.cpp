@@ -129,7 +129,7 @@ Pipeline::Pipeline(const VioParams& params,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const FrontendOutput::Ptr& output) {
+      const StereoFrontendOutput::Ptr& output) {
     CHECK(output);
     if (output->is_keyframe_) {
       //! Only push to backend input queue if it is a keyframe!

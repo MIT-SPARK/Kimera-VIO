@@ -21,13 +21,13 @@
 namespace VIO {
 
 class StereoVisionFrontEndModule
-    : public SIMOPipelineModule<StereoImuSyncPacket, FrontendOutput> {
+    : public SIMOPipelineModule<StereoImuSyncPacket, StereoFrontendOutput> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using SIMO = SIMOPipelineModule<StereoImuSyncPacket, FrontendOutput>;
+  using SIMO = SIMOPipelineModule<StereoImuSyncPacket, StereoFrontendOutput>;
   using InputQueue = ThreadsafeQueue<typename SIMO::InputUniquePtr>;
 
   /**

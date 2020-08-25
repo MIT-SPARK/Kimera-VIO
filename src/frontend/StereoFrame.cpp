@@ -138,46 +138,6 @@ void StereoFrame::checkStatusRightKeypoints(
   }
 }
 
-void StereoFrame::getSmartStereoMeasurements(
-    StereoMeasurements* smart_stereo_measurements,
-    const bool& use_stereo_measurements) const {
-  CHECK_NOTNULL(smart_stereo_measurements)->clear();
-
-  // Sanity check first.
-  CHECK(is_rectified_) << "Stereo pair is not rectified";
-  // Checks dimensionality of the feature vectors. This may be expensive!
-  checkStereoFrame();
-
-  const LandmarkIds& landmark_ids = left_frame_.landmarks_;
-  smart_stereo_measurements->reserve(landmark_ids.size());
-  for (size_t i = 0u; i < landmark_ids.size(); i++) {
-    const LandmarkId& lmk_id = landmark_ids.at(i);
-    if (lmk_id == -1) {
-      continue;  // skip invalid points
-    }
-
-    // TODO implicit conversion float to double increases floating-point
-    // precision!
-    const KeypointCV& left_kpt = left_keypoints_rectified_.at(i).second;
-    const double& uL = left_kpt.x;
-    const double& v = left_kpt.y;
-    // Initialize to missing pixel information.
-    double uR = std::numeric_limits<double>::quiet_NaN();
-    LOG_IF_EVERY_N(WARNING, !use_stereo_measurements, 10)
-        << "Dropping stereo information: uR = NaN! (set "
-           "useStereoTracking_ = true to use it)";
-
-    if (use_stereo_measurements &&
-        right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
-      // TODO implicit conversion float to double increases floating-point
-      // precision!
-      uR = right_keypoints_rectified_.at(i).second.x;
-    }
-    smart_stereo_measurements->push_back(
-        std::make_pair(lmk_id, gtsam::StereoPoint2(uL, uR, v)));
-  }
-}
-
 void StereoFrame::print() const {
   LOG(INFO) << "=====================\n"
             << "id_: " << id_ << '\n'

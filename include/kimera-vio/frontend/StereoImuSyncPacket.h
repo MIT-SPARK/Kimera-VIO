@@ -92,8 +92,6 @@ class StereoImuSyncPacket : public PipelinePayload {
                       const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 
-  // TODO delete copy-constructor because it is used in some places!
-
   // Careful, returning references to members can lead to dangling refs.
   inline const StereoFrame& getStereoFrame() const { return stereo_frame_; }
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }

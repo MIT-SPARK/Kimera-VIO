@@ -60,7 +60,7 @@ RgbdDataProviderModule::getInputPacket() {
                                     std::move(mono_imu_sync_packet->frame_),
                                     std::move(depth_frame_payload)),
         mono_imu_sync_packet->imu_stamps_,
-        mono_imu_sync_packet->imu_accgyr_));
+        mono_imu_sync_packet->imu_accgyrs_));
   }
 
   // Push the synced messages to the frontend's input queue

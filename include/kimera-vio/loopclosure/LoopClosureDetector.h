@@ -438,7 +438,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(LcdModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdModule);
-  using LcdFrontendInput = FrontendOutput::Ptr;
+  using LcdFrontendInput = StereoFrontendOutput::Ptr;
   using LcdBackendInput = BackendOutput::Ptr;
 
   LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)

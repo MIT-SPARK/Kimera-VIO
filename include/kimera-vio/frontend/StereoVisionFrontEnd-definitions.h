@@ -23,17 +23,21 @@
 
 namespace VIO {
 
+// TODO(marcus): move this to VisionFrontEnd.h 
+//  (raises weird errors, includes must be wrong somewhere).
 enum class FrontendType {
   //! Frontend that works with Stereo camera and Imu
-  kStereoImu = 0
+  kStereoImu = 0,
+  //! Frontend that works with Mono camera and Imu
+  kMonoImu = 1
 };
 
-struct FrontendOutput : public PipelinePayload {
+struct StereoFrontendOutput : public PipelinePayload {
  public:
-  KIMERA_POINTER_TYPEDEFS(FrontendOutput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendOutput);
+  KIMERA_POINTER_TYPEDEFS(StereoFrontendOutput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoFrontendOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  FrontendOutput(const bool is_keyframe,
+  StereoFrontendOutput(const bool is_keyframe,
                  const StatusStereoMeasurementsPtr& status_stereo_measurements,
                  const TrackingStatus& tracker_status,
                  const gtsam::Pose3& relative_pose_body_stereo,
@@ -56,7 +60,7 @@ struct FrontendOutput : public PipelinePayload {
         feature_tracks_(feature_tracks),
         debug_tracker_info_(debug_tracker_info) {}
 
-  virtual ~FrontendOutput() = default;
+  virtual ~StereoFrontendOutput() = default;
 
  public:
   const bool is_keyframe_;

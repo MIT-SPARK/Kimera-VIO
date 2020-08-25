@@ -120,7 +120,7 @@ TEST_F(VisualizerFixture, spinOnce) {
                                       DebugVioInfo(),
                                       PointsWithIdMap(),
                                       LmkIdToLmkTypeMap());
-  FrontendOutput::Ptr frontend_output = std::make_shared<FrontendOutput>(
+  StereoFrontendOutput::Ptr frontend_output = std::make_shared<StereoFrontendOutput>(
       true,
       StatusStereoMeasurementsPtr(),
       TrackingStatus(),

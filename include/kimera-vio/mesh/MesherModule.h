@@ -25,7 +25,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherModule);
-  using MesherFrontendInput = FrontendOutput::Ptr;
+  using MesherFrontendInput = StereoFrontendOutput::Ptr;
   using MesherBackendInput = BackendOutput::Ptr;
   // TODO(Toni): using this callback generates copies...
   using MesherOutputCallback = std::function<void(const MesherOutput& output)>;

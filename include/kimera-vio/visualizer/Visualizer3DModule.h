@@ -35,7 +35,7 @@ class VisualizerModule
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
   using MISO = MISOPipelineModule<VisualizerInput, DisplayInputBase>;
 
-  using VizFrontendInput = FrontendOutput::Ptr;
+  using VizFrontendInput = StereoFrontendOutput::Ptr;
   using VizBackendInput = BackendOutput::Ptr;
   using VizMesherInput = MesherOutput::Ptr;
 

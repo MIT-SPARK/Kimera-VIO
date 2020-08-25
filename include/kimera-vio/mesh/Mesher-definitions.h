@@ -82,7 +82,7 @@ struct MesherInput : public PipelinePayload {
   // Copy the pointers so that we do not need to copy the data, we will
   // reference to it via the copied pointers.
   MesherInput(const Timestamp& timestamp,
-              const FrontendOutput::Ptr& frontend_payload,
+              const StereoFrontendOutput::Ptr& frontend_payload,
               const BackendOutput::Ptr& backend_payload)
       : PipelinePayload(timestamp),
         frontend_output_(frontend_payload),
@@ -95,7 +95,7 @@ struct MesherInput : public PipelinePayload {
   virtual ~MesherInput() = default;
 
   // Copy the pointers so that we do not need to copy the data.
-  const FrontendOutput::ConstPtr frontend_output_;
+  const StereoFrontendOutput::ConstPtr frontend_output_;
   const BackendOutput::ConstPtr backend_output_;
 };
 

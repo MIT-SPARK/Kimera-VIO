@@ -80,6 +80,14 @@ class Frame : public PipelinePayload {
 
  public:
   /* ------------------------------------------------------------------------ */
+  void checkFrame() const { 
+    const size_t nrKpts = keypoints_.size();
+    CHECK_EQ(scores_.size(), nrKpts);
+    CHECK_EQ(landmarks_.size(), nrKpts);
+    CHECK_EQ(landmarks_age_.size(), nrKpts);
+    CHECK_EQ(versors_.size(), nrKpts);
+    // CHECK_EQ(descriptors_.size(), nrKpts);
+  }
   size_t getNrValidKeypoints() const {
     // TODO: can we cache this value?
     size_t count = 0u;

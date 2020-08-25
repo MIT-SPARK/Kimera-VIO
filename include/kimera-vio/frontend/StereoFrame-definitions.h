@@ -23,7 +23,6 @@ namespace VIO {
 
 using StereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using StereoMeasurements = std::vector<StereoMeasurement>;
-using StereoMeasurementsUniquePtr = std::unique_ptr<StereoMeasurements>;
 using StatusStereoMeasurements =
     std::pair<TrackerStatusSummary, StereoMeasurements>;
 using StatusStereoMeasurementsPtr = std::shared_ptr<StatusStereoMeasurements>;

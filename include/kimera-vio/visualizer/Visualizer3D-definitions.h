@@ -75,7 +75,7 @@ struct VisualizerInput : public PipelinePayload {
   VisualizerInput(const Timestamp& timestamp,
                   const MesherOutput::Ptr& mesher_output,
                   const BackendOutput::Ptr& backend_output,
-                  const FrontendOutput::Ptr& frontend_output)
+                  const StereoFrontendOutput::Ptr& frontend_output)
       : PipelinePayload(timestamp),
         mesher_output_(mesher_output),
         backend_output_(backend_output),
@@ -91,7 +91,7 @@ struct VisualizerInput : public PipelinePayload {
   // Copy the pointers so that we do not need to copy the data.
   const MesherOutput::ConstPtr mesher_output_;
   const BackendOutput::ConstPtr backend_output_;
-  const FrontendOutput::ConstPtr frontend_output_;
+  const StereoFrontendOutput::ConstPtr frontend_output_;
 };
 
 struct VisualizerOutput : public DisplayInputBase {
