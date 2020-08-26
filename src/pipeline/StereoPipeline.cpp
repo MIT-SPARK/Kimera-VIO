@@ -7,12 +7,13 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   Pipeline.cpp
- * @brief  Implements VIO pipeline workflow.
+ * @file   StereoPipeline.cpp
+ * @brief  Implements StereoVIO pipeline workflow.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
-#include "kimera-vio/pipeline/Pipeline.h"
+#include "kimera-vio/pipeline/StereoPipeline.h"
 
 #include <future>
 #include <memory>
@@ -69,12 +70,12 @@ DEFINE_bool(use_lcd,
 
 namespace VIO {
 
-Pipeline::Pipeline(const VioParams& params,
-                   Visualizer3D::UniquePtr&& visualizer,
-                   DisplayBase::UniquePtr&& displayer)
-    : backend_type_(static_cast<BackendType>(params.backend_type_)),
+StereoPipeline::StereoPipeline(const VioParams& params,
+                               Visualizer3D::UniquePtr&& visualizer,
+                               DisplayBase::UniquePtr&& displayer)
+    : Pipeline(params.parallel_run_),
+      backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
-      stereo_data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
       vio_backend_module_(nullptr),
       lcd_module_(nullptr),
@@ -84,13 +85,11 @@ Pipeline::Pipeline(const VioParams& params,
       mesher_module_(nullptr),
       visualizer_module_(nullptr),
       display_module_(nullptr),
-      shutdown_pipeline_cb_(nullptr),
       frontend_thread_(nullptr),
       backend_thread_(nullptr),
       mesher_thread_(nullptr),
       lcd_thread_(nullptr),
       visualizer_thread_(nullptr),
-      parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       backend_input_queue_("backend_input_queue"),
       display_input_queue_("display_input_queue") {
@@ -99,21 +98,21 @@ Pipeline::Pipeline(const VioParams& params,
   }
 
   //! Create Stereo Camera
-  CHECK_EQ(params.camera_params_.size(), 2u) << "Only stereo camera support.";
+  CHECK_EQ(params.camera_params_.size(), 2u) << "Need two cameras for StereoPipeline.";
   stereo_camera_ = std::make_shared<StereoCamera>(
       params.camera_params_.at(0),
       params.camera_params_.at(1));
 
   //! Create DataProvider
-  stereo_data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
+  data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
       &stereo_frontend_input_queue_,
       "Stereo Data Provider",
       parallel_run_,
       // TODO(Toni): these params should not be sent...
       params.frontend_params_.stereo_matching_params_);
 
-  stereo_data_provider_module_->registerVioPipelineCallback(
-      std::bind(&Pipeline::spinOnce, this, std::placeholders::_1));
+  data_provider_module_->registerVioPipelineCallback(
+      std::bind(&StereoPipeline::spinOnce, this, std::placeholders::_1));
 
   //! Create frontend
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
@@ -167,7 +166,7 @@ Pipeline::Pipeline(const VioParams& params,
                                     backend_output_params,
                                     FLAGS_log_output));
   vio_backend_module_->registerOnFailureCallback(
-      std::bind(&Pipeline::signalBackendFailure, this));
+      std::bind(&StereoPipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
@@ -232,7 +231,7 @@ Pipeline::Pipeline(const VioParams& params,
                   : DisplayFactory::makeDisplay(
                         params.display_params_->display_type_,
                         params.display_params_,
-                        std::bind(&Pipeline::shutdown, this)));
+                        std::bind(&StereoPipeline::shutdown, this)));
   }
 
   if (FLAGS_use_lcd) {
@@ -260,9 +259,7 @@ Pipeline::Pipeline(const VioParams& params,
 }
 
 /* -------------------------------------------------------------------------- */
-Pipeline::~Pipeline() {
-  LOG(INFO) << "Pipeline destructor called.";
-  // Shutdown pipeline if it is not already down.
+StereoPipeline::~StereoPipeline() {
   if (!shutdown_) {
     shutdown();
   } else {
@@ -271,13 +268,13 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
-  CHECK(stereo_imu_sync_packet);
+void StereoPipeline::spinOnce(StereoImuSyncPacket::UniquePtr input) {
+  CHECK(input);
   if (!shutdown_) {
     // Push to stereo frontend input queue.
     VLOG(2) << "Push input payload to Frontend.";
     stereo_frontend_input_queue_.pushBlockingIfFull(
-        std::move(stereo_imu_sync_packet), 5u);
+        std::move(input), 5u);
 
     if (!parallel_run_) {
       // Run the pipeline sequentially.
@@ -290,7 +287,7 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
 
 // Returns whether the visualizer_ is running or not. While in parallel mode,
 // it does not return unless shutdown.
-bool Pipeline::spinViz() {
+bool StereoPipeline::spinViz() {
   if (display_module_) {
     return display_module_->spin();
   }
@@ -298,7 +295,7 @@ bool Pipeline::spinViz() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spinSequential() {
+void StereoPipeline::spinSequential() {
   // Spin once each pipeline module.
   // CHECK(stereo_data_provider_module_);
   // stereo_data_provider_module_->spin();
@@ -318,7 +315,7 @@ void Pipeline::spinSequential() {
   if (display_module_) display_module_->spin();
 }
 
-bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
+bool StereoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
@@ -331,7 +328,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
     lcd_and_lcd_input_finished = false;
   }
 
-  CHECK(stereo_data_provider_module_);
+  CHECK(data_provider_module_);
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
@@ -340,7 +337,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
       is_backend_ok_ &&     // Loop while backend is fine.
       (!isInitialized() ||  // Pipeline is not initialized and
                             // data is not yet consumed.
-       !(!stereo_data_provider_module_->isWorking() &&
+       !(!data_provider_module_->isWorking() &&
          (stereo_frontend_input_queue_.isShutdown() ||
           stereo_frontend_input_queue_.empty()) &&
          !vio_frontend_module_->isWorking() &&
@@ -361,7 +358,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
             << "Backend initialized? " << vio_backend_module_->isInitialized()
             << '\n'
             << "Data provider is working? "
-            << stereo_data_provider_module_->isWorking() << '\n'
+            << data_provider_module_->isWorking() << '\n'
             << "Frontend input queue shutdown? "
             << stereo_frontend_input_queue_.isShutdown() << '\n'
             << "Frontend input queue empty? "
@@ -413,7 +410,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
           << '\n'
           << "Backend initialized? " << vio_backend_module_->isInitialized()
           << '\n'
-          << "Stereo Data provider is working? " << stereo_data_provider_module_->isWorking()
+          << "Stereo Data provider is working? " << data_provider_module_->isWorking()
           << '\n'
           << "Frontend input queue shutdown? "
           << stereo_frontend_input_queue_.isShutdown() << '\n'
@@ -443,24 +440,21 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   return true;
 }
 
-/* -------------------------------------------------------------------------- */
-void Pipeline::shutdown() {
-  LOG_IF(ERROR, shutdown_) << "Shutdown requested, but Pipeline was already "
-                              "shutdown.";
-  LOG(INFO) << "Shutting down VIO pipeline.";
-  shutdown_ = true;
+void StereoPipeline::shutdown() {
+  Pipeline<StereoImuSyncPacket>::shutdown();
 
   // First: call registered shutdown callbacks, these are typically to signal
   // data providers that they should now die.
   if (shutdown_pipeline_cb_) {
     LOG(INFO) << "Calling registered shutdown callbacks...";
-    // Mind that this will raise a SIGSEGV seg fault if the callee is destroyed.
+    // Mind that this will raise a SIGSEGV seg fault if the callee is
+    // destroyed.
     shutdown_pipeline_cb_();
   }
 
   // Second: stop data provider
-  CHECK(stereo_data_provider_module_);
-  stereo_data_provider_module_->shutdown();
+  CHECK(data_provider_module_);
+  data_provider_module_->shutdown();
 
   // Third: stop VIO's threads
   stopThreads();
@@ -472,7 +466,7 @@ void Pipeline::shutdown() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::launchThreads() {
+void StereoPipeline::launchThreads() {
   if (parallel_run_) {
     frontend_thread_ = VIO::make_unique<std::thread>(
         &StereoVisionFrontEndModule::spin,
@@ -505,7 +499,7 @@ void Pipeline::launchThreads() {
 
 /* -------------------------------------------------------------------------- */
 // Resume all workers and queues
-void Pipeline::resume() {
+void StereoPipeline::resume() {
   LOG(INFO) << "Restarting frontend workers and queues...";
   stereo_frontend_input_queue_.resume();
 
@@ -514,7 +508,7 @@ void Pipeline::resume() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::stopThreads() {
+void StereoPipeline::stopThreads() {
   VLOG(1) << "Stopping workers and queues...";
 
   backend_input_queue_.shutdown();
@@ -537,7 +531,7 @@ void Pipeline::stopThreads() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::joinThreads() {
+void StereoPipeline::joinThreads() {
   LOG_IF(WARNING, !parallel_run_)
       << "Asked to join threads while in sequential mode, this is ok, but "
       << "should not happen.";
@@ -552,7 +546,8 @@ void Pipeline::joinThreads() {
   VLOG(1) << "All threads joined.";
 }
 
-void Pipeline::joinThread(const std::string& thread_name, std::thread* thread) {
+void StereoPipeline::joinThread(const std::string& thread_name,
+                                std::thread* thread) {
   if (thread) {
     VLOG(1) << "Joining " << thread_name.c_str() << " thread...";
     if (thread->joinable()) {

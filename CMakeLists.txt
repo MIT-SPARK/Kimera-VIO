@@ -218,7 +218,7 @@ if(BUILD_TESTS)
   include(CTest)
   add_executable(testKimeraVIO
     tests/testKimeraVIO.cpp
-    tests/testPipeline.cpp
+    tests/testStereoPipeline.cpp
     tests/testVioParams.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE

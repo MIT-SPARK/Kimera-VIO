@@ -24,7 +24,7 @@
 #include "kimera-vio/dataprovider/KittiDataProvider.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
-#include "kimera-vio/pipeline/Pipeline.h"
+#include "kimera-vio/pipeline/StereoPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
   }
   CHECK(dataset_parser);
 
-  VIO::Pipeline vio_pipeline(vio_params);
+  VIO::StereoPipeline vio_pipeline(vio_params);
 
   // Register callback to shutdown data provider in case VIO pipeline shutsdown.
   vio_pipeline.registerShutdownCallback(
@@ -68,17 +68,17 @@ int main(int argc, char* argv[]) {
 
   // Register callback to vio pipeline.
   dataset_parser->registerImuSingleCallback(
-      std::bind(&VIO::Pipeline::fillSingleImuQueue,
+      std::bind(&VIO::StereoPipeline::fillSingleImuQueue,
                 &vio_pipeline,
                 std::placeholders::_1));
   // We use blocking variants to avoid overgrowing the input queues (use
   // the non-blocking versions with real sensor streams)
   dataset_parser->registerLeftFrameCallback(
-      std::bind(&VIO::Pipeline::fillLeftFrameQueue,
+      std::bind(&VIO::StereoPipeline::fillLeftFrameQueue,
                 &vio_pipeline,
                 std::placeholders::_1));
   dataset_parser->registerRightFrameCallback(
-      std::bind(&VIO::Pipeline::fillRightFrameQueue,
+      std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
                 &vio_pipeline,
                 std::placeholders::_1));
 
@@ -90,9 +90,9 @@ int main(int argc, char* argv[]) {
                              &VIO::DataProviderInterface::spin,
                              dataset_parser);
     auto handle_pipeline =
-        std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
+        std::async(std::launch::async, &VIO::StereoPipeline::spin, &vio_pipeline);
     auto handle_shutdown = std::async(std::launch::async,
-                                      &VIO::Pipeline::shutdownWhenFinished,
+                                      &VIO::StereoPipeline::shutdownWhenFinished,
                                       &vio_pipeline, 500);
     vio_pipeline.spinViz();
     is_pipeline_successful = !handle.get();

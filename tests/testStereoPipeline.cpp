@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
-#include "kimera-vio/pipeline/Pipeline.h"
+#include "kimera-vio/pipeline/StereoPipeline.h"
 
 DECLARE_string(test_data_path);
 DECLARE_bool(visualize);
@@ -46,7 +46,7 @@ class VioPipelineFixture : public ::testing::Test {
         initial_k,
         final_k,
         vio_params);
-    vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
+    vio_pipeline_ = VIO::make_unique<StereoPipeline>(vio_params);
     connectVioPipeline();
   }
 
@@ -57,7 +57,7 @@ class VioPipelineFixture : public ::testing::Test {
     // this function repeatedly within the same test.
     destroyPipeline();
     LOG(INFO) << "Building pipeline.";
-    vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
+    vio_pipeline_ = VIO::make_unique<StereoPipeline>(vio_params);
     dataset_parser_ = VIO::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/MicroEurocDataset",
         initial_k,
@@ -78,17 +78,17 @@ class VioPipelineFixture : public ::testing::Test {
 
     // Register callback to vio pipeline.
     dataset_parser_->registerImuSingleCallback(
-        std::bind(&VIO::Pipeline::fillSingleImuQueue,
+        std::bind(&VIO::StereoPipeline::fillSingleImuQueue,
                   vio_pipeline_.get(),
                   std::placeholders::_1));
     // We use blocking variants to avoid overgrowing the input queues (use
     // the non-blocking versions with real sensor streams)
     dataset_parser_->registerLeftFrameCallback(
-        std::bind(&VIO::Pipeline::fillLeftFrameQueue,
+        std::bind(&VIO::StereoPipeline::fillLeftFrameQueue,
                   vio_pipeline_.get(),
                   std::placeholders::_1));
     dataset_parser_->registerRightFrameCallback(
-        std::bind(&VIO::Pipeline::fillRightFrameQueue,
+        std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
                   vio_pipeline_.get(),
                   std::placeholders::_1));
   }
@@ -105,17 +105,17 @@ class VioPipelineFixture : public ::testing::Test {
 
     // Register callback to vio pipeline.
     dataset_parser_->registerImuSingleCallback(
-        std::bind(&VIO::Pipeline::fillSingleImuQueue,
+        std::bind(&VIO::StereoPipeline::fillSingleImuQueue,
                   vio_pipeline_.get(),
                   std::placeholders::_1));
     // We use blocking variants to avoid overgrowing the input queues (use
     // the non-blocking versions with real sensor streams)
     dataset_parser_->registerLeftFrameCallback(
-        std::bind(&VIO::Pipeline::fillLeftFrameQueueBlockingIfFull,
+        std::bind(&VIO::StereoPipeline::fillLeftFrameQueueBlockingIfFull,
                   vio_pipeline_.get(),
                   std::placeholders::_1));
     dataset_parser_->registerRightFrameCallback(
-        std::bind(&VIO::Pipeline::fillRightFrameQueueBlockingIfFull,
+        std::bind(&VIO::StereoPipeline::fillRightFrameQueueBlockingIfFull,
                   vio_pipeline_.get(),
                   std::placeholders::_1));
   }
@@ -131,7 +131,7 @@ class VioPipelineFixture : public ::testing::Test {
 
  protected:
   DataProviderInterface::UniquePtr dataset_parser_;
-  Pipeline::UniquePtr vio_pipeline_;
+  StereoPipeline::UniquePtr vio_pipeline_;
   VioParams vio_params_;
 };
 
@@ -180,7 +180,7 @@ TEST_F(VioPipelineFixture, OnlineParallelStartManualShutdown) {
   ASSERT_TRUE(dataset_parser_);
   ASSERT_TRUE(vio_pipeline_);
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   vio_pipeline_->shutdown();
   // Expect false, since the pipeline has been shut down.
   EXPECT_FALSE(handle_pipeline.get());
@@ -194,7 +194,7 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinManualShutdown) {
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   vio_pipeline_->shutdown();
   // Expect false, since the pipeline has been shut down.
   EXPECT_FALSE(handle.get());
@@ -209,9 +209,9 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinShutdownWhenFinished) {
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   auto handle_shutdown = std::async(std::launch::async,
-                                    &VIO::Pipeline::shutdownWhenFinished,
+                                    &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
                                     500);
   EXPECT_TRUE(handle_shutdown.get());
@@ -256,7 +256,7 @@ TEST_F(VioPipelineFixture, OfflineParallelStartManualShutdown) {
   ASSERT_TRUE(dataset_parser_);
   ASSERT_TRUE(vio_pipeline_);
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   vio_pipeline_->shutdown();
   // Expect false, since the pipeline has been shut down.
   EXPECT_FALSE(handle_pipeline.get());
@@ -271,7 +271,7 @@ TEST_F(VioPipelineFixture, OfflineParallelSpinManualShutdown) {
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   vio_pipeline_->shutdown();
   // Expect false, since the pipeline has been shut down.
   EXPECT_FALSE(handle.get());
@@ -287,9 +287,9 @@ TEST_F(VioPipelineFixture, OfflineParallelSpinShutdownWhenFinished) {
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   auto handle_shutdown = std::async(std::launch::async,
-                                    &VIO::Pipeline::shutdownWhenFinished,
+                                    &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
                                     500);
   EXPECT_TRUE(handle_shutdown.get());
@@ -325,9 +325,9 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinBackendFailureGracefulShutdown) {
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   auto handle_shutdown = std::async(std::launch::async,
-                                    &VIO::Pipeline::shutdownWhenFinished,
+                                    &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
                                     500);
   EXPECT_TRUE(handle_shutdown.get());
@@ -348,9 +348,9 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinRegularBackendFailureGracefulShutdo
                            &VIO::DataProviderInterface::spin,
                            dataset_parser_.get());
   auto handle_pipeline =
-      std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
+      std::async(std::launch::async, &VIO::StereoPipeline::spin, vio_pipeline_.get());
   auto handle_shutdown = std::async(std::launch::async,
-                                    &VIO::Pipeline::shutdownWhenFinished,
+                                    &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
                                     500);
   EXPECT_TRUE(handle_shutdown.get());

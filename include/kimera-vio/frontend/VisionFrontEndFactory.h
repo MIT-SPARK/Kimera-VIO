@@ -34,16 +34,38 @@ class VisionFrontEndFactory {
       const FrontendType& frontend_type,
       Args&&... args) {
     switch (frontend_type) {
-      // case FrontendType::kMonoImu: {
-      //   return VIO::make_unique<MonoVisionFrontEnd>(
-      //     std::forward<Args>(args)...);
-      // }
+      case FrontendType::kMonoImu: {
+        // return VIO::make_unique<MonoVisionFrontEnd>(
+        //   std::forward<Args>(args)...);
+        LOG(FATAL) << "Requested a mono frontend from stereo factory!";
+      }
       case FrontendType::kStereoImu: {
         return VIO::make_unique<StereoVisionFrontEnd>(
             std::forward<Args>(args)...);
       }
       default: {
-        LOG(FATAL) << "Requested fronetnd type is not supported.\n"
+        LOG(FATAL) << "Requested frontend type is not supported.\n"
+                   << "Currently supported frontend types:\n"
+                   << "0: Stereo + IMU \n"
+                   << "1: Mono + IMU \n"
+                   << " but requested frontend: "
+                   << static_cast<int>(frontend_type);
+      }
+    }
+  }
+  // TODO(marcus): This should be templated! One function that returns
+  //   the base type VisionFrontEnd!
+  template <class... Args>
+  static MonoVisionFrontEnd::UniquePtr createMonoFrontend(
+      const FrontendType& frontend_type,
+      Args&&... args) {
+    switch (frontend_type) {
+      case FrontendType::kMonoImu: {
+        return VIO::make_unique<MonoVisionFrontEnd>(
+            std::forward<Args>(args)...);
+      }
+      default: {
+        LOG(FATAL) << "Requested frontend type is not supported.\n"
                    << "Currently supported frontend types:\n"
                    << "0: Stereo + IMU \n"
                    << "1: Mono + IMU \n"
