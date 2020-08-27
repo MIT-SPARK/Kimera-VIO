@@ -160,7 +160,7 @@ Pipeline::Pipeline(const VioParams& params,
       parallel_run_,
       BackEndFactory::createBackend(backend_type_,
                                     // These two should be given by parameters.
-                                    stereo_camera_->getLeftCamPose(),
+                                    stereo_camera_->getLeftCamRectPose(),
                                     stereo_camera_->getStereoCalib(),
                                     *backend_params_,
                                     imu_params_,
@@ -180,7 +180,7 @@ Pipeline::Pipeline(const VioParams& params,
         parallel_run_,
         MesherFactory::createMesher(
             MesherType::PROJECTIVE,
-            MesherParams(stereo_camera_->getLeftCamPose(),
+            MesherParams(stereo_camera_->getLeftCamRectPose(),
                          params.camera_params_.at(0u).image_size_)));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
@@ -229,8 +229,9 @@ Pipeline::Pipeline(const VioParams& params,
         // Use given displayer if any
         displayer
             ? std::move(displayer)
-            : DisplayFactory::makeDisplay(
-                  DisplayType::kOpenCV, std::bind(&Pipeline::shutdown, this)));
+            : DisplayFactory::makeDisplay(DisplayType::kOpenCV,
+                                          std::bind(&Pipeline::shutdown, this),
+                                          OpenCv3dDisplayParams()));
   }
 
   if (FLAGS_use_lcd) {

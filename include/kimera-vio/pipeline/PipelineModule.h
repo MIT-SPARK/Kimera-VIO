@@ -76,8 +76,7 @@ class PipelineModuleBase {
   }
 
   inline void restart() {
-    VLOG(1) << "Module: " << name_id_
-            << " - Resetting shutdown flag to false";
+    VLOG(1) << "Module: " << name_id_ << " - Resetting shutdown flag to false";
     shutdown_ = false;
   }
 
@@ -119,7 +118,7 @@ class PipelineModuleBase {
   virtual bool hasWork() const = 0;
 
   virtual void notifyOnFailure() {
-    for (const auto& on_failure_callback: on_failure_callbacks_) {
+    for (const auto& on_failure_callback : on_failure_callbacks_) {
       if (on_failure_callback) {
         on_failure_callback();
       } else {
@@ -175,9 +174,7 @@ class PipelineModule : public PipelineModuleBase {
   PipelineModule(const std::string& name_id, const bool& parallel_run)
       : PipelineModuleBase(name_id, parallel_run) {}
 
-  virtual ~PipelineModule() {
-    VLOG(1) << name_id_ + " destructor called.";
-  }
+  virtual ~PipelineModule() { VLOG(1) << name_id_ + " destructor called."; }
 
   /**
    * @brief Main spin function. Every pipeline module calls this spin, where
@@ -217,8 +214,8 @@ class PipelineModule : public PipelineModuleBase {
         auto spin_duration = utils::Timer::toc(tic).count();
         timing_stats.AddSample(spin_duration);
       } else {
-        LOG_IF(WARNING, VLOG_IS_ON(1))
-            << "Module: " << name_id_ << " - No Input received.";
+        LOG_IF(WARNING, VLOG_IS_ON(1)) << "Module: " << name_id_
+                                       << " - No Input received.";
       }
 
       // Break the while loop if we are in sequential mode.
@@ -370,7 +367,9 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
                      const bool& parallel_run)
       : MIMOPipelineModule<Input, Output>(name_id, parallel_run),
         input_queue_(input_queue) {
-    CHECK_NOTNULL(input_queue_);
+    CHECK(input_queue_ != nullptr)
+        << "Input queue must be non NULL for a SIMO pipeline module.\n"
+        << "SIMO Pipeline Module: " << PIO::name_id_;
   }
   virtual ~SIMOPipelineModule() = default;
 
