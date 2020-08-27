@@ -20,12 +20,10 @@
 #include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
-#include <utility>  // for make_pair
 #include <vector>
 
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
