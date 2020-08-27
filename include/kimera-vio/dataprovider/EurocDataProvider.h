@@ -65,16 +65,22 @@ class EurocDataProvider : public DataProviderInterface {
    */
   bool spin() override;
 
-  // Print info about dataset.
+  /**
+   * @brief print Print info about dataset.
+   */
   void print() const;
+
 
  public:
   // Ground truth data.
   GroundTruthData gt_data_;
 
+  // Retrieve absolute gt pose at *approx* timestamp.
+  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
+    return getGroundTruthState(timestamp).pose_;
+  }
+
  private:
-  // Parses EuRoC data
-  void parse();
 
   /**
    * @brief spinOnce Send data to VIO pipeline on a per-frame basis
@@ -88,7 +94,17 @@ class EurocDataProvider : public DataProviderInterface {
    */
   void sendImuData() const;
 
-  // Parse camera, gt, and imu data if using different Euroc format.
+  /**
+   * @brief parse Parses Euroc dataset. This is done already in spin() and
+   * does not need to be called by the user. Left in public for experimentation.
+   */
+  void parse();
+
+  /**
+   * @brief parseDataset Parse camera, gt, and imu data if using
+   * different Euroc format.
+   * @return
+   */
   bool parseDataset();
 
   //! Parsers
@@ -149,10 +165,6 @@ class EurocDataProvider : public DataProviderInterface {
   bool getImgName(const std::string& camera_name,
                          const size_t& k,
                          std::string* img_filename) const;
-  // Retrieve absolute pose at timestamp.
-  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
-    return getGroundTruthState(timestamp).pose_;
-  }
 
   //! Sanity checks
   bool sanityCheckCameraData(
