@@ -26,16 +26,16 @@
 #include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/DataProviderModule.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
-#include "kimera-vio/initial/InitializationBackEnd-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Display.h" // TODO(Toni): separate ocv display
+#include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayModule.h"
-#include "kimera-vio/visualizer/Visualizer3D.h" // TODO(Toni): separate ocv viz
+#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {
@@ -134,8 +134,6 @@ class Pipeline {
     vio_backend_module_->registerOutputCallback(callback);
   }
 
-  // TODO(marcus): once we have a base class for StereoVisionFrontend, we need
-  // that type to go here instead.
   //! Register external callback to output the VIO frontend results.
   inline void registerFrontendOutputCallback(
       const StereoVisionFrontEndModule::OutputCallback& callback) {
@@ -201,36 +199,18 @@ class Pipeline {
   void spinSequential();
 
  private:
-  // TODO(Toni) Still does not make RANSAC repeatable across different machines.
   //! Initialize random seed for repeatability (only on the same machine).
+  //! Still does not make RANSAC repeatable across different machines.
   inline void setDeterministicPipeline() const { srand(0); }
 
-  // Initialization functions
-  /// Initialize pipeline with desired option (flag).
-  bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  /// Check if necessary to re-initialize pipeline.
-  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  /// Initialize pipeline from ground truth pose.
-  bool initializeFromGroundTruth(
-      const StereoImuSyncPacket& stereo_imu_sync_packet,
-      const VioNavState& initial_ground_truth_state);
-
-  /// Initialize pipeline from IMU readings only:
-  ///  - Guesses initial state assuming zero velocity.
-  ///  - Guesses IMU bias assuming steady upright vehicle.
-  bool initializeFromIMU(const StereoImuSyncPacket& stereo_imu_sync_packet);
-
-  /// Initialize pipeline from online gravity alignment.
-  bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  inline bool isInitialized() const {
+    return vio_frontend_module_->isInitialized() &&
+           vio_backend_module_->isInitialized();
+  }
 
   // Thread Managing
-  /// Launch frontend thread with process.
-  void launchFrontendThread();
-
-  /// Launch remaining threads with processes.
-  void launchRemainingThreads();
+  /// Launch threads for each pipeline module.
+  void launchThreads();
 
   /// Shutdown processes and queues.
   void stopThreads();
@@ -248,14 +228,13 @@ class Pipeline {
   }
 
   // VIO parameters
+  //! Mind that the backend params is shared with the dataprovider which might
+  //! modify them to add the ground truth initial 3d pose
   BackendParams::ConstPtr backend_params_;
   FrontendParams frontend_params_;
   ImuParams imu_params_;
   BackendType backend_type_;
   bool parallel_run_;
-
-  // TODO(Toni): Remove this?
-  int init_frame_id_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;
@@ -270,10 +249,6 @@ class Pipeline {
 
   //! Stereo vision frontend payloads.
   StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
-
-  // Online initialization frontend queue.
-  ThreadsafeQueue<InitializationInputPayload::UniquePtr>
-      initialization_frontend_output_queue_;
 
   //! Backend
   VioBackEndModule::UniquePtr vio_backend_module_;
@@ -299,8 +274,6 @@ class Pipeline {
   // Atomic Flags
   //! Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_initialized_ = {false};
-  std::atomic_bool is_launched_ = {false};
   std::atomic_bool is_backend_ok_ = {true};
 
   // Pipeline Callbacks

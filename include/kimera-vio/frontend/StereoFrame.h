@@ -223,6 +223,15 @@ class StereoFrame {
   // modify class members is EVIL.
   inline Frame* getLeftFrameMutable() { return &left_frame_; }
   inline Frame* getRightFrameMutable() { return &right_frame_; }
+  // NON-THREAD SAFe, Get rectified images
+  inline const cv::Mat& getLeftImgRectified() const {
+    CHECK(is_rectified_);
+    return left_img_rectified_;
+  }
+  inline const cv::Mat& getRightImgRectified() const {
+    CHECK(is_rectified_);
+    return right_img_rectified_;
+  }
 
  private:
   const FrameId id_;

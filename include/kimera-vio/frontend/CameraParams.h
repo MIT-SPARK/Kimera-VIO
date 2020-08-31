@@ -29,6 +29,12 @@
 
 namespace VIO {
 
+enum class DistortionModel {
+  NONE,
+  RADTAN,
+  EQUIDISTANT,
+};
+
 /*
  * Class describing camera parameters.
  */
@@ -40,10 +46,12 @@ class CameraParams : public PipelineParams {
   using CameraId = std::string;
   // fu, fv, cu, cv
   using Intrinsics = std::array<double, 4>;
+  using Distortion = std::vector<double>;
 
   CameraParams()
       : PipelineParams("Camera Parameters"),
         camera_id_(),
+        camera_model_(),
         intrinsics_(),
         body_Pose_cam_(),
         frame_rate_(),
@@ -52,12 +60,12 @@ class CameraParams : public PipelineParams {
         K_(),
         distortion_model_(),
         distortion_coeff_(),
-        undistRect_map_x_(),
-        undistRect_map_y_(),
+        distortion_coeff_mat_(),
+        undistort_rectify_map_x_(),
+        undistort_rectify_map_y_(),
         R_rectify_(),
         P_(),
-        is_stereo_with_camera_ids_() {
-  }
+        is_stereo_with_camera_ids_() {}
   virtual ~CameraParams() = default;
 
   // Parse YAML file describing camera parameters.
@@ -78,6 +86,9 @@ class CameraParams : public PipelineParams {
   // Id of the camera
   CameraId camera_id_;
 
+  // Camera model: pinhole, etc
+  std::string camera_model_;
+
   // fu, fv, cu, cv
   Intrinsics intrinsics_;
   // OpenCV structures: needed to compute the undistortion map.
@@ -95,15 +106,14 @@ class CameraParams : public PipelineParams {
   // Contains intrinsics and distortion parameters.
   gtsam::Cal3DS2 calibration_;
 
-  // For radial distortion and rectification.
-  // 5 parameters (last is zero): distortion_model: radial-tangential.
-  // TODO(Toni): USE ENUM CLASS, not std::string...
-  std::string distortion_model_;  // define default
-  cv::Mat distortion_coeff_;
+  // Distortion parameters
+  DistortionModel distortion_model_;
+  std::vector<double> distortion_coeff_;
+  cv::Mat distortion_coeff_mat_;
 
-  // TODO(Toni): don't use cv::Mat to store things of fixed size...
-  cv::Mat undistRect_map_x_;
-  cv::Mat undistRect_map_y_;
+  // TODO(Toni): Legacy, pls remove.
+  cv::Mat undistort_rectify_map_x_;
+  cv::Mat undistort_rectify_map_y_;
 
   // TODO(Toni): why do we have rectification stuff here? This should be
   // for stereo cameras only...
@@ -125,6 +135,16 @@ class CameraParams : public PipelineParams {
   static void createGtsamCalibration(const std::vector<double>& distortion,
                                      const Intrinsics& intrinsics,
                                      gtsam::Cal3DS2* calibration);
+
+  /** Taken from: https://github.com/ethz-asl/image_undistort
+   * @brief stringToDistortion
+   * @param distortion_model
+   * @param camera_model
+   * @return actual distortion model enum class
+   */
+  static const DistortionModel stringToDistortion(
+      const std::string& distortion_model,
+      const std::string& camera_model);
 
  private:
   void parseDistortion(const YamlParser& yaml_parser);
