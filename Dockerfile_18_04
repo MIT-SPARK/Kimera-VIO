@@ -45,10 +45,11 @@ RUN cd opencv/build && \
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
-ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/develop version.json
+ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
+    git checkout master && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON .. && \
