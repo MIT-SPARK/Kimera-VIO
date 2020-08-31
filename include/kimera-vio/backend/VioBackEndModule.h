@@ -54,12 +54,7 @@ class VioBackEndModule
   virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input);
 
  public:
-  /**
-   * @brief initializeBackend
-   * @param initial_seed
-   * @return False if something went wrong, true otherwise.
-   */
-  bool initializeBackend(const VioNavStateTimestamped& initial_seed);
+  inline bool isInitialized() const { return vio_backend_->isInitialized(); }
 
   /**
    * @brief registerImuBiasUpdateCallback Register callback to be called

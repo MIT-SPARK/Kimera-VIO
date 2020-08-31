@@ -105,7 +105,7 @@ void CameraImageLists::print() const {
 
 void GroundTruthData::print() const {
   LOG(INFO) << "------------ GroundTruthData::print -------------";
-  body_Pose_cam_.print("body_Pose_cam_: \n");
+  body_Pose_prism_.print("body_Pose_cam_: \n");
   LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
             << "nr of gtStates: " << map_to_gt_.size();
 }
