@@ -1,5 +1,6 @@
 ### Add source code
 target_sources(kimera_vio PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/StereoVioBackEnd.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VioBackEndModule.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VioBackEnd.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VioBackEndParams.cpp"

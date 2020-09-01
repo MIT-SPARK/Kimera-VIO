@@ -120,14 +120,15 @@ StereoPipeline::StereoPipeline(const VioParams& params,
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
       parallel_run_,
-      BackEndFactory::createBackend(backend_type_,
-                                    // These two should be given by parameters.
-                                    stereo_camera_->getBodyPoseLeftCamRect(),
-                                    stereo_camera_->getStereoCalib(),
-                                    *backend_params_,
-                                    imu_params_,
-                                    backend_output_params,
-                                    FLAGS_log_output));
+      BackEndFactory::createStereoBackend(
+          backend_type_,
+          // These two should be given by parameters.
+          stereo_camera_->getBodyPoseLeftCamRect(),
+          stereo_camera_->getStereoCalib(),
+          *backend_params_,
+          imu_params_,
+          backend_output_params,
+          FLAGS_log_output));
   vio_backend_module_->registerOnFailureCallback(
       std::bind(&StereoPipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
