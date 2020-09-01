@@ -96,10 +96,13 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
            &imu_meas.timestamps_,
            &imu_meas.acc_gyr_)) !=
           utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
-    VLOG(1) << "No IMU data available. Reason:\n";
+    VLOG(1) << "No IMU data available btw: \n"
+            << " - From timestamp: " << timestamp_last_frame_ << '\n'
+            << " - To timestamp: " << timestamp << '\n'
+            << "Reason:\n";
     switch (query_result) {
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
-        if (log_error_once) {
+        if (log_error_once || VLOG_IS_ON(1)) {
           LOG(WARNING) << "Waiting for IMU data...";
           log_error_once = false;
         }
