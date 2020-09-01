@@ -440,8 +440,8 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
   tie(keypoints_unrectified, keypoints_status) =
       StereoFrame::distortUnrectifyPoints(
           keypoints_rectified,
-          sf->getLeftFrame().cam_param_.undistRect_map_x_,
-          sf->getLeftFrame().cam_param_.undistRect_map_y_);
+          sf->getLeftFrame().cam_param_.undistort_rectify_map_x_,
+          sf->getLeftFrame().cam_param_.undistort_rectify_map_y_);
 
   // Manually compute the expected distorted/unrectified keypoints!
   for (int i = 0; i < keypoints_unrectified.size(); i++) {  // for each keypoint
@@ -513,8 +513,8 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints) {
   tie(keypoints_unrectified_actual, status_unrectified) =
       StereoFrame::distortUnrectifyPoints(
           keypoints_rectified,
-          sf->getLeftFrame().cam_param_.undistRect_map_x_,
-          sf->getLeftFrame().cam_param_.undistRect_map_y_);
+          sf->getLeftFrame().cam_param_.undistort_rectify_map_x_,
+          sf->getLeftFrame().cam_param_.undistort_rectify_map_y_);
 
   // Comparision
   for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
@@ -862,8 +862,8 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       urp.push_back(make_pair(KeypointStatus::VALID, kp_i_undistRect));
       tie(dup, statuses) = StereoFrame::distortUnrectifyPoints(
           urp,
-          sfnew->getLeftFrame().cam_param_.undistRect_map_x_,
-          sfnew->getLeftFrame().cam_param_.undistRect_map_y_);
+          sfnew->getLeftFrame().cam_param_.undistort_rectify_map_x_,
+          sfnew->getLeftFrame().cam_param_.undistort_rectify_map_y_);
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
                                Point2(dup.at(0).x, dup.at(0).y),
                                1));
@@ -1086,10 +1086,11 @@ TEST(testStereoFrame, undistortFisheye) {
   cv::Mat left_fisheye_image_undist, map_x_fisheye_undist, map_y_fisheye_undist;
 
   // Undistort image using pinhole equidistant (fisheye) model
-  if (cam_params_left_fisheye.distortion_model_ == "equidistant") {
+  if (cam_params_left_fisheye.distortion_model_ ==
+      DistortionModel::EQUIDISTANT) {
     cv::fisheye::initUndistortRectifyMap(
         cam_params_left_fisheye.K_,
-        cam_params_left_fisheye.distortion_coeff_,
+        cam_params_left_fisheye.distortion_coeff_mat_,
         // not relevant here
         cv::Mat::eye(3, 3, CV_32F),
         // don't to use default identity!
@@ -1179,7 +1180,7 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
                                      sf->getBaseline());
 
   // Check corresponding features are on epipolar lines (visually and store)
-  cv::Mat undist_sidebyside = UtilsOpenCV::ConcatenateTwoImages(
+  cv::Mat undist_sidebyside = UtilsOpenCV::concatenateTwoImages(
       left_image_rectified, right_image_rectified);
 
   // Parse reference image -> Remove comments

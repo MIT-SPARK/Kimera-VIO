@@ -97,7 +97,7 @@ class StereoImuSyncPacket : public PipelinePayload {
   // Careful, returning references to members can lead to dangling refs.
   inline const StereoFrame& getStereoFrame() const { return stereo_frame_; }
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
-  inline const ImuAccGyrS& getImuAccGyr() const { return imu_accgyr_; }
+  inline const ImuAccGyrS& getImuAccGyrs() const { return imu_accgyrs_; }
   inline const ReinitPacket& getReinitPacket() const { return reinit_packet_; }
   inline const bool getReinitFlag() const {
     return reinit_packet_.getReinitFlag();
@@ -108,7 +108,7 @@ class StereoImuSyncPacket : public PipelinePayload {
  private:
   const StereoFrame stereo_frame_;
   const ImuStampS imu_stamps_;
-  const ImuAccGyrS imu_accgyr_;
+  const ImuAccGyrS imu_accgyrs_;
   const ReinitPacket reinit_packet_;
 };
 

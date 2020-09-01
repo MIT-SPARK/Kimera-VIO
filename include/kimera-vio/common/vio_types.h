@@ -50,6 +50,8 @@ using PlaneId = std::uint64_t;
 using LandmarkId = long int;  // -1 for invalid landmarks. // int would be too
                               // small if it is 16 bits!
 using LandmarkIds = std::vector<LandmarkId>;
+using LandmarkCV = cv::Point3d;
+using LandmarksCV = std::vector<LandmarkCV>;
 enum class LandmarkType { SMART, PROJECTION };
 using KeypointCV = cv::Point2f;
 using KeypointsCV = std::vector<KeypointCV>;
@@ -57,6 +59,8 @@ using StatusKeypointCV = std::pair<KeypointStatus, KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
 using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
+
+// TODO(Toni): move make unique and  to underlying to another file...
 // Add compatibility for c++11's lack of make_unique.
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args&&... args) {

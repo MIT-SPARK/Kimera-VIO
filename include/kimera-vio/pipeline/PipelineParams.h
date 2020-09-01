@@ -68,7 +68,8 @@ class PipelineParams {
 
     // Add title.
     out.width(kTotalWidth);
-    size_t center = (kTotalWidth - name_.size() - 2u) / 2u; // -2u for ' ' chars
+    size_t center =
+        (kTotalWidth - name_.size() - 2u) / 2u;  // -2u for ' ' chars
     out << '\n'
         << std::string(center, '*').c_str() << ' ' << name_.c_str() << ' '
         << std::string(center, '*').c_str() << '\n';
@@ -96,6 +97,9 @@ class PipelineParams {
 
  public:
   std::string name_;
+  static constexpr size_t kTotalWidth = 60;
+  static constexpr size_t kNameWidth = 40;
+  static constexpr size_t kValueWidth = 20;
 
  private:
   template <typename TName, typename TValue>
@@ -121,11 +125,6 @@ class PipelineParams {
     out << value << '\n';
     printImpl(out, next...);
   }
-
- private:
-  static constexpr size_t kTotalWidth = 60;
-  static constexpr size_t kNameWidth = 40;
-  static constexpr size_t kValueWidth = 20;
 };
 
 inline bool operator==(const PipelineParams& lhs, const PipelineParams& rhs) {

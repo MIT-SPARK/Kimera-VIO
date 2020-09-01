@@ -46,13 +46,6 @@ window_size: 10
 zero_zone: -1
 
 subpixelRefinementStereo: 0
-featureSelectionCriterion: 0
-featureSelectionHorizon: 3
-featureSelectionNrCornersToSelect: 600
-featureSelectionImuRate: 0.005
-featureSelectionDefaultDepth: 2
-featureSelectionCosineNeighborhood: 0.984807753012208 # Rad
-featureSelectionUseLazyEvaluation: 1
 useSuccessProbabilities: 1
 useRANSAC: 1
 minNrMonoInliers: 10

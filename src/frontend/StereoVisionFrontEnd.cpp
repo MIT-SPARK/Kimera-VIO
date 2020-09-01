@@ -49,7 +49,8 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const CameraParams& camera_params,
     DisplayQueue* display_queue,
     bool log_output)
-    : stereoFrame_k_(nullptr),
+    : frontend_state_(FrontendState::Bootstrap),
+      stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
       keyframe_R_ref_frame_(gtsam::Rot3::identity()),
@@ -78,6 +79,50 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 /* -------------------------------------------------------------------------- */
 FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
+  switch (frontend_state_) {
+    case FrontendState::Bootstrap: {
+      return bootstrapSpin(input);
+    } break;
+    case FrontendState::Nominal: {
+      return nominalSpin(input);
+    } break;
+    default: { LOG(FATAL) << "Unrecognized frontend state."; } break;
+  }
+}
+
+FrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
+    const StereoFrontEndInputPayload& input) {
+  CHECK(frontend_state_ == FrontendState::Bootstrap);
+
+  // Initialize members of the frontend
+  processFirstStereoFrame(input.getStereoFrame());
+
+  // Initialization done, set state to nominal
+  frontend_state_ = FrontendState::Nominal;
+
+  // Create mostly unvalid output, to send the imu_acc_gyrs to the backend.
+  CHECK(stereoFrame_lkf_);
+  return VIO::make_unique<FrontendOutput>(stereoFrame_lkf_->isKeyframe(),
+                                          nullptr,
+                                          TrackingStatus::DISABLED,
+                                          getRelativePoseBodyStereo(),
+                                          *stereoFrame_lkf_,
+                                          nullptr,
+                                          input.getImuAccGyrs(),
+                                          cv::Mat(),
+                                          getTrackerInfo());
+}
+
+FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
+    const StereoFrontEndInputPayload& input) {
+  CHECK(frontend_state_ == FrontendState::Nominal);
+  // For timing
+  utils::StatsCollector timing_stats_frame_rate("VioFrontEnd Frame Rate [ms]");
+  utils::StatsCollector timing_stats_keyframe_rate(
+      "VioFrontEnd Keyframe Rate [ms]");
+  auto start_time = utils::Timer::tic();
+
+  // Get stereo info
   const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
   VLOG(1) << "------------------- Processing frame k = " << k
@@ -97,13 +142,14 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   // into account!!!).
   auto tic_full_preint = utils::Timer::tic();
   const ImuFrontEnd::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
-      input.getImuStamps(), input.getImuAccGyr());
+      input.getImuStamps(), input.getImuAccGyrs());
   CHECK(pim);
 
   auto full_preint_duration =
       utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();
-  utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
-  stats_full_preint.AddSample(full_preint_duration);
+  // Don't add them because they are confusing
+  // utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
+  // stats_full_preint.AddSample(full_preint_duration);
   VLOG_IF(1, full_preint_duration != 0.0)
       << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
       << " Hz. (" << full_preint_duration << " us).";
@@ -165,6 +211,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     VLOG(10) << "Reset IMU preintegration with latest IMU bias.";
     imu_frontend_->resetIntegrationWithCachedBias();
 
+    // Record keyframe rate timing
+    timing_stats_keyframe_rate.AddSample(utils::Timer::toc(start_time).count());
+
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<FrontendOutput>(
@@ -172,11 +221,15 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
         status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
         getRelativePoseBodyStereo(),
-        *stereoFrame_lkf_,
+        *stereoFrame_lkf_, //! This is really the current keyframe in this if
         pim,
+        input.getImuAccGyrs(),
         feature_tracks,
         getTrackerInfo());
   } else {
+    // Record frame rate timing
+    timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());
+
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
     return VIO::make_unique<FrontendOutput>(false,
@@ -185,6 +238,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
                                             getRelativePoseBodyStereo(),
                                             *stereoFrame_lkf_,
                                             pim,
+                                            input.getImuAccGyrs(),
                                             feature_tracks,
                                             getTrackerInfo());
   }
@@ -193,7 +247,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
 /* -------------------------------------------------------------------------- */
 // TODO this can be greatly improved, but we need to get rid of global variables
 // stereoFrame_km1_, stereoFrame_lkf_, stereoFrame_k_, etc...
-StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
+void StereoVisionFrontEnd::processFirstStereoFrame(
     const StereoFrame& firstFrame) {
   VLOG(2) << "Processing first stereo frame \n";
   stereoFrame_k_ =
@@ -223,8 +277,6 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
   ///////////////////////////// IMU FRONTEND ///////////////////////////////////
   // Initialize IMU frontend.
   imu_frontend_->resetIntegrationWithCachedBias();
-
-  return *stereoFrame_lkf_;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -362,7 +414,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
     if (display_queue_ && FLAGS_visualize_feature_tracks) {
-      displayImage("Feature Tracks",
+      displayImage(stereoFrame_k_->getTimestamp(),
+                   "feature_tracks",
                    tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
                                             stereoFrame_k_->getLeftFrame()),
                    display_queue_);
@@ -384,6 +437,16 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
             << "timeGetMeasurements: " << get_smart_stereo_meas_time;
   } else {
     stereoFrame_k_->setIsKeyframe(false);
+  }
+
+  // Update keyframe to reference frame for next iteration.
+  if (stereoFrame_k_->isKeyframe()) {
+    // Reset relative rotation if we have a keyframe.
+    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+  } else {
+    // Update rotation from keyframe to next iteration reference frame (aka
+    // cur_frame in current iteration).
+    keyframe_R_ref_frame_ = keyframe_R_cur_frame;
   }
 
   // Reset frames.

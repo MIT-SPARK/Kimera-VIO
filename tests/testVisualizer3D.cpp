@@ -55,7 +55,7 @@ class VisualizerFixture : public ::testing::Test {
     img_ = UtilsOpenCV::ReadAndConvertToGrayScale(img_name_);
     // Construct a frame from image name, and extract keypoints/landmarks.
     frame_ = constructFrame(true);
-    visualizer_ = VIO::make_unique<Visualizer3D>(viz_type_, backend_type_);
+    visualizer_ = VIO::make_unique<OpenCvVisualizer3D>(viz_type_, backend_type_);
   }
 
  protected:
@@ -100,7 +100,7 @@ class VisualizerFixture : public ::testing::Test {
   std::unique_ptr<Frame> frame_;
   VisualizationType viz_type_;
   BackendType backend_type_;
-  Visualizer3D::UniquePtr visualizer_;
+  OpenCvVisualizer3D::UniquePtr visualizer_;
 };
 
 TEST_F(VisualizerFixture, spinOnce) {

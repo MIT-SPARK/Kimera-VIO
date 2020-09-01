@@ -35,9 +35,22 @@ pipeline {
             stage('Build Release') {
               steps {
                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
+                            -DCMAKE_CXX_FLAGS="\
+                            -Wno-comment \
+                            -Wno-maybe-uninitialized \
+                            -Wno-parentheses \
+                            -Wno-pragma-once-outside-header \
+                            -Wno-reorder \
+                            -Wno-return-type \
+                            -Wno-sign-compare \
+                            -Wno-unused-but-set-variable \
+                            -Wno-unused-function \
+                            -Wno-unused-parameter \
+                            -Wno-unused-value \
+                            -Wno-unused-variable"',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 8']]
+                          sourceDir: '.', steps: [[args: '-j 4']]
               }
             }
             stage('Test') {
@@ -61,12 +74,12 @@ pipeline {
                   sh 'evo_config set plot_export_format pdf'
                   sh 'evo_config set plot_split false'
                   // 2. Run evaluation
-                  sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
+                  sh 'python2.7 $evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
-                  sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
+                  sh 'python2.7 $evaluator/evaluation/tools/performance_summary.py \
                     $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
                     $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }
@@ -129,10 +142,23 @@ pipeline {
               steps {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-                            cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
+                            -DCMAKE_CXX_FLAGS="\
+                            -Wno-comment \
+                            -Wno-maybe-uninitialized \
+                            -Wno-parentheses \
+                            -Wno-pragma-once-outside-header \
+                            -Wno-reorder \
+                            -Wno-return-type \
+                            -Wno-sign-compare \
+                            -Wno-unused-but-set-variable \
+                            -Wno-unused-function \
+                            -Wno-unused-parameter \
+                            -Wno-unused-value \
+                            -Wno-unused-variable"',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 8']]
+                          sourceDir: '.', steps: [[args: '-j 4']]
               }
             }
             stage('Test') {

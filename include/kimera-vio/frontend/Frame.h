@@ -145,22 +145,21 @@ class Frame : public PipelinePayload {
     uncalibrated_px(0) = cv_px;
 
     cv::Mat calibrated_px;
-    if (cam_param.distortion_model_ == "radtan" ||
-        cam_param.distortion_model_ == "radial-tangential") {
+    if (cam_param.distortion_model_ == DistortionModel::RADTAN) {
       // TODO optimize this in just one call, the s in Points is there for
       // something I hope.
       cv::undistortPoints(uncalibrated_px,
                           calibrated_px,
                           cam_param.K_,
-                          cam_param.distortion_coeff_);
-    } else if ((cam_param.distortion_model_ == "equidistant")) {
+                          cam_param.distortion_coeff_mat_);
+    } else if (cam_param.distortion_model_ == DistortionModel::EQUIDISTANT) {
       // TODO: Create unit test for fisheye / equidistant model
       cv::fisheye::undistortPoints(uncalibrated_px,
                                    calibrated_px,
                                    cam_param.K_,
-                                   cam_param.distortion_coeff_);
+                                   cam_param.distortion_coeff_mat_);
     } else {
-      LOG(ERROR) << "Camera distortion model not found in CalibratePixel()!";
+      LOG(ERROR) << "Unknown distortion model.";
     }
 
     // Transform to unit vector.
