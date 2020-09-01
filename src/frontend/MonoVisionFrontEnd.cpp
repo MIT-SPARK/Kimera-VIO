@@ -17,6 +17,10 @@
 #include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/MonoVisionFrontEnd.h"
 
+DEFINE_bool(log_mono_matching_images,
+            false,
+            "Display/Save mono tracking rectified and unrectified images.");
+
 namespace VIO {
 
 MonoVisionFrontEnd::MonoVisionFrontEnd(
@@ -26,7 +30,7 @@ MonoVisionFrontEnd::MonoVisionFrontEnd(
     const Camera::Ptr& camera,
     DisplayQueue* display_queue,
     bool log_output)
-    : VisionFrontEnd(imu_params, imu_initial_bias, display_queue),
+    : VisionFrontEnd(imu_params, imu_initial_bias, display_queue, log_output),
     mono_frame_k_(nullptr),
     mono_frame_km1_(nullptr),
     mono_frame_lkf_(nullptr),
@@ -35,16 +39,15 @@ MonoVisionFrontEnd::MonoVisionFrontEnd(
     tracker_(nullptr),
     mono_camera_(camera),
     tracker_status_summary_(),
-    logger_(nullptr) {
+    frontend_params_(frontend_params) {
   CHECK(mono_camera_);
 
-  // tracker_ = VIO::make_unique<Tracker>();
+  tracker_ = VIO::make_unique<Tracker>(frontend_params_, mono_camera_, display_queue);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
       frontend_params_.feature_detector_params_);
-  
-  // if (VLOG_IS_ON(1)) tracker_.tracker_params_.print();
-  if (log_output) logger_ = VIO::make_unique<FrontendLogger>();
+
+  if (VLOG_IS_ON(1)) tracker_->tracker_params_.print();
 }
 
 MonoVisionFrontEnd::~MonoVisionFrontEnd() {
@@ -83,6 +86,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
 
 MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
     const MonoFrontEndInputPayload& input) {
+  CHECK(frontend_state_ == FrontendState::Nominal);
   // For timing
   utils::StatsCollector timing_stats_frame_rate(
       "VioFrontEnd Frame Rate [ms]");
@@ -126,9 +130,9 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
     CHECK_EQ(mono_frame_lkf_->id_, mono_frame_km1_->id_);
     CHECK(!mono_frame_k_);
     CHECK(mono_frame_lkf_->isKeyframe_);
-    // VLOG(1) << "Keyframe " << k
-    //         << " with: " << status_stereo_measurements->second.size()
-    //         << " smart measurements";
+    VLOG(1) << "Keyframe " << k
+            << " with: " << status_mono_measurements->second.size()
+            << " smart measurements";
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (logger_) {
@@ -136,7 +140,11 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
                                 getTrackerInfo(),
                                 tracker_status_summary_,
                                 mono_frame_km1_->getNrValidKeypoints());
-      // logger->logFrontendRansac()
+      // TODO(marcus): Last arg is usually stereo, need to refactor logger
+      //   to not require that.
+      logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
+                                getRelativePoseBody(),
+                                getRelativePoseBody());
     }
     //////////////////////////////////////////////////////////////////////////////
 
@@ -185,6 +193,8 @@ void MonoVisionFrontEnd::processFirstFrame(const Frame& first_frame) {
   mono_frame_k_->isKeyframe_ = true;
   last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
 
+  LOG(INFO) << "processing firstframe";
+
   CHECK_EQ(mono_frame_k_->keypoints_.size(), 0)
       << "Keypoints already present in first frame: please do not extract"
          " keypoints manually";
@@ -205,6 +215,7 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     const Frame& cur_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
     cv::Mat* feature_tracks) {
+  LOG(INFO) << "processing frame";
   VLOG(2) << "===================================================\n"
           << "Frame numbaer: " << frame_count_ << " at time "
           << cur_frame.timestamp_ << " empirical framerate (sec): "
@@ -278,19 +289,18 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     }
 
     // Log images if needed.
-    // TODO(marcus): enable
     // if (logger_ &&
     //     (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
     //   if (FLAGS_log_feature_tracks) sendFeatureTracksToLogger();
-    //   if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
+    //   if (FLAGS_log_mono_matching_images) sendMonoTrackingToLogger();
     // }
-    // if (display_queue_ && FLAGS_visualize_feature_tracks) {
-    //   displayImage(mono_frame_k_->getTimestamp(),
-    //                "feature_tracks",
-    //                tracker_->getTrackerImage(mono_frame_lkf_.get(),
-    //                                          mono_frame_k_.get()),
-    //                display_queue_);
-    // }
+    if (display_queue_ && FLAGS_visualize_feature_tracks) {
+      displayImage(mono_frame_k_->timestamp_,
+                   "feature_tracks",
+                   tracker_->getTrackerImage(*mono_frame_lkf_,
+                                             *mono_frame_k_),
+                   display_queue_);
+    }
 
     mono_frame_lkf_ = mono_frame_k_;
 
@@ -301,7 +311,7 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     VLOG(2) << "timeGetMeasurements: " << get_smart_mono_meas_time;
   } else {
     CHECK_EQ(smart_mono_measurements.size(), 0u);
-    mono_frame_k_->isKeyframe_ = true;
+    mono_frame_k_->isKeyframe_ = false;
   }
 
   if (mono_frame_k_->isKeyframe_) {

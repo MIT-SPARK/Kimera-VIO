@@ -126,7 +126,7 @@ class TestTracker : public ::testing::Test {
         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
     stereo_matcher_ = VIO::make_unique<VIO::StereoMatcher>(
         stereo_camera_, tp.stereo_matching_params_);
-    tracker_ = VIO::make_unique<Tracker>(tracker_params_, stereo_camera_);
+    tracker_ = VIO::make_unique<Tracker>(tracker_params_, stereo_camera_->getLeftCamera());
 
     feature_detector_ = VIO::make_unique<VIO::FeatureDetector>(
         tp.feature_detector_params_);
@@ -629,7 +629,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
-      Tracker tracker(trackerParams, stereo_camera_);
+      Tracker tracker(trackerParams, stereo_camera_->getLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -726,7 +726,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
           tracker_->geometricOutlierRejectionMonoGivenRotation(
-              ref_frame.get(), cur_frame.get(), R);
+              ref_frame.get(), cur_frame.get(), R, stereo_camera_);
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
 
@@ -826,7 +826,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 
       FrontendParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
-      Tracker tracker(trackerParams, stereo_camera_);
+      Tracker tracker(trackerParams, stereo_camera_->getLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -964,7 +964,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       Matrix3 infoMat;
       tie(poseStatus, infoMat) =
           tracker_->geometricOutlierRejectionStereoGivenRotation(
-              *ref_stereo_frame, *cur_stereo_frame, R);
+              *ref_stereo_frame, *cur_stereo_frame, stereo_camera_, R);
 
       TrackingStatus tracking_status = poseStatus.first;
       Pose3 estimated_pose = poseStatus.second;

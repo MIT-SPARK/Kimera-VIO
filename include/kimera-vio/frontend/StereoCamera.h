@@ -23,6 +23,7 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
@@ -49,6 +50,9 @@ class StereoCamera {
    */
   StereoCamera(const CameraParams& left_cam_params,
                const CameraParams& right_cam_params);
+
+  StereoCamera(Camera::Ptr left_camera,
+               Camera::Ptr right_camera);
 
   virtual ~StereoCamera() = default;
 
@@ -123,8 +127,17 @@ class StereoCamera {
    * rather than body coordinates!
    */
   void backProjectDisparityTo3D(const cv::Mat& disparity_img, cv::Mat* depth);
+
   void backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
                                       cv::Mat* depth);
+
+  inline const Camera::Ptr& getLeftCamera() const {
+    return left_camera_;
+  }
+
+  inline const Camera::Ptr& getRightCamera() const {
+    return right_camera_;
+  }
 
   /**
    * @brief getBodyPoseLeftCamRect Get left camera pose after rectification with
@@ -165,9 +178,9 @@ class StereoCamera {
   inline cv::Rect getROI1() const { return ROI1_; }
   inline cv::Rect getROI2() const { return ROI2_; }
 
-  inline CameraParams getLeftCamParams() const { return left_cam_params_; }
+  inline CameraParams getLeftCamParams() const { return left_camera_->getCamParams(); }
 
-  inline CameraParams getRightCamParams() const { return right_cam_params_; }
+  inline CameraParams getRightCamParams() const { return right_camera_->getCamParams(); }
 
   inline cv::Mat getP1() const { return P1_; }
 
@@ -237,7 +250,11 @@ class StereoCamera {
       cv::Rect* ROI1,
       cv::Rect* ROI2);
 
- protected:
+ private:
+  //! Left and right Camera objects
+  VIO::Camera::Ptr left_camera_;
+  VIO::Camera::Ptr right_camera_;
+
   //! Stereo camera implementation
   gtsam::StereoCamera undistorted_rectified_stereo_camera_impl_;
 
@@ -247,10 +264,6 @@ class StereoCamera {
   //! Pose from Body to Left/Right Camera after rectification
   gtsam::Pose3 B_Pose_camLrect_;
   gtsam::Pose3 B_Pose_camRrect_;
-
-  //! Non-rectified parameters
-  CameraParams left_cam_params_;
-  CameraParams right_cam_params_;
 
   //! Undistortion rectification pre-computed maps for cv::remap
   UndistorterRectifier::UniquePtr left_cam_undistort_rectifier_;

@@ -123,7 +123,9 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket> {
 
   inline bool isInitialized() const override {
     return vio_frontend_module_->isInitialized() &&
-           vio_backend_module_->isInitialized();
+          // TODO(marcus): enable!
+          //  vio_backend_module_->isInitialized();
+          true;
   }
 
   void launchThreads() override;

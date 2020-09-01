@@ -46,8 +46,8 @@ class VisionFrontEndFactory {
       default: {
         LOG(FATAL) << "Requested frontend type is not supported.\n"
                    << "Currently supported frontend types:\n"
-                   << "0: Stereo + IMU \n"
-                   << "1: Mono + IMU \n"
+                   << "0: Mono + IMU \n"
+                   << "1: Stereo + IMU \n"
                    << " but requested frontend: "
                    << static_cast<int>(frontend_type);
       }
@@ -64,11 +64,13 @@ class VisionFrontEndFactory {
         return VIO::make_unique<MonoVisionFrontEnd>(
             std::forward<Args>(args)...);
       }
-      default: {
+      case FrontendType::kStereoImu: {
+        LOG(FATAL) << "Requested a stereo frontend from mono factory!";
+      } default: {
         LOG(FATAL) << "Requested frontend type is not supported.\n"
                    << "Currently supported frontend types:\n"
-                   << "0: Stereo + IMU \n"
-                   << "1: Mono + IMU \n"
+                   << "0: Mono + IMU \n"
+                   << "1: Stereo + IMU \n"
                    << " but requested frontend: "
                    << static_cast<int>(frontend_type);
       }

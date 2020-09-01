@@ -25,6 +25,17 @@
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
+#include <gflags/gflags.h>
+
+DECLARE_bool(log_output);
+DECLARE_bool(extract_planes_from_the_scene);
+DECLARE_bool(visualize);
+DECLARE_bool(visualize_lmk_type);
+DECLARE_int32(viz_type);
+DECLARE_bool(deterministic_random_number_generator);
+DECLARE_int32(min_num_obs_for_mesher_points);
+DECLARE_bool(use_lcd);
+
 namespace VIO {
 
 template <class Input>

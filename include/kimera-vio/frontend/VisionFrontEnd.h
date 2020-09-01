@@ -17,15 +17,23 @@
 #include <atomic>
 #include <memory>
 
+#include <gflags/gflags.h>
+
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
-
+#include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
-
 #include "kimera-vio/pipeline/PipelineModule.h"
+
+DECLARE_bool(visualize_feature_tracks);
+DECLARE_bool(visualize_frontend_images);
+DECLARE_bool(save_frontend_images);
+DECLARE_bool(log_feature_tracks);
+DECLARE_bool(log_mono_tracking_images);
+DECLARE_bool(log_stereo_matching_images);
 
 namespace VIO {
 
@@ -39,14 +47,17 @@ class VisionFrontEnd {
  public:
   VisionFrontEnd(const ImuParams& imu_params,
                  const ImuBias& imu_initial_bias,
-                 DisplayQueue* display_queue)
+                 DisplayQueue* display_queue,
+                 bool log_output)
       : frontend_state_(FrontendState::Bootstrap),
         frame_count_(0),
         keyframe_count_(0),
         last_keyframe_timestamp_(0),
         imu_frontend_(nullptr),
-        display_queue_(display_queue) {
+        display_queue_(display_queue),
+        logger_(nullptr) {
     imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
+    if (log_output) logger_ = VIO::make_unique<FrontendLogger>();
   }
 
   virtual ~VisionFrontEnd() {
@@ -143,6 +154,9 @@ class VisionFrontEnd {
 
   // Display queue
   DisplayQueue* display_queue_;
+
+  // Logger
+  FrontendLogger::UniquePtr logger_;
 };
 
 }  // namespace VIO

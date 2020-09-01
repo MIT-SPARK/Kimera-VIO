@@ -13,8 +13,9 @@
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
+#include <utility>  // for move
 
+#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
 
 namespace VIO {
@@ -29,10 +30,15 @@ MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
 MonoDataProviderModule::InputUniquePtr
 MonoDataProviderModule::getInputPacket() {
   if (!MISO::shutdown_) {
-    return getMonoImuSyncPacket();
+    MonoImuSyncPacket::UniquePtr mono_imu_sync_packet =getMonoImuSyncPacket();
+    if (!mono_imu_sync_packet) return nullptr;
+    
+    CHECK(vio_pipeline_callback_);
+    vio_pipeline_callback_(std::move(mono_imu_sync_packet));
   } else {
     return nullptr;
   }
+  return nullptr;
   // Push the synced messages to the frontend's input queue
   // TODO(Toni): should be a return like that, so that we pass the info to the
   // queue... Right now we use a callback bcs otw I need to fix all

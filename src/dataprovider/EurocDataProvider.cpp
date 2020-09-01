@@ -136,6 +136,7 @@ bool EurocDataProvider::spin() {
   return false;
 }
 
+/* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spinOnce() {
   CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
       << "Are you sure you've initialized current_k_?";
@@ -759,6 +760,102 @@ void EurocDataProvider::print() const {
     gt_data_.print();
   }
   LOG(INFO) << "-------------------------------------------------------------";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+/* -------------------------------------------------------------------------- */
+MonoEurocDataProvider::MonoEurocDataProvider(const std::string& dataset_path,
+                                             const int& initial_k,
+                                             const int& final_k,
+                                             const VioParams& vio_params)
+    : EurocDataProvider(dataset_path, initial_k, final_k, vio_params) {}
+
+/* -------------------------------------------------------------------------- */
+MonoEurocDataProvider::MonoEurocDataProvider(const VioParams& vio_params)
+    : EurocDataProvider(vio_params) {}
+
+/* -------------------------------------------------------------------------- */
+MonoEurocDataProvider::~MonoEurocDataProvider() {
+  LOG(INFO) << "Mono ETHDataParser destructor called.";
+}
+
+/* -------------------------------------------------------------------------- */
+bool MonoEurocDataProvider::spin() {
+  if (dataset_parsed_) {
+    if (!is_imu_data_sent_) {
+      // First, send all the IMU data. The flag is to avoid sending it several
+      // times if we are running in sequential mode.
+      if (imu_single_callback_) {
+        sendImuData();
+      } else {
+        LOG(ERROR) << "Imu callback not registered! Not sending IMU data.";
+      }
+      is_imu_data_sent_ = true;
+    }
+
+    // Spin.
+    CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
+    CHECK_GT(final_k_, initial_k_);
+    // We log only the first one, because we may be running in sequential mode.
+    LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
+                         << " and frame " << final_k_;
+    while (!shutdown_ && spinOnce()) {
+      if (!pipeline_params_.parallel_run_) {
+        // Return, instead of blocking, when running in sequential mode.
+        return true;
+      }
+    }
+  } else {
+    LOG(ERROR) << "Euroc dataset was not parsed.";
+  }
+  LOG_IF(INFO, shutdown_) << "EurocDataProvider shutdown requested.";
+  return false;
+}
+
+/* -------------------------------------------------------------------------- */
+bool MonoEurocDataProvider::spinOnce() {
+  CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
+      << "Are you sure you've initialized current_k_?";
+  if (current_k_ >= final_k_) {
+    LOG(INFO) << "Finished spinning Euroc dataset.";
+    return false;
+  }
+
+  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
+  const bool& equalize_image =
+      pipeline_params_.frontend_params_.stereo_matching_params_.equalize_image_;
+
+  const Timestamp& timestamp_frame_k = timestampAtFrame(current_k_);
+  VLOG(10) << "Sending left frame k= " << current_k_
+           << " with timestamp: " << timestamp_frame_k;
+
+  // TODO(Toni): ideally only send cv::Mat raw images...:
+  // - pass params to vio_pipeline ctor
+  // - make vio_pipeline actually equalize or transform images as necessary.
+  std::string left_img_filename;
+  bool available_left_img = getLeftImgName(current_k_, &left_img_filename);
+  if (available_left_img) {
+    // Both stereo images are available, send data to VIO
+    CHECK(left_frame_callback_);
+    left_frame_callback_(
+        VIO::make_unique<Frame>(current_k_,
+                                timestamp_frame_k,
+                                // TODO(Toni): this info should be passed to
+                                // the camera... not all the time here...
+                                left_cam_info,
+                                UtilsOpenCV::ReadAndConvertToGrayScale(
+                                    left_img_filename, equalize_image)));
+  } else {
+    LOG(ERROR) << "Missing left image, proceeding to the next one.";
+  }
+
+  // This is done directly when parsing the Imu data.
+  // imu_single_callback_(imu_meas);
+
+  VLOG(10) << "Finished VIO processing for frame k = " << current_k_;
+  current_k_++;
+  return true;
 }
 
 }  // namespace VIO

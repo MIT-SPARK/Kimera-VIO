@@ -57,8 +57,8 @@ class Camera {
    * reference the pose of the camera is given (usually the body frame!).
    * @param kpts 2D pixel coordinates of the projection of the 3D landmark
    */
-  void project(const LandmarksCV& lmks, KeypointsCV* kpts) const;
-  void project(const LandmarkCV& lmks, KeypointCV* kpts) const;
+  virtual void project(const LandmarksCV& lmks, KeypointsCV* kpts) const;
+  virtual void project(const LandmarkCV& lmks, KeypointCV* kpts) const;
 
   /**
    * @brief backProject keypoints given depth projected to landmarks in 3D
@@ -67,10 +67,10 @@ class Camera {
    * @param[in] depths of each keypoint
    * @param[out] lmks 3D Landmarks
    */
-  void backProject(const KeypointsCV& kps,
+  virtual void backProject(const KeypointsCV& kps,
                    const Depths& depths,
                    LandmarksCV* lmks) const;
-  void backProject(const KeypointCV& kp,
+  virtual void backProject(const KeypointCV& kp,
                    const Depth& depth,
                    LandmarkCV* lmk) const;
 
@@ -82,11 +82,16 @@ class Camera {
   inline gtsam::Pose3 getBodyPoseCam() const {
     return cam_params_.body_Pose_cam_;
   }
+  // TODO(marcus): is this necessary?
   inline gtsam::Pose3 getBodyPoseCamRect() const {
-    LOG(FATAL) << "UNIMPLEMENTED";
+    LOG(WARNING) << "UNIMPLEMENTED";
+    return cam_params_.body_Pose_cam_;
+  }
+  inline CameraParams getCamParams() const {
+    return cam_params_;
   }
 
- protected:
+ private:
   CameraParams cam_params_;
   gtsam::Cal3_S2 calibration_;
   std::unique_ptr<CameraImpl> camera_impl_;

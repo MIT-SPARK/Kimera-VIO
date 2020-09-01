@@ -26,7 +26,6 @@
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/frontend/Tracker.h"
 
-#include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
@@ -112,8 +111,6 @@ class MonoVisionFrontEnd : public VisionFrontEnd<Frame,
   TrackerStatusSummary tracker_status_summary_;
 
   MonoFrontendParams frontend_params_;
-
-  FrontendLogger::UniquePtr logger_;
 };
 
 }  // namespace VIO

@@ -34,11 +34,11 @@ DEFINE_bool(visualize_feature_predictions,
 namespace VIO {
 
 Tracker::Tracker(const FrontendParams& tracker_params,
-                 const StereoCamera::Ptr& stereo_camera,
+                 const Camera::Ptr& camera,
                  DisplayQueue* display_queue)
     : landmark_count_(0),
       tracker_params_(tracker_params),
-      stereo_camera_(stereo_camera),
+      camera_(camera),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
       display_queue_(display_queue),
@@ -47,8 +47,8 @@ Tracker::Tracker(const FrontendParams& tracker_params,
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
-          stereo_camera_->getLeftCamParams().K_,
-          stereo_camera_->getLeftCamParams().image_size_);
+          camera_->getCamParams().K_,
+          camera_->getCamParams().image_size_);
 
   // Setup Mono Ransac
   mono_ransac_.threshold_ = tracker_params_.ransac_threshold_mono_;
@@ -272,9 +272,11 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
 }
 
 std::pair<TrackingStatus, gtsam::Pose3>
-Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
-                                                    Frame* cur_frame,
-                                                    const gtsam::Rot3& R) {
+Tracker::geometricOutlierRejectionMonoGivenRotation(
+    Frame* ref_frame,
+    Frame* cur_frame,
+    const gtsam::Rot3& R,
+    VIO::StereoCamera::Ptr stereo_camera) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
 
@@ -354,25 +356,29 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   // substitute it:
   camLlkf_P_camLkf = gtsam::Pose3(R, camLlkf_P_camLkf.translation());
 
-  gtsam::Pose3 camLrectlkf_P_camLrectkf = camLlkf_P_camLkf;
-  // check if we have to compensate for rectification (if we have a valid
-  // left-cam rectification matrix )
-  // TODO(marcus): assumes both frames from same stereocam and both are left.
-  // TODO(marcus): can we simplify? We don't need both rot mats...
-  const cv::Mat& R1 = stereo_camera_->getR1();
-  if (R1.rows == 3) {
-    gtsam::Rot3 camLrect_R_camL_ref = UtilsOpenCV::cvMatToGtsamRot3(R1);
-    gtsam::Rot3 camLrect_R_camL_cur = UtilsOpenCV::cvMatToGtsamRot3(R1);
-    camLrectlkf_P_camLrectkf =
-        gtsam::Pose3(camLrect_R_camL_ref, Point3()) * camLlkf_P_camLkf *
-        gtsam::Pose3(camLrect_R_camL_cur.inverse(), Point3());
+  if (stereo_camera) {
+    gtsam::Pose3 camLrectlkf_P_camLrectkf = camLlkf_P_camLkf;
+    // check if we have to compensate for rectification (if we have a valid
+    // left-cam rectification matrix )
+    // TODO(marcus): assumes both frames from same stereocam and both are left.
+    // TODO(marcus): can we simplify? We don't need both rot mats...
+    const cv::Mat& R1 = stereo_camera->getR1();
+    if (R1.rows == 3) {
+      gtsam::Rot3 camLrect_R_camL_ref = UtilsOpenCV::cvMatToGtsamRot3(R1);
+      gtsam::Rot3 camLrect_R_camL_cur = UtilsOpenCV::cvMatToGtsamRot3(R1);
+      camLrectlkf_P_camLrectkf =
+          gtsam::Pose3(camLrect_R_camL_ref, Point3()) * camLlkf_P_camLkf *
+          gtsam::Pose3(camLrect_R_camL_cur.inverse(), Point3());
+    }
+
+    debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+    debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
+    debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
+
+    return std::make_pair(status, camLrectlkf_P_camLrectkf);
   }
 
-  debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
-  debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
-
-  return std::make_pair(status, camLrectlkf_P_camLrectkf);
+  return std::make_pair(status, camLlkf_P_camLkf);
 }
 
 std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
@@ -416,6 +422,7 @@ std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
 Tracker::geometricOutlierRejectionStereoGivenRotation(
     StereoFrame& ref_stereoFrame,
     StereoFrame& cur_stereoFrame,
+    VIO::StereoCamera::Ptr stereo_camera,
     const gtsam::Rot3& R) {
   auto start_time_tic = utils::Timer::tic();
 
@@ -430,7 +437,8 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   Matrix3 stereoPtCov = Matrix3::Identity();  // 3 px std in each direction
 
   // Create stereo camera in the ref frame of the left camera.
-  gtsam::StereoCamera stereoCam(gtsam::Pose3(), stereo_camera_->getStereoCalib());
+  gtsam::StereoCamera stereoCam(gtsam::Pose3(),
+                                stereo_camera->getStereoCalib());
 
   double timeMatchingAndAllocation_p =
       utils::Timer::toc(start_time_tic).count();

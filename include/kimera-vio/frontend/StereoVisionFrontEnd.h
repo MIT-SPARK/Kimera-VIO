@@ -34,7 +34,6 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
-#include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
@@ -199,9 +198,6 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrame,
   // This is not const as for debugging we want to redirect the image save path
   // where we like
   std::string output_images_path_;
-
-  // Frontend logger.
-  std::unique_ptr<FrontendLogger> logger_;
 
   // Parameters
   FrontendParams frontend_params_;

@@ -23,23 +23,9 @@
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 
-DEFINE_bool(visualize_feature_tracks, true, "Display feature tracks.");
-DEFINE_bool(visualize_frontend_images,
-            false,
-            "Display images in frontend logger for debugging (only use "
-            "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(save_frontend_images,
-            false,
-            "Save images in frontend logger to disk for debugging (only use "
-            "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(log_feature_tracks, false, "Display/Save feature tracks images.");
-DEFINE_bool(log_mono_tracking_images,
-            false,
-            "Display/Save mono tracking rectified and unrectified images.");
 DEFINE_bool(log_stereo_matching_images,
             false,
             "Display/Save mono tracking rectified and unrectified images.");
-
 namespace VIO {
 
 StereoVisionFrontEnd::StereoVisionFrontEnd(
@@ -49,28 +35,26 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const StereoCamera::Ptr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output)
-    : VisionFrontEnd(imu_params, imu_initial_bias, display_queue),
+    : VisionFrontEnd(imu_params, imu_initial_bias, display_queue, log_output),
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
       keyframe_R_ref_frame_(gtsam::Rot3::identity()),
       feature_detector_(nullptr),
       frontend_params_(frontend_params),
-      tracker_(frontend_params, stereo_camera, display_queue),
+      tracker_(frontend_params,
+               stereo_camera->getLeftCamera(),
+               display_queue),
       stereo_camera_(stereo_camera),
       stereo_matcher_(stereo_camera, frontend_params.stereo_matching_params_),
       trackerStatusSummary_(),
-      output_images_path_("./outputImages/"),
-      logger_(nullptr) {  // Only for debugging and visualization.
+      output_images_path_("./outputImages/") {  // Only for debugging and visualization.
   CHECK(stereo_camera_);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
       frontend_params.feature_detector_params_);
 
   if (VLOG_IS_ON(1)) tracker_.tracker_params_.print();
-  if (log_output) {
-    logger_ = VIO::make_unique<FrontendLogger>();
-  }
 }
 
 StereoVisionFrontEnd::~StereoVisionFrontEnd() {
@@ -440,6 +424,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                      smart_stereo_measurements));
 }
 
+/* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::outlierRejectionMono(
     const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
     Frame* left_frame_lkf,
@@ -474,6 +459,7 @@ void StereoVisionFrontEnd::outlierRejectionMono(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::outlierRejectionStereo(
     const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
     const StereoFrame::Ptr& left_frame_lkf,
@@ -490,7 +476,10 @@ void StereoVisionFrontEnd::outlierRejectionStereo(
     // 1-point RANSAC.
     std::tie(*status_pose_stereo, infoMatStereoTranslation) =
         tracker_.geometricOutlierRejectionStereoGivenRotation(
-            *stereoFrame_lkf_, *stereoFrame_k_, calLrectLkf_R_camLrectKf_imu);
+            *stereoFrame_lkf_,
+            *stereoFrame_k_,
+            stereo_camera_,
+            calLrectLkf_R_camLrectKf_imu);
   } else {
     // 3-point RANSAC.
     *status_pose_stereo = tracker_.geometricOutlierRejectionStereo(
@@ -555,6 +544,7 @@ void StereoVisionFrontEnd::getSmartStereoMeasurements(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   cv::Mat img_left =
