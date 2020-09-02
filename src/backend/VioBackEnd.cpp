@@ -1930,7 +1930,7 @@ void VioBackEnd::computeSmartFactorStatistics() {
             debug_info_.meanTrackLength_ += trackLength;
           }
         } else {
-          VLOG(1) << "Triangulation result is not initialized...";
+          VLOG(5) << "Triangulation result is not initialized...";
           debug_info_.numNonInitialized_ += 1;
         }
       }
