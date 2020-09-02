@@ -52,8 +52,8 @@ RgbdDataProviderModule::getInputPacket() {
   CHECK(depth_frame_payload);
 
   if (!shutdown_) {
-    CHECK(rgbd_vio_pipeline_callback_);
-    rgbd_vio_pipeline_callback_(VIO::make_unique<RgbdImuSyncPacket>(
+    CHECK(vio_pipeline_callback_);
+    vio_pipeline_callback_(VIO::make_unique<RgbdImuSyncPacket>(
         timestamp,
         VIO::make_unique<RgbdFrame>(left_frame_id,
                                     timestamp,

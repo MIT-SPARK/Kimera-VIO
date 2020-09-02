@@ -14,25 +14,19 @@
 
 #pragma once
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/backend/VioBackEndModule.h"
-#include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
-#include "kimera-vio/frontend/VisionFrontEndModule.h"
-#include "kimera-vio/loopclosure/LoopClosureDetector.h"
-#include "kimera-vio/mesh/MesherModule.h"
+#include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
+#include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/Pipeline.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Display.h"
-#include "kimera-vio/visualizer/DisplayModule.h"
+#include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
-#include "kimera-vio/visualizer/Visualizer3DModule.h"
+#include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 namespace VIO {
 
-class MonoPipeline : public Pipeline<MonoImuSyncPacket> {
+class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(MonoPipeline);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MonoPipeline);
@@ -51,6 +45,8 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket> {
     LOG(INFO) << "Spinning Kimera-VIO.";
     return data_provider_module_->spin();
   }
+
+  bool shutdownWhenFinished(const int& sleep_time_ms) override;
 
   inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
     CHECK(data_provider_module_);
@@ -75,50 +71,9 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket> {
     data_provider_module_->fillImuQueue(imu_measurements);
   }
 
- public:
-  bool spinViz() override;
-
-  bool shutdownWhenFinished(const int& sleep_time_ms = 500) override;
-
   void shutdown() override;
 
-  void resume() override;
-
-  inline void registerBackendOutputCallback(
-      const VioBackEndModule::OutputCallback& callback) {
-    CHECK(vio_backend_module_);
-    vio_backend_module_->registerOutputCallback(callback);
-  }
-
-  inline void registerFrontendOutputCallback(
-      const MonoVisionFrontEndModule::OutputCallback& callback) {
-    CHECK(vio_frontend_module_);
-    vio_frontend_module_->registerOutputCallback(callback);
-  }
-
-  inline void registerMesherOutputCallback(
-      const MesherModule::OutputCallback& callback) {
-    if (mesher_module_) {
-      mesher_module_->registerOutputCallback(callback);
-    } else {
-      LOG(ERROR) << "Attempt to register Mesher output callback, but no "
-                 << "Mesher member is active in pipeline.";
-    }
-  }
-
-  inline void registerLcdOutputCallback(
-      const LcdModule::OutputCallback& callback) {
-    if (lcd_module_) {
-      lcd_module_->registerOutputCallback(callback);
-    } else {
-      LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
-                 << "LoopClosureDetector member is active in pipeline.";
-    }
-  }
-
  protected:
-  void spinOnce(MonoImuSyncPacket::UniquePtr input) override;
-
   void spinSequential() override;
 
   inline bool isInitialized() const override {
@@ -128,45 +83,41 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket> {
           true;
   }
 
-  void launchThreads() override;
+  void launchThreads() override {
+    if (parallel_run_) {
+      frontend_thread_ = VIO::make_unique<std::thread>(
+          &MonoVisionFrontEndModule::spin,
+          CHECK_NOTNULL(vio_frontend_module_.get()));
 
-  void stopThreads() override;
+      // TODO(marcus): remove this function, use the base version
+      // backend_thread_ = VIO::make_unique<std::thread>(
+      //     &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
-  void joinThreads() override;
+      if (mesher_module_) {
+        mesher_thread_ = VIO::make_unique<std::thread>(
+            &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
+      }
 
-  void joinThread(const std::string& thread_name, std::thread* thread) override;
+      if (lcd_module_) {
+        lcd_thread_ = VIO::make_unique<std::thread>(
+            &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
+      }
 
-  void signalBackendFailure() {
-    VLOG(1) << "Backend failure signal received.";
-    is_backend_ok_ = false;
+      if (visualizer_module_) {
+        visualizer_thread_ = VIO::make_unique<std::thread>(
+            &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
+      }
+      LOG(INFO) << "Pipeline Modules launched (parallel_run set to "
+                << parallel_run_ << ").";
+    } else {
+      LOG(INFO) << "Pipeline Modules running in sequential mode"
+                << " (parallel_run set to " << parallel_run_ << ").";
+    }
   }
 
  protected:
-  BackendParams::ConstPtr backend_params_;
-  MonoFrontendParams frontend_params_;
-  ImuParams imu_params_;
-
   Camera::Ptr camera_;
-
   MonoDataProviderModule::UniquePtr data_provider_module_;
-  MonoVisionFrontEndModule::UniquePtr vio_frontend_module_;
-  VioBackEndModule::UniquePtr vio_backend_module_;
-  MesherModule::UniquePtr mesher_module_;
-  LcdModule::UniquePtr lcd_module_;
-  VisualizerModule::UniquePtr visualizer_module_;
-  DisplayModule::UniquePtr display_module_;
-
-  MonoVisionFrontEndModule::InputQueue frontend_input_queue_;
-  VioBackEndModule::InputQueue backend_input_queue_;
-  DisplayModule::InputQueue display_input_queue_;
-
-  std::atomic_bool is_backend_ok_ = {true};
-
-  std::unique_ptr<std::thread> frontend_thread_ = {nullptr};
-  std::unique_ptr<std::thread> backend_thread_ = {nullptr};
-  std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
-  std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
-  std::unique_ptr<std::thread> visualizer_thread_ = {nullptr};
 };
 
 }  // namespace VIO

@@ -44,8 +44,7 @@ namespace VIO {
 
 using StereoFrontEndInputPayload = StereoImuSyncPacket;
 
-class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrame,
-                                                   StereoFrontEndInputPayload,
+class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
                                                    StereoFrontendOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEnd);

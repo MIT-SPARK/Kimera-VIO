@@ -12,7 +12,6 @@
  * @author Marcus Abate
  */
 
-
 #include <string>
 
 #include <gflags/gflags.h>
@@ -26,39 +25,14 @@
 #include "kimera-vio/pipeline/MonoPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
-#include "kimera-vio/visualizer/DisplayFactory.h"
-#include "kimera-vio/visualizer/Visualizer3D.h"
-#include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 namespace VIO {
 
 MonoPipeline::MonoPipeline(const VioParams& params,
                            Visualizer3D::UniquePtr&& visualizer,
                            DisplayBase::UniquePtr&& displayer)
-    : Pipeline(params.parallel_run_),
-      backend_params_(params.backend_params_),
-      frontend_params_(params.frontend_params_),
-      imu_params_(params.imu_params_),
-      camera_(nullptr),
-      data_provider_module_(nullptr),
-      vio_frontend_module_(nullptr),
-      vio_backend_module_(nullptr),
-      mesher_module_(nullptr),
-      lcd_module_(nullptr),
-      visualizer_module_(nullptr),
-      display_module_(nullptr),
-      frontend_input_queue_("mono_frontend_input_queue"),
-      backend_input_queue_("backend_input_queue"),
-      display_input_queue_("display_input_queue"),
-      frontend_thread_(nullptr),
-      backend_thread_(nullptr),
-      mesher_thread_(nullptr),
-      lcd_thread_(nullptr),
-      visualizer_thread_(nullptr) {
-  if (FLAGS_deterministic_random_number_generator) {
-    setDeterministicPipeline();
-  }
-
+    : Pipeline(params),
+      camera_(nullptr) {
   // TODO(marcus): specify separate params for mono
   // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for MonoPipeline.";
   camera_ = std::make_shared<Camera>(params.camera_params_.at(0));
@@ -238,53 +212,6 @@ MonoPipeline::~MonoPipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-void MonoPipeline::spinOnce(MonoImuSyncPacket::UniquePtr input) {
-  CHECK(input);
-  if (!shutdown_) {
-    // Push to frontend input queue.
-    VLOG(2) << "Push input payload to Frontend.";
-    frontend_input_queue_.pushBlockingIfFull(std::move(input), 5u);
-
-    if (!parallel_run_) {
-      // Run the pipeline sequentially.
-      spinSequential();
-    }
-  } else {
-    LOG(WARNING) << "Not spinning pipeline as it's been shutdown.";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-bool MonoPipeline::spinViz() {
-  if (display_module_) {
-    return display_module_->spin();
-  }
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::spinSequential() {
-  // Spin once each pipeline module.
-  CHECK(data_provider_module_);
-  data_provider_module_->spin();
-
-  CHECK(vio_frontend_module_);
-  vio_frontend_module_->spin();
-
-  // TODO(marcus): enable
-  // CHECK(vio_backend_module_);
-  // vio_backend_module_->spin();
-
-  if (mesher_module_) mesher_module_->spin();
-
-  if (lcd_module_) lcd_module_->spin();
-
-  if (visualizer_module_) visualizer_module_->spin();
-
-  if (display_module_) display_module_->spin();
-}
-
-/* -------------------------------------------------------------------------- */
 bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
@@ -298,9 +225,9 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
     lcd_and_lcd_input_finished = false;
   }
 
+  // TODO(marcus): uncomment all backend module refs
   CHECK(data_provider_module_);
   CHECK(vio_frontend_module_);
-  // TODO(marcus): enable!
   // CHECK(vio_backend_module_);
 
   while (
@@ -312,8 +239,7 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
          (frontend_input_queue_.isShutdown() ||
           frontend_input_queue_.empty()) &&
          !vio_frontend_module_->isWorking() &&
-         (backend_input_queue_.isShutdown() || backend_input_queue_.empty()) &&
-         // TODO(marcus): enable!
+        //  (backend_input_queue_.isShutdown() || backend_input_queue_.empty()) &&
         //  !vio_backend_module_->isWorking() &&
          (mesher_module_ ? !mesher_module_->isWorking() : true) &&
          (lcd_module_ ? !lcd_module_->isWorking() : true) &&
@@ -321,41 +247,42 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
          (display_input_queue_.isShutdown() || display_input_queue_.empty()) &&
          (display_module_ ? !display_module_->isWorking() : true)))) {
     // Note that the values in the log below might be different than the
-    // evaluation above since they are separately evaluated at different times.
-    VLOG(1)
-        << "shutdown_: " << shutdown_ << '\n'
-        << "VIO pipeline status: \n"
-        << "Pipeline initialized? " << isInitialized() << '\n'
-        << "Frontend initialized? " << vio_frontend_module_->isInitialized()
-        << '\n'
-        // TODO(marcus): enable:
-        // << "Backend initialized? " << vio_backend_module_->isInitialized()
-        << '\n'
-        << "Data provider is working? " << data_provider_module_->isWorking()
-        << '\n'
-        << "Frontend input queue shutdown? "
-        << frontend_input_queue_.isShutdown() << '\n'
-        << "Frontend input queue empty? " << frontend_input_queue_.empty()
-        << '\n'
-        << "Frontend is working? " << vio_frontend_module_->isWorking() << '\n'
-        << "Backend Input queue shutdown? " << backend_input_queue_.isShutdown()
-        << '\n'
-        << "Backend Input queue empty? " << backend_input_queue_.empty()
-        << '\n'
-        // TODO(marcus): enable:
-        // << "Backend is working? " << vio_backend_module_->isWorking() << '\n'
-        << "Mesher is working? "
-        << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
-        << "LCD is working? "
-        << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
-        << "Visualizer is working? "
-        << (visualizer_module_ ? visualizer_module_->isWorking() : false)
-        << '\n'
-        << "Display Input queue shutdown? " << display_input_queue_.isShutdown()
-        << '\n'
-        << "Display Input queue empty? " << display_input_queue_.empty() << '\n'
-        << "Displayer is working? "
-        << (display_module_ ? display_module_->isWorking() : false);
+    // evaluation above since they are separately evaluated at different
+    // times.
+    VLOG(1) << "shutdown_: " << shutdown_ << '\n'
+            << "VIO pipeline status: \n"
+            << "Pipeline initialized? " << isInitialized() << '\n'
+            << "Frontend initialized? " << vio_frontend_module_->isInitialized()
+            << '\n'
+            // << "Backend initialized? " << vio_backend_module_->isInitialized()
+            << '\n'
+            << "Data provider is working? "
+            << data_provider_module_->isWorking() << '\n'
+            << "Frontend input queue shutdown? "
+            << frontend_input_queue_.isShutdown() << '\n'
+            << "Frontend input queue empty? " << frontend_input_queue_.empty()
+            << '\n'
+            << "Frontend is working? " << vio_frontend_module_->isWorking()
+            << '\n'
+            << "Backend Input queue shutdown? "
+            // << backend_input_queue_.isShutdown() << '\n'
+            // << "Backend Input queue empty? " << backend_input_queue_.empty()
+            << '\n'
+            // << "Backend is working? " << vio_backend_module_->isWorking()
+            << '\n'
+            << "Mesher is working? "
+            << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
+            << "LCD is working? "
+            << (lcd_module_ ? lcd_module_->isWorking() : false) << '\n'
+            << "Visualizer is working? "
+            << (visualizer_module_ ? visualizer_module_->isWorking() : false)
+            << '\n'
+            << "Display Input queue shutdown? "
+            << display_input_queue_.isShutdown() << '\n'
+            << "Display Input queue empty? " << display_input_queue_.empty()
+            << '\n'
+            << "Displayer is working? "
+            << (display_module_ ? display_module_->isWorking() : false);
 
     VLOG_IF(5, mesher_module_)
         << "Mesher is working? " << mesher_module_->isWorking();
@@ -380,22 +307,20 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
           << "Pipeline initialized? " << isInitialized() << '\n'
           << "Frontend initialized? " << vio_frontend_module_->isInitialized()
           << '\n'
-            // TODO(marcus): enable:
           // << "Backend initialized? " << vio_backend_module_->isInitialized()
           << '\n'
-          << "Mono Data provider is working? "
-          << data_provider_module_->isWorking() << '\n'
+          << "Data provider is working? " << data_provider_module_->isWorking()
+          << '\n'
           << "Frontend input queue shutdown? "
           << frontend_input_queue_.isShutdown() << '\n'
-          << "Frontend input queue empty? "
-          << frontend_input_queue_.empty() << '\n'
+          << "Frontend input queue empty? " << frontend_input_queue_.empty()
+          << '\n'
           << "Frontend is working? " << vio_frontend_module_->isWorking()
           << '\n'
           << "Backend Input queue shutdown? "
-          << backend_input_queue_.isShutdown() << '\n'
-          << "Backend Input queue empty? " << backend_input_queue_.empty()
+          // << backend_input_queue_.isShutdown() << '\n'
+          // << "Backend Input queue empty? " << backend_input_queue_.empty()
           << '\n'
-            // TODO(marcus): enable:
           // << "Backend is working? " << vio_backend_module_->isWorking() << '\n'
           << "Mesher is working? "
           << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
@@ -416,7 +341,7 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
 
 /* -------------------------------------------------------------------------- */
 void MonoPipeline::shutdown() {
-  Pipeline<MonoImuSyncPacket>::shutdown();
+  Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::shutdown();
 
   // First: call registered shutdown callbacks, these are typically to signal
   // data providers that they should now die.
@@ -440,103 +365,25 @@ void MonoPipeline::shutdown() {
             << "VIO Pipeline successful shutdown.";
 }
 
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::launchThreads() {
-  if (parallel_run_) {
-    frontend_thread_ = VIO::make_unique<std::thread>(
-        &MonoVisionFrontEndModule::spin,
-        CHECK_NOTNULL(vio_frontend_module_.get()));
+void MonoPipeline::spinSequential() {
+  // Spin once each pipeline module.
+  CHECK(data_provider_module_);
+  data_provider_module_->spin();
 
-    // TODO(marcus): enable:
-    // backend_thread_ = VIO::make_unique<std::thread>(
-    //     &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
-
-    if (mesher_module_) {
-      mesher_thread_ = VIO::make_unique<std::thread>(
-          &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
-    }
-
-    if (lcd_module_) {
-      lcd_thread_ = VIO::make_unique<std::thread>(
-          &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
-    }
-
-    if (visualizer_module_) {
-      visualizer_thread_ = VIO::make_unique<std::thread>(
-          &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
-    }
-    LOG(INFO) << "Pipeline Modules launched (parallel_run set to "
-              << parallel_run_ << ").";
-  } else {
-    LOG(INFO) << "Pipeline Modules running in sequential mode"
-              << " (parallel_run set to " << parallel_run_ << ").";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::resume() {
-  LOG(INFO) << "Restarting frontend workers and queues...";
-  frontend_input_queue_.resume();
-
-  LOG(INFO) << "Restarting backend workers and queues...";
-  backend_input_queue_.resume();
-}
-
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::stopThreads() {
-  VLOG(1) << "Stopping workers and queues...";
-
-  backend_input_queue_.shutdown();
-  // TODO(marcus): enable:
-  // CHECK(vio_backend_module_);
-  // vio_backend_module_->shutdown();
-
-  frontend_input_queue_.shutdown();
   CHECK(vio_frontend_module_);
-  vio_frontend_module_->shutdown();
+  vio_frontend_module_->spin();
 
-  if (mesher_module_) mesher_module_->shutdown();
-  if (lcd_module_) lcd_module_->shutdown();
-  if (visualizer_module_) visualizer_module_->shutdown();
-  if (display_module_) {
-    display_input_queue_.shutdown();
-    display_module_->shutdown();
-  }
+  // TODO(marcus): add back in!
+  // CHECK(vio_backend_module_);
+  // vio_backend_module_->spin();
 
-  VLOG(1) << "Sent stop flag to all module and queues...";
-}
+  if (mesher_module_) mesher_module_->spin();
 
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::joinThreads() {
-  LOG_IF(WARNING, !parallel_run_)
-      << "Asked to join threads while in sequential mode, this is ok, but "
-      << "should not happen.";
-  VLOG(1) << "Joining threads...";
+  if (lcd_module_) lcd_module_->spin();
 
-  joinThread("backend", backend_thread_.get());
-  joinThread("frontend", frontend_thread_.get());
-  joinThread("mesher", mesher_thread_.get());
-  joinThread("lcd", lcd_thread_.get());
-  joinThread("visualizer", visualizer_thread_.get());
+  if (visualizer_module_) visualizer_module_->spin();
 
-  VLOG(1) << "All threads joined.";
-}
-
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::joinThread(const std::string& thread_name,
-                                std::thread* thread) {
-  if (thread) {
-    VLOG(1) << "Joining " << thread_name.c_str() << " thread...";
-    if (thread->joinable()) {
-      thread->join();
-      VLOG(1) << "Joined " << thread_name.c_str() << " thread...";
-    } else {
-      LOG_IF(ERROR, parallel_run_)
-          << thread_name.c_str() << " thread is not joinable...";
-    }
-  } else {
-    LOG(WARNING) << "No " << thread_name.c_str() << " thread, not joining.";
-  }
+  if (display_module_) display_module_->spin();
 }
 
 }  // namespace VIO

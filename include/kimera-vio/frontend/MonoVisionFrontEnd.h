@@ -36,8 +36,7 @@
 
 namespace VIO {
 
-class MonoVisionFrontEnd : public VisionFrontEnd<Frame, 
-                                                 MonoFrontEndInputPayload,
+class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
                                                  MonoFrontendOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(MonoVisionFrontEnd);

@@ -40,9 +40,6 @@ class StereoDataProviderModule
   KIMERA_POINTER_TYPEDEFS(StereoDataProviderModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using StereoVioPipelineCallback =
-      std::function<void(StereoImuSyncPacket::UniquePtr)>;
-
   StereoDataProviderModule(OutputQueue* output_queue,
                            const std::string& name_id,
                            const bool& parallel_run,
@@ -67,10 +64,6 @@ class StereoDataProviderModule
     CHECK(right_frame);
     right_frame_queue_.pushBlockingIfFull(std::move(right_frame), 5u);
   }
-  // TODO(Toni): remove, register at ctor level.
-  inline void registerVioPipelineCallback(const StereoVioPipelineCallback& cb) {
-    vio_pipeline_callback_ = cb;
-  }
 
  protected:
   //! The data synchronization function
@@ -89,7 +82,6 @@ class StereoDataProviderModule
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
   // TODO(Toni): remove these below
   StereoMatchingParams stereo_matching_params_;
-  StereoVioPipelineCallback vio_pipeline_callback_;
 };
 
 }  // namespace VIO

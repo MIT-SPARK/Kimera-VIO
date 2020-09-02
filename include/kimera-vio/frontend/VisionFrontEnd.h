@@ -37,7 +37,7 @@ DECLARE_bool(log_stereo_matching_images);
 
 namespace VIO {
 
-template<class FrameT, class InputT, class OutputT>
+template<class InputT, class OutputT>
 class VisionFrontEnd {
  public:
   KIMERA_POINTER_TYPEDEFS(VisionFrontEnd);

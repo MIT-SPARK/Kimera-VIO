@@ -357,10 +357,29 @@ void MonoVisionFrontEnd::outlierRejectionMono(
 
 void MonoVisionFrontEnd::getSmartMonoMeasurements(
     const Frame::Ptr& frame, MonoMeasurements* smart_mono_measurements) {
+  // TODO(marcus): convert to point2 when ready!
   frame->checkFrame();
   const LandmarkIds& landmarkId_kf = frame->landmarks_;
-  // const 
-  // TODO(marcus): finish!
+  const KeypointsCV& keypoints =
+      frame->keypoints_;
+
+  // Pack information in landmark structure.
+  smart_mono_measurements->clear();
+  smart_mono_measurements->reserve(landmarkId_kf.size());
+  for (size_t i = 0; i < landmarkId_kf.size(); ++i) {
+    if (landmarkId_kf.at(i) == -1) {
+      continue;  // skip invalid points
+    }
+
+    // TODO implicit conversion float to double increases floating-point
+    // precision!
+    const double& uL = keypoints.at(i).x;
+    const double& v = keypoints.at(i).y;
+    // Initialize to missing pixel information.
+    double uR = std::numeric_limits<double>::quiet_NaN();
+    smart_mono_measurements->push_back(
+        std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
+  }
 }
 
 }  // namespace VIO
