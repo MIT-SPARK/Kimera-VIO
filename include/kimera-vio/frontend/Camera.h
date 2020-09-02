@@ -91,7 +91,7 @@ class Camera {
     return cam_params_;
   }
 
- protected:
+ private:
   CameraParams cam_params_;
   gtsam::Cal3_S2 calibration_;
   std::unique_ptr<CameraImpl> camera_impl_;

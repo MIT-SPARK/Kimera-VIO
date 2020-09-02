@@ -19,14 +19,14 @@
 
 #include <queue>
 
-#include "kimera-vio/backend/StereoVioBackEnd.h"
+#include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
-class InitializationBackEnd : public StereoVioBackEnd {
+class InitializationBackEnd : public VioBackEnd {
  public:
   KIMERA_POINTER_TYPEDEFS(InitializationBackEnd);
   KIMERA_DELETE_COPY_CONSTRUCTORS(InitializationBackEnd);

@@ -26,7 +26,7 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
 
-#include "kimera-vio/backend/StereoVioBackEnd.h"
+#include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/backend/VioBackEndFactory.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
@@ -231,7 +231,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
       VioNavState(poses[0].first, velocity_x_, imu_bias_);
   gtsam::Pose3 B_pose_camLrect;
   std::shared_ptr<VioBackEnd> vio =
-      std::make_shared<StereoVioBackEnd>(B_pose_camLrect,
+      std::make_shared<VioBackEnd>(B_pose_camLrect,
                                    stereo_calibration,
                                    vio_params_,
                                    imu_params_,

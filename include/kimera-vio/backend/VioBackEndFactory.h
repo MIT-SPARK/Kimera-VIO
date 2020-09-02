@@ -16,7 +16,6 @@
 #pragma once
 
 #include "kimera-vio/backend/RegularVioBackEnd.h"
-#include "kimera-vio/backend/StereoVioBackEnd.h"
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/utils/Macros.h"
@@ -30,7 +29,7 @@ class BackEndFactory {
   BackEndFactory() = delete;
   virtual ~BackEndFactory() = default;
 
-  static VioBackEnd::UniquePtr createStereoBackend(
+  static VioBackEnd::UniquePtr createBackend(
       const BackendType& backend_type,
       const Pose3& B_Pose_leftCam,
       const StereoCalibPtr& stereo_calibration,
@@ -40,12 +39,12 @@ class BackEndFactory {
       bool log_output) {
     switch (backend_type) {
       case BackendType::kStereoImu: {
-        return VIO::make_unique<StereoVioBackEnd>(B_Pose_leftCam,
-                                                  stereo_calibration,
-                                                  backend_params,
-                                                  imu_params,
-                                                  backend_output_params,
-                                                  log_output);
+        return VIO::make_unique<VioBackEnd>(B_Pose_leftCam,
+                                            stereo_calibration,
+                                            backend_params,
+                                            imu_params,
+                                            backend_output_params,
+                                            log_output);
       }
       case BackendType::kStructuralRegularities: {
         return VIO::make_unique<RegularVioBackEnd>(B_Pose_leftCam,

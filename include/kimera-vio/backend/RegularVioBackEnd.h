@@ -25,11 +25,11 @@
 #include "kimera-vio/backend/RegularVioBackEnd-definitions.h"
 #include "kimera-vio/backend/RegularVioBackEndParams.h"
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/backend/StereoVioBackEnd.h"
+#include "kimera-vio/backend/VioBackEnd.h"
 
 namespace VIO {
 
-class RegularVioBackEnd : public StereoVioBackEnd {
+class RegularVioBackEnd : public VioBackEnd {
  public:
   RegularVioBackEnd(const Pose3& B_Pose_leftCam,
                     const StereoCalibPtr& stereo_calibration,
@@ -95,10 +95,9 @@ class RegularVioBackEnd : public StereoVioBackEnd {
                           LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
-  virtual void updateLandmarkInGraph(
-      const LandmarkId& lmk_id,
-      const bool& is_lmk_smart,
-      const std::pair<FrameId, StereoPoint2>& new_obs);
+  void updateLandmarkInGraph(const LandmarkId& lmk_id,
+                             const bool& is_lmk_smart,
+                             const std::pair<FrameId, StereoPoint2>& new_obs);
 
   /* ------------------------------------------------------------------------ */
   bool updateLmkIdIsSmart(const LandmarkId& lmk_id,
