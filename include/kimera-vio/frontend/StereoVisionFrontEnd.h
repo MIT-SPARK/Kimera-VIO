@@ -32,8 +32,6 @@
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
@@ -108,23 +106,10 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
       cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
-  void outlierRejectionMono(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
-                            Frame* left_frame_lkf,
-                            Frame* left_frame_k,
-                            TrackingStatusPose* status_pose_mono);
-
-  /* ------------------------------------------------------------------------ */
   void outlierRejectionStereo(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
                               const StereoFrame::Ptr& left_frame_lkf,
                               const StereoFrame::Ptr& left_frame_k,
                               TrackingStatusPose* status_pose_stereo);
-
-  /* ------------------------------------------------------------------------ */
-  static void printTrackingStatus(const TrackingStatus& status,
-                                  const std::string& type = "mono") {
-    LOG(INFO) << "Status " << type << ": "
-              << TrackerStatusSummary::asString(status);
-  }
 
   /* ------------------------------------------------------------------------ */
   // Static function to display output of stereo tracker
@@ -153,12 +138,6 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
                  << (force_53point_ransac_ ? "ON!!" : "OFF");
   }
 
-  /* ------------------------------------------------------------------------ */
-  // Get tracker info.
-  inline DebugTrackerInfo getTrackerInfo() const {
-    return tracker_.debug_info_;
-  }
-
  private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
   // owners, instead they should be passed around.
@@ -178,9 +157,6 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
   // Create the feature detector
   FeatureDetector::UniquePtr feature_detector_;
 
-  // Set of functionalities for tracking.
-  Tracker tracker_;
-
   // A stereo camera
   StereoCamera::Ptr stereo_camera_;
 
@@ -189,10 +165,6 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
 
   // Used to force the use of 5/3 point ransac, despite parameters
   std::atomic_bool force_53point_ransac_ = {false};
-
-  // Summary of information from the tracker, e.g., relative pose estimates and
-  // status of mono and stereo ransac
-  TrackerStatusSummary trackerStatusSummary_;
 
   // This is not const as for debugging we want to redirect the image save path
   // where we like

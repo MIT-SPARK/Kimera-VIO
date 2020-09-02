@@ -54,6 +54,8 @@ class VisionFrontEnd {
         keyframe_count_(0),
         last_keyframe_timestamp_(0),
         imu_frontend_(nullptr),
+        tracker_(nullptr),
+        tracker_status_summary_(),
         display_queue_(display_queue),
         logger_(nullptr) {
     imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
@@ -113,7 +115,20 @@ class VisionFrontEnd {
   gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
     return imu_frontend_->getGtsamImuParams();
   }
- 
+
+  /* ------------------------------------------------------------------------ */
+  static void printTrackingStatus(const TrackingStatus& status,
+                                  const std::string& type) {
+    LOG(INFO) << "Status " << type << ": "
+              << TrackerStatusSummary::asString(status);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Get tracker info.
+  inline DebugTrackerInfo getTrackerInfo() const {
+    return tracker_->debug_info_;
+  }
+
  protected:
   virtual std::unique_ptr<OutputT> bootstrapSpin(const InputT& input) = 0;
 
@@ -135,6 +150,32 @@ class VisionFrontEnd {
     return imu_frontend_->getPreintegrationGravity();
   }
 
+  void outlierRejectionMono(const gtsam::Rot3& keyframe_R_cur_frame,
+                            Frame* frame_lkf,
+                            Frame* frame_k,
+                            TrackingStatusPose* status_pose_mono) {
+    CHECK_NOTNULL(status_pose_mono);
+    if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
+        !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
+      // 2-point RANSAC.
+      *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(
+          frame_lkf, frame_k, keyframe_R_cur_frame);
+    } else {
+      // 5-point RANSAC.
+      *status_pose_mono =
+          tracker_->geometricOutlierRejectionMono(frame_lkf, frame_k);
+    }
+
+    tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono->first;
+    if (VLOG_IS_ON(2)) {
+      printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_, "mono");
+    }
+
+    if (status_pose_mono->first == TrackingStatus::VALID) {
+      tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono->second;
+    }
+  }
+
  protected:
   enum class FrontendState {
     Bootstrap = 0u,  //! Initialize frontend
@@ -151,6 +192,10 @@ class VisionFrontEnd {
 
   // IMU frontend.
   ImuFrontEnd::UniquePtr imu_frontend_;
+
+  // Tracker
+  Tracker::UniquePtr tracker_;
+  TrackerStatusSummary tracker_status_summary_;
 
   // Display queue
   DisplayQueue* display_queue_;
