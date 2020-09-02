@@ -162,9 +162,10 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
           getTrackerInfo(),
           trackerStatusSummary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
+      // Logger needs information in camera frame for evaluation
       logger_->logFrontendRansac(stereoFrame_lkf_->getTimestamp(),
-                                 getRelativePoseBodyMono(),
-                                 getRelativePoseBodyStereo());
+                                 getRelativePoseCameraMono(),
+                                 getRelativePoseCameraStereo());
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -402,8 +403,10 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     VLOG(2) << "timeClone: " << clone_rect_params_time << '\n'
             << "timeSparseStereo: " << sparse_stereo_time << '\n'
             << "timeGetMeasurements: " << get_smart_stereo_meas_time;
+    LOG(WARNING) << ("stereo frame YOLO 1");
   } else {
     stereoFrame_k_->setIsKeyframe(false);
+    LOG(WARNING) << ("stereo frame YOLO 2");
   }
 
   // Reset frames.
@@ -717,6 +720,20 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
       stereoFrame_lkf_->getBPoseCamLRect();  // of the left camera!!
   return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ *
          body_Pose_cam_.inverse();
+}
+
+/* -------------------------------------------------------------------------- */
+// return relative pose of camera between last (lkf) and current keyframe (k) - MONO
+// RANSAC
+gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseCameraMono() const {
+  return trackerStatusSummary_.lkf_T_k_mono_;
+}
+
+/* -------------------------------------------------------------------------- */
+// return relative pose of camera between last (lkf) and current keyframe (k) - STEREO
+// RANSAC
+gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseCameraStereo() const {
+  return trackerStatusSummary_.lkf_T_k_stereo_;
 }
 
 /* ------------------------------------------------------------------------ */
