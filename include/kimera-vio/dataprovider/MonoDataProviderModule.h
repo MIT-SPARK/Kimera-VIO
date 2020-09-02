@@ -46,9 +46,6 @@ class MonoDataProviderModule
   KIMERA_POINTER_TYPEDEFS(MonoDataProviderModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using MonoVioPipelineCallback =
-      std::function<void(MonoImuSyncPacket::UniquePtr)>;
-
   MonoDataProviderModule(OutputQueue* output_queue,
                          const std::string& name_id,
                          const bool& parallel_run);
@@ -62,11 +59,6 @@ class MonoDataProviderModule
     return input;
   }
 
-  // TODO(Toni): remove, register at ctor level.
-  inline void registerVioPipelineCallback(const MonoVioPipelineCallback& cb) {
-    vio_pipeline_callback_ = cb;
-  }
-
  protected:
   // Spin the dataset: processes the input data and constructs a Mono+Imu
   // Synchronized Packet (mono + IMU measurements), the minimum data
@@ -76,9 +68,6 @@ class MonoDataProviderModule
   // between, it will be discarded.
   // The first valid pair is used as a timing fencepost and is not published.
   InputUniquePtr getInputPacket() override;
-
- private:
-  MonoVioPipelineCallback vio_pipeline_callback_;
 };
 
 }  // namespace VIO

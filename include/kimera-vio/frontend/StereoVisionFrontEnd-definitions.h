@@ -26,10 +26,10 @@ namespace VIO {
 // TODO(marcus): move this to VisionFrontEnd.h 
 //  (raises weird errors, includes must be wrong somewhere).
 enum class FrontendType {
-  //! Frontend that works with Stereo camera and Imu
-  kStereoImu = 0,
   //! Frontend that works with Mono camera and Imu
-  kMonoImu = 1
+  kMonoImu = 0,
+  //! Frontend that works with Stereo camera and Imu
+  kStereoImu = 1
 };
 
 struct StereoFrontendOutput : public PipelinePayload {

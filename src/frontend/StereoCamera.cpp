@@ -28,7 +28,6 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
@@ -38,11 +37,11 @@ namespace VIO {
 
 StereoCamera::StereoCamera(const CameraParams& left_cam_params,
                            const CameraParams& right_cam_params)
-    : undistorted_rectified_stereo_camera_impl_(),
+    : left_camera_(nullptr),
+      right_camera_(nullptr),
+      undistorted_rectified_stereo_camera_impl_(),
       stereo_calibration_(nullptr),
       stereo_baseline_(0.0),
-      left_cam_params_(left_cam_params),
-      right_cam_params_(right_cam_params),
       left_cam_undistort_rectifier_(nullptr),
       right_cam_undistort_rectifier_(nullptr) {
   computeRectificationParameters(left_cam_params,
@@ -54,6 +53,8 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
                                  &Q_,
                                  &ROI1_,
                                  &ROI2_);
+  left_camera_ = std::make_shared<VIO::Camera>(left_cam_params);
+  right_camera_ = std::make_shared<VIO::Camera>(right_cam_params);
 
   // Calc left camera pose after rectification
   // NOTE: OpenCV pose convention is the opposite, therefore the inverse.
@@ -96,6 +97,11 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
   undistorted_rectified_stereo_camera_impl_ =
       gtsam::StereoCamera(B_Pose_camLrect_, stereo_calibration_);
 }
+
+StereoCamera::StereoCamera(Camera::Ptr left_camera, Camera::Ptr right_camera)
+    : StereoCamera(
+          left_camera->getCamParams(),
+          right_camera->getCamParams()) {}
 
 void StereoCamera::project(const LandmarksCV& lmks,
                            KeypointsCV* left_kpts,

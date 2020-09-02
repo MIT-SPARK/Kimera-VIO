@@ -42,6 +42,8 @@ class DataProviderModule : public MISOPipelineModule<Input, Output> {
 
   using MISO = MISOPipelineModule<Input, Output>;
   using OutputQueue = typename MISO::OutputQueue;
+  using PipelineOutputCallback =
+      std::function<void(std::unique_ptr<Output>)>;
 
   DataProviderModule(OutputQueue* output_queue,
                      const std::string& name_id,
@@ -76,6 +78,11 @@ class DataProviderModule : public MISOPipelineModule<Input, Output> {
   inline void fillImuQueue(const ImuMeasurement& imu_measurement) {
     imu_data_.imu_buffer_.addMeasurement(imu_measurement.timestamp_,
                                          imu_measurement.acc_gyr_);
+  }
+
+  // TODO(Toni): remove, register at ctor level.
+  inline void registerVioPipelineCallback(const PipelineOutputCallback& cb) {
+    vio_pipeline_callback_ = cb;
   }
 
  protected:
@@ -250,12 +257,13 @@ class DataProviderModule : public MISOPipelineModule<Input, Output> {
   //! Checks if the module has work to do (should check input queues are empty)
   virtual inline bool hasWork() const { return !left_frame_queue_.empty(); }
 
- private:
+ protected:
   //! Input data
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   static const Timestamp kNoFrameYet = 0;
   Timestamp timestamp_last_frame_;
+  PipelineOutputCallback vio_pipeline_callback_;
 };
 
 }  // namespace VIO

@@ -16,18 +16,19 @@
 // TODO(Toni): put tracker in another folder.
 #pragma once
 
-#include <opencv2/opencv.hpp>
-
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
+#include <opencv2/opencv.hpp>
+
+#include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/utils/Macros.h"
@@ -53,7 +54,7 @@ class Tracker {
    * @param camera_params Parameters for the camera used for tracking.
    */
   Tracker(const FrontendParams& tracker_params,
-          const StereoCamera::Ptr& stereo_camera,
+          const Camera::Ptr& camera,
           DisplayQueue* display_queue = nullptr);
 
   // Tracker parameters.
@@ -82,14 +83,18 @@ class Tracker {
   // Contrarily to the previous 2 this also returns a 3x3 covariance for the
   // translation estimate.
   std::pair<TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
-                                             Frame* cur_frame,
-                                             const gtsam::Rot3& R);
+  geometricOutlierRejectionMonoGivenRotation(
+      Frame* ref_frame,
+      Frame* cur_frame,
+      const gtsam::Rot3& R,
+      VIO::StereoCamera::Ptr stereo_camera = nullptr);
 
   std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
-  geometricOutlierRejectionStereoGivenRotation(StereoFrame& ref_stereoFrame,
-                                               StereoFrame& cur_stereoFrame,
-                                               const gtsam::Rot3& R);
+  geometricOutlierRejectionStereoGivenRotation(
+      StereoFrame& ref_stereoFrame,
+      StereoFrame& cur_stereoFrame,
+      VIO::StereoCamera::Ptr stereo_camera,
+      const gtsam::Rot3& R);
 
   void removeOutliersMono(const std::vector<int>& inliers,
                           Frame* ref_frame,
@@ -151,7 +156,7 @@ class Tracker {
 
   // StereoCamera object for the camera we are tracking. We use the left camera.
   // TODO(marcus): this should be general to all camera types!
-  StereoCamera::Ptr stereo_camera_;
+  Camera::Ptr camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of
   // where the features moved from frame to frame.

@@ -42,9 +42,6 @@ class RgbdDataProviderModule
   KIMERA_POINTER_TYPEDEFS(RgbdDataProviderModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using RgbdVioPipelineCallback =
-      std::function<void(RgbdImuSyncPacket::UniquePtr)>;
-
   RgbdDataProviderModule(OutputQueue* output_queue,
                          const std::string& name_id,
                          const bool& parallel_run);
@@ -74,11 +71,6 @@ class RgbdDataProviderModule
     depth_frame_queue_.pushBlockingIfFull(std::move(depth_frame), 5u);
   }
 
-  // TODO(Toni): remove, register at ctor level.
-  inline void registerVioPipelineCallback(const RgbdVioPipelineCallback& cb) {
-    rgbd_vio_pipeline_callback_ = cb;
-  }
-
  protected:
   // Spin the dataset: processes the input data and constructs a Rgbd Imu
   // Synchronized Packet (Rgbd pair + IMU measurements), the minimum data
@@ -100,8 +92,6 @@ class RgbdDataProviderModule
  private:
   //! Input data
   ThreadsafeQueue<DepthFrame::UniquePtr> depth_frame_queue_;
-  //! Callback to be called with synchronized RGBD+IMU data
-  RgbdVioPipelineCallback rgbd_vio_pipeline_callback_;
 };
 
 }  // namespace VIO

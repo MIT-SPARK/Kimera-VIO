@@ -64,7 +64,7 @@ class EurocDataProvider : public DataProviderInterface {
    * return until it finishes.
    * @return True if the dataset still has data, false otherwise.
    */
-  bool spin() override;
+  virtual bool spin() override;
 
   /**
    * @brief print Print info about dataset.
@@ -81,13 +81,13 @@ class EurocDataProvider : public DataProviderInterface {
     return getGroundTruthState(timestamp).pose_;
   }
 
- private:
+ protected:
 
   /**
    * @brief spinOnce Send data to VIO pipeline on a per-frame basis
    * @return if the dataset finished or not
    */
-  bool spinOnce();
+  virtual bool spinOnce();
 
   /**
    * @brief parse Parses Euroc dataset. This is done already in spin() and
@@ -198,7 +198,7 @@ class EurocDataProvider : public DataProviderInterface {
   // Clip final frame to the number of images in the dataset.
   void clipFinalFrame();
 
- private:
+ protected:
   VioParams pipeline_params_;
 
   /// Images data.
@@ -230,6 +230,27 @@ class EurocDataProvider : public DataProviderInterface {
 
 
   EurocGtLogger::UniquePtr logger_;
+};
+
+class MonoEurocDataProvider : public EurocDataProvider {
+ public:
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MonoEurocDataProvider);
+  KIMERA_POINTER_TYPEDEFS(MonoEurocDataProvider);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
+  MonoEurocDataProvider(const std::string& dataset_path,
+                        const int& initial_k,
+                        const int& final_k,
+                        const VioParams& vio_params);
+
+  explicit MonoEurocDataProvider(const VioParams& vio_params);
+
+  virtual ~MonoEurocDataProvider();
+
+  bool spin() override;
+
+ protected:
+  bool spinOnce() override;
 };
 
 }  // namespace VIO
