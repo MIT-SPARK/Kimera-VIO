@@ -76,45 +76,6 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
  protected:
   void spinSequential() override;
 
-  inline bool isInitialized() const override {
-    return vio_frontend_module_->isInitialized() &&
-          // TODO(marcus): enable!
-          //  vio_backend_module_->isInitialized();
-          true;
-  }
-
-  void launchThreads() override {
-    if (parallel_run_) {
-      frontend_thread_ = VIO::make_unique<std::thread>(
-          &MonoVisionFrontEndModule::spin,
-          CHECK_NOTNULL(vio_frontend_module_.get()));
-
-      // TODO(marcus): remove this function, use the base version
-      // backend_thread_ = VIO::make_unique<std::thread>(
-      //     &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
-
-      if (mesher_module_) {
-        mesher_thread_ = VIO::make_unique<std::thread>(
-            &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
-      }
-
-      if (lcd_module_) {
-        lcd_thread_ = VIO::make_unique<std::thread>(
-            &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
-      }
-
-      if (visualizer_module_) {
-        visualizer_thread_ = VIO::make_unique<std::thread>(
-            &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
-      }
-      LOG(INFO) << "Pipeline Modules launched (parallel_run set to "
-                << parallel_run_ << ").";
-    } else {
-      LOG(INFO) << "Pipeline Modules running in sequential mode"
-                << " (parallel_run set to " << parallel_run_ << ").";
-    }
-  }
-
  protected:
   Camera::Ptr camera_;
   MonoDataProviderModule::UniquePtr data_provider_module_;
