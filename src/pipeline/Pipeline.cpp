@@ -315,7 +315,8 @@ void Pipeline::spinSequential() {
   if (display_module_) display_module_->spin();
 }
 
-bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
+bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
+                                    const bool& print_stats) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
@@ -398,8 +399,13 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
                                 << display_module_->isWorking();
 
     // Print all statistics
-    LOG(INFO) << utils::Statistics::Print();
+    if (print_stats) LOG(INFO) << utils::Statistics::Print();
     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+
+    if (!parallel_run_) {
+      // Don't break, otw we will shutdown the pipeline.
+      return false;
+    }
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
