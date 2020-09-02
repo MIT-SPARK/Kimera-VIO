@@ -36,9 +36,7 @@ MonoVisionFrontEnd::MonoVisionFrontEnd(
     mono_frame_lkf_(nullptr),
     keyframe_R_ref_frame_(gtsam::Rot3::identity()),
     feature_detector_(nullptr),
-    tracker_(nullptr),
     mono_camera_(camera),
-    tracker_status_summary_(),
     frontend_params_(frontend_params) {
   CHECK(mono_camera_);
 
@@ -141,10 +139,10 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
                                 tracker_status_summary_,
                                 mono_frame_km1_->getNrValidKeypoints());
       // TODO(marcus): Last arg is usually stereo, need to refactor logger
-      //   to not require that.
+      // to not require that.
       logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
                                 getRelativePoseBody(),
-                                getRelativePoseBody());
+                                gtsam::Pose3());
     }
     //////////////////////////////////////////////////////////////////////////////
 
@@ -280,12 +278,9 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     } else {
       tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
       if (VLOG_IS_ON(2)) {
-        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_);
+        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_, "mono");
       }
       tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_stereo_);
-      }
     }
 
     // Log images if needed.
@@ -326,33 +321,6 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
 
   return std::make_shared<StatusMonoMeasurements>(
     std::make_pair(tracker_status_summary_, smart_mono_measurements));
-}
-
-void MonoVisionFrontEnd::outlierRejectionMono(
-    const gtsam::Rot3& keyframe_R_cur_frame,
-    Frame* frame_lkf,
-    Frame* frame_k,
-    TrackingStatusPose* status_pose_mono) {
-  CHECK_NOTNULL(status_pose_mono);
-  if (tracker_->tracker_params_.ransac_use_2point_mono_ && 
-      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
-    // 2-point RANSAC.
-    *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(
-        frame_lkf, frame_k, keyframe_R_cur_frame);
-  } else {
-    // 5-point RANSAC.
-    *status_pose_mono = tracker_->geometricOutlierRejectionMono(
-        frame_lkf, frame_k);
-  }
-
-  tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono->first;
-  if (VLOG_IS_ON(2)) {
-    printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_);
-  }
-
-  if (status_pose_mono->first == TrackingStatus::VALID) {
-    tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono->second;
-  }
 }
 
 void MonoVisionFrontEnd::getSmartMonoMeasurements(
