@@ -19,7 +19,7 @@ For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080
 
 ## What is Kimera-VIO?
 
-Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. (Mono-only capabilities soon to be released).
+Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data.
 
 ## Publications
 

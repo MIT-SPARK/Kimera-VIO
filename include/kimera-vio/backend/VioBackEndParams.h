@@ -88,6 +88,7 @@ class BackendParams : public PipelineParams {
 
  public:
   //! Initialization params
+  // TODO(Toni): make an enum class...
   int autoInitialize_ = 0;
   double initialPositionSigma_ = 0.00001;
   double initialRollPitchSigma_ = 10.0 / 180.0 * M_PI;

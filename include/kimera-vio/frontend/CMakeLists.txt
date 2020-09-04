@@ -1,6 +1,8 @@
 ### Add source code for IDEs
 target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Camera.h"
+  "${CMAKE_CURRENT_LIST_DIR}/StereoCamera.h"
+  "${CMAKE_CURRENT_LIST_DIR}/UndistorterRectifier.h"
   "${CMAKE_CURRENT_LIST_DIR}/CameraParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoMatchingParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/Frame.h"

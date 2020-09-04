@@ -38,6 +38,7 @@ struct InitializationInputPayload : public FrontendOutput {
       const gtsam::Pose3& relative_pose_body_stereo,
       const StereoFrame& stereo_frame_lkf,
       const ImuFrontEnd::PimPtr& pim,
+      const ImuAccGyrS imu_acc_gyrs,
       const DebugTrackerInfo& debug_tracker_info,
       const gtsam::AHRSFactor::PreintegratedMeasurements& ahrs_pim =
           gtsam::AHRSFactor::PreintegratedMeasurements())
@@ -47,6 +48,7 @@ struct InitializationInputPayload : public FrontendOutput {
                        relative_pose_body_stereo,
                        stereo_frame_lkf,
                        pim,
+                       imu_acc_gyrs,
                        cv::Mat(),
                        debug_tracker_info),
         ahrs_pim_(ahrs_pim) {}

@@ -89,7 +89,7 @@ OpenCvVisualizer3D::OpenCvVisualizer3D(const VisualizationType& viz_type,
 }
 
 OpenCvVisualizer3D::~OpenCvVisualizer3D() {
-  LOG(INFO) << "OpenCvVisualizer3D destructor";
+  LOG(INFO) << "OpenCvVisualizer3D destructor called.";
 }
 
 // Returns true if visualization is ready, false otherwise.
@@ -352,18 +352,26 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   }
 
   // Visualize trajectory.
+  // First, add current pose to trajectory
   VLOG(10) << "Starting trajectory visualization...";
-  addPoseToTrajectory(input.backend_output_->W_State_Blkf_.pose_.compose(
-      input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect()));
-  visualizeTrajectory3D(
+  addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
+      input.backend_output_->W_State_Blkf_.pose_.compose(
+          input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect())));
+  // Generate line through all poses
+  visualizeTrajectory3D(&output->widgets_);
+  // Generate frustums for the last 10 poses.
+  visualizeTrajectoryWithFrustums(&output->widgets_, 10u);
+  // Generate frustum with an image inside it for the current pose.
+  visualizePoseWithImgInFrustum(
       FLAGS_visualize_mesh_in_frustum ? mesh_2d_img : left_stereo_keyframe.img_,
-      &output->frustum_pose_,
+      trajectory_poses_3d_.back(),
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
 
   return output;
 }
 
+/* -------------------------------------------------------------------------- */
 // Create a 2D mesh from 2D corners in an image
 cv::Mat OpenCvVisualizer3D::visualizeMesh2D(
     const std::vector<cv::Vec6f>& triangulation2D,
@@ -400,6 +408,7 @@ cv::Mat OpenCvVisualizer3D::visualizeMesh2D(
   return img_clone;
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize 2d mesh.
 cv::Mat OpenCvVisualizer3D::visualizeMesh2DStereo(
     const std::vector<cv::Vec6f>& triangulation_2D,
@@ -451,6 +460,7 @@ cv::Mat OpenCvVisualizer3D::visualizeMesh2DStereo(
   return img_clone;
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks.
 void OpenCvVisualizer3D::visualizePoints3D(
     const PointsWithIdMap& points_with_id,
@@ -514,6 +524,7 @@ void OpenCvVisualizer3D::visualizePoints3D(
   (*widgets_map)["Point cloud"] = std::move(cloud_widget);
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 void OpenCvVisualizer3D::visualizePlane(const PlaneId& plane_index,
                                         const double& n_x,
@@ -549,6 +560,7 @@ void OpenCvVisualizer3D::visualizePlane(const PlaneId& plane_index,
   is_plane_id_in_window_[plane_index] = true;
 }
 
+/* -------------------------------------------------------------------------- */
 // Draw a line in opencv.
 void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   const double& from_x,
@@ -563,6 +575,7 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
   drawLine(line_id, pt1, pt2, widgets);
 }
 
+/* -------------------------------------------------------------------------- */
 void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   const cv::Point3d& pt1,
                                   const cv::Point3d& pt2,
@@ -571,6 +584,7 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
   (*widgets)[line_id] = VIO::make_unique<cv::viz::WLine>(pt1, pt2);
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& polygons_mesh,
@@ -579,6 +593,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   visualizeMesh3D(map_points_3d, colors, polygons_mesh, widgets);
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
 // and provide color for each polygon.
 void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
@@ -621,6 +636,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   (*widgets)["Mesh"] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize a PLY from filename (absolute path).
 void OpenCvVisualizer3D::visualizePlyMesh(const std::string& filename,
                                           WidgetsMap* widgets) {
@@ -649,6 +665,46 @@ void OpenCvVisualizer3D::visualizePlyMesh(const std::string& filename,
   }
 }
 
+void OpenCvVisualizer3D::visualizePointCloud(const cv::Mat& point_cloud,
+                                             WidgetsMap* widgets,
+                                             const cv::Affine3d& pose,
+                                             const cv::Mat& colors,
+                                             const cv::Mat& normals) {
+  CHECK_NOTNULL(widgets);
+  CHECK(!point_cloud.empty());
+  auto pcl_type = point_cloud.type();
+  CHECK(pcl_type == CV_32FC3 || pcl_type == CV_32FC4 || pcl_type == CV_64FC3 ||
+        pcl_type == CV_64FC4);
+
+  // Create cloud widget.
+  std::unique_ptr<cv::viz::WCloud> cloud_widget = nullptr;
+  if (!colors.empty() && !normals.empty()) {
+    cloud_widget =
+        VIO::make_unique<cv::viz::WCloud>(point_cloud, colors, normals);
+  } else if (!colors.empty()) {
+    cloud_widget = VIO::make_unique<cv::viz::WCloud>(point_cloud, colors);
+  } else {
+    cloud_widget = VIO::make_unique<cv::viz::WCloud>(point_cloud, cloud_color_);
+  }
+  CHECK(cloud_widget != nullptr);
+  cloud_widget->setPose(pose);
+  cloud_widget->setRenderingProperty(cv::viz::POINT_SIZE, 2);
+
+  // Send to maps
+  static size_t pcl_id = 0u;
+  (*widgets)["3D Point Cloud " + std::to_string(pcl_id)] =
+      std::move(cloud_widget);
+  pcl_id++;
+}
+
+void OpenCvVisualizer3D::visualizeGlobalFrameOfReference(WidgetsMap* widgets,
+                                                         double scale) {
+  CHECK_NOTNULL(widgets);
+  (*widgets)["Global Frame of Reference"] =
+      VIO::make_unique<cv::viz::WCoordinateSystem>(scale);
+}
+
+/* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 /// Each triangle is colored depending on the cluster it is in, or gray if it
 /// is in no cluster.
@@ -688,6 +744,7 @@ void OpenCvVisualizer3D::visualizeMesh3DWithColoredClusters(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize convex hull in 2D for set of points in triangle cluster,
 // projected along the normal of the cluster.
 void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
@@ -804,18 +861,54 @@ void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
   }
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
-void OpenCvVisualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
-                                               cv::Affine3d* frustum_pose,
-                                               WidgetsMap* widgets_map) {
-  CHECK_NOTNULL(frustum_pose);
+void OpenCvVisualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
   CHECK_NOTNULL(widgets_map);
 
   if (trajectory_poses_3d_.size() == 0) {  // no points to visualize
+    LOG(WARNING) << "Trajectory empty, not visualizing.";
     return;
   }
 
-  // Show current camera pose.
+  // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
+  std::vector<cv::Affine3f> trajectory;
+  trajectory.reserve(trajectory_poses_3d_.size());
+  for (const auto& pose : trajectory_poses_3d_) {
+    trajectory.push_back(pose);
+  }
+  (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(
+      trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
+}
+
+/* -------------------------------------------------------------------------- */
+// Visualize trajectory with frustums.
+void OpenCvVisualizer3D::visualizeTrajectoryWithFrustums(
+    WidgetsMap* widgets_map,
+    const size_t& n_last_frustums) {
+  CHECK_NOTNULL(widgets_map);
+  static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
+  std::vector<cv::Affine3f> trajectory_frustums;
+  trajectory_frustums.reserve(n_last_frustums);
+  for (auto rit = trajectory_poses_3d_.rbegin();
+       rit != trajectory_poses_3d_.rend() &&
+       trajectory_frustums.size() < n_last_frustums;
+       ++rit) {
+    trajectory_frustums.push_back(*rit);
+  }
+  (*widgets_map)["Trajectory Frustums"] =
+      VIO::make_unique<cv::viz::WTrajectoryFrustums>(
+          trajectory_frustums, K, 0.2, cv::viz::Color::red());
+}
+
+/* -------------------------------------------------------------------------- */
+// Visualize camera pose with image inside frustum.
+void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
+    const cv::Mat& frustum_image,
+    const cv::Affine3d& frustum_pose,
+    WidgetsMap* widgets_map,
+    const std::string& widget_id) {
+  CHECK_NOTNULL(widgets_map);
   static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
   std::unique_ptr<cv::viz::WCameraPosition> cam_widget_ptr = nullptr;
   if (frustum_image.empty()) {
@@ -826,52 +919,11 @@ void OpenCvVisualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
         K, frustum_image, 1.0, cv::viz::Color::white());
   }
   CHECK(cam_widget_ptr);
-  // Normally you would use Widget3D.setPose(), or updatePose(), but it does not
-  // seem to work, so we send the pose to the display module, which then calls
-  // the window_.setWidgetPose()...
-  *frustum_pose = trajectory_poses_3d_.back();
-  (*widgets_map)["Camera Pose with Frustum"] = std::move(cam_widget_ptr);
-
-  // Option A: This does not work very well.
-  // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");
-  // Viewer is our viewpoint, camera the pose estimate (frustum).
-  static constexpr bool follow_camera = false;
-  if (follow_camera) {
-    cv::Affine3f camera_in_world_coord = trajectory_poses_3d_.back();
-    // Option B: specify viewer wrt camera. Works, but motion is non-smooth.
-    // cv::Affine3f viewer_in_camera_coord (Vec3f(
-    //                                       -0.3422019, -0.3422019, 1.5435732),
-    //                                     Vec3f(3.0, 0.0, -4.5));
-    // cv::Affine3f viewer_in_world_coord =
-    //    viewer_in_camera_coord.concatenate(camera_in_world_coord);
-
-    // Option C: use "look-at" camera parametrization.
-    // Works, but motion is non-smooth as well.
-    cv::Vec3d cam_pos(-6.0, 0.0, 6.0);
-    cv::Vec3d cam_focal_point(camera_in_world_coord.translation());
-    cv::Vec3d cam_y_dir(0.0, 0.0, -1.0);
-    cv::Affine3f cam_pose =
-        cv::viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-    // window_data_.window_.setViewerPose(cam_pose);
-    // window_data_.window_.setViewerPose(viewer_in_world_coord);
-  }
-
-  // Create a Trajectory frustums widget.
-  std::vector<cv::Affine3f> trajectory_frustums(
-      trajectory_poses_3d_.end() -
-          std::min(trajectory_poses_3d_.size(), size_t(10u)),
-      trajectory_poses_3d_.end());
-  (*widgets_map)["Trajectory Frustums"] =
-      VIO::make_unique<cv::viz::WTrajectoryFrustums>(
-          trajectory_frustums, K, 0.2, cv::viz::Color::red());
-
-  // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
-  std::vector<cv::Affine3f> trajectory(trajectory_poses_3d_.begin(),
-                                       trajectory_poses_3d_.end());
-  (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(
-      trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
+  cam_widget_ptr->setPose(frustum_pose);
+  (*widgets_map)[widget_id] = std::move(cam_widget_ptr);
 }
 
+/* -------------------------------------------------------------------------- */
 // Remove widget. True if successful, false if not.
 bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
   try {
@@ -889,6 +941,7 @@ bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
   return false;
 }
 
+/* -------------------------------------------------------------------------- */
 // Visualize line widgets from plane to lmks.
 // Point key is required to avoid duplicated lines!
 void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
@@ -963,6 +1016,8 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Remove line widgets from plane to lmks, for lines that are not pointing
 // to any lmk_id in lmk_ids.
 void OpenCvVisualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
@@ -991,6 +1046,8 @@ void OpenCvVisualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Remove line widgets from plane to lmks.
 void OpenCvVisualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
@@ -1016,6 +1073,8 @@ void OpenCvVisualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Remove plane widget.
 void OpenCvVisualizer3D::removePlane(const PlaneId& plane_index,
                                      const bool& remove_plane_label) {
@@ -1038,11 +1097,11 @@ void OpenCvVisualizer3D::removePlane(const PlaneId& plane_index,
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Add pose to the previous trajectory.
-void OpenCvVisualizer3D::addPoseToTrajectory(
-    const gtsam::Pose3& current_pose_gtsam) {
-  trajectory_poses_3d_.push_back(
-      UtilsOpenCV::gtsamPose3ToCvAffine3d(current_pose_gtsam));
+void OpenCvVisualizer3D::addPoseToTrajectory(const cv::Affine3d& pose) {
+  trajectory_poses_3d_.push_back(pose);
   if (FLAGS_displayed_trajectory_length > 0) {
     while (trajectory_poses_3d_.size() > FLAGS_displayed_trajectory_length) {
       trajectory_poses_3d_.pop_front();
@@ -1050,6 +1109,7 @@ void OpenCvVisualizer3D::addPoseToTrajectory(
   }
 }
 
+/* ------------------------------------------------------------------------ */
 Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
     const Timestamp& image_timestamp,
     const cv::Mat& texture_image,
@@ -1148,6 +1208,7 @@ Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
   return mesh_3d_viz_props;
 }
 
+/* -------------------------------------------------------------------------- */
 // Log mesh to ply file.
 void OpenCvVisualizer3D::logMesh(const cv::Mat& map_points_3d,
                                  const cv::Mat& colors,
@@ -1168,6 +1229,8 @@ void OpenCvVisualizer3D::logMesh(const cv::Mat& map_points_3d,
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Input the mesh points and triangle clusters, and
 // output colors matrix for mesh visualizer.
 // This will color the point with the color of the last plane having it.
@@ -1201,6 +1264,8 @@ void OpenCvVisualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Decide color of the cluster depending on its id.
 void OpenCvVisualizer3D::getColorById(const size_t& id,
                                       cv::viz::Color* color) const {
@@ -1225,6 +1290,8 @@ void OpenCvVisualizer3D::getColorById(const size_t& id,
   }
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Draw a line from lmk to plane center.
 void OpenCvVisualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
                                                   const double& plane_n_x,
@@ -1241,6 +1308,8 @@ void OpenCvVisualizer3D::drawLineFromPlaneToPoint(const std::string& line_id,
   drawLine(line_id, center, point, widgets);
 }
 
+/* --------------------------------------------------------------------------
+ */
 // Update line from lmk to plane center.
 void OpenCvVisualizer3D::updateLineFromPlaneToPoint(const std::string& line_id,
                                                     const double& plane_n_x,

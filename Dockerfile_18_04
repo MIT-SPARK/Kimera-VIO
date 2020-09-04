@@ -45,10 +45,11 @@ RUN cd opencv/build && \
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
-ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/develop version.json
+ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
+    git checkout master && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON .. && \
@@ -82,21 +83,21 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN apt-get update && apt-get install -y python3.6 python3.6-dev python3-pip python3-tk
+RUN apt-get update && apt-get install -y python2.7 python2.7-dev python-pip python3-pip python-tk python3-tk
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
 ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/evo-1.git
-RUN cd evo-1 && python3.6 -m pip install .
+RUN cd evo-1 && python2.7 -m pip install .
 
 # Install spark_vio_evaluation
-RUN python3.6 -m pip install ipython prompt_toolkit
+RUN python2.7 -m pip install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
 # We use `pip install -e .` so that Jinja2 has access to the webiste template...
-RUN cd Kimera-VIO-Evaluation && python3.6 -m pip install -e .
+RUN cd Kimera-VIO-Evaluation && python2.7 -m pip install -e .
 
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
