@@ -403,10 +403,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     VLOG(2) << "timeClone: " << clone_rect_params_time << '\n'
             << "timeSparseStereo: " << sparse_stereo_time << '\n'
             << "timeGetMeasurements: " << get_smart_stereo_meas_time;
-    LOG(WARNING) << ("stereo frame YOLO 1");
   } else {
     stereoFrame_k_->setIsKeyframe(false);
-    LOG(WARNING) << ("stereo frame YOLO 2");
   }
 
   // Reset frames.
