@@ -1278,7 +1278,7 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
   // Refine keypoint with subpixel accuracy.
   if (sparse_stereo_params_.subpixel_refinement_) {
     static const cv::TermCriteria criteria(
-        CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+        cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 40, 0.001);
     static const cv::Size winSize(10, 10);
     static const cv::Size zeroZone(-1, -1);
     std::vector<cv::Point2f> corner;
