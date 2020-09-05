@@ -14,19 +14,16 @@
 
 #pragma once
 
-#include <limits>
-#include <memory>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
+#include <DBoW2/DBoW2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 
-#include <opencv/cv.hpp>
-#include <opencv2/features2d.hpp>
-
-#include <DBoW2/DBoW2.h>
+#include <limits>
+#include <memory>
+#include <opencv2/opencv.hpp>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/logging/Logger.h"
