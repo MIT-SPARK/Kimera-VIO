@@ -345,16 +345,6 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
 /* -------------------------------------------------------------------------- */
 void MonoPipeline::shutdown() {
   Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::shutdown();
-
-  // First: call registered shutdown callbacks, these are typically to signal
-  // data providers that they should now die.
-  if (shutdown_pipeline_cb_) {
-    LOG(INFO) << "Calling registered shutdown callbacks...";
-    // Mind that this will raise a SIGSEGV seg fault if the callee is
-    // destroyed.
-    shutdown_pipeline_cb_();
-  }
-
   // Second: stop data provider
   CHECK(data_provider_module_);
   data_provider_module_->shutdown();
