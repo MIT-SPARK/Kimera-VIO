@@ -40,8 +40,8 @@ score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
 
-pgo_rot_threshold: 0.0
-pgo_trans_threshold: 0.0
+pgo_rot_threshold: 0.05
+pgo_trans_threshold: 0.05
 
 # geom_check_id options:
 #   0: NISTER
