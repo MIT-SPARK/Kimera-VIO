@@ -84,7 +84,6 @@ struct VisualizerInput : public PipelinePayload {
         lcd_output_(lcd_output) {
     CHECK(backend_output);
     CHECK(frontend_output);
-    CHECK(lcd_output);
     if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
     CHECK_EQ(timestamp, backend_output->timestamp_);
