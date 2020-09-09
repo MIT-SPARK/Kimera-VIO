@@ -37,11 +37,6 @@ VioBackEndModule::OutputUniquePtr VioBackEndModule::spinOnce(
   return output;
 }
 
-bool VioBackEndModule::initializeBackend(
-    const VioNavStateTimestamped& initial_seed) {
-  return vio_backend_->initStateAndSetPriors(initial_seed);
-}
-
 void VioBackEndModule::registerImuBiasUpdateCallback(
     const VioBackEnd::ImuBiasCallback& imu_bias_update_callback) {
   CHECK(vio_backend_);

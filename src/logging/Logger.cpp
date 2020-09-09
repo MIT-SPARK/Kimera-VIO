@@ -37,7 +37,7 @@ namespace VIO {
 OfstreamWrapper::OfstreamWrapper(const std::string& filename,
                                  const bool& open_file_in_append_mode)
     : filename_(filename), output_path_(FLAGS_output_path) {
-  openLogFile(filename);
+  openLogFile(filename, open_file_in_append_mode);
 }
 
 // This destructor will directly close the log file when the wrapper is
@@ -49,7 +49,8 @@ OfstreamWrapper::~OfstreamWrapper() {
 
 void OfstreamWrapper::closeAndOpenLogFile() {
   ofstream_.close();
-  openLogFile(filename_);
+  CHECK(!filename_.empty());
+  OpenFile(output_path_ + '/' + filename_, &ofstream_, false);
 }
 
 void OfstreamWrapper::openLogFile(const std::string& output_file_name,

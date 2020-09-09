@@ -58,6 +58,7 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       initial_k_(initial_k),
       final_k_(final_k),
       pipeline_params_(vio_params),
+      imu_measurements_(),
       logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
                                       : nullptr) {
   // Start processing dataset from frame initial_k.
@@ -75,6 +76,14 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
                                << ") is smaller than value for"
                                << " initial_k (" << initial_k_ << ").";
   current_k_ = initial_k_;
+
+  // Parse the actual dataset first, then run it.
+  if (!shutdown_ && !dataset_parsed_) {
+    LOG(INFO) << "Parsing Euroc dataset...";
+    parse();
+    CHECK_GT(imu_measurements_.size(), 0u);
+    dataset_parsed_ = true;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,23 +100,23 @@ EurocDataProvider::~EurocDataProvider() {
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spin() {
-  // Parse the actual dataset first, then run it.
-  if (!shutdown_ && !dataset_parsed_) {
-    // Ideally we would parse at the ctor level, but the IMU callback needs
-    // to be registered first.
-    LOG(INFO) << "Parsing Euroc dataset...";
-    parse();
-    dataset_parsed_ = true;
-  }
-
   if (dataset_parsed_) {
+    if (!is_imu_data_sent_) {
+      // First, send all the IMU data. The flag is to avoid sending it several
+      // times if we are running in sequential mode.
+      sendImuData();
+      is_imu_data_sent_ = true;
+    }
+
     // Spin.
     CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
+    // We log only the first one, because we may be running in sequential mode.
     LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
                          << " and frame " << final_k_;
     while (!shutdown_ && spinOnce()) {
       if (!pipeline_params_.parallel_run_) {
+        // Return, instead of blocking, when running in sequential mode.
         return true;
       }
     }
@@ -174,6 +183,18 @@ bool EurocDataProvider::spinOnce() {
   return true;
 }
 
+void EurocDataProvider::sendImuData() const {
+  CHECK(imu_single_callback_) << "Did you forget to register the IMU callback?";
+  Timestamp previous_timestamp = -1;
+  for (const ImuMeasurement& imu_meas : imu_measurements_) {
+    CHECK_GT(imu_meas.timestamp_, previous_timestamp)
+        << "Euroc IMU data is not in chronological order!";
+    previous_timestamp = imu_meas.timestamp_;
+    imu_single_callback_(imu_meas);
+  }
+}
+
+
 /* -------------------------------------------------------------------------- */
 void EurocDataProvider::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
@@ -212,37 +233,34 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
   Timestamp previous_timestamp = -1;
 
   // Read/store imu measurements, line by line.
-  ImuMeasurements imu_meas;
-  CHECK(imu_single_callback_) << "Did you forget to register the IMU callback?";
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
-    gtsam::Vector6 gyroAccData;
-    for (size_t i = 0; i < 7; i++) {
+    gtsam::Vector6 gyr_acc_data;
+    for (size_t i = 0u; i < gyr_acc_data.size() + 1u; i++) {
       int idx = line.find_first_of(',');
       if (i == 0) {
         timestamp = std::stoll(line.substr(0, idx));
       } else {
-        gyroAccData(i - 1) = std::stod(line.substr(0, idx));
+        gyr_acc_data(i - 1) = std::stod(line.substr(0, idx));
       }
       line = line.substr(idx + 1);
     }
+    CHECK_GT(timestamp, previous_timestamp)
+        << "Euroc IMU data is not in chronological order!";
     Vector6 imu_accgyr;
     // Acceleration first!
-    imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
+    imu_accgyr << gyr_acc_data.tail(3), gyr_acc_data.head(3);
 
-    double normAcc = gyroAccData.tail(3).norm();
+    double normAcc = gyr_acc_data.tail(3).norm();
     if (normAcc > maxNormAcc) maxNormAcc = normAcc;
 
-    double normRotRate = gyroAccData.head(3).norm();
+    double normRotRate = gyr_acc_data.head(3).norm();
     if (normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
-    //! Send IMU measurement to the VIO pipeline.
-    imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
+    //! Store imu measurements
+    imu_measurements_.push_back(ImuMeasurement(timestamp, imu_accgyr));
 
-    if (previous_timestamp == -1) {
-      // Do nothing.
-      previous_timestamp = timestamp;
-    } else {
+    if (previous_timestamp != -1) {
       sumOfDelta += (timestamp - previous_timestamp);
       double deltaMismatch = std::fabs(
           static_cast<double>(timestamp - previous_timestamp -
@@ -251,8 +269,8 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
       deltaCount += 1u;
-      previous_timestamp = timestamp;
     }
+    previous_timestamp = timestamp;
   }
 
   // Converted to seconds.
@@ -273,12 +291,12 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
-                                    const std::string& gtSensorName) {
+                                    const std::string& gt_sensor_name) {
   CHECK(!input_dataset_path.empty());
-  CHECK(!gtSensorName.empty());
+  CHECK(!gt_sensor_name.empty());
 
   std::string filename_sensor =
-      input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/sensor.yaml";
   YamlParser yaml_parser(filename_sensor);
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
@@ -291,12 +309,13 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   // CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
-  gt_data_.body_Pose_cam_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
+  gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
-  // is at the body frame
-  CHECK(gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
-      << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
+  // is at the body frame: aka body_Pose_prism_ == body_Pose_cam_
+  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3()))
+      << "parseGTdata: we expected identity body_Pose_prism_: is everything "
+         "ok?";
 
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp, p_RS_R_x [m], p_RS_R_y [m], p_RS_R_z [m],
@@ -305,7 +324,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
   // b_w_RS_S_x [rad s^-1], b_w_RS_S_y [rad s^-1], b_w_RS_S_z [rad s^-1],
   // b_a_RS_S_x [m s^-2], b_a_RS_S_y [m s^-2], b_a_RS_S_z [m s^-2]
   std::string filename_data =
-      input_dataset_path + "/mav0/" + gtSensorName + "/data.csv";
+      input_dataset_path + "/mav0/" + gt_sensor_name + "/data.csv";
   std::ifstream fin(filename_data.c_str());
   CHECK(fin.is_open()) << "Cannot open file: " << filename_data << '\n'
                        << "Assuming dataset has no ground truth...";
@@ -366,8 +385,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
         << "(" << q(2) << "," << gt_data_raw[5] << ") "
         << "(" << q(3) << "," << gt_data_raw[6] << ").";
 
-    gt_curr.pose_ =
-        gtsam::Pose3(rot, position).compose(gt_data_.body_Pose_cam_);
+    gt_curr.pose_ = gtsam::Pose3(rot, position);
     gt_curr.velocity_ =
         gtsam::Vector3(gt_data_raw[7], gt_data_raw[8], gt_data_raw[9]);
     gtsam::Vector3 gyroBias =

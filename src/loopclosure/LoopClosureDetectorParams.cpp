@@ -50,7 +50,11 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     bool use_mono_rot,
 
     double lowe_ratio,
+#if CV_VERSION_MAJOR == 3
     int matcher_type,
+#else
+    cv::DescriptorMatcher::MatcherType matcher_type,
+#endif
 
     int nfeatures,
     float scale_factor,
@@ -58,7 +62,11 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     int edge_threshold,
     int first_level,
     int WTA_K,
+#if CV_VERSION_MAJOR == 3
     int score_type,
+#else
+    cv::ORB::ScoreType score_type,
+#endif
     int patch_sze,
     int fast_threshold,
 
@@ -194,7 +202,11 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("score_type_id", &score_type_id);
   switch (score_type_id) {
     case 0:
+#if CV_VERSION_MAJOR == 3
       score_type_ = cv::ORB::HARRIS_SCORE;
+#else
+      score_type_ = cv::ORB::ScoreType::HARRIS_SCORE;
+#endif
       break;
     // TODO(marcus): add the rest of the options here
     default:
@@ -296,7 +308,7 @@ void LoopClosureDetectorParams::print() const {
                         "WTA_K_: ",
                         WTA_K_,
                         "score_type_: ",
-                        score_type_,
+                        static_cast<unsigned int>(score_type_),
                         "patch_sze_: ",
                         patch_sze_,
                         "fast_threshold_: ",

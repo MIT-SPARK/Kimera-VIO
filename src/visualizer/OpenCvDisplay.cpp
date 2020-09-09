@@ -25,10 +25,12 @@
 namespace VIO {
 
 OpenCv3dDisplay::OpenCv3dDisplay(
-    const ShutdownPipelineCallback& shutdown_pipeline_cb)
+    const ShutdownPipelineCallback& shutdown_pipeline_cb,
+    const OpenCv3dDisplayParams& params)
     : DisplayBase(),
       window_data_(),
-      shutdown_pipeline_cb_(shutdown_pipeline_cb) {
+      shutdown_pipeline_cb_(shutdown_pipeline_cb),
+      params_(params) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -60,7 +62,6 @@ void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
   spin3dWindow(safeCast(std::move(display_input)));
 }
 
-
 // Adds 3D widgets to the window, and displays it.
 void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
   // Only display if we have a valid pointer.
@@ -78,12 +79,21 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     }
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
-    for (const auto& widget : viz_output->widgets_) {
-      CHECK(widget.second);
-      window_data_.window_.showWidget(widget.first, *(widget.second));
+    const WidgetsMap& widgets = viz_output->widgets_;
+    for (auto it = widgets.begin(); it != widgets.end(); ++it) {
+      CHECK(it->second);
+      // This is to go around opencv issue #10829, new opencv should have this
+      // fixed.
+      it->second->updatePose(cv::Affine3d());
+      window_data_.window_.showWidget(
+          it->first, *(it->second), it->second->getPose());
     }
-    setFrustumPose(viz_output->frustum_pose_);
-    window_data_.window_.spinOnce(1, true);
+    if (params_.hold_display_) {
+      // Spin forever until user closes window
+      window_data_.window_.spin();
+    } else {
+      window_data_.window_.spinOnce(1, true);
+    }
   }
 }
 
@@ -93,15 +103,22 @@ void OpenCv3dDisplay::spin2dWindow(const DisplayInputBase& viz_output) {
     cv::imshow(img_to_display.name_, img_to_display.image_);
   }
   VLOG(10) << "Spin Visualize 2D output.";
-  cv::waitKey(1);  // Not needed because we are using startWindowThread()
+  if (params_.hold_display_) {
+    // Spin forever until user closes window
+    cv::waitKey(0);
+  } else {
+    // Just spins once
+    cv::waitKey(1);  // Not needed because we are using startWindowThread()
+  }
 }
 
-void OpenCv3dDisplay::setFrustumPose(const cv::Affine3d& frustum_pose) {
-  static const std::string kFrustum = "Camera Pose with Frustum";
+void OpenCv3dDisplay::setWidgetPose(const std::string& widget_id,
+                                    const cv::Affine3d& widget_pose) {
   try {
-    window_data_.window_.setWidgetPose(kFrustum, frustum_pose);
+    LOG(ERROR) << "Widget pose rotation: " << widget_pose.rotation();
+    window_data_.window_.setWidgetPose(widget_id, widget_pose);
   } catch (...) {
-    LOG(ERROR) << "Setting widget pose for " << kFrustum << " failed.";
+    LOG(ERROR) << "Setting widget pose for " << widget_id << " failed.";
   }
 }
 
@@ -308,7 +325,6 @@ void OpenCv3dDisplay::recordVideo() {
   LOG(WARNING) << "Recording video sequence for 3d Viz, "
                << "current frame saved in: " + screenshot_path;
   // window_data_.window_.saveScreenshot(screenshot_path);
-  LOG(ERROR) << "WTF";
 }
 
 void OpenCv3dDisplay::setOffScreenRendering() {

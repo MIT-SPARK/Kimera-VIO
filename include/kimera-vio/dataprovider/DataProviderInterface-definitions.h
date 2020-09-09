@@ -63,7 +63,7 @@ class GroundTruthData {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Sensor extrinsics wrt. the body-frame
-  gtsam::Pose3 body_Pose_cam_;
+  gtsam::Pose3 body_Pose_prism_;
 
   // Data rate in seconds, for debug.
   double gt_rate_;
