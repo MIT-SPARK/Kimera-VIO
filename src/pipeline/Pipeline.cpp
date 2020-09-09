@@ -96,8 +96,7 @@ namespace VIO {
 
 Pipeline::Pipeline(const VioParams& params,
                    Visualizer3D::UniquePtr&& visualizer,
-                   DisplayBase::UniquePtr&& displayer,
-                   LoopClosureDetector::UniquePtr&& lcd)
+                   DisplayBase::UniquePtr&& displayer)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
@@ -119,7 +118,8 @@ Pipeline::Pipeline(const VioParams& params,
       parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
-          "initialization_frontend_output_queue", false),
+          "initialization_frontend_output_queue",
+          false),
       backend_input_queue_("backend_input_queue"),
       display_input_queue_("display_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
@@ -259,11 +259,9 @@ Pipeline::Pipeline(const VioParams& params,
   if (FLAGS_use_lcd) {
     lcd_module_ = VIO::make_unique<LcdModule>(
         parallel_run_,
-        // Use given lcd if any
-        lcd ? std::move(lcd)
-            : LcdFactory::createLcd(LoopClosureDetectorType::BoW,
-                                    params.lcd_params_,
-                                    FLAGS_log_output));
+        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
+                              params.lcd_params_,
+                              FLAGS_log_output));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillBackendQueue,
@@ -436,17 +434,17 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
             << "Displayer is working? "
             << (display_module_ ? !display_module_->isWorking() : false);
 
-    VLOG_IF(5, mesher_module_) << "Mesher is working? "
-                               << mesher_module_->isWorking();
+    VLOG_IF(5, mesher_module_)
+        << "Mesher is working? " << mesher_module_->isWorking();
 
-    VLOG_IF(5, lcd_module_) << "LoopClosureDetector is working? "
-                            << lcd_module_->isWorking();
+    VLOG_IF(5, lcd_module_)
+        << "LoopClosureDetector is working? " << lcd_module_->isWorking();
 
-    VLOG_IF(5, visualizer_module_) << "Visualizer is working? "
-                                   << visualizer_module_->isWorking();
+    VLOG_IF(5, visualizer_module_)
+        << "Visualizer is working? " << visualizer_module_->isWorking();
 
-    VLOG_IF(5, display_module_) << "Visualizer is working? "
-                                << display_module_->isWorking();
+    VLOG_IF(5, display_module_)
+        << "Visualizer is working? " << display_module_->isWorking();
 
     // Print all statistics
     LOG(INFO) << utils::Statistics::Print();
@@ -606,7 +604,7 @@ bool Pipeline::initializeFromIMU(
 
   // Guess pose from IMU, assumes vehicle to be static.
   ImuAccGyrS imu_accgyrs = stereo_imu_sync_packet.getImuAccGyrs();
-  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols()-1);
+  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols() - 1);
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
           imu_accgyr,
@@ -667,8 +665,10 @@ bool Pipeline::initializeOnline(
         stereo_imu_sync_init->getStereoFrame());
 
     //! Register frontend output queue for the initializer.
-    vio_frontend_module_->registerOutputCallback([&frontend_output](
-        const FrontendOutput::ConstPtr& output) { frontend_output = output; });
+    vio_frontend_module_->registerOutputCallback(
+        [&frontend_output](const FrontendOutput::ConstPtr& output) {
+          frontend_output = output;
+        });
     return false;
   } else {
     // Check trivial bias and gravity vector for online initialization
@@ -882,8 +882,8 @@ void Pipeline::joinThread(const std::string& thread_name, std::thread* thread) {
       thread->join();
       VLOG(1) << "Joined " << thread_name.c_str() << " thread...";
     } else {
-      LOG_IF(ERROR, parallel_run_) << thread_name.c_str()
-                                   << " thread is not joinable...";
+      LOG_IF(ERROR, parallel_run_)
+          << thread_name.c_str() << " thread is not joinable...";
     }
   } else {
     LOG(WARNING) << "No " << thread_name.c_str() << " thread, not joining.";

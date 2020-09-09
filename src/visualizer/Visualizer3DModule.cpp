@@ -28,6 +28,7 @@ VisualizerModule::VisualizerModule(OutputQueue* output_queue,
       frontend_queue_("visualizer_frontend_queue"),
       backend_queue_("visualizer_backend_queue"),
       mesher_queue_(nullptr),
+      lcd_queue_(nullptr),
       visualizer_(std::move(visualizer)) {
   if (visualizer_->visualization_type_ ==
       VisualizationType::kMesh2dTo3dSparse) {
@@ -83,9 +84,19 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
     CHECK(mesher_payload);
   }
 
+  VizLcdInput lcd_payload = nullptr;
+  if (lcd_queue_) {
+    // Mesher output is optional, only sync if callback registered.
+    CHECK(PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload));
+    CHECK(lcd_payload);
+  }
+
   // Push the synced messages to the visualizer's input queue
-  return VIO::make_unique<VisualizerInput>(
-      timestamp, mesher_payload, backend_payload, frontend_payload);
+  return VIO::make_unique<VisualizerInput>(timestamp,
+                                           mesher_payload,
+                                           backend_payload,
+                                           frontend_payload,
+                                           lcd_payload);
 }
 
 VisualizerModule::OutputUniquePtr VisualizerModule::spinOnce(
@@ -99,6 +110,7 @@ void VisualizerModule::shutdownQueues() {
   frontend_queue_.shutdown();
   backend_queue_.shutdown();
   if (mesher_queue_) mesher_queue_->shutdown();
+  if (lcd_queue_) lcd_queue_->shutdown();
   // This shutdowns the output queue as well.
   MISO::shutdownQueues();
 }

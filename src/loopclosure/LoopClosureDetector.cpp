@@ -198,16 +198,15 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     pgo_states,
                                     pgo_nfg);
   } else {
-    output_payload = VIO::make_unique<LcdOutput>();
+    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_kf_);
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
-    output_payload->timestamp_kf_ = input.timestamp_kf_;
   }
   CHECK(output_payload) << "Missing LCD output payload.";
 
   if (logger_) {
-    debug_info_.timestamp_ = output_payload->timestamp_kf_;
+    debug_info_.timestamp_ = output_payload->timestamp_;
     debug_info_.loop_result_ = loop_result;
     debug_info_.pgo_size_ = pgo_->size();
     debug_info_.pgo_lc_count_ = pgo_->getNumLC();
