@@ -77,16 +77,93 @@ class OpenCvVisualizer3D : public Visualizer3D {
   // TODO(marcus): Is there any reason the following two methods must be
   // private?
 
-  //! Visualize 2d mesh.
-  static cv::Mat visualizeMesh2DStereo(
-      const std::vector<cv::Vec6f>& triangulation_2D,
-      const Frame& ref_frame);
+ public:
+  // Visualization calls are public in case the user wants to manually visualize
+  // things, instead of running spinOnce and do it automatically.
 
+  static Mesh3DVizProperties texturizeMesh3D(const Timestamp& image_timestamp,
+                                             const cv::Mat& texture_image,
+                                             const Mesh2D& mesh_2d,
+                                             const Mesh3D& mesh_3d);
+
+  /**
+   * @brief addPoseToTrajectory Add pose to the previous trajectory.
+   * @param current_pose_gtsam Pose to be added
+   * @param img Optional img to be displayed at the pose's frustum.
+   */
+  void addPoseToTrajectory(const cv::Affine3d& pose);
+
+  /**
+   * @brief visualizeTrajectory3D
+   * Visualize currently stored 3D trajectory (user needs to add poses with
+   * addPoseToTrajectory).
+   * @param frustum_image
+   * @param widgets_map
+   */
+  void visualizeTrajectory3D(WidgetsMap* widgets_map);
+
+  /**
+   * @brief visualizeTrajectoryWithFrustums
+   * Visualize trajectory with frustums, but unfortunately no image can be
+   * displayed inside it.
+   * @param widgets_map
+   * @param n_last_frustums
+   */
+  void visualizeTrajectoryWithFrustums(WidgetsMap* widgets_map,
+                                       const size_t& n_last_frustums = 10u);
+
+  /**
+ * @brief visualizePoseWithImgInFrustum
+ * Visualize a single camera pose with an image inside its frustum.
+   * Adds an image to the frustum of the last pose if cv::Mat is not empty.
+ * @param frustum_image
+ * @param frustum_pose
+ * @param widgets_map
+ * @param widget_id Keep this id the same if you want to update the widget pose
+ * and image, instead of adding a different instance.
+ */
+  void visualizePoseWithImgInFrustum(
+      const cv::Mat& frustum_image,
+      const cv::Affine3d& frustum_pose,
+      WidgetsMap* widgets_map,
+      const std::string& widget_id = "Camera Pose with Frustum");
+
+  /**
+   * @brief visualizePlyMesh Visualize a PLY from filename (absolute path).
+   * @param filename Absolute path to ply file
+   * @param widgets output
+   */
+  void visualizePlyMesh(const std::string& filename, WidgetsMap* widgets);
+
+  /**
+   * @brief visualizePointCloud Given a cv::Mat with each col being
+   * @param[in] point_cloud A mat of type
+   * cv::Mat(1, points.size(), CV_32FC3);
+   * @param widgets modifies the widgets map, adds a new pointcloud.
+   * @param[in] colors (optional) If using colored point cloud:
+   * cv::Mat(1, points.size(), CV_8UC3);
+   * @param[in] normals (optional) If using normals:
+   * cv::Mat(1, points.size(), CV_32FC3);
+   */
+  void visualizePointCloud(const cv::Mat& point_cloud,
+                           WidgetsMap* widgets,
+                           const cv::Affine3d& pose = cv::Affine3d(),
+                           const cv::Mat& colors = cv::Mat(),
+                           const cv::Mat& normals = cv::Mat());
+
+  void visualizeGlobalFrameOfReference(WidgetsMap* widgets, double scale = 1.0);
+
+ private:
   //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static cv::Mat visualizeMesh2D(
       const std::vector<cv::Vec6f>& triangulation2D,
       const cv::Mat& img,
       const KeypointsCV& extra_keypoints = KeypointsCV());
+
+  //! Visualize 2d mesh.
+  static cv::Mat visualizeMesh2DStereo(
+      const std::vector<cv::Vec6f>& triangulation_2D,
+      const Frame& ref_frame);
 
  private:
   //! Visualize a 3D point cloud of unique 3D landmarks.
@@ -134,9 +211,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat());
 
-  /// Visualize a PLY from filename (absolute path).
-  void visualizePlyMesh(const std::string& filename, WidgetsMap* widgets);
-
   /// Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   /// Each triangle is colored depending on the cluster it is in, or gray if it
   /// is in no cluster.
@@ -164,11 +238,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
                            const cv::Mat& polygons_mesh,
                            WidgetsMap* widgets);
 
-  //! Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
-  void visualizeTrajectory3D(const cv::Mat& frustum_image,
-                             cv::Affine3d* frustum_pose,
-                             WidgetsMap* widgets_map);
-
   //!!!!!!!! Remove widget. True if successful, false if not.
   bool removeWidget(const std::string& widget_id);
 
@@ -192,13 +261,20 @@ class OpenCvVisualizer3D : public Visualizer3D {
   void removePlane(const PlaneId& plane_index,
                    const bool& remove_plane_label = true);
 
-  //! Add pose to the previous trajectory.
-  void addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam);
+  // Render window with drawn objects/widgets.
+  // @param wait_time Amount of time in milliseconds for the event loop to keep
+  // running.
+  // @param force_redraw If true, window renders.
+  void renderWindow(int wait_time = 1, bool force_redraw = true);
 
-  static Mesh3DVizProperties texturizeMesh3D(const Timestamp& image_timestamp,
-                                             const cv::Mat& texture_image,
-                                             const Mesh2D& mesh_2d,
-                                             const Mesh3D& mesh_3d);
+  // Get a screenshot of the window.
+  void getScreenshot(const std::string& filename);
+
+  // Useful for when testing on servers without display screen.
+  void setOffScreenRendering();
+
+  // Record video sequence at a hardcoded directory relative to executable.
+  void recordVideo();
 
  private:
   //! Flags for visualization behaviour.
