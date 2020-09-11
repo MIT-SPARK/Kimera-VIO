@@ -164,8 +164,8 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
       // Logger needs information in camera frame for evaluation
       logger_->logFrontendRansac(stereoFrame_lkf_->getTimestamp(),
-                                 getRelativePoseCameraMono(),
-                                 getRelativePoseCameraStereo());
+                                 trackerStatusSummary_.lkf_T_k_mono_,
+                                 trackerStatusSummary_.lkf_T_k_stereo_);
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -718,20 +718,6 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
       stereoFrame_lkf_->getBPoseCamLRect();  // of the left camera!!
   return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ *
          body_Pose_cam_.inverse();
-}
-
-/* -------------------------------------------------------------------------- */
-// return relative pose of camera between last (lkf) and current keyframe (k) - MONO
-// RANSAC
-gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseCameraMono() const {
-  return trackerStatusSummary_.lkf_T_k_mono_;
-}
-
-/* -------------------------------------------------------------------------- */
-// return relative pose of camera between last (lkf) and current keyframe (k) - STEREO
-// RANSAC
-gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseCameraStereo() const {
-  return trackerStatusSummary_.lkf_T_k_stereo_;
 }
 
 /* ------------------------------------------------------------------------ */

@@ -140,16 +140,6 @@ class StereoVisionFrontEnd {
   // current keyframe (k) - STEREO RANSAC
   gtsam::Pose3 getRelativePoseBodyStereo() const;
 
-  /* ------------------------------------------------------------------------ */
-  // Return relative pose of camera between last (lkf) and
-  // current keyframe (k) - MONO RANSAC.
-  gtsam::Pose3 getRelativePoseCameraMono() const;
-
-  /* ------------------------------------------------------------------------ */
-  // Return relative pose of camera between last (lkf) and
-  // current keyframe (k) - STEREO RANSAC
-  gtsam::Pose3 getRelativePoseCameraStereo() const;
-
   // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
   FrontendOutput::UniquePtr spinOnce(const StereoFrontEndInputPayload& input);
