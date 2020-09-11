@@ -27,7 +27,7 @@ TEST(testFeatureDetectorParams, FeatureDetectorParamParseYAML) {
 
   SubPixelCornerFinderParams expected_subpixel_params;
   expected_subpixel_params.term_criteria_.type =
-      CV_TERMCRIT_EPS + CV_TERMCRIT_ITER;
+      cv::TermCriteria::EPS + cv::TermCriteria::COUNT;
   expected_subpixel_params.term_criteria_.maxCount = 42;
   expected_subpixel_params.term_criteria_.epsilon = 0.201;
   expected_subpixel_params.window_size_ = cv::Size(12, 12);
