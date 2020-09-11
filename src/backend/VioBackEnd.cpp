@@ -229,6 +229,7 @@ bool VioBackEnd::initStateAndSetPriors(
   imu_bias_prev_kf_ = vio_nav_state_initial_seed.imu_bias_;
 
   VLOG(2) << "Initial state seed: \n"
+          << " - Initial timestamp: " << timestamp_lkf_ << '\n'
           << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
           << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
           << " - Initial IMU bias: " << imu_bias_lkf_;
