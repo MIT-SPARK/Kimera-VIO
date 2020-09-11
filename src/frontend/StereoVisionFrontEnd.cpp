@@ -172,8 +172,8 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
           tracker_status_summary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
       logger_->logFrontendRansac(stereoFrame_lkf_->getTimestamp(),
-                                 getRelativePoseBodyMono(),
-                                 getRelativePoseBodyStereo());
+                                 tracker_status_summary_.lkf_T_k_mono_,
+                                 tracker_status_summary_.lkf_T_k_stereo_);
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -349,20 +349,29 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                            &status_pose_mono);
 
       TrackingStatusPose status_pose_stereo;
-      outlierRejectionStereo(keyframe_R_cur_frame,
-                             stereoFrame_lkf_,
-                             stereoFrame_k_,
-                             &status_pose_stereo);
-      if (status_pose_stereo.first == TrackingStatus::VALID) {
-        tracker_status_summary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+      if (tracker_->tracker_params_.useStereoTracking_) {
+        outlierRejectionStereo(keyframe_R_cur_frame,
+                               stereoFrame_lkf_,
+                               stereoFrame_k_,
+                               &status_pose_stereo);
+        if (status_pose_stereo.first == TrackingStatus::VALID) {
+          tracker_status_summary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+        }
+      } else {
+        status_pose_stereo.first = TrackingStatus::INVALID;
+        status_pose_stereo.second = gtsam::Pose3();
+        tracker_status_summary_.kfTrackingStatus_stereo_ =
+            TrackingStatus::INVALID;
       }
     } else {
-      tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
+      tracker_status_summary_.kfTrackingStatus_mono_ =
+          TrackingStatus::DISABLED;
       if (VLOG_IS_ON(2)) {
         printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_,
                             "mono");
       }
-      tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
+      tracker_status_summary_.kfTrackingStatus_stereo_ =
+          TrackingStatus::DISABLED;
       if (VLOG_IS_ON(2)) {
         printTrackingStatus(tracker_status_summary_.kfTrackingStatus_stereo_,
                             "stereo");
