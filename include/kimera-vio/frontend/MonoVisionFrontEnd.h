@@ -21,7 +21,6 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
 #include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/frontend/VisionFrontEnd.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/pipeline/PipelineModule.h"

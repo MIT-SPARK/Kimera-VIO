@@ -356,6 +356,10 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   // substitute it:
   camLlkf_P_camLkf = gtsam::Pose3(R, camLlkf_P_camLkf.translation());
 
+  debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+  debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
+  debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
+
   if (stereo_camera) {
     gtsam::Pose3 camLrectlkf_P_camLrectkf = camLlkf_P_camLkf;
     // check if we have to compensate for rectification (if we have a valid
@@ -372,12 +376,9 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
     }
 
     debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-    debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
-    debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
 
     return std::make_pair(status, camLrectlkf_P_camLrectkf);
   }
-
   return std::make_pair(status, camLlkf_P_camLkf);
 }
 

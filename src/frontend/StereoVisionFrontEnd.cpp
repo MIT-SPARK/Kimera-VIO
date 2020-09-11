@@ -261,6 +261,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
     cv::Mat* feature_tracks) {
+  CHECK(tracker_);
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.getTimestamp() << " empirical framerate (sec): "
@@ -346,7 +347,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       outlierRejectionMono(keyframe_R_cur_frame,
                            left_frame_lkf,
                            left_frame_k,
-                           &status_pose_mono);
+                           &status_pose_mono,
+                           stereo_camera_);
 
       TrackingStatusPose status_pose_stereo;
       if (tracker_->tracker_params_.useStereoTracking_) {
@@ -440,6 +442,7 @@ void StereoVisionFrontEnd::outlierRejectionStereo(
     TrackingStatusPose* status_pose_stereo) {
   CHECK(left_frame_lkf);
   CHECK(left_frame_k);
+  CHECK(tracker_);
   CHECK_NOTNULL(status_pose_stereo);
 
   gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
@@ -476,6 +479,7 @@ void StereoVisionFrontEnd::getSmartStereoMeasurements(
     const StereoFrame::Ptr& stereoFrame_kf,
     StereoMeasurements* smart_stereo_measurements) const {
   // Sanity check first.
+  CHECK(tracker_);
   CHECK_NOTNULL(smart_stereo_measurements);
   CHECK(stereoFrame_kf->isRectified())
       << "getSmartStereoMeasurements: stereo pair is not rectified";
@@ -519,6 +523,7 @@ void StereoVisionFrontEnd::getSmartStereoMeasurements(
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
+  CHECK(tracker_);
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   cv::Mat img_left =
       tracker_->getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
@@ -533,6 +538,7 @@ void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
+  CHECK(tracker_);
   // Draw the matchings: assumes that keypoints in the left and right keyframe
   // are ordered in the same way
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
