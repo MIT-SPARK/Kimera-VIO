@@ -76,6 +76,8 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
   CHECK_NOTNULL(status_kps)->clear();
   CHECK_EQ(distorted_kps.size(), undistorted_kps.size());
   status_kps->reserve(distorted_kps.size());
+
+  int invalid_count = 0;
   for (size_t i = 0u; i < undistorted_kps.size(); i++) {
     // cropToSize modifies keypoints, so we have to copy.
     KeypointCV distorted_kp = distorted_kps[i];
@@ -89,10 +91,11 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
         std::round(undistorted_kp.y), std::round(undistorted_kp.x));
 
     if (cropped) {
-      VLOG(10) << "Undistorted Rectified keypoint out of image!\n"
+      VLOG(5) << "Undistorted Rectified keypoint out of image!\n"
                << "Keypoint undistorted: \n"
                << undistorted_kp << '\n'
                << "Image Size (map x size): " << map_x_.size;
+      invalid_count += 1;
       status_kps->push_back(
           std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
     } else {
@@ -101,7 +104,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
         // Mark as invalid all pixels that were undistorted out of the frame
         // and for which the undistorted rectified keypoint remaps close to
         // the distorted unrectified pixel.
-        VLOG(10) << "Pixel mismatch when checking undistortRectification! \n"
+        VLOG(5) << "Pixel mismatch when checking undistortRectification! \n"
                  << "Actual undistorted Keypoint: \n"
                  << " - x: " << undistorted_kp.x << '\n'
                  << " - y: " << undistorted_kp.y << '\n'
@@ -109,6 +112,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
                  << " - x: " << expected_distorted_kp_x << '\n'
                  << " - y: " << expected_distorted_kp_y;
         // Invalid points.
+        invalid_count += 1;
         status_kps->push_back(
             std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
       } else {
@@ -118,6 +122,9 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
       }
     }
   }
+
+  VLOG_IF(10, invalid_count > 0) << "undistortRectifyPoints: unable to match "
+                                 << invalid_count << " keypoints";
 }
 
 void UndistorterRectifier::distortUnrectifyKeypoints(
@@ -147,6 +154,8 @@ void UndistorterRectifier::initUndistortRectifyMaps(
   CHECK_NOTNULL(map_x);
   CHECK_NOTNULL(map_y);
   static constexpr int kImageType = CV_32FC1;
+  // static constexpr int kImageType = CV_16SC2;
+
   cv::Mat map_x_float, map_y_float;
   switch (cam_params.distortion_model_) {
     case DistortionModel::NONE: {
@@ -185,9 +194,13 @@ void UndistorterRectifier::initUndistortRectifyMaps(
     }
   }
 
+  // TODO(marcus): can we add this in without causing errors like before?
   // The reason we convert from floating to fixed-point representations
   // of a map is that they can yield much faster (~2x) remapping operations.
-  cv::convertMaps(map_x_float, map_y_float, *map_x, *map_y, CV_16SC2, false);
+  // cv::convertMaps(map_x_float, map_y_float, *map_x, *map_y, CV_16SC2, false);
+
+  *map_x = map_x_float;
+  *map_y = map_y_float;
 }
 
 }  // namespace VIO

@@ -312,6 +312,7 @@ void StereoMatcher::searchRightKeypointEpipolar(
     *score = -1.0;
     *right_keypoint_rectified =
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0));
+    return;
   }
   // Compensate when the template falls off the image.
   int offset_temp = 0;
@@ -353,6 +354,7 @@ void StereoMatcher::searchRightKeypointEpipolar(
     *score = -1.0;
     *right_keypoint_rectified =
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0));
+    return;
   }
 
   // Compensate when the template falls off the image
@@ -464,11 +466,17 @@ void StereoMatcher::getDepthFromRectifiedMatches(
       }
     } else {
       // Something is wrong.
-      if (left_keypoints_rectified[i].first != KeypointStatus::VALID) {
+      if (left_keypoints_rectified[i].first != KeypointStatus::VALID &&
+          right_keypoints_rectified->at(i).first != 
+          left_keypoints_rectified[i].first) {
         // We cannot have a valid right, without a valid left keypoint.
-        // LOG(WARNING) 
-        //     << "Cannot have a valid right kpt without also a valid left kpt!";
-        right_keypoints_rectified[i].first =
+        LOG(WARNING) 
+            << "Cannot have a valid right kpt without also a valid left kpt!"
+            << "\nLeft kpt status: "
+            << to_underlying(left_keypoints_rectified[i].first)
+            << "\nRight kpt status: "
+            << to_underlying(right_keypoints_rectified->at(i).first);
+        right_keypoints_rectified->at(i).first =
             left_keypoints_rectified[i].first;
       }
       keypoints_depth->push_back(0.0);

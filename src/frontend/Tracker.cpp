@@ -163,7 +163,7 @@ void Tracker::featureTracking(Frame* ref_frame,
   }
 
   // max number of frames in which a feature is seen
-  VLOG(10) << "featureTracking: frame " << cur_frame->id_
+  VLOG(5) << "featureTracking: frame " << cur_frame->id_
            << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
            << " (max: "
            << tracker_params_.feature_detector_params_.max_features_per_frame_
@@ -220,13 +220,13 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
 
   // Solve.
   if (!mono_ransac_.computeModel(0)) {
-    VLOG(10) << "failure: 5pt RANSAC could not find a solution.";
+    VLOG(5) << "failure: 5pt RANSAC could not find a solution.";
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
 
-  VLOG(10) << "geometricOutlierRejectionMono: RANSAC complete.";
+  VLOG(5) << "geometricOutlierRejectionMono: RANSAC complete.";
 
-  VLOG(10) << "RANSAC (MONO): #iter = " << mono_ransac_.iterations_ << '\n'
+  VLOG(5) << "RANSAC (MONO): #iter = " << mono_ransac_.iterations_ << '\n'
            << " #inliers = " << mono_ransac_.inliers_.size() << " #outliers = "
            << mono_ransac_.inliers_.size() - matches_ref_cur.size();
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
@@ -239,7 +239,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
   if (mono_ransac_.inliers_.size() < tracker_params_.minNrMonoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << mono_ransac_.inliers_.size();
+    VLOG(5) << "FEW_MATCHES: " << mono_ransac_.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
 
@@ -250,7 +250,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
                                                          &disparity);
   LOG_IF(ERROR, !median_disparity_success)
       << "Median disparity calculation failed...";
-  VLOG(10) << "Median disparity: " << disparity;
+  VLOG(5) << "Median disparity: " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
     LOG(WARNING) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;
@@ -303,21 +303,21 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
                                             tracker_params_.ransac_randomize_);
   mono_ransac_given_rot_.sac_model_ = problem;
 
-  VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting 2-point RANSAC";
+  VLOG(5) << "geometricOutlierRejectionMonoGivenRot: starting 2-point RANSAC";
 
   // Solve.
   if (!mono_ransac_given_rot_.computeModel(0)) {
     LOG(WARNING) << "2-point RANSAC could not find a solution!";
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
-  VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
+  VLOG(5) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
 
-  VLOG(10) << "RANSAC (MONO): #iter = " << mono_ransac_given_rot_.iterations_
-           << '\n'
-           << " #inliers = " << mono_ransac_given_rot_.inliers_.size()
-           << "\n #outliers = "
-           << mono_ransac_given_rot_.inliers_.size() - matches_ref_cur.size()
-           << "\n Total = " << matches_ref_cur.size();
+  VLOG(5) << "RANSAC (MONO): #iter = " << mono_ransac_given_rot_.iterations_
+          << '\n'
+          << " #inliers = " << mono_ransac_given_rot_.inliers_.size()
+          << "\n #outliers = "
+          << matches_ref_cur.size() - mono_ransac_given_rot_.inliers_.size()
+          << "\n Total = " << matches_ref_cur.size();
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
 
   // Remove outliers.
@@ -330,7 +330,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   TrackingStatus status = TrackingStatus::VALID;
   if (mono_ransac_given_rot_.inliers_.size() <
       tracker_params_.minNrMonoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << mono_ransac_given_rot_.inliers_.size();
+    VLOG(5) << "FEW_MATCHES: " << mono_ransac_given_rot_.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
   double disparity;
@@ -341,9 +341,9 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   LOG_IF(ERROR, !median_disparity_success)
       << "Median disparity calculation failed...";
 
-  VLOG(10) << "median disparity " << disparity;
+  VLOG(5) << "median disparity " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
-    VLOG(10) << "LOW_DISPARITY: " << disparity;
+    VLOG(5) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;
   }
 
@@ -402,7 +402,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
   // models!
   // (1e-1)
   if ((point3_i_gtsam - point3_i).norm() > 1e-1) {
-    VLOG(10) << "\n point3_i_gtsam \n " << point3_i_gtsam << "\n point3_i \n"
+    VLOG(5) << "\n point3_i_gtsam \n " << point3_i_gtsam << "\n point3_i \n"
              << point3_i;
     LOG(FATAL) << "GetPoint3AndCovariance: inconsistent "
                << "backprojection results (ref): "
@@ -431,7 +431,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   findMatchingStereoKeypoints(
       ref_stereoFrame, cur_stereoFrame, &matches_ref_cur);
 
-  VLOG(10) << "geometricOutlierRejectionStereoGivenRot:"
+  VLOG(5) << "geometricOutlierRejectionStereoGivenRot:"
               " starting 1-point RANSAC (voting)";
 
   // Stereo point covariance: for covariance propagation.
@@ -569,7 +569,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
 
   double time_voting_p = utils::Timer::toc(time_voting_tic).count();
 
-  VLOG(10) << "geometricOutlierRejectionStereoGivenRot: voting complete.";
+  VLOG(5) << "geometricOutlierRejectionStereoGivenRot: voting complete.";
 
   //============================================================================
   // OUTLIER REJECTION AND TRANSLATION COMPUTATION
@@ -589,7 +589,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // UtilsOpenCV::PrintVector<int>(inliers,"inliers");
   // std::cout << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
 
-  VLOG(10) << "RANSAC (STEREO): #iter = " << 1 << '\n'
+  VLOG(5) << "RANSAC (STEREO): #iter = " << 1 << '\n'
            << " #inliers = " << inliers.size()
            << "\n #outliers = " << inliers.size() - matches_ref_cur.size()
            << "\n Total = " << matches_ref_cur.size();
@@ -602,7 +602,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
   if (inliers.size() < tracker_params_.minNrStereoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << inliers.size();
+    VLOG(5) << "FEW_MATCHES: " << inliers.size();
     status = TrackingStatus::FEW_MATCHES;
   }
 
@@ -621,7 +621,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   if (VLOG_IS_ON(10)) {
     double time_translation_computation_p =
         utils::Timer::toc(start_time_tic).count();
-    VLOG(10) << " Time MatchingAndAllocation: " << timeMatchingAndAllocation_p
+    VLOG(5) << " Time MatchingAndAllocation: " << timeMatchingAndAllocation_p
              << " Time CreatePointsAndCov: " << timeCreatePointsAndCov_p
              << " Time Voting: " << time_voting_p
              << " Time translation computation p: "
@@ -647,7 +647,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   findMatchingStereoKeypoints(
       ref_stereoFrame, cur_stereoFrame, &matches_ref_cur);
 
-  VLOG(10) << "geometricOutlierRejectionStereo:"
+  VLOG(5) << "geometricOutlierRejectionStereo:"
               " starting 3-point RANSAC (voting)";
 
   // Vector of 3D vectors
@@ -674,13 +674,18 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
 
   // Solve.
   if (!stereo_ransac_.computeModel(0)) {
-    VLOG(10) << "failure: (Arun) RANSAC could not find a solution.";
+    LOG(WARNING) << "failure: (Arun) RANSAC could not find a solution."
+                 << "\n  size of matches_ref_cur: " << matches_ref_cur.size()
+                 << "\n  size of f_ref: " << f_ref.size()
+                 << "\n  size of f_cur: " << f_cur.size()
+                 << "\n  size of ref_keypoints_3d: " << ref_keypoints_3d.size()
+                 << "\n  size of cur_keypoints_3d: " << cur_keypoints_3d.size();
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
 
-  VLOG(10) << "geometricOutlierRejectionStereo: voting complete.";
+  VLOG(5) << "geometricOutlierRejectionStereo: voting complete.";
 
-  VLOG(10) << "RANSAC (STEREO): #iter = " << stereo_ransac_.iterations_ << '\n'
+  VLOG(5) << "RANSAC (STEREO): #iter = " << stereo_ransac_.iterations_ << '\n'
            << " #inliers = " << stereo_ransac_.inliers_.size()
            << "\n #outliers = "
            << stereo_ransac_.inliers_.size() - matches_ref_cur.size();
@@ -695,7 +700,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
   if (stereo_ransac_.inliers_.size() < tracker_params_.minNrStereoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << stereo_ransac_.inliers_.size();
+    VLOG(5) << "FEW_MATCHES: " << stereo_ransac_.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
 
@@ -867,6 +872,10 @@ void Tracker::findMatchingStereoKeypoints(
         cur_right_keypoints[ind_cur].first == KeypointStatus::VALID) {
       // Pair of points that has 3D in both stereoFrames.
       matches_ref_cur_stereo->push_back(matches_ref_cur_mono[i]);
+    } else {
+      VLOG(5) << "Failed match status: " 
+              << to_underlying(ref_right_keypoints[ind_ref].first)
+              << " " << to_underlying(cur_right_keypoints[ind_cur].first);
     }
   }
 }
