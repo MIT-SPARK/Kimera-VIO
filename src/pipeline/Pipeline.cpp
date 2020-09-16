@@ -134,7 +134,7 @@ Pipeline::Pipeline(const VioParams& params,
     if (output->is_keyframe_) {
       //! Only push to backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
-          output->stereo_frame_lkf_.getTimestamp(),
+          output->stereo_frame_lkf_.timestamp_,
           output->status_stereo_measurements_,
           output->tracker_status_,
           output->pim_,

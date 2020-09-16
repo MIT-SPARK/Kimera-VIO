@@ -210,30 +210,34 @@ gtsam::Pose3 UtilsOpenCV::openGvTfToGtsamPose3(
 }
 
 /* -------------------------------------------------------------------------- */
+bool UtilsOpenCV::isKptInsideImg(const KeypointCV& px,
+                                 const cv::Size& img_size) {
+  return cv::Rect2f(0.0, 0.0, img_size.width, img_size.height).contains(px);
+}
+
+/* -------------------------------------------------------------------------- */
 // Crops pixel coordinates avoiding that it falls outside image
-// TODO(marcus): is it possible to make this return a new keypoint?
-//   we can't have any const refs with keypoints because of this...
+// TODO(marcus): template on input precision? have to change whole class
 bool UtilsOpenCV::cropToSize(KeypointCV* px, const cv::Size& size) {
   CHECK_NOTNULL(px);
-  bool cropped = false;
-  float max_width = static_cast<float>(size.width - 1);
-  if (px->x > max_width) {
-    px->x = max_width;
-    cropped = true;
-  } else if (px->x < 0.0f) {
-    px->x = 0.0f;
-    cropped = true;
-  }
-  float max_height = static_cast<float>(size.height - 1);
-  if (px->y > max_height) {
-    px->y = max_height;
-    cropped = true;
-  } else if (px->y < 0.0f) {
-    px->y = 0.0f;
-    cropped = true;
+  bool cropped = !isKptInsideImg(*px, size);
+  if (cropped) {
+    float max_width = static_cast<float>(size.width - 1);
+    if (px->x > max_width) {
+      px->x = max_width;
+    } else if (px->x < 0.0f) {
+      px->x = 0.0f;
+    }
+    float max_height = static_cast<float>(size.height - 1);
+    if (px->y > max_height) {
+      px->y = max_height;
+    } else if (px->y < 0.0f) {
+      px->y = 0.0f;
+    }
   }
   return cropped;
 }
+
 /* -------------------------------------------------------------------------- */
 /** @brief Crop to size and round pixel coordinates to integers
  * @param

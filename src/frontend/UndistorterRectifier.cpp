@@ -29,8 +29,9 @@ UndistorterRectifier::UndistorterRectifier(const cv::Mat& P,
   initUndistortRectifyMaps(cam_params, R, P, &map_x_, &map_y_);
 }
 
-void UndistorterRectifier::undistortRectifyImage(const cv::Mat& img,
-                                                 cv::Mat* undistorted_img) {
+void UndistorterRectifier::undistortRectifyImage(
+    const cv::Mat& img,
+    cv::Mat* undistorted_img) const {
   CHECK_NOTNULL(undistorted_img);
   CHECK_EQ(map_x_.size, img.size);
   CHECK_EQ(map_y_.size, img.size);
@@ -45,7 +46,7 @@ void UndistorterRectifier::undistortRectifyImage(const cv::Mat& img,
 
 void UndistorterRectifier::undistortRectifyKeypoints(
     const KeypointsCV& keypoints,
-    KeypointsCV* undistorted_keypoints) {
+    KeypointsCV* undistorted_keypoints) const {
   CHECK_NOTNULL(undistorted_keypoints)->clear();
   switch (cam_params_.distortion_model_) {
     case DistortionModel::RADTAN: {
@@ -72,7 +73,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
     const KeypointsCV& distorted_kps,
     const KeypointsCV& undistorted_kps,
     StatusKeypointsCV* status_kps,
-    const float& pixel_tol) {
+    const float& pixel_tol) const {
   CHECK_NOTNULL(status_kps)->clear();
   CHECK_EQ(distorted_kps.size(), undistorted_kps.size());
   status_kps->reserve(distorted_kps.size());
@@ -91,7 +92,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
     if (cropped) {
       VLOG(10) << "Undistorted Rectified keypoint out of image!\n"
                << "Keypoint undistorted: \n"
-               << undistorted_kp << '\n'
+               << undistorted_kps[i] << '\n'
                << "Image Size (map x size): " << map_x_.size;
       status_kps->push_back(
           std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));

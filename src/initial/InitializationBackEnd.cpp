@@ -62,7 +62,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     const InitializationInputPayload& init_input_payload =
         *(*output_frontend.front());
     inputs_backend.push_back(VIO::make_unique<BackendInput>(
-        init_input_payload.stereo_frame_lkf_.getTimestamp(),
+        init_input_payload.stereo_frame_lkf_.timestamp_,
         init_input_payload.status_stereo_measurements_,
         init_input_payload.tracker_status_,
         init_input_payload.pim_,
@@ -71,7 +71,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     pims.push_back(init_input_payload.pim_);
     // Bookkeeping for timestamps
     Timestamp timestamp_kf =
-        init_input_payload.stereo_frame_lkf_.getTimestamp();
+        init_input_payload.stereo_frame_lkf_.timestamp_;
     delta_t_camera.push_back(
         UtilsNumerical::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
@@ -120,7 +120,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     std::vector<Timestamp> timestamps;
     for (int i = 0; i < output_frontend.size(); i++) {
       timestamps.push_back(
-          output_frontend.at(i)->stereo_frame_lkf_.getTimestamp());
+          output_frontend.at(i)->stereo_frame_lkf_.timestamp_);
     }
     gt_dataset.parseGTdata("/home/sb/Dataset/EuRoC/V1_01_gt", "gt");
     const gtsam::NavState init_navstate_pass = *init_navstate;

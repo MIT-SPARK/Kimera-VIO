@@ -55,7 +55,8 @@ class UndistorterRectifier {
    * @param img Distorted non-rectified input image
    * @param undistorted_img Undistorted Rectified output image
    */
-  void undistortRectifyImage(const cv::Mat& img, cv::Mat* undistorted_img);
+  void undistortRectifyImage(const cv::Mat& img,
+                             cv::Mat* undistorted_img) const;
 
   /**
    * @brief undistortRectifyKeypoints Undistorts and rectifies a sparse set of
@@ -73,14 +74,14 @@ class UndistorterRectifier {
    * @param undistorted_keypoints Undistorted and rectified keypoints.
    */
   void undistortRectifyKeypoints(const KeypointsCV& keypoints,
-                                 KeypointsCV* undistorted_keypoints);
+                                 KeypointsCV* undistorted_keypoints) const;
 
   void checkUndistortedRectifiedLeftKeypoints(
       const KeypointsCV& distorted_kpts,
       const KeypointsCV& undistorted_kpts,
       StatusKeypointsCV* status_kpts,
       // This tolerance is huge...
-      const float& pixel_tolerance = 2.0f);
+      const float& pixel_tolerance = 2.0f) const;
 
   void distortUnrectifyKeypoints(const StatusKeypointsCV& keypoints_rectified,
                                  KeypointsCV* keypoints_unrectified) const;

@@ -137,8 +137,8 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   stereo_camera_->undistortRectifyLeftKeypoints(
       stereo_frame->left_frame_.keypoints_,
       &stereo_frame->left_keypoints_rectified_);
-  sparseStereoReconstruction(stereo_frame->left_img_rectified_,
-                             stereo_frame->right_img_rectified_,
+  sparseStereoReconstruction(stereo_frame->getLeftImgRectified(),
+                             stereo_frame->getRightImgRectified(),
                              stereo_frame->left_keypoints_rectified_,
                              &stereo_frame->right_keypoints_rectified_);
   //! Fill out keypoint depths

@@ -116,7 +116,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
 
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe =
-      input.frontend_output_->stereo_frame_lkf_.getLeftFrame();
+      input.frontend_output_->stereo_frame_lkf_.left_frame_;
   switch (visualization_type_) {
     // Computes and visualizes 3D mesh from 2D triangulation.
     // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and

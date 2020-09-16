@@ -166,6 +166,11 @@ class UtilsOpenCV {
   static gtsam::Pose3 openGvTfToGtsamPose3(const opengv::transformation_t& RT);
 
   /* ------------------------------------------------------------------------ */
+  // Checks whether pixel is located within the image of size `img_size`
+  // Note: assumes image top left corner starts at u=0.0 and v=0.0
+  static bool isKptInsideImg(const KeypointCV& px, const cv::Size& img_size);
+
+  /* ------------------------------------------------------------------------ */
   // Crops pixel coordinates avoiding that it falls outside image
   static bool cropToSize(cv::Point2f* px, const cv::Size& size);
 
