@@ -46,7 +46,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const FrontendParams& frontend_params,
-    const StereoCamera::Ptr& stereo_camera,
+    const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output)
     : frontend_state_(FrontendState::Bootstrap),

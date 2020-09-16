@@ -34,7 +34,7 @@ DEFINE_bool(visualize_feature_predictions,
 namespace VIO {
 
 Tracker::Tracker(const FrontendParams& tracker_params,
-                 const StereoCamera::Ptr& stereo_camera,
+                 const StereoCamera::ConstPtr& stereo_camera,
                  DisplayQueue* display_queue)
     : landmark_count_(0),
       tracker_params_(tracker_params),

@@ -60,7 +60,7 @@ class LoopClosureDetector {
    *  instantiated and output/statistics are logged at every spinOnce().
    */
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const StereoCamera::Ptr& stereo_camera,
+                      const StereoCamera::ConstPtr& stereo_camera,
                       const StereoMatchingParams& stereo_matching_params,
                       bool log_output);
 
@@ -374,7 +374,7 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
   StereoMatcher::UniquePtr stereo_matcher_;
 
   // Robust PGO members
@@ -414,7 +414,7 @@ class LcdFactory {
   static LoopClosureDetector::UniquePtr createLcd(
       const LoopClosureDetectorType& lcd_type,
       const LoopClosureDetectorParams& lcd_params,
-      const StereoCamera::Ptr& stereo_camera,
+      const StereoCamera::ConstPtr& stereo_camera,
       const StereoMatchingParams& stereo_matching_params,
       bool log_output) {
     switch (lcd_type) {

@@ -23,7 +23,7 @@
 
 namespace VIO {
 
-StereoMatcher::StereoMatcher(const StereoCamera::Ptr& stereo_camera,
+StereoMatcher::StereoMatcher(const StereoCamera::ConstPtr& stereo_camera,
                              const StereoMatchingParams& stereo_matching_params)
     : stereo_camera_(stereo_camera),
       stereo_matching_params_(stereo_matching_params),

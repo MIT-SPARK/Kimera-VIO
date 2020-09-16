@@ -53,7 +53,7 @@ class Tracker {
    * @param camera_params Parameters for the camera used for tracking.
    */
   Tracker(const FrontendParams& tracker_params,
-          const StereoCamera::Ptr& stereo_camera,
+          const StereoCamera::ConstPtr& stereo_camera,
           DisplayQueue* display_queue = nullptr);
 
   // Tracker parameters.
@@ -151,7 +151,7 @@ class Tracker {
 
   // StereoCamera object for the camera we are tracking. We use the left camera.
   // TODO(marcus): this should be general to all camera types!
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of
   // where the features moved from frame to frame.
