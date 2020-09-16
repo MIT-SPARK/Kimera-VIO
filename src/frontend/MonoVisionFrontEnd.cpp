@@ -52,12 +52,6 @@ MonoVisionFrontEnd::~MonoVisionFrontEnd() {
   LOG(INFO) << "MonoVisionFrontEnd destructor called.";
 }
 
-gtsam::Pose3 MonoVisionFrontEnd::getRelativePoseBody() const {
-  gtsam::Pose3 body_Pose_cam = mono_camera_->getBodyPoseCamRect();
-  return body_Pose_cam * tracker_status_summary_.lkf_T_k_mono_ * 
-         body_Pose_cam.inverse();
-}
-
 MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
     const MonoFrontEndInputPayload& input) {
   CHECK(frontend_state_ == FrontendState::Bootstrap);
@@ -73,7 +67,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
   return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
                                               nullptr,
                                               TrackingStatus::DISABLED,
-                                              getRelativePoseBody(),
+                                              gtsam::Pose3(),  // no stereo!
                                               mono_camera_->getBodyPoseCam(),
                                               *mono_frame_lkf_,
                                               nullptr,
@@ -141,8 +135,8 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
       // TODO(marcus): Last arg is usually stereo, need to refactor logger
       // to not require that.
       logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
-                                getRelativePoseBody(),
-                                gtsam::Pose3());
+                                 tracker_status_summary_.lkf_T_k_mono_,
+                                 gtsam::Pose3());
     }
     //////////////////////////////////////////////////////////////////////////////
 
@@ -159,7 +153,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
         true,
         status_mono_measurements,
         tracker_status_summary_.kfTrackingStatus_mono_,
-        getRelativePoseBody(),
+        gtsam::Pose3(),  // don't pass stereo pose to backend!
         mono_camera_->getBodyPoseCamRect(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -175,7 +169,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
         false,
         status_mono_measurements,
         TrackingStatus::INVALID,
-        getRelativePoseBody(),
+        gtsam::Pose3(),  // don't pass stereo pose to backend!
         mono_camera_->getBodyPoseCamRect(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -190,8 +184,6 @@ void MonoVisionFrontEnd::processFirstFrame(const Frame& first_frame) {
   mono_frame_k_ = std::make_shared<Frame>(first_frame);
   mono_frame_k_->isKeyframe_ = true;
   last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
-
-  LOG(INFO) << "processing firstframe";
 
   CHECK_EQ(mono_frame_k_->keypoints_.size(), 0)
       << "Keypoints already present in first frame: please do not extract"
@@ -215,7 +207,7 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     cv::Mat* feature_tracks) {
   LOG(INFO) << "processing frame";
   VLOG(2) << "===================================================\n"
-          << "Frame numbaer: " << frame_count_ << " at time "
+          << "Frame number: " << frame_count_ << " at time "
           << cur_frame.timestamp_ << " empirical framerate (sec): "
           << UtilsNumerical::NsecToSec(cur_frame.timestamp_ -
                                        mono_frame_km1_->timestamp_)
@@ -239,7 +231,7 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
 
   // TODO(marcus): need another structure for monocular slam
   tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
-  tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
+  tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
 
   MonoMeasurements smart_mono_measurements;
 
@@ -256,8 +248,6 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     VLOG(2) << "Keframe after [s]: "
             << UtilsNumerical::NsecToSec(mono_frame_k_->timestamp_ - 
                                          last_keyframe_timestamp_);
-    last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
-    mono_frame_k_->isKeyframe_ = true;
     ++keyframe_count_;
 
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
@@ -265,23 +255,31 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
         << tracker_->tracker_params_.min_number_features_ << ").";
 
-    CHECK(feature_detector_);
-    feature_detector_->featureDetection(mono_frame_k_.get());
-
     if (tracker_->tracker_params_.useRANSAC_) {
-      // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
       outlierRejectionMono(keyframe_R_cur_frame,
                            mono_frame_lkf_.get(),
                            mono_frame_k_.get(),
                            &status_pose_mono);
+      tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
+
+      if (status_pose_mono.first == TrackingStatus::VALID) {
+        tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
+      }
     } else {
       tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_, "mono");
-      }
-      tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
     }
+
+    if (VLOG_IS_ON(2)) {
+      printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_,
+                          "mono");
+    }
+
+    last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
+    mono_frame_k_->isKeyframe_ = true;
+
+    CHECK(feature_detector_);
+    feature_detector_->featureDetection(mono_frame_k_.get());
 
     // Log images if needed.
     // if (logger_ &&

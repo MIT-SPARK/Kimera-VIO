@@ -48,8 +48,6 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
                      bool log_output = false);
   virtual ~MonoVisionFrontEnd();
 
-  gtsam::Pose3 getRelativePoseBody() const;
-
  private:
   void processFirstFrame(const Frame& firstFrame);
 

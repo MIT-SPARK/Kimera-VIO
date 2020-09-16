@@ -72,16 +72,18 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
 
   // Create mostly unvalid output, to send the imu_acc_gyrs to the backend.
   CHECK(stereoFrame_lkf_);
-  return VIO::make_unique<StereoFrontendOutput>(stereoFrame_lkf_->isKeyframe(),
-                                          nullptr,
-                                          TrackingStatus::DISABLED,
-                                          getRelativePoseBodyStereo(),
-                                          stereo_camera_->getBodyPoseLeftCamRect(),
-                                          *stereoFrame_lkf_,
-                                          nullptr,
-                                          input.getImuAccGyrs(),
-                                          cv::Mat(),
-                                          getTrackerInfo());
+  return VIO::make_unique<StereoFrontendOutput>(
+      stereoFrame_lkf_->isKeyframe(),
+      nullptr,
+      TrackingStatus::DISABLED,
+      tracker_->tracker_params_.useStereoTracking_ ? getRelativePoseBodyStereo()
+                                                   : getRelativePoseBodyMono(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      *stereoFrame_lkf_,
+      nullptr,
+      input.getImuAccGyrs(),
+      cv::Mat(),
+      getTrackerInfo());
 }
 
 StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
@@ -210,7 +212,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
         TrackingStatus::INVALID,
         getRelativePoseBodyStereo(),
         stereo_camera_->getBodyPoseLeftCamRect(),
-        * stereoFrame_lkf_,
+        *stereoFrame_lkf_,
         pim,
         input.getImuAccGyrs(),
         feature_tracks,
@@ -349,6 +351,11 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                            left_frame_k,
                            &status_pose_mono,
                            stereo_camera_);
+      tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
+
+      if (status_pose_mono.first == TrackingStatus::VALID) {
+        tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
+      }
 
       TrackingStatusPose status_pose_stereo;
       if (tracker_->tracker_params_.useStereoTracking_) {
@@ -356,6 +363,9 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                                stereoFrame_lkf_,
                                stereoFrame_k_,
                                &status_pose_stereo);
+        tracker_status_summary_.kfTrackingStatus_stereo_ =
+            status_pose_stereo.first;
+
         if (status_pose_stereo.first == TrackingStatus::VALID) {
           tracker_status_summary_.lkf_T_k_stereo_ = status_pose_stereo.second;
         }
@@ -368,16 +378,15 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     } else {
       tracker_status_summary_.kfTrackingStatus_mono_ =
           TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_,
-                            "mono");
-      }
       tracker_status_summary_.kfTrackingStatus_stereo_ =
           TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_stereo_,
-                            "stereo");
-      }
+    }
+
+    if (VLOG_IS_ON(2)) {
+      printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_,
+                          "mono");
+      printTrackingStatus(tracker_status_summary_.kfTrackingStatus_stereo_,
+                          "stereo");
     }
 
     // Log images if needed.
@@ -463,14 +472,7 @@ void StereoVisionFrontEnd::outlierRejectionStereo(
     LOG_IF(WARNING, force_53point_ransac_) << "3-point RANSAC was enforced!";
   }
 
-  // Set relative pose.
-  tracker_status_summary_.kfTrackingStatus_stereo_ = status_pose_stereo->first;
   tracker_status_summary_.infoMatStereoTranslation_ = infoMatStereoTranslation;
-
-  if (VLOG_IS_ON(2)) {
-    printTrackingStatus(tracker_status_summary_.kfTrackingStatus_stereo_,
-                        "stereo");
-  }
 }
 
 /* -------------------------------------------------------------------------- */

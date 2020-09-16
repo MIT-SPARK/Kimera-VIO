@@ -45,6 +45,8 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   data_provider_module_->registerVioPipelineCallback(
     std::bind(&MonoPipeline::spinOnce, this, std::placeholders::_1));
 
+  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_) 
+      << "useStereoTracking is set to true, but this is a mono pipeline!";
   vio_frontend_module_ = VIO::make_unique<MonoVisionFrontEndModule>(
       &frontend_input_queue_,
       parallel_run_,
@@ -69,7 +71,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
           output->tracker_status_,
           output->pim_,
           output->imu_acc_gyrs_,
-          output->relative_pose_body_));
+          boost::none));  // don't pass stereo pose to backend!
     } else {
       VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
     }
@@ -87,6 +89,8 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   // TODO(marcus): enable backend when ready!
   // TODO(marcus): get rid of fake stereocam
   // using a stereocam with a fake right cam for now
+  LOG_IF(FATAL, params.backend_params_->addBetweenStereoFactors_)
+      << "addBetweenStereoFactors is set to true, but this is a mono pipeline!";
   VIO::StereoCamera stereo_cam(
       camera_, std::make_shared<VIO::Camera>(params.camera_params_.at(1)));
   CHECK(backend_params_);

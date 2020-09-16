@@ -360,6 +360,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
   debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
 
+  // TODO(marcus): remove stereo_camera, use R1 as input arg
   if (stereo_camera) {
     gtsam::Pose3 camLrectlkf_P_camLrectkf = camLlkf_P_camLkf;
     // check if we have to compensate for rectification (if we have a valid
