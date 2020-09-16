@@ -57,7 +57,6 @@ class CameraParams : public PipelineParams {
         body_Pose_cam_(),
         frame_rate_(),
         image_size_(),
-        calibration_(),
         distortion_model_(),
         distortion_coeff_(),
         distortion_coeff_mat_(),
