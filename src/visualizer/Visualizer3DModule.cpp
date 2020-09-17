@@ -21,6 +21,7 @@ namespace VIO {
 
 VisualizerModule::VisualizerModule(OutputQueue* output_queue,
                                    bool parallel_run,
+                                   bool use_lcd,
                                    Visualizer3D::UniquePtr visualizer)
     : MISOPipelineModule<VisualizerInput, DisplayInputBase>(output_queue,
                                                             "Visualizer",
@@ -36,6 +37,10 @@ VisualizerModule::VisualizerModule(OutputQueue* output_queue,
     mesher_queue_ = VIO::make_unique<ThreadsafeQueue<VizMesherInput>>(
         "visualizer_mesher_queue");
   }
+  if (use_lcd) {
+    lcd_queue_ =
+        VIO::make_unique<ThreadsafeQueue<VizLcdInput>>("visualizer_lcd_queue");
+  }
 }
 
 void VisualizerModule::fillMesherQueue(const VizMesherInput& mesher_payload) {
@@ -44,6 +49,13 @@ void VisualizerModule::fillMesherQueue(const VizMesherInput& mesher_payload) {
          "initialized... Make sure you tell the visualizer that"
          "you want to viz the 3D mesh...";
   mesher_queue_->push(mesher_payload);
+}
+
+void VisualizerModule::fillLcdQueue(const VizLcdInput& lcd_payload) {
+  CHECK(lcd_queue_) << "Filling lcd queue without lcd_queue_ being "
+                       "initialized... Make sure you tell the visualizer that "
+                       "you want to use lcd...";
+  lcd_queue_->push(lcd_payload);
 }
 
 VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
