@@ -86,13 +86,11 @@ MonoPipeline::MonoPipeline(const VioParams& params,
       FLAGS_visualize && FLAGS_visualize_lmk_type);
 
   //! Create backend
-  // TODO(marcus): enable backend when ready!
   // TODO(marcus): get rid of fake stereocam
-  // using a stereocam with a fake right cam for now
   LOG_IF(FATAL, params.backend_params_->addBetweenStereoFactors_)
       << "addBetweenStereoFactors is set to true, but this is a mono pipeline!";
-  VIO::StereoCamera stereo_cam(
-      camera_, std::make_shared<VIO::Camera>(params.camera_params_.at(1)));
+  VIO::StereoCamera stereo_cam(params.camera_params_.at(0),
+                               params.camera_params_.at(1));
   CHECK(backend_params_);
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
@@ -100,7 +98,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
       BackEndFactory::createBackend(
           static_cast<BackendType>(params.backend_type_),
           // These two should be given by parameters.
-          camera_->getBodyPoseCam(),
+          stereo_cam.getBodyPoseLeftCamRect(),  // TODO(marcus): switch back to mono cam!
           stereo_cam.getStereoCalib(),
           *backend_params_,
           imu_params_,

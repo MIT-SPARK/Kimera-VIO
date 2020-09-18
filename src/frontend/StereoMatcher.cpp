@@ -131,6 +131,7 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   }
   stereo_camera_->undistortRectifyStereoFrame(stereo_frame);
   CHECK(stereo_frame->isRectified());
+
   //! Undistort rectify left keypoints
   CHECK_GT(stereo_frame->left_frame_.keypoints_.size(), 0u)
       << "Call feature detection on left frame first...";
@@ -141,18 +142,23 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
                              stereo_frame->right_img_rectified_,
                              stereo_frame->left_keypoints_rectified_,
                              &stereo_frame->right_keypoints_rectified_);
+
   //! Fill out keypoint depths
   // TODO(marcus): we are trying to replace this method with something else?
   getDepthFromRectifiedMatches(stereo_frame->left_keypoints_rectified_,
                                stereo_frame->right_keypoints_rectified_,
                                &stereo_frame->keypoints_depth_);
+
   //! Fill out right frame keypoints
-  CHECK_EQ(stereo_frame->right_frame_.keypoints_.size(), 0);
   CHECK_GT(stereo_frame->right_keypoints_rectified_.size(), 0);
   stereo_camera_->distortUnrectifyRightKeypoints(
       stereo_frame->right_keypoints_rectified_,
       &stereo_frame->right_frame_.keypoints_);
+
   //! Fill out 3D keypoints in ref frame of left camera
+  stereo_frame->keypoints_3d_.clear();
+  stereo_frame->keypoints_3d_.reserve(
+      stereo_frame->right_keypoints_rectified_.size());
   gtsam::Rot3 camLrect_R_camL =
       UtilsOpenCV::cvMatToGtsamRot3(stereo_camera_->getR1());
   for (size_t i = 0; i < stereo_frame->right_keypoints_rectified_.size(); i++) {
@@ -431,6 +437,7 @@ void StereoMatcher::getDepthFromRectifiedMatches(
     StatusKeypointsCV& left_keypoints_rectified,
     StatusKeypointsCV& right_keypoints_rectified,
     std::vector<double>* keypoints_depth) const {
+  CHECK_NOTNULL(keypoints_depth)->clear();
   // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
   double fx_b =
       stereo_camera_->getStereoCalib()->fx() * stereo_camera_->getBaseline();

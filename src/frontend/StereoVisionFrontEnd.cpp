@@ -313,34 +313,18 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
+    ++keyframe_count_;  // mainly for debugging
+
     VLOG(2) << "Keyframe after [s]: "
             << UtilsNumerical::NsecToSec(stereoFrame_k_->getTimestamp() -
                                          last_keyframe_timestamp_);
-    // If its been long enough, make it a keyframe
-    last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
-    stereoFrame_k_->setIsKeyframe(true);
-    ++keyframe_count_;  // mainly for debugging
 
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
         << tracker_->tracker_params_.min_number_features_ << ").";
 
-    /////////////////////// DETECTION ////////////////////////////////////////
-    // Perform feature detection (note: this must be after RANSAC,
-    // since if we discard more features, we need to extract more)
-    // TODO(marcus): why was this moved up before the featureTracking call?
-    // TODO(marcus): above comment suggests this should go below ransac...
-    CHECK(feature_detector_);
-    feature_detector_->featureDetection(left_frame_k);
-
-    ///////////////////// STEREO TRACKING //////////////////////////////////////
-    // Get 3D points via stereo (only for keyframes, this is expensive).
-    start_time = utils::Timer::tic();
-    stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
-    double sparse_stereo_time = utils::Timer::toc(start_time).count();
-    ////////////////////////////////////////////////////////////////////////////
-
+    double sparse_stereo_time = 0;
     if (tracker_->tracker_params_.useRANSAC_) {
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
@@ -351,10 +335,15 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                            &status_pose_mono,
                            stereo_camera_);
       tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
-
       if (status_pose_mono.first == TrackingStatus::VALID) {
         tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
       }
+
+      // STEREO geometric outlier rejection
+      // get 3D points via stereo
+      start_time = utils::Timer::tic();
+      stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
+      sparse_stereo_time = utils::Timer::toc(start_time).count();
 
       TrackingStatusPose status_pose_stereo;
       if (tracker_->tracker_params_.useStereoTracking_) {
@@ -387,6 +376,21 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       printTrackingStatus(tracker_status_summary_.kfTrackingStatus_stereo_,
                           "stereo");
     }
+
+    // If its been long enough, make it a keyframe
+    last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
+    stereoFrame_k_->setIsKeyframe(true);
+
+    // Perform feature detection (note: this must be after RANSAC,
+    // since if we discard more features, we need to extract more)
+    CHECK(feature_detector_);
+    feature_detector_->featureDetection(left_frame_k);
+
+    // Get 3D points via stereo, including newly extracted
+    // (this might be only for the visualization).
+    start_time = utils::Timer::tic();
+    stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
+    sparse_stereo_time += utils::Timer::toc(start_time).count();
 
     // Log images if needed.
     if (logger_ &&

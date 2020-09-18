@@ -288,7 +288,6 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     // Undistort keypoints:
     mono_camera_->undistortKeypoints(mono_frame_k_->keypoints_,
                                      &mono_frame_k_->keypoints_undistorted_);
-
     // Log images if needed.
     // if (logger_ &&
     //     (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
@@ -332,10 +331,12 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
 void MonoVisionFrontEnd::getSmartMonoMeasurements(
     const Frame::Ptr& frame, MonoMeasurements* smart_mono_measurements) {
   // TODO(marcus): convert to point2 when ready!
+  CHECK_NOTNULL(smart_mono_measurements);
   frame->checkFrame();
+
   const LandmarkIds& landmarkId_kf = frame->landmarks_;
-  const StatusKeypointsCV& keypoints = frame->keypoints_undistorted_;
-  // const KeypointsCV& keypoints = frame->keypoints_;
+  const StatusKeypointsCV& keypoints_undistorted =
+      frame->keypoints_undistorted_;
 
   // Pack information in landmark structure.
   smart_mono_measurements->clear();
@@ -347,10 +348,8 @@ void MonoVisionFrontEnd::getSmartMonoMeasurements(
 
     // TODO implicit conversion float to double increases floating-point
     // precision!
-    const double& uL = keypoints.at(i).second.x;
-    const double& v = keypoints.at(i).second.y;
-    // const double& uL = keypoints.at(i).x;
-    // const double& v = keypoints.at(i).y;
+    const double& uL = keypoints_undistorted.at(i).second.x;
+    const double& v = keypoints_undistorted.at(i).second.y;
 
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();

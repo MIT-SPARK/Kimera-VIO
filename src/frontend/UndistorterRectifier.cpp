@@ -183,8 +183,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
 void UndistorterRectifier::distortUnrectifyKeypoints(
     const StatusKeypointsCV& keypoints_rectified,
     KeypointsCV* keypoints_unrectified) const {
-  CHECK(keypoints_unrectified);
-  keypoints_unrectified->clear();
+  CHECK_NOTNULL(keypoints_unrectified)->clear();
   keypoints_unrectified->reserve(keypoints_rectified.size());
   for (size_t i = 0; i < keypoints_rectified.size(); i++) {
     if (keypoints_rectified[i].first == KeypointStatus::VALID) {
