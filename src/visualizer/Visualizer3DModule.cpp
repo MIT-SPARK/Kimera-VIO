@@ -79,8 +79,9 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   VizMesherInput mesher_payload = nullptr;
   if (mesher_queue_) {
     // Mesher output is optional, only sync if callback registered.
-    CHECK(PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload));
-    CHECK(mesher_payload);
+    // Sync may fail is someone shuts down the pipeline, so no checks at this
+    // level.
+    PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload);
   }
 
   // Push the synced messages to the visualizer's input queue
