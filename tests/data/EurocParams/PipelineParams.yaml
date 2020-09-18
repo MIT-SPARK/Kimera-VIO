@@ -1,8 +1,9 @@
 %YAML:1.0
 # frontend_type
 # Type of VIO Frontend to use
-# 0: StereoImu
-frontend_type: 0
+# 0: MonoImu
+# 1: StereoImu
+frontend_type: 1
 
 # Type of vioBackEnd to use:
 # 0: VioBackEnd

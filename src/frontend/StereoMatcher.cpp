@@ -467,7 +467,7 @@ void StereoMatcher::getDepthFromRectifiedMatches(
     } else {
       // Something is wrong.
       if (left_keypoints_rectified[i].first != KeypointStatus::VALID &&
-          right_keypoints_rectified->at(i).first != 
+          right_keypoints_rectified.at(i).first != 
           left_keypoints_rectified[i].first) {
         // We cannot have a valid right, without a valid left keypoint.
         LOG(WARNING) 
@@ -475,8 +475,8 @@ void StereoMatcher::getDepthFromRectifiedMatches(
             << "\nLeft kpt status: "
             << to_underlying(left_keypoints_rectified[i].first)
             << "\nRight kpt status: "
-            << to_underlying(right_keypoints_rectified->at(i).first);
-        right_keypoints_rectified->at(i).first =
+            << to_underlying(right_keypoints_rectified.at(i).first);
+        right_keypoints_rectified.at(i).first =
             left_keypoints_rectified[i].first;
       }
       keypoints_depth->push_back(0.0);
