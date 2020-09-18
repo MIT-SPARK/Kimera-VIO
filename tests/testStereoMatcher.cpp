@@ -101,7 +101,7 @@ class StereoMatcherFixture : public ::testing::Test {
           5 * landmark_count_);  // seen in a single (key)frame
       sfnew->getLeftFrameMutable()->scores_.push_back(10 * landmark_count_);
       sfnew->getLeftFrameMutable()->versors_.push_back(
-          Frame::calibratePixel(sfnew->getLeftFrame().keypoints_.at(i),
+          UndistorterRectifier::UndistortKeypointAndGetVersor(sfnew->getLeftFrame().keypoints_.at(i),
                                 sfnew->getLeftFrame().cam_param_));
       ++landmark_count_;
     }

@@ -29,8 +29,78 @@ UndistorterRectifier::UndistorterRectifier(const cv::Mat& P,
   initUndistortRectifyMaps(cam_params, R, P, &map_x_, &map_y_);
 }
 
-void UndistorterRectifier::undistortRectifyImage(const cv::Mat& img,
-                                                 cv::Mat* undistorted_img) {
+void UndistorterRectifier::UndistortRectifyKeypoints(
+    const KeypointsCV& keypoints,
+    KeypointsCV* undistorted_keypoints,
+    const CameraParams& cam_param,
+    const cv::Mat& R,
+    const cv::Mat& P) {
+  switch (cam_param.distortion_model_) {
+    case DistortionModel::RADTAN: {
+      cv::undistortPoints(keypoints,
+                          *undistorted_keypoints,
+                          cam_param.K_,
+                          cam_param.distortion_coeff_mat_,
+                          R,
+                          P);
+    } break;
+    case DistortionModel::EQUIDISTANT: {
+      // TODO: Create unit test for fisheye / equidistant model
+      cv::fisheye::undistortPoints(keypoints,
+                                   *undistorted_keypoints,
+                                   cam_param.K_,
+                                   cam_param.distortion_coeff_mat_,
+                                   R,
+                                   P);
+    } break;
+    default: {
+      LOG(FATAL) << "Unknown distortion model.";
+    }
+  }
+}
+
+gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
+    const KeypointCV& keypoint,
+    const CameraParams& cam_param) {
+  // Calibrate pixel.
+  // matrix of px with a single entry, i.e., a single pixel
+  KeypointsCV distorted_keypoint;
+  distorted_keypoint.push_back(keypoint);
+
+  KeypointsCV undistorted_keypoint;
+  UndistorterRectifier::UndistortRectifyKeypoints(
+      distorted_keypoint,
+      &undistorted_keypoint,
+      cam_param);
+
+  // Transform to unit vector.
+  Vector3 versor(
+      undistorted_keypoint.at(0).x, undistorted_keypoint.at(0).y, 1.0);
+
+  // sanity check, try to distort point using gtsam and make sure you get
+  // original pixel
+  // gtsam::Point2 distorted_keypoint_gtsam =
+  // cam_param.calibration_.uncalibrate(gtsam::Point2(versor(0),versor(1)));
+  // gtsam::Point2 distorted_keypoint_opencv =
+  // gtsam::Point2(distorted_keypoint.at<float>(0,0),distorted_keypoint.at<float>(0,1));
+  // gtsam::Point2 px_mismatch  = distorted_keypoint_opencv -
+  // distorted_keypoint_gtsam;
+  //
+  // if(px_mismatch.vector().norm() > 1){
+  //  std::cout << "distorted_keypoint: \n" << distorted_keypoint << std::endl;
+  //  std::cout << "distorted_keypoint_gtsam: \n" << distorted_keypoint_gtsam <<
+  //  std::endl; std::cout << "px_mismatch: \n" << px_mismatch << std::endl;
+  //  throw std::runtime_error("UndistortKeypointAndGetVersor: possible calibration
+  //  mismatch");
+  //}
+
+  // Return unit norm vector
+  return versor.normalized();
+}
+
+void UndistorterRectifier::undistortRectifyImage(
+    const cv::Mat& img,
+    cv::Mat* undistorted_img) const {
   CHECK_NOTNULL(undistorted_img);
   CHECK_EQ(map_x_.size, img.size);
   CHECK_EQ(map_y_.size, img.size);
@@ -45,34 +115,17 @@ void UndistorterRectifier::undistortRectifyImage(const cv::Mat& img,
 
 void UndistorterRectifier::undistortRectifyKeypoints(
     const KeypointsCV& keypoints,
-    KeypointsCV* undistorted_keypoints) {
+    KeypointsCV* undistorted_keypoints) const {
   CHECK_NOTNULL(undistorted_keypoints)->clear();
-  switch (cam_params_.distortion_model_) {
-    case DistortionModel::RADTAN: {
-      cv::undistortPoints(keypoints,
-                          *undistorted_keypoints,
-                          cam_params_.K_,
-                          cam_params_.distortion_coeff_mat_,
-                          R_,
-                          P_);
-    } break;
-    case DistortionModel::EQUIDISTANT: {
-      cv::fisheye::undistortPoints(keypoints,
-                                   *undistorted_keypoints,
-                                   cam_params_.K_,
-                                   cam_params_.distortion_coeff_mat_,
-                                   R_,
-                                   P_);
-    } break;
-    default: { LOG(FATAL) << "Unknown distortion model."; }
-  }
+  UndistorterRectifier::UndistortRectifyKeypoints(
+      keypoints, undistorted_keypoints, cam_params_, R_, P_);
 }
 
 void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
     const KeypointsCV& distorted_kps,
     const KeypointsCV& undistorted_kps,
     StatusKeypointsCV* status_kps,
-    const float& pixel_tol) {
+    const float& pixel_tol) const {
   CHECK_NOTNULL(status_kps)->clear();
   CHECK_EQ(distorted_kps.size(), undistorted_kps.size());
   status_kps->reserve(distorted_kps.size());

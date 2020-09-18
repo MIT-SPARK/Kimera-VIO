@@ -100,7 +100,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
       BackEndFactory::createBackend(
           static_cast<BackendType>(params.backend_type_),
           // These two should be given by parameters.
-          camera_->getBodyPoseCamRect(),
+          camera_->getBodyPoseCam(),
           stereo_cam.getStereoCalib(),
           *backend_params_,
           imu_params_,
@@ -123,7 +123,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   //       parallel_run_,
   //       MesherFactory::createMesher(
   //           MesherType::PROJECTIVE,
-  //           MesherParams(camera_->getBodyPoseCamRect(),
+  //           MesherParams(camera_->getBodyPoseCam(),
   //                        params.camera_params_.at(0u).image_size_)));
 
   //   //! Register input callbacks

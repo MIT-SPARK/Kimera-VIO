@@ -14,24 +14,24 @@
  * @author Luca Carlone
  */
 
-#include <algorithm>
-#include <fstream>
-#include <memory>
-#include <string>
-#include <vector>
+#include "kimera-vio/loopclosure/LoopClosureDetector.h"
 
+#include <KimeraRPGO/RobustSolver.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <algorithm>
+#include <fstream>
+#include <memory>
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
 #include <opengv/relative_pose/CentralRelativeAdapter.hpp>
 #include <opengv/sac/Ransac.hpp>
 #include <opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp>
 #include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
+#include <string>
+#include <vector>
 
-#include <KimeraRPGO/RobustSolver.h>
-
-#include "kimera-vio/loopclosure/LoopClosureDetector.h"
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -559,7 +559,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        Frame::calibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
+        UndistorterRectifier::UndistortKeypointAndGetVersor(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 

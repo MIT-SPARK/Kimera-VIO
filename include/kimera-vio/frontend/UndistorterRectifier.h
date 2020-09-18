@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <gtsam/geometry/Point3.h>
+
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 
@@ -50,12 +52,34 @@ class UndistorterRectifier {
 
  public:
   /**
+   * @brief undistortRectifyKeypoints undistorts and rectifies
+   */
+  static void UndistortRectifyKeypoints(
+      const KeypointsCV& keypoints,
+      KeypointsCV* undistorted_keypoints,
+      const CameraParams& cam_param,
+      const cv::Mat& R = cv::Mat::eye(3, 3, CV_32FC1),
+      const cv::Mat& P = cv::Mat::eye(3, 3, CV_32FC1));
+
+  /**
+   * @brief UndistortKeypointAndGetVersor undistort a single pixel,
+   * and return the corresponding versor.
+   * (unit norm vector corresponding to bearing).
+   * @param cv_px keypoint
+   * @param cam_param CameraParams instance
+   */
+  static gtsam::Vector3 UndistortKeypointAndGetVersor(
+      const KeypointCV& keypoint,
+      const CameraParams& cam_param);
+
+  /**
    * @brief undistortRectifyImage Given distorted (and optionally non-rectified)
    * image, returns a distortion-free rectified one.
    * @param img Distorted non-rectified input image
    * @param undistorted_img Undistorted Rectified output image
    */
-  void undistortRectifyImage(const cv::Mat& img, cv::Mat* undistorted_img);
+  void undistortRectifyImage(const cv::Mat& img,
+                             cv::Mat* undistorted_img) const;
 
   /**
    * @brief undistortRectifyKeypoints Undistorts and rectifies a sparse set of
@@ -73,14 +97,14 @@ class UndistorterRectifier {
    * @param undistorted_keypoints Undistorted and rectified keypoints.
    */
   void undistortRectifyKeypoints(const KeypointsCV& keypoints,
-                                 KeypointsCV* undistorted_keypoints);
+                                 KeypointsCV* undistorted_keypoints) const;
 
   void checkUndistortedRectifiedLeftKeypoints(
       const KeypointsCV& distorted_kpts,
       const KeypointsCV& undistorted_kpts,
       StatusKeypointsCV* status_kpts,
       // This tolerance is huge...
-      const float& pixel_tolerance = 2.0f);
+      const float& pixel_tolerance = 2.0f) const;
 
   void distortUnrectifyKeypoints(const StatusKeypointsCV& keypoints_rectified,
                                  KeypointsCV* keypoints_unrectified) const;

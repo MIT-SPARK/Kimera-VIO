@@ -522,7 +522,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
     Vector3 v_expect =
-        Frame::calibratePixel(left_frame.keypoints_[i], left_frame.cam_param_);
+        UndistorterRectifier::UndistortKeypointAndGetVersor(left_frame.keypoints_[i], left_frame.cam_param_);
     Vector3 v_actual = left_frame.versors_[i];
     EXPECT_LT((v_actual - v_expect).norm(), 0.1);
   }
@@ -603,7 +603,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
     double depth_expect = depth_gt[idx_gt];
     double depth_actual = sf.get3DKpts()[i](2);
     Vector3 v_expected =
-        Frame::calibratePixel(KeypointCV(left_distort_corners[idx_gt].x(),
+        UndistorterRectifier::UndistortKeypointAndGetVersor(KeypointCV(left_distort_corners[idx_gt].x(),
                                          left_distort_corners[idx_gt].y()),
                               left_frame.cam_param_);
     v_expected = v_expected * (depth_gt[idx_gt]);

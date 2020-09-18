@@ -33,7 +33,6 @@
 
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/PinholeCamera.h>
-#include <gtsam/geometry/Point3.h>
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
@@ -72,6 +71,7 @@ class Frame : public PipelinePayload {
         img_(frame.img_),
         isKeyframe_(frame.isKeyframe_),
         keypoints_(frame.keypoints_),
+        keypoints_undistorted_(frame.keypoints_undistorted_),
         scores_(frame.scores_),
         landmarks_(frame.landmarks_),
         landmarks_age_(frame.landmarks_age_),
@@ -82,6 +82,7 @@ class Frame : public PipelinePayload {
   /* ------------------------------------------------------------------------ */
   void checkFrame() const { 
     const size_t nrKpts = keypoints_.size();
+    CHECK_EQ(keypoints_undistorted_.size(), nrKpts);
     CHECK_EQ(scores_.size(), nrKpts);
     CHECK_EQ(landmarks_.size(), nrKpts);
     CHECK_EQ(landmarks_age_.size(), nrKpts);
@@ -145,57 +146,6 @@ class Frame : public PipelinePayload {
     cam_param_.print();
   }
 
-  /* ------------------------------------------------------------------------ */
-  static Vector3 calibratePixel(const KeypointCV& cv_px,
-                                const CameraParams& cam_param) {
-    // Calibrate pixel.
-    // matrix of px with a single entry, i.e., a single pixel
-    cv::Mat_<KeypointCV> uncalibrated_px(1, 1);
-    uncalibrated_px(0) = cv_px;
-
-    cv::Mat calibrated_px;
-    if (cam_param.distortion_model_ == DistortionModel::RADTAN) {
-      // TODO optimize this in just one call, the s in Points is there for
-      // something I hope.
-      cv::undistortPoints(uncalibrated_px,
-                          calibrated_px,
-                          cam_param.K_,
-                          cam_param.distortion_coeff_mat_);
-    } else if (cam_param.distortion_model_ == DistortionModel::EQUIDISTANT) {
-      // TODO: Create unit test for fisheye / equidistant model
-      cv::fisheye::undistortPoints(uncalibrated_px,
-                                   calibrated_px,
-                                   cam_param.K_,
-                                   cam_param.distortion_coeff_mat_);
-    } else {
-      LOG(ERROR) << "Unknown distortion model.";
-    }
-
-    // Transform to unit vector.
-    Vector3 versor(
-        calibrated_px.at<float>(0, 0), calibrated_px.at<float>(0, 1), 1.0);
-
-    // sanity check, try to distort point using gtsam and make sure you get
-    // original pixel
-    // gtsam::Point2 uncalibrated_px_gtsam =
-    // cam_param.calibration_.uncalibrate(gtsam::Point2(versor(0),versor(1)));
-    // gtsam::Point2 uncalibrated_px_opencv =
-    // gtsam::Point2(uncalibrated_px.at<float>(0,0),uncalibrated_px.at<float>(0,1));
-    // gtsam::Point2 px_mismatch  = uncalibrated_px_opencv -
-    // uncalibrated_px_gtsam;
-    //
-    // if(px_mismatch.vector().norm() > 1){
-    //  std::cout << "uncalibrated_px: \n" << uncalibrated_px << std::endl;
-    //  std::cout << "uncalibrated_px_gtsam: \n" << uncalibrated_px_gtsam <<
-    //  std::endl; std::cout << "px_mismatch: \n" << px_mismatch << std::endl;
-    //  throw std::runtime_error("CalibratePixel: possible calibration
-    //  mismatch");
-    //}
-
-    // Return unit norm vector
-    return versor.normalized();
-  }
-
  public:
   const FrameId id_;
 
@@ -213,6 +163,7 @@ class Frame : public PipelinePayload {
 
   // These containers must have same size.
   KeypointsCV keypoints_;
+  StatusKeypointsCV keypoints_undistorted_;
   std::vector<double> scores_;  // quality of extracted keypoints
   LandmarkIds landmarks_;
   //! How many consecutive *keyframes* saw the keypoint

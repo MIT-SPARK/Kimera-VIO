@@ -98,7 +98,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
       input.getImuStamps(), input.getImuAccGyrs());
   CHECK(pim);
   const gtsam::Rot3 body_R_cam = 
-      mono_camera_->getBodyPoseCamRect().rotation();
+      mono_camera_->getBodyPoseCam().rotation();
   const gtsam::Rot3 cam_R_body = body_R_cam.inverse();
   gtsam::Rot3 camLrectLkf_R_camLrectK_imu = 
       cam_R_body * pim->deltaRij() * body_R_cam;
@@ -154,7 +154,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
         status_mono_measurements,
         tracker_status_summary_.kfTrackingStatus_mono_,
         gtsam::Pose3(),  // don't pass stereo pose to backend!
-        mono_camera_->getBodyPoseCamRect(),
+        mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input.getImuAccGyrs(),
@@ -170,7 +170,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
         status_mono_measurements,
         TrackingStatus::INVALID,
         gtsam::Pose3(),  // don't pass stereo pose to backend!
-        mono_camera_->getBodyPoseCamRect(),
+        mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input.getImuAccGyrs(),
@@ -191,6 +191,10 @@ void MonoVisionFrontEnd::processFirstFrame(const Frame& first_frame) {
 
   CHECK(feature_detector_);
   feature_detector_->featureDetection(mono_frame_k_.get());
+
+  // Undistort keypoints:
+  mono_camera_->undistortKeypoints(mono_frame_k_->keypoints_,
+                                   &mono_frame_k_->keypoints_undistorted_);
 
   // TODO(marcus): get 3d points if possible?
   mono_frame_km1_ = mono_frame_k_;
@@ -281,6 +285,10 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     CHECK(feature_detector_);
     feature_detector_->featureDetection(mono_frame_k_.get());
 
+    // Undistort keypoints:
+    mono_camera_->undistortKeypoints(mono_frame_k_->keypoints_,
+                                     &mono_frame_k_->keypoints_undistorted_);
+
     // Log images if needed.
     // if (logger_ &&
     //     (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
@@ -326,8 +334,8 @@ void MonoVisionFrontEnd::getSmartMonoMeasurements(
   // TODO(marcus): convert to point2 when ready!
   frame->checkFrame();
   const LandmarkIds& landmarkId_kf = frame->landmarks_;
-  const KeypointsCV& keypoints =
-      frame->keypoints_;
+  const StatusKeypointsCV& keypoints = frame->keypoints_undistorted_;
+  // const KeypointsCV& keypoints = frame->keypoints_;
 
   // Pack information in landmark structure.
   smart_mono_measurements->clear();
@@ -339,8 +347,11 @@ void MonoVisionFrontEnd::getSmartMonoMeasurements(
 
     // TODO implicit conversion float to double increases floating-point
     // precision!
-    const double& uL = keypoints.at(i).x;
-    const double& v = keypoints.at(i).y;
+    const double& uL = keypoints.at(i).second.x;
+    const double& v = keypoints.at(i).second.y;
+    // const double& uL = keypoints.at(i).x;
+    // const double& v = keypoints.at(i).y;
+
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();
     smart_mono_measurements->push_back(

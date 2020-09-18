@@ -296,7 +296,7 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   for (unsigned int i = 0; i < left_frame.keypoints_.size(); i++) {
     EXPECT_EQ(left_frame.keypoints_[i], keypoints[i].pt);
     EXPECT_EQ(left_frame.versors_[i],
-              Frame::calibratePixel(keypoints[i].pt, left_frame.cam_param_));
+              UndistorterRectifier::UndistortKeypointAndGetVersor(keypoints[i].pt, left_frame.cam_param_));
   }
 
   EXPECT_EQ(stereo_frame.get3DKpts().size(), nfeatures);

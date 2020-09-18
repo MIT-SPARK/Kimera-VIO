@@ -32,7 +32,13 @@ Camera::Camera(const CameraParams& cam_params)
                    0.0,  // No skew
                    cam_params.intrinsics_.at(2),
                    cam_params.intrinsics_.at(3)),
+      undistorter_(nullptr),
       camera_impl_(nullptr) {
+  cv::Mat P = cv::Mat::eye(3,3,CV_32FC1);  // TODO(marcus): possible failure!
+  cv::Mat R = cv::Mat::eye(3,3,CV_32FC1);
+  undistorter_ = VIO::make_unique<UndistorterRectifier>(P, cam_params_, R);
+  CHECK(undistorter_);
+
   camera_impl_ =
       VIO::make_unique<CameraImpl>(cam_params.body_Pose_cam_, calibration_);
   CHECK(camera_impl_);
@@ -87,6 +93,18 @@ void Camera::backProject(const KeypointCV& kp,
   lmk->x = gtsam_lmk.x();
   lmk->y = gtsam_lmk.y();
   lmk->z = gtsam_lmk.z();
+}
+
+// TODO(marcus): copy-pasted from StereoCamera.
+//  Maybe there should be some inheritance..
+void Camera::undistortKeypoints(const KeypointsCV& keypoints,
+                                StatusKeypointsCV* status_keypoints) {
+  KeypointsCV undistorted_keypoints;
+  CHECK(undistorter_);
+  undistorter_->undistortRectifyKeypoints(
+      keypoints, &undistorted_keypoints);
+  undistorter_->checkUndistortedRectifiedLeftKeypoints(
+      keypoints, undistorted_keypoints, status_keypoints);
 }
 
 }  // namespace VIO
