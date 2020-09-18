@@ -53,8 +53,8 @@ struct FrontendOutput : public PipelinePayload {
         stereo_frame_lkf_(stereo_frame_lkf),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        feature_tracks_(feature_tracks),
-        debug_tracker_info_(debug_tracker_info) {}
+        debug_tracker_info_(debug_tracker_info),
+        feature_tracks_(feature_tracks) {}
 
   virtual ~FrontendOutput() = default;
 

@@ -82,8 +82,6 @@ class LoggerFixture : public ::testing::Test {
  protected:
   std::string logger_FLAGS_test_data_path;
   CSVReader csv_reader_;
-  boost::mt19937 rng_;
-  std::default_random_engine random_eng_;
 };
 
 class BackendLoggerFixture : public LoggerFixture {
@@ -130,14 +128,14 @@ class LoopClosureDetectorLoggerFixture : public LoggerFixture {
 
 TEST_F(BackendLoggerFixture, logBackendOutput) {
   // Declare all random output members.
-  const Timestamp& timestamp = random_eng_();
+  const Timestamp& timestamp = 123;
   gtsam::Values state_values;
   gtsam::Pose3 W_Pose_Blkf = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+      gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Vector3 W_Vel_Blkf = gtsam::Vector3::Random();
   ImuBias imu_bias;
-  FrameId cur_kf_id = random_eng_();
-  int landmark_count = random_eng_();
+  FrameId cur_kf_id = 123;
+  int landmark_count = 123;
 
   logger_->logBackendOutput(BackendOutput(timestamp,
                                           state_values,
@@ -273,8 +271,8 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 }
 
 TEST_F(FrontendLoggerFixture, logFrontendStats) {
-  const Timestamp& timestamp = random_eng_();
-  const size_t& nrKeypoints = random_eng_();
+  const Timestamp& timestamp = 123;
+  const size_t& nrKeypoints = 123;
 
   logger_->logFrontendStats(
       timestamp,
@@ -323,11 +321,11 @@ TEST_F(FrontendLoggerFixture, logFrontendStats) {
 }
 
 TEST_F(FrontendLoggerFixture, logFrontendRansac) {
-  const Timestamp& timestamp = random_eng_();
+  const Timestamp& timestamp = 123;
   gtsam::Pose3 mono_pose = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+      gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Pose3 stereo_pose = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+      gtsam::Rot3(), gtsam::Point3::Random());
 
   logger_->logFrontendRansac(
       timestamp,
@@ -401,17 +399,17 @@ TEST_F(FrontendLoggerFixture, logFrontendRansac) {
 }
 
 TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
-  const Timestamp& timestamp_kf = random_eng_();
-  const Timestamp& timestamp_query = random_eng_();
-  const Timestamp& timestamp_match = random_eng_();
-  const FrameId& id_match = random_eng_();
-  const FrameId& id_recent = random_eng_();
+  const Timestamp& timestamp_kf = 123;
+  const Timestamp& timestamp_query = 123;
+  const Timestamp& timestamp_match = 123;
+  const FrameId& id_match = 123;
+  const FrameId& id_recent = 123;
   gtsam::Pose3 relative_pose = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+    gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Pose3 w_pose_map = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+    gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Pose3 traj_pose = gtsam::Pose3(
-      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+    gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Values traj_values;
   traj_values.insert(gtsam::Symbol(0), traj_pose);
   traj_values.insert(gtsam::Symbol(1), traj_pose);

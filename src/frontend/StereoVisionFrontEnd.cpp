@@ -207,9 +207,10 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
           getTrackerInfo(),
           trackerStatusSummary_,
           stereoFrame_km1_->left_frame_.getNrValidKeypoints());
+      // Logger needs information in camera frame for evaluation
       logger_->logFrontendRansac(stereoFrame_lkf_->timestamp_,
-                                 getRelativePoseBodyMono(),
-                                 getRelativePoseBodyStereo());
+                                 trackerStatusSummary_.lkf_T_k_mono_,
+                                 trackerStatusSummary_.lkf_T_k_stereo_);
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -385,12 +386,18 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                            &status_pose_mono);
 
       TrackingStatusPose status_pose_stereo;
-      outlierRejectionStereo(keyframe_R_cur_frame,
-                             stereoFrame_lkf_,
-                             stereoFrame_k_,
-                             &status_pose_stereo);
-      if (status_pose_stereo.first == TrackingStatus::VALID) {
-        trackerStatusSummary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+      if (tracker_.tracker_params_.useStereoTracking_) {
+        outlierRejectionStereo(keyframe_R_cur_frame,
+                               stereoFrame_lkf_,
+                               stereoFrame_k_,
+                               &status_pose_stereo);
+        if (status_pose_stereo.first == TrackingStatus::VALID) {
+          trackerStatusSummary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+        }
+      } else {
+        status_pose_stereo.first = TrackingStatus::INVALID;
+        status_pose_stereo.second = gtsam::Pose3();
+        trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
       }
     } else {
       trackerStatusSummary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
