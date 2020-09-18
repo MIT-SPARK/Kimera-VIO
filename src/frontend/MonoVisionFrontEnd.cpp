@@ -152,7 +152,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
     return VIO::make_unique<MonoFrontendOutput>(
         true,
         status_mono_measurements,
-        tracker_status_summary_.kfTrackingStatus_mono_,
+        TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3(),  // don't pass stereo pose to backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
@@ -168,7 +168,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
     return VIO::make_unique<MonoFrontendOutput>(
         false,
         status_mono_measurements,
-        TrackingStatus::INVALID,
+        TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3(),  // don't pass stereo pose to backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if

@@ -76,8 +76,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
       stereoFrame_lkf_->isKeyframe(),
       nullptr,
       TrackingStatus::DISABLED,
-      tracker_->tracker_params_.useStereoTracking_ ? getRelativePoseBodyStereo()
-                                                   : getRelativePoseBodyMono(),
+      getRelativePoseBodyStereo(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       *stereoFrame_lkf_,
       nullptr,
