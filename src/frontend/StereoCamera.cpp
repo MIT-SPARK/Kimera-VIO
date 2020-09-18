@@ -180,7 +180,7 @@ void StereoCamera::backProject(const KeypointsCV& kps,
 }
 
 void StereoCamera::backProjectDisparityTo3D(const cv::Mat& disparity_img,
-                                            cv::Mat* depth) {
+                                            cv::Mat* depth) const {
   CHECK_NOTNULL(depth);
   // Check disparity img is CV_32F, if it is CV_16S it should have been
   // divided by 16, see StereoBM/stereoSGBM output.
@@ -202,7 +202,7 @@ void StereoCamera::backProjectDisparityTo3D(const cv::Mat& disparity_img,
 }
 
 void StereoCamera::backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
-                                                  cv::Mat* depth) {
+                                                  cv::Mat* depth) const {
   CHECK_NOTNULL(depth);
   CHECK_EQ(disparity_img.type(), CV_32F);
   CHECK(!disparity_img.empty());
@@ -241,7 +241,7 @@ void StereoCamera::backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
 
 void StereoCamera::undistortRectifyLeftKeypoints(
     const KeypointsCV& keypoints,
-    StatusKeypointsCV* status_keypoints_rectified) {
+    StatusKeypointsCV* status_keypoints_rectified) const {
   KeypointsCV undistorted_rectified_keypoints;
   CHECK(left_cam_undistort_rectifier_);
   left_cam_undistort_rectifier_->undistortRectifyKeypoints(
@@ -252,12 +252,12 @@ void StereoCamera::undistortRectifyLeftKeypoints(
 
 void StereoCamera::distortUnrectifyRightKeypoints(
     const StatusKeypointsCV& status_keypoints_rectified,
-    KeypointsCV* keypoints) {
+    KeypointsCV* keypoints) const {
   right_cam_undistort_rectifier_->distortUnrectifyKeypoints(
       status_keypoints_rectified, keypoints);
 }
 
-void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) {
+void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) const {
   CHECK_NOTNULL(stereo_frame);
   //! Warn if stupid behavior from user
   LOG_IF(WARNING, stereo_frame->isRectified())
@@ -267,13 +267,13 @@ void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) {
   CHECK(left_cam_undistort_rectifier_);
   cv::Mat left_img_rectified;
   left_cam_undistort_rectifier_->undistortRectifyImage(
-      stereo_frame->getLeftFrame().img_, &left_img_rectified);
+      stereo_frame->left_frame_.img_, &left_img_rectified);
 
   //! Right img
   CHECK(right_cam_undistort_rectifier_);
   cv::Mat right_img_rectified;
   right_cam_undistort_rectifier_->undistortRectifyImage(
-      stereo_frame->getRightFrame().img_, &right_img_rectified);
+      stereo_frame->right_frame_.img_, &right_img_rectified);
 
   //! Update stereo_frame
   stereo_frame->setRectifiedImages(left_img_rectified, right_img_rectified);

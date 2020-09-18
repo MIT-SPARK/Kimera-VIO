@@ -52,7 +52,7 @@ namespace VIO {
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
-    const StereoCamera::Ptr& stereo_camera,
+    const StereoCamera::ConstPtr& stereo_camera,
     const StereoMatchingParams& stereo_matching_params,
     bool log_output)
     : lcd_state_(LcdState::Bootstrap),
@@ -250,7 +250,7 @@ FrameId LoopClosureDetector::processAndAddFrame(
 
   // Extract ORB features and construct descriptors_vec.
   orb_feature_detector_->detectAndCompute(
-      stereo_frame.getLeftFrame().img_, cv::Mat(), keypoints, descriptors_mat);
+      stereo_frame.left_frame_.img_, cv::Mat(), keypoints, descriptors_mat);
 
   int L = orb_feature_detector_->descriptorSize();
   descriptors_vec.resize(descriptors_mat.size().height);
@@ -265,14 +265,14 @@ FrameId LoopClosureDetector::processAndAddFrame(
   rewriteStereoFrameFeatures(keypoints, &cp_stereo_frame);
 
   // Build and store LCDFrame object.
-  db_frames_.push_back(LCDFrame(cp_stereo_frame.getTimestamp(),
+  db_frames_.push_back(LCDFrame(cp_stereo_frame.timestamp_,
                                 db_frames_.size(),
-                                cp_stereo_frame.getFrameId(),
+                                cp_stereo_frame.id_,
                                 keypoints,
-                                cp_stereo_frame.get3DKpts(),
+                                cp_stereo_frame.keypoints_3d_,
                                 descriptors_vec,
                                 descriptors_mat,
-                                cp_stereo_frame.getLeftFrame().versors_));
+                                cp_stereo_frame.left_frame_.versors_));
 
   CHECK(!db_frames_.empty());
   return db_frames_.back().id_;
@@ -489,7 +489,7 @@ const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
 /* ------------------------------------------------------------------------ */
 // TODO(marcus): this should be parsed from CameraParams directly
 void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
-  const CameraParams& cam_param = stereo_frame.getLeftFrame().cam_param_;
+  const CameraParams& cam_param = stereo_frame.left_frame_.cam_param_;
   const CameraParams::Intrinsics& intrinsics = cam_param.intrinsics_;
 
   lcd_params_.image_width_ = cam_param.image_size_.width;
@@ -524,8 +524,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
 
   // Populate frame keypoints with ORB features instead of the normal
   // VIO features that came with the StereoFrame.
-  Frame* left_frame_mutable = stereo_frame->getLeftFrameMutable();
-  Frame* right_frame_mutable = stereo_frame->getRightFrameMutable();
+  Frame* left_frame_mutable = &stereo_frame->left_frame_;
+  Frame* right_frame_mutable = &stereo_frame->right_frame_;
   CHECK_NOTNULL(left_frame_mutable);
   CHECK_NOTNULL(right_frame_mutable);
 
@@ -536,10 +536,10 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.clear();
   right_frame_mutable->versors_.clear();
   right_frame_mutable->scores_.clear();
-  stereo_frame->getDepthKptsMutable()->clear();
-  stereo_frame->get3DKptsMutable()->clear();
-  stereo_frame->getLeftKptsRectifiedMutable()->clear();
-  stereo_frame->getRightKptsRectifiedMutable()->clear();
+  stereo_frame->keypoints_depth_.clear();
+  stereo_frame->keypoints_3d_.clear();
+  stereo_frame->left_keypoints_rectified_.clear();
+  stereo_frame->right_keypoints_rectified_.clear();
 
   // Reserve space in all relevant fields
   left_frame_mutable->keypoints_.reserve(keypoints.size());
@@ -548,10 +548,10 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.reserve(keypoints.size());
   right_frame_mutable->versors_.reserve(keypoints.size());
   right_frame_mutable->scores_.reserve(keypoints.size());
-  stereo_frame->getDepthKptsMutable()->reserve(keypoints.size());
-  stereo_frame->get3DKptsMutable()->reserve(keypoints.size());
-  stereo_frame->getLeftKptsRectifiedMutable()->reserve(keypoints.size());
-  stereo_frame->getRightKptsRectifiedMutable()->reserve(keypoints.size());
+  stereo_frame->keypoints_depth_.reserve(keypoints.size());
+  stereo_frame->keypoints_3d_.reserve(keypoints.size());
+  stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
+  stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
 
   // stereo_frame->setIsRectified(false);
 

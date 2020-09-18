@@ -212,7 +212,8 @@ MonoPipeline::~MonoPipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
+bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
+                                        const bool& print_stats) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.

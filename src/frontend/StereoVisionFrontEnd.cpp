@@ -32,7 +32,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const FrontendParams& frontend_params,
-    const StereoCamera::Ptr& stereo_camera,
+    const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output)
     : VisionFrontEnd(imu_params, imu_initial_bias, display_queue, log_output),
@@ -95,7 +95,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
 
   // Get stereo info
   const StereoFrame& stereoFrame_k = input.getStereoFrame();
-  const auto& k = stereoFrame_k.getFrameId();
+  const auto& k = stereoFrame_k.id_;
   VLOG(1) << "------------------- Processing frame k = " << k
           << "--------------------";
 
@@ -155,9 +155,9 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
 
   if (stereoFrame_km1_->isKeyframe()) {
     // We got a keyframe!
-    CHECK_EQ(stereoFrame_lkf_->getTimestamp(),
-             stereoFrame_km1_->getTimestamp());
-    CHECK_EQ(stereoFrame_lkf_->getFrameId(), stereoFrame_km1_->getFrameId());
+    CHECK_EQ(stereoFrame_lkf_->timestamp_,
+             stereoFrame_km1_->timestamp_);
+    CHECK_EQ(stereoFrame_lkf_->id_, stereoFrame_km1_->id_);
     CHECK(!stereoFrame_k_);
     CHECK(stereoFrame_lkf_->isKeyframe());
     VLOG(1) << "Keyframe " << k
@@ -167,13 +167,14 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (logger_) {
       logger_->logFrontendStats(
-          stereoFrame_lkf_->getTimestamp(),
+          stereoFrame_lkf_->timestamp_,
           getTrackerInfo(),
           tracker_status_summary_,
-          stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
-      logger_->logFrontendRansac(stereoFrame_lkf_->getTimestamp(),
-                                 getRelativePoseBodyMono(),
-                                 getRelativePoseBodyStereo());
+          stereoFrame_km1_->left_frame_.getNrValidKeypoints());
+      // Logger needs information in camera frame for evaluation
+      logger_->logFrontendRansac(stereoFrame_lkf_->timestamp_,
+                                 tracker_status_summary_.lkf_T_k_mono_,
+                                 tracker_status_summary_.lkf_T_k_stereo_);
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -227,10 +228,10 @@ void StereoVisionFrontEnd::processFirstStereoFrame(
   stereoFrame_k_ =
       std::make_shared<StereoFrame>(firstFrame);  // TODO this can be optimized!
   stereoFrame_k_->setIsKeyframe(true);
-  last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
+  last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
 
   // Tracking is based on left frame.
-  Frame* left_frame = stereoFrame_k_->getLeftFrameMutable();
+  Frame* left_frame = &stereoFrame_k_->left_frame_;
   CHECK_EQ(left_frame->keypoints_.size(), 0)
       << "Keypoints already present in first frame: please do not extract"
          " keypoints manually";
@@ -263,23 +264,23 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     cv::Mat* feature_tracks) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
-          << cur_frame.getTimestamp() << " empirical framerate (sec): "
-          << UtilsNumerical::NsecToSec(cur_frame.getTimestamp() -
-                                       stereoFrame_km1_->getTimestamp())
+          << cur_frame.timestamp_ << " empirical framerate (sec): "
+          << UtilsNumerical::NsecToSec(cur_frame.timestamp_ -
+                                       stereoFrame_km1_->timestamp_)
           << " (timestamp diff: "
-          << cur_frame.getTimestamp() - stereoFrame_km1_->getTimestamp() << ")";
+          << cur_frame.timestamp_ - stereoFrame_km1_->timestamp_ << ")";
   auto start_time = utils::Timer::tic();
 
   // TODO this copies the stereo frame!!
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
-  Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
+  Frame* left_frame_k = &stereoFrame_k_->left_frame_;
 
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
   // We need to use the frame to frame rotation.
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
-  tracker_->featureTracking(stereoFrame_km1_->getLeftFrameMutable(),
+  tracker_->featureTracking(&stereoFrame_km1_->left_frame_,
                            left_frame_k,
                            ref_frame_R_cur_frame);
   if (feature_tracks) {
@@ -287,8 +288,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     // TODO(Toni): this image should already be computed and inside the
     // display_queue
     // if it is sent to the tracker.
-    *feature_tracks = tracker_->getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
-                                               stereoFrame_k_->getLeftFrame());
+    *feature_tracks = tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_,
+                                               stereoFrame_k_->left_frame_);
   }
   VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
@@ -301,7 +302,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   StereoMeasurements smart_stereo_measurements;
 
   const bool max_time_elapsed =
-      stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_ >=
+      stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
       tracker_->tracker_params_.intra_keyframe_time_ns_;
   const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
@@ -312,10 +313,10 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
     VLOG(2) << "Keyframe after [s]: "
-            << UtilsNumerical::NsecToSec(stereoFrame_k_->getTimestamp() -
+            << UtilsNumerical::NsecToSec(stereoFrame_k_->timestamp_ -
                                          last_keyframe_timestamp_);
     // If its been long enough, make it a keyframe
-    last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
+    last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
     stereoFrame_k_->setIsKeyframe(true);
     ++keyframe_count_;  // mainly for debugging
 
@@ -342,19 +343,25 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     if (tracker_->tracker_params_.useRANSAC_) {
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
-      Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
+      Frame* left_frame_lkf = &stereoFrame_lkf_->left_frame_;
       outlierRejectionMono(keyframe_R_cur_frame,
                            left_frame_lkf,
                            left_frame_k,
                            &status_pose_mono);
 
       TrackingStatusPose status_pose_stereo;
-      outlierRejectionStereo(keyframe_R_cur_frame,
-                             stereoFrame_lkf_,
-                             stereoFrame_k_,
-                             &status_pose_stereo);
-      if (status_pose_stereo.first == TrackingStatus::VALID) {
-        tracker_status_summary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+      if (tracker_->tracker_params_.useStereoTracking_) {
+        outlierRejectionStereo(keyframe_R_cur_frame,
+                               stereoFrame_lkf_,
+                               stereoFrame_k_,
+                               &status_pose_stereo);
+        if (status_pose_stereo.first == TrackingStatus::VALID) {
+          tracker_status_summary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+        }
+      } else {
+        status_pose_stereo.first = TrackingStatus::INVALID;
+        status_pose_stereo.second = gtsam::Pose3();
+        tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
       }
     } else {
       tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
@@ -377,10 +384,10 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
     if (display_queue_ && FLAGS_visualize_feature_tracks) {
-      displayImage(stereoFrame_k_->getTimestamp(),
+      displayImage(stereoFrame_k_->timestamp_,
                    "feature_tracks",
-                   tracker_->getTrackerImage(stereoFrame_lkf_->getLeftFrame(),
-                                            stereoFrame_k_->getLeftFrame()),
+                   tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_,
+                                            stereoFrame_k_->left_frame_),
                    display_queue_);
     }
 
@@ -475,9 +482,9 @@ void StereoVisionFrontEnd::getSmartStereoMeasurements(
 
   // Extract relevant info from the stereo frame:
   // essentially the landmark if and the left/right pixel measurements.
-  const LandmarkIds& landmarkId_kf = stereoFrame_kf->getLeftFrame().landmarks_;
-  const StatusKeypointsCV& leftKeypoints = stereoFrame_kf->getLeftKptsRectified();
-  const StatusKeypointsCV& rightKeypoints = stereoFrame_kf->getRightKptsRectified();
+  const LandmarkIds& landmarkId_kf = stereoFrame_kf->left_frame_.landmarks_;
+  const StatusKeypointsCV& leftKeypoints = stereoFrame_kf->left_keypoints_rectified_;
+  const StatusKeypointsCV& rightKeypoints = stereoFrame_kf->right_keypoints_rectified_;
 
   // Pack information in landmark structure.
   smart_stereo_measurements->clear();
@@ -510,9 +517,9 @@ void StereoVisionFrontEnd::getSmartStereoMeasurements(
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
-  const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
+  const Frame& left_frame_k(stereoFrame_k_->left_frame_);
   cv::Mat img_left =
-      tracker_->getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
+      tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_, left_frame_k);
 
   logger_->logFrontendImg(left_frame_k.id_,
                           img_left,
@@ -526,11 +533,11 @@ void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
 void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   // Draw the matchings: assumes that keypoints in the left and right keyframe
   // are ordered in the same way
-  const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
-  const Frame& right_frame_k(stereoFrame_k_->getRightFrame());
+  const Frame& left_frame_k(stereoFrame_k_->left_frame_);
+  const Frame& right_frame_k(stereoFrame_k_->right_frame_);
 
   cv::Mat img_left =
-      tracker_->getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
+      tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_, left_frame_k);
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
       (left_frame_k.img_.rows != right_frame_k.img_.rows)) {
@@ -543,7 +550,7 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
 
   std::vector<cv::DMatch> matches;
   const StatusKeypointsCV& right_status_keypoints = 
-      stereoFrame_k_->getRightKptsRectified();
+      stereoFrame_k_->right_keypoints_rectified_;
   if (left_frame_k.keypoints_.size() == right_frame_k.keypoints_.size()) {
     for (size_t i = 0; i < left_frame_k.keypoints_.size(); i++) {
       if (left_frame_k.landmarks_[i] != -1 &&
@@ -584,9 +591,9 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   static constexpr bool kUseRandomColor = false;
   cv::Mat img_left_right_rectified =
       UtilsOpenCV::DrawCornersMatches(stereoFrame_k_->getLeftImgRectified(),
-                                      stereoFrame_k_->getLeftKptsRectified(),
+                                      stereoFrame_k_->left_keypoints_rectified_,
                                       stereoFrame_k_->getRightImgRectified(),
-                                      stereoFrame_k_->getRightKptsRectified(),
+                                      stereoFrame_k_->right_keypoints_rectified_,
                                       matches,
                                       kUseRandomColor);
   cv::putText(img_left_right_rectified,
@@ -606,8 +613,8 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
-  const Frame& cur_left_frame = stereoFrame_k_->getLeftFrame();
-  const Frame& ref_left_frame = stereoFrame_lkf_->getLeftFrame();
+  const Frame& cur_left_frame = stereoFrame_k_->left_frame_;
+  const Frame& ref_left_frame = stereoFrame_lkf_->left_frame_;
 
   // Find keypoint matches.
   std::vector<cv::DMatch> matches;
@@ -651,8 +658,8 @@ void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
   // Display rectified, plot matches.
   static constexpr bool kUseRandomColor = false;
   cv::Mat img_left_lkf_kf_rectified =
-      StereoFrame::drawCornersMatches(stereoFrame_lkf_,
-                                      stereoFrame_k_,
+      StereoFrame::drawCornersMatches(*stereoFrame_lkf_,
+                                      *stereoFrame_k_,
                                       matches,
                                       kUseRandomColor);
   cv::putText(img_left_lkf_kf_rectified,

@@ -87,13 +87,13 @@ class Tracker {
       Frame* ref_frame,
       Frame* cur_frame,
       const gtsam::Rot3& R,
-      VIO::StereoCamera::Ptr stereo_camera = nullptr);
+      VIO::StereoCamera::ConstPtr stereo_camera = nullptr);
 
   std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
   geometricOutlierRejectionStereoGivenRotation(
       StereoFrame& ref_stereoFrame,
       StereoFrame& cur_stereoFrame,
-      VIO::StereoCamera::Ptr stereo_camera,
+      VIO::StereoCamera::ConstPtr stereo_camera,
       const gtsam::Rot3& R);
 
   void removeOutliersMono(const std::vector<int>& inliers,

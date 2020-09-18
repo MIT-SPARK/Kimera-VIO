@@ -14,19 +14,16 @@
 
 #pragma once
 
-#include <limits>
-#include <memory>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
+#include <DBoW2/DBoW2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 
-#include <opencv/cv.hpp>
-#include <opencv2/features2d.hpp>
-
-#include <DBoW2/DBoW2.h>
+#include <limits>
+#include <memory>
+#include <opencv2/opencv.hpp>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
@@ -60,7 +57,7 @@ class LoopClosureDetector {
    *  instantiated and output/statistics are logged at every spinOnce().
    */
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const StereoCamera::Ptr& stereo_camera,
+                      const StereoCamera::ConstPtr& stereo_camera,
                       const StereoMatchingParams& stereo_matching_params,
                       bool log_output);
 
@@ -374,7 +371,7 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
   StereoMatcher::UniquePtr stereo_matcher_;
 
   // Robust PGO members
@@ -414,7 +411,7 @@ class LcdFactory {
   static LoopClosureDetector::UniquePtr createLcd(
       const LoopClosureDetectorType& lcd_type,
       const LoopClosureDetectorParams& lcd_params,
-      const StereoCamera::Ptr& stereo_camera,
+      const StereoCamera::ConstPtr& stereo_camera,
       const StereoMatchingParams& stereo_matching_params,
       bool log_output) {
     switch (lcd_type) {

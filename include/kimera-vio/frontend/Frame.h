@@ -10,7 +10,6 @@
  * @file   Frame.h
  * @brief  Class describing a single image
  * @author Luca Carlone
- * @author Marcus Abate
  */
 
 #pragma once

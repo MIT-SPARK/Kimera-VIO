@@ -53,7 +53,7 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
   StereoVisionFrontEnd(const ImuParams& imu_params,
                        const ImuBias& imu_initial_bias,
                        const FrontendParams& tracker_params,
-                       const StereoCamera::Ptr& stereo_camera,
+                       const StereoCamera::ConstPtr& stereo_camera,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);
   virtual ~StereoVisionFrontEnd();
@@ -158,7 +158,7 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
   FeatureDetector::UniquePtr feature_detector_;
 
   // A stereo camera
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
 
   // Set of functionalities for stereo matching
   StereoMatcher stereo_matcher_;

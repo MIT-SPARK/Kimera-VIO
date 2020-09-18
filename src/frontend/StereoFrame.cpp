@@ -46,7 +46,7 @@ void StereoFrame::setRectifiedImages(const cv::Mat& left_rectified_img,
                                      const cv::Mat& right_rectified_img) {
   left_img_rectified_ = left_rectified_img;
   right_img_rectified_ = right_rectified_img;
-  is_rectified_ = true;  // TODO(marcus): should happen only after left_keypoints_rectified_ is set!
+  is_rectified_ = true;
 }
 
 void StereoFrame::checkStereoFrame() const {
@@ -154,15 +154,15 @@ void StereoFrame::print() const {
 }
 
 cv::Mat StereoFrame::drawCornersMatches(
-    const StereoFrame::Ptr& stereo_frame_1,
-    const StereoFrame::Ptr& stereo_frame_2,
+    const StereoFrame& stereo_frame_1,
+    const StereoFrame& stereo_frame_2,
     const std::vector<cv::DMatch>& matches,
     const bool& random_color) {
   return UtilsOpenCV::DrawCornersMatches(
-      stereo_frame_1->getLeftImgRectified(),
-      stereo_frame_1->getLeftKptsRectified(),
-      stereo_frame_2->getLeftImgRectified(),
-      stereo_frame_2->getLeftKptsRectified(),
+      stereo_frame_1.left_img_rectified_,
+      stereo_frame_1.left_keypoints_rectified_,
+      stereo_frame_2.left_img_rectified_,
+      stereo_frame_2.left_keypoints_rectified_,
       matches,
       random_color);
 }

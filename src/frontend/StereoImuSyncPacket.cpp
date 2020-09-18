@@ -24,7 +24,7 @@ StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,
                                          const ImuAccGyrS& imu_accgyrs,
                                          const ReinitPacket& reinit_packet)
-    : PipelinePayload(stereo_frame.getTimestamp()),
+    : PipelinePayload(stereo_frame.timestamp_),
       stereo_frame_(stereo_frame),
       imu_stamps_(imu_stamps),
       imu_accgyrs_(imu_accgyrs),
@@ -36,12 +36,12 @@ StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
   // of the stereo frame. In case there is no IMU measurement with exactly
   // the same timestamp as the stereo frame, the user should interpolate
   // IMU measurements to get a value at the time of the stereo_frame.
-  CHECK_EQ(stereo_frame_.getTimestamp(), imu_stamps_(imu_stamps_.cols() - 1));
+  CHECK_EQ(stereo_frame_.timestamp_, imu_stamps_(imu_stamps_.cols() - 1));
   // TODO: Add check on ReinitPacket
 }
 
 void StereoImuSyncPacket::print() const {
-  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp()
+  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.timestamp_
             << '\n'
             << "STAMPS IMU rows : \n"
             << imu_stamps_.rows() << '\n'

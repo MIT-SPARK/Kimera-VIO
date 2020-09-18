@@ -46,7 +46,8 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
     return data_provider_module_->spin();
   }
 
-  bool shutdownWhenFinished(const int& sleep_time_ms) override;
+  bool shutdownWhenFinished(const int& sleep_time_ms,
+                            const bool& print_stats = false) override;
 
   inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
     CHECK(data_provider_module_);
