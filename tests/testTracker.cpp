@@ -1258,6 +1258,8 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
                  cur_stereo_frame->getLeftFrameMutable()->landmarks_.end());
 
   //   Set right_keypoints_status!
+  ref_stereo_frame->getRightKptsRectifiedMutable()->resize(
+      ref_stereo_frame->getLeftFrame().landmarks_.size());
   for (int i = 0; i < ref_stereo_frame->getLeftFrame().landmarks_.size(); i++) {
     int l_id = ref_stereo_frame->getLeftFrameMutable()->landmarks_[i];
     if (l_id % 6 == 0) {
@@ -1270,6 +1272,8 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
   }
 
   //   Set right_keypoints_status!
+  cur_stereo_frame->getRightKptsRectifiedMutable()->resize(
+      cur_stereo_frame->getLeftFrame().landmarks_.size());
   for (int i = 0; i < cur_stereo_frame->getLeftFrame().landmarks_.size(); i++) {
     int l_id = cur_stereo_frame->getLeftFrameMutable()->landmarks_[i];
     if (l_id % 6 == 0) {
