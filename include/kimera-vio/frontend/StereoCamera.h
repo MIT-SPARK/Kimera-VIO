@@ -126,10 +126,10 @@ class StereoCamera {
    * WARNING The output 3D landmarks (x, y, z) are given in camera coordinates!!
    * rather than body coordinates!
    */
-  void backProjectDisparityTo3D(const cv::Mat& disparity_img, cv::Mat* depth);
-
+  void backProjectDisparityTo3D(const cv::Mat& disparity_img,
+                                cv::Mat* depth) const;
   void backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
-                                      cv::Mat* depth);
+                                      cv::Mat* depth) const;
 
   inline const Camera::Ptr& getLeftCamera() const {
     return left_camera_;
@@ -198,7 +198,7 @@ class StereoCamera {
    * @brief rectifyUndistortStereoFrame
    * @param stereo_frame
    */
-  void undistortRectifyStereoFrame(StereoFrame* stereo_frame);
+  void undistortRectifyStereoFrame(StereoFrame* stereo_frame) const;
 
   /**
    * @brief undistortRectifyLeftKeypoints Undistorts and rectifies left keypoints
@@ -209,11 +209,11 @@ class StereoCamera {
    * @param status_keypoints
    */
   void undistortRectifyLeftKeypoints(const KeypointsCV& keypoints,
-                                     StatusKeypointsCV* status_keypoints);
+                                     StatusKeypointsCV* status_keypoints) const;
 
   void distortUnrectifyRightKeypoints(
       const StatusKeypointsCV& status_keypoints,
-      KeypointsCV* keypoints);
+      KeypointsCV* keypoints) const;
 
   /**
    * @brief computeRectificationParameters

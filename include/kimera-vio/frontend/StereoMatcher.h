@@ -32,7 +32,7 @@ class StereoMatcher {
    * @param stereo_camera
    * @param stereo_matching_params
    */
-  StereoMatcher(const StereoCamera::Ptr& stereo_camera,
+  StereoMatcher(const StereoCamera::ConstPtr& stereo_camera,
                 const StereoMatchingParams& stereo_matching_params);
 
   virtual ~StereoMatcher() = default;
@@ -123,7 +123,7 @@ class StereoMatcher {
 
  protected:
   //! Stereo camera shared that might be shared across modules
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
 
   //! Parameters for sparse stereo matching
   StereoMatchingParams stereo_matching_params_;

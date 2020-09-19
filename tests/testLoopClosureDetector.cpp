@@ -152,7 +152,7 @@ class LCDFixture : public ::testing::Test {
                   tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
-        ref1_stereo_frame_->getLeftFrameMutable());
+        &ref1_stereo_frame_->left_frame_);
     CHECK(ref1_stereo_frame_);
     ref1_stereo_frame_->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(ref1_stereo_frame_.get());
@@ -174,7 +174,7 @@ class LCDFixture : public ::testing::Test {
                   tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
-        cur1_stereo_frame_->getLeftFrameMutable());
+        &cur1_stereo_frame_->left_frame_);
     CHECK(cur1_stereo_frame_);
     cur1_stereo_frame_->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(cur1_stereo_frame_.get());
@@ -196,7 +196,7 @@ class LCDFixture : public ::testing::Test {
                   tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
-        ref2_stereo_frame_->getLeftFrameMutable());
+        &ref2_stereo_frame_->left_frame_);
     CHECK(ref2_stereo_frame_);
     ref2_stereo_frame_->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(ref2_stereo_frame_.get());
@@ -218,7 +218,7 @@ class LCDFixture : public ::testing::Test {
                   tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
-        cur2_stereo_frame_->getLeftFrameMutable());
+        &cur2_stereo_frame_->left_frame_);
     CHECK(cur2_stereo_frame_);
     cur2_stereo_frame_->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(cur2_stereo_frame_.get());
@@ -285,8 +285,8 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
 
   // TODO(marcus): Don't need mutable frames!
 
-  const Frame& left_frame = stereo_frame.getLeftFrame();
-  const Frame& right_frame = stereo_frame.getRightFrame();
+  const Frame& left_frame = stereo_frame.left_frame_;
+  const Frame& right_frame = stereo_frame.right_frame_;
 
   EXPECT_EQ(left_frame.keypoints_.size(), nfeatures);
   EXPECT_EQ(right_frame.keypoints_.size(), nfeatures);
@@ -299,9 +299,9 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
               UndistorterRectifier::UndistortKeypointAndGetVersor(keypoints[i].pt, left_frame.cam_param_));
   }
 
-  EXPECT_EQ(stereo_frame.get3DKpts().size(), nfeatures);
-  EXPECT_EQ(stereo_frame.getLeftKptsRectified().size(), nfeatures);
-  EXPECT_EQ(stereo_frame.getRightKptsRectified().size(), nfeatures);
+  EXPECT_EQ(stereo_frame.keypoints_3d_.size(), nfeatures);
+  EXPECT_EQ(stereo_frame.left_keypoints_rectified_.size(), nfeatures);
+  EXPECT_EQ(stereo_frame.right_keypoints_rectified_.size(), nfeatures);
 }
 
 TEST_F(LCDFixture, processAndAddFrame) {
@@ -411,7 +411,7 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
 
   body_input_pose = gtsam::Pose3(ref1_to_cur1_pose_.rotation(),
                                  ref1_to_cur1_pose_.translation() /
-                                     ref1_to_cur1_pose_.translation().norm());
+                                 ref1_to_cur1_pose_.translation().norm());
   lcd_detector_->transformBodyPoseToCameraPose(body_input_pose,
                                                &cam_input_pose);
 

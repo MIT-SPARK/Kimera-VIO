@@ -291,19 +291,19 @@ TEST(UndistortRectifierFixture, undistortFisheye) {
 
 //   // Define rectified images
 //   cv::Mat left_image_rectified, right_image_rectified;
-//   sf->left_img_rectified_.copyTo(left_image_rectified);
-//   sf->right_img_rectified_.copyTo(right_image_rectified);
+//   sf->getLeftImgRectified().copyTo(left_image_rectified);
+//   sf->getRightImgRectified().copyTo(right_image_rectified);
 
 //   // Get camera matrix for new rectified stereo
-//   P1 = sf->getLeftFrame().cam_param_.P_;
-//   P2 = sf->getRightFrame().cam_param_.P_;
+//   P1 = sf->left_frame_.cam_param_.P_;
+//   P2 = sf->right_frame_.cam_param_.P_;
 
 //   // Get rectified left keypoints.
 //   gtsam::Cal3_S2 left_undistRectCameraMatrix_fisheye =
 //       UtilsOpenCV::Cvmat2Cal3_S2(P1);
 //   StatusKeypointsCV left_keypoints_rectified;
-//   Frame left_frame_fish = sf->getLeftFrame();
-//   Frame right_frame_fish = sf->getRightFrame();
+//   Frame left_frame_fish = sf->left_frame_;
+//   Frame right_frame_fish = sf->right_frame_;
 //   UtilsOpenCV::ExtractCorners(left_frame_fish.img_,
 //                               &left_frame_fish.keypoints_);
 //   sf->undistortRectifyPoints(left_frame_fish.keypoints_,

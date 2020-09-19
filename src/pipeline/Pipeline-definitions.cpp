@@ -12,8 +12,6 @@
  * @author Antoni Rosinol
  */
 
-#pragma once
-
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
 #include "kimera-vio/backend/RegularVioBackEndParams.h"

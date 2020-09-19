@@ -74,7 +74,7 @@ StereoPipeline::StereoPipeline(const VioParams& params,
     if (output->is_keyframe_) {
       //! Only push to backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
-          output->stereo_frame_lkf_.getTimestamp(),
+          output->stereo_frame_lkf_.timestamp_,
           output->status_stereo_measurements_,
           output->tracker_status_,
           output->pim_,
@@ -210,7 +210,8 @@ StereoPipeline::~StereoPipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-bool StereoPipeline::shutdownWhenFinished(const int& sleep_time_ms) {
+bool StereoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
+                                          const bool& print_stats) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.

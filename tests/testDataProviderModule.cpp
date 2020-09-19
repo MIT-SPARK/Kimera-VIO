@@ -143,7 +143,7 @@ TEST_F(TestStereoDataProviderModule, basicSequentialCase) {
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(2),
-            result->getStereoFrame().getFrameId());
+            result->getStereoFrame().id_);
   // +1 because it interpolates to the time frame
   EXPECT_EQ(kImuTestBundleSize + 1, result->getImuStamps().size());
 }
@@ -179,7 +179,7 @@ TEST_F(TestStereoDataProviderModule, noImuTest) {
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(num_frames_to_reject + 2),
-            result->getStereoFrame().getFrameId());
+            result->getStereoFrame().id_);
   // +1 because it interpolates to the time frame
   EXPECT_EQ(1 + 1, result->getImuStamps().size());
 
@@ -211,7 +211,7 @@ TEST_F(TestStereoDataProviderModule, manyImuTest) {
     CHECK(output_queue_->pop(result));
     CHECK(result);
     EXPECT_EQ(static_cast<VIO::FrameId>(2 + i),
-              result->getStereoFrame().getFrameId());
+              result->getStereoFrame().id_);
     // +1 because it interpolates to the time frame
     EXPECT_EQ(base_imu_to_make + i + 1, result->getImuStamps().size());
   }
@@ -244,7 +244,7 @@ TEST_F(TestStereoDataProviderModule, imageBeforeImuTest) {
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
-            result->getStereoFrame().getFrameId());
+            result->getStereoFrame().id_);
   // +1 because it interpolates to the time frame
   EXPECT_EQ(kImuTestBundleSize + 1, result->getImuStamps().size());
 }
@@ -279,7 +279,7 @@ TEST_F(TestStereoDataProviderModule, imageBeforeImuDelayedSpinTest) {
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
-            result->getStereoFrame().getFrameId());
+            result->getStereoFrame().id_);
   // +1 because it interpolates to the time frame
   EXPECT_EQ(kImuTestBundleSize + 1, result->getImuStamps().size());
 }

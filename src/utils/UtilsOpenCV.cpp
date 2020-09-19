@@ -211,8 +211,7 @@ gtsam::Pose3 UtilsOpenCV::openGvTfToGtsamPose3(
 
 /* -------------------------------------------------------------------------- */
 // Crops pixel coordinates avoiding that it falls outside image
-// TODO(marcus): is it possible to make this return a new keypoint?
-//   we can't have any const refs with keypoints because of this...
+// TODO(marcus): template on input precision? have to change whole class
 bool UtilsOpenCV::cropToSize(KeypointCV* px, const cv::Size& size) {
   CHECK_NOTNULL(px);
   bool cropped = false;
@@ -234,6 +233,7 @@ bool UtilsOpenCV::cropToSize(KeypointCV* px, const cv::Size& size) {
   }
   return cropped;
 }
+
 /* -------------------------------------------------------------------------- */
 /** @brief Crop to size and round pixel coordinates to integers
  * @param

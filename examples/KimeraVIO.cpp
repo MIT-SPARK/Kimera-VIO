@@ -109,7 +109,8 @@ int main(int argc, char* argv[]) {
             std::async(std::launch::async,
                        &VIO::MonoPipeline::shutdownWhenFinished,
                        &vio_pipeline,
-                       500);
+                       500,
+                       true);
         vio_pipeline.spinViz();
         is_pipeline_successful = !handle.get();
         handle_shutdown.get();
@@ -173,7 +174,8 @@ int main(int argc, char* argv[]) {
             std::async(std::launch::async,
                        &VIO::StereoPipeline::shutdownWhenFinished,
                        &vio_pipeline,
-                       500);
+                       500,
+                       true);
         vio_pipeline.spinViz();
         is_pipeline_successful = !handle.get();
         handle_shutdown.get();

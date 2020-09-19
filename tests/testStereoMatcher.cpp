@@ -91,18 +91,19 @@ class StereoMatcherFixture : public ::testing::Test {
                   stereo_FLAGS_test_data_path + right_image_name,
                   tp.stereo_matching_params_.equalize_image_)));
 
-    Frame* left_frame = sfnew->getLeftFrameMutable();
+    Frame* left_frame = &sfnew->left_frame_;
     UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
-    left_frame->versors_.reserve(sfnew->getLeftFrame().keypoints_.size());
+    left_frame->versors_.reserve(sfnew->left_frame_.keypoints_.size());
     int landmark_count_ = 0;
-    for (size_t i = 0; i < sfnew->getLeftFrame().keypoints_.size(); i++) {
-      sfnew->getLeftFrameMutable()->landmarks_.push_back(landmark_count_);
-      sfnew->getLeftFrameMutable()->landmarks_age_.push_back(
+    for (size_t i = 0; i < sfnew->left_frame_.keypoints_.size(); i++) {
+      &sfnew->left_frame_->landmarks_.push_back(landmark_count_);
+      &sfnew->left_frame_->landmarks_age_.push_back(
           5 * landmark_count_);  // seen in a single (key)frame
-      sfnew->getLeftFrameMutable()->scores_.push_back(10 * landmark_count_);
-      sfnew->getLeftFrameMutable()->versors_.push_back(
-          UndistorterRectifier::UndistortKeypointAndGetVersor(sfnew->getLeftFrame().keypoints_.at(i),
-                                sfnew->getLeftFrame().cam_param_));
+      &sfnew->left_frame_->scores_.push_back(10 * landmark_count_);
+      &sfnew->left_frame_->versors_.push_back(
+          UndistorterRectifier::UndistortKeypointAndGetVersor(
+              sfnew->left_frame_.keypoints_.at(i),
+              sfnew->left_frame_.cam_param_));
       ++landmark_count_;
     }
 
@@ -137,28 +138,28 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
 
   gtsam::Cal3DS2 gtsam_calib;
   CameraParams::createGtsamCalibration(
-      sfnew->getLeftFrame().cam_param_.distortion_coeff_mat_,
-      sfnew->getLeftFrame().cam_param_.intrinsics_,
+      sfnew->left_frame_.cam_param_.distortion_coeff_mat_,
+      sfnew->left_frame_.cam_param_.intrinsics_,
       &gtsam_calib);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that data is correctly populated:
   EXPECT_NEAR(0.110078, stereo_camera->getBaseline(), 1e-5);
-  EXPECT_NEAR(100, sfnew->getRightFrame().keypoints_.size(), 1e-5);
+  EXPECT_NEAR(100, sfnew->right_frame_.keypoints_.size(), 1e-5);
   EXPECT_NEAR(0,
-              sfnew->getRightFrame().scores_.size(),
+              sfnew->right_frame_.scores_.size(),
               1e-5);  // scores do not get populated
   EXPECT_NEAR(0,
-              sfnew->getRightFrame().landmarks_.size(),
+              sfnew->right_frame_.landmarks_.size(),
               1e-5);  // landmarks_ do not get populated
   EXPECT_NEAR(0,
-              sfnew->getRightFrame().landmarks_age_.size(),
+              sfnew->right_frame_.landmarks_age_.size(),
               1e-5);  // landmarksAges do not get populated
   EXPECT_NEAR(0,
-              sfnew->getRightFrame().versors_.size(),
+              sfnew->right_frame_.versors_.size(),
               1e-5);  // landmarksAges do not get populated
-  EXPECT_NEAR(100, sfnew->get3DKpts().size(), 1e-5);
-  EXPECT_NEAR(100, sfnew->getRightKptsRectified().size(), 1e-5);
+  EXPECT_NEAR(100, sfnew->keypoints_3d_.size(), 1e-5);
+  EXPECT_NEAR(100, sfnew->right_keypoints_rectified_.size(), 1e-5);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3d point is consistent with the left versor and the depth
@@ -167,7 +168,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
   // (important when projecting points later on)
   // sfnew->setIsRectified(true);  // Fake that the camera is rectified.
   gtsam::Rot3 expected_camL_R_camLrect =
-      sfnew->getLeftFrame().cam_param_.body_Pose_cam_.rotation().between(
+      sfnew->left_frame_.cam_param_.body_Pose_cam_.rotation().between(
           stereo_camera->getBodyPoseLeftCamRect().rotation());  // camL_R_camLrect
   gtsam::Rot3 actual_camL_R_camLrect =
       UtilsOpenCV::cvMatToGtsamRot3(stereo_camera->getR1()).inverse();
@@ -175,19 +176,19 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       assert_equal(expected_camL_R_camLrect, actual_camL_R_camLrect, 1e-4));
 
   int nrValid = 0;
-  for (size_t i = 0; i < sfnew->get3DKpts().size(); i++) {
-    if (sfnew->getRightKptsRectified().at(i).first == KeypointStatus::VALID) {
+  for (size_t i = 0; i < sfnew->keypoints_3d_.size(); i++) {
+    if (sfnew->right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
       nrValid += 1;
-      double depth = sfnew->get3DKpts().at(i).z();
-      gtsam::Vector3 versorActual = sfnew->get3DKpts().at(i) / depth;
+      double depth = sfnew->keypoints_3d_.at(i).z();
+      gtsam::Vector3 versorActual = sfnew->keypoints_3d_.at(i) / depth;
       gtsam::Vector3 versorExpected =
           actual_camL_R_camLrect.inverse().matrix() *
-          sfnew->getLeftFrame().versors_.at(i);
+          sfnew->left_frame_.versors_.at(i);
       versorExpected = versorExpected / versorExpected[2];
       EXPECT_TRUE(assert_equal(versorExpected, versorActual));
     } else {
       // when invalid 3D point is set to zero..
-      gtsam::Vector3 pointActual = sfnew->get3DKpts().at(i);
+      gtsam::Vector3 pointActual = sfnew->keypoints_3d_.at(i);
       gtsam::Vector3 pointExpected = gtsam::Vector3::Zero();
       EXPECT_TRUE(assert_equal(pointExpected, pointActual));
       // and the corresponding depth is set to zero too
@@ -198,12 +199,12 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3D point reprojects correctly to the two cameras:
-  for (size_t i = 0; i < sfnew->get3DKpts().size(); i++) {
-    if (sfnew->getRightKptsRectified().at(i).first == KeypointStatus::VALID) {
+  for (size_t i = 0; i < sfnew->keypoints_3d_.size(); i++) {
+    if (sfnew->right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
       // TEST: uncalibrateDistUnrect(versor) = original distorted unrectified
       // point (CHECK DIST UNRECT CALIBRATION WORKS)
-      KeypointCV kp_i_distUnrect = sfnew->getLeftFrame().keypoints_.at(i);
-      gtsam::Vector3 versor_i = sfnew->getLeftFrame().versors_.at(i);
+      KeypointCV kp_i_distUnrect = sfnew->left_frame_.keypoints_.at(i);
+      gtsam::Vector3 versor_i = sfnew->left_frame_.versors_.at(i);
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
       Point2 kp_i_distUnrect_gtsam =
@@ -215,7 +216,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // TEST: uncalibrateUndistRect(versor) = original distorted unrectified
       // point (CHECK UNDIST RECT CALIBRATION WORKS)
       VIO::Camera left_camera(cam_params_left);
-      KeypointCV kp_i_undistRect = sfnew->getLeftKptsRectified().at(i).second;
+      KeypointCV kp_i_undistRect = sfnew->left_keypoints_rectified_.at(i).second;
       Cal3_S2 sfnew_left_undist_rect_cam_mat = left_camera.getCalibration();
       Cal3_S2 KundistRect(sfnew_left_undist_rect_cam_mat.fx(),
                           sfnew_left_undist_rect_cam_mat.fy(),
@@ -234,7 +235,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
 
       // TEST: projecting 3d point to left camera (undist and rectified) =
       // original undistorted rectified point (CHECK BACKPROJECTION WORKS)
-      Point3 point3d = sfnew->get3DKpts().at(i);
+      Point3 point3d = sfnew->keypoints_3d_.at(i);
       PinholeCamera<Cal3_S2> leftCam_undistRect(gtsam::Pose3(), KundistRect);
       Point2 p2_undistRect = leftCam_undistRect.project(point3d);
       EXPECT_TRUE(assert_equal(
@@ -267,11 +268,11 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // frame
       gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3(), K);
       StereoPoint2 sp2 = stereoCam.project(point3d);
-      EXPECT_NEAR(sp2.uL(), sfnew->getLeftKptsRectified().at(i).second.x, 1);
-      EXPECT_NEAR(sp2.v(), sfnew->getLeftKptsRectified().at(i).second.y, 1);
-      EXPECT_NEAR(sp2.uR(), sfnew->getRightKptsRectified().at(i).second.x, 1);
+      EXPECT_NEAR(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).second.x, 1);
+      EXPECT_NEAR(sp2.v(), sfnew->left_keypoints_rectified_.at(i).second.y, 1);
+      EXPECT_NEAR(sp2.uR(), sfnew->right_keypoints_rectified_.at(i).second.x, 1);
       EXPECT_NEAR(sp2.v(),
-                  sfnew->getRightKptsRectified().at(i).second.y,
+                  sfnew->right_keypoints_rectified_.at(i).second.y,
                   3);  // slightly larger errors
     }
   }
@@ -283,10 +284,10 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstructionStereoFrame) {
 
 TEST_F(StereoMatcherFixture, getRightKeypointsRectified) {
   // Extract keypoints from the left img!
-  Frame* left_frame = sf->getLeftFrameMutable();
+  Frame* left_frame = &sf->left_frame_;
   UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
-  cv::Mat left_img = sf->getLeftFrame().img_;
-  const KeypointsCV& left_keypoints = sf->getLeftFrame().keypoints_;
+  cv::Mat left_img = sf->left_frame_.img_;
+  const KeypointsCV& left_keypoints = sf->left_frame_.keypoints_;
   const int num_points = left_keypoints.size();
 
   // we offset left image artificially (to get right image) in order to have

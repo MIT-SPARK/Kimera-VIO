@@ -277,7 +277,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
     Frame* ref_frame,
     Frame* cur_frame,
     const gtsam::Rot3& R,
-    VIO::StereoCamera::Ptr stereo_camera) {
+    VIO::StereoCamera::ConstPtr stereo_camera) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
 
@@ -391,15 +391,15 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
     const Matrix3& stereoPtCov,
     boost::optional<gtsam::Matrix3> Rmat) {
   gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(
-      static_cast<double>(stereoFrame.getLeftKptsRectified()[pointId].second.x),
-      static_cast<double>(stereoFrame.getRightKptsRectified()[pointId].second.x),
+      static_cast<double>(stereoFrame.left_keypoints_rectified_[pointId].second.x),
+      static_cast<double>(stereoFrame.right_keypoints_rectified_[pointId].second.x),
       static_cast<double>(
-          stereoFrame.getLeftKptsRectified()[pointId].second.y));  // uL_, uR_, v_;
+          stereoFrame.left_keypoints_rectified_[pointId].second.y));  // uL_, uR_, v_;
 
   Matrix3 Jac_point3_sp2;  // jacobian of the back projection
   Vector3 point3_i_gtsam =
       stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2).vector();
-  Vector3 point3_i = stereoFrame.get3DKpts().at(pointId);
+  Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
   // TODO(Toni): Adapt value of this threshold for different calibration
   // models!
   // (1e-1)
@@ -425,7 +425,7 @@ std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
 Tracker::geometricOutlierRejectionStereoGivenRotation(
     StereoFrame& ref_stereoFrame,
     StereoFrame& cur_stereoFrame,
-    VIO::StereoCamera::Ptr stereo_camera,
+    VIO::StereoCamera::ConstPtr stereo_camera,
     const gtsam::Rot3& R) {
   auto start_time_tic = utils::Timer::tic();
 
@@ -658,11 +658,9 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   f_cur.reserve(n_matches);
   BearingVectors f_ref;
   f_ref.reserve(n_matches);
-  std::vector<gtsam::Vector3> ref_keypoints_3d = ref_stereoFrame.get3DKpts();
-  std::vector<gtsam::Vector3> cur_keypoints_3d = cur_stereoFrame.get3DKpts();
   for (const KeypointMatch& it : matches_ref_cur) {
-    f_ref.push_back(ref_keypoints_3d.at(it.first));
-    f_cur.push_back(cur_keypoints_3d.at(it.second));
+    f_ref.push_back(ref_stereoFrame.keypoints_3d_.at(it.first));
+    f_cur.push_back(cur_stereoFrame.keypoints_3d_.at(it.second));
   }
 
   // Setup problem (3D-3D adapter) -
@@ -679,9 +677,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
     LOG(WARNING) << "failure: (Arun) RANSAC could not find a solution."
                  << "\n  size of matches_ref_cur: " << matches_ref_cur.size()
                  << "\n  size of f_ref: " << f_ref.size()
-                 << "\n  size of f_cur: " << f_cur.size()
-                 << "\n  size of ref_keypoints_3d: " << ref_keypoints_3d.size()
-                 << "\n  size of cur_keypoints_3d: " << cur_keypoints_3d.size();
+                 << "\n  size of f_cur: " << f_cur.size();
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
 
@@ -781,24 +777,15 @@ void Tracker::removeOutliersStereo(const std::vector<int>& inliers,
 
   // Remove outliers: outliers cannot be a vector of size_t because opengv
   // uses a vector of int.
-  StatusKeypointsCV* ref_right_keypoints = 
-      ref_stereoFrame->getRightKptsRectifiedMutable();
-  StatusKeypointsCV* cur_right_keypoints = 
-      cur_stereoFrame->getRightKptsRectifiedMutable();
-  std::vector<gtsam::Vector3>* ref_keypoints_3d = 
-      ref_stereoFrame->get3DKptsMutable();
-  std::vector<gtsam::Vector3>* cur_keypoints_3d = 
-      cur_stereoFrame->get3DKptsMutable();
-
   for (const size_t& out : outliers) {
     const KeypointMatch& kp_match = (*matches_ref_cur)[out];
-    ref_right_keypoints->at(kp_match.first).first =
+    ref_stereoFrame->right_keypoints_rectified_.at(kp_match.first).first =
         KeypointStatus::FAILED_ARUN;
-    ref_keypoints_3d->at(kp_match.first) = Vector3::Zero();
+    ref_stereoFrame->keypoints_3d_.at(kp_match.first) = Vector3::Zero();
 
-    cur_right_keypoints->at(kp_match.second).first =
+    cur_stereoFrame->right_keypoints_rectified_.at(kp_match.second).first =
         KeypointStatus::FAILED_ARUN;
-    cur_keypoints_3d->at(kp_match.second) = Vector3::Zero();
+    cur_stereoFrame->keypoints_3d_.at(kp_match.second) = Vector3::Zero();
   }
 
   // Store only inliers from now on.
@@ -845,8 +832,8 @@ void Tracker::findMatchingStereoKeypoints(
     KeypointMatches* matches_ref_cur_stereo) {
   CHECK_NOTNULL(matches_ref_cur_stereo)->clear();
   KeypointMatches matches_ref_cur_mono;
-  findMatchingKeypoints(ref_stereoFrame.getLeftFrame(),
-                        cur_stereoFrame.getLeftFrame(),
+  findMatchingKeypoints(ref_stereoFrame.left_frame_,
+                        cur_stereoFrame.left_frame_,
                         &matches_ref_cur_mono);
   findMatchingStereoKeypoints(ref_stereoFrame,
                               cur_stereoFrame,
@@ -861,23 +848,23 @@ void Tracker::findMatchingStereoKeypoints(
     KeypointMatches* matches_ref_cur_stereo) {
   CHECK_NOTNULL(matches_ref_cur_stereo)->clear();
 
-  const StatusKeypointsCV& ref_right_keypoints = 
-      ref_stereoFrame.getRightKptsRectified();
-  const StatusKeypointsCV& cur_right_keypoints = 
-      cur_stereoFrame.getRightKptsRectified();
-
   for (size_t i = 0; i < matches_ref_cur_mono.size(); ++i) {
     const size_t& ind_ref = matches_ref_cur_mono[i].first;
     const size_t& ind_cur = matches_ref_cur_mono[i].second;
     // At this point we already discarded keypoints with landmark = -1
-    if (ref_right_keypoints[ind_ref].first == KeypointStatus::VALID &&
-        cur_right_keypoints[ind_cur].first == KeypointStatus::VALID) {
+    if (ref_stereoFrame.right_keypoints_rectified_[ind_ref].first ==
+            KeypointStatus::VALID &&
+        cur_stereoFrame.right_keypoints_rectified_[ind_cur].first ==
+            KeypointStatus::VALID) {
       // Pair of points that has 3D in both stereoFrames.
       matches_ref_cur_stereo->push_back(matches_ref_cur_mono[i]);
     } else {
-      VLOG(5) << "Failed match status: " 
-              << to_underlying(ref_right_keypoints[ind_ref].first)
-              << " " << to_underlying(cur_right_keypoints[ind_cur].first);
+      VLOG(5) << "Failed match status: "
+              << to_underlying(
+                     ref_stereoFrame.right_keypoints_rectified_[ind_ref].first)
+              << " "
+              << to_underlying(
+                     cur_stereoFrame.right_keypoints_rectified_[ind_cur].first);
     }
   }
 }

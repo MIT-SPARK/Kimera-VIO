@@ -131,9 +131,9 @@ class TestTracker : public ::testing::Test {
     feature_detector_ = VIO::make_unique<VIO::FeatureDetector>(
         tp.feature_detector_params_);
     feature_detector_->featureDetection(
-        ref_stereo_frame->getLeftFrameMutable());
+        &ref_stereo_frame->left_frame_);
     feature_detector_->featureDetection(
-        cur_stereo_frame->getLeftFrameMutable());
+        &cur_stereo_frame->left_frame_);
 
     stereo_matcher_->sparseStereoReconstruction(ref_stereo_frame.get());
     stereo_matcher_->sparseStereoReconstruction(cur_stereo_frame.get());
@@ -323,61 +323,61 @@ class TestTracker : public ::testing::Test {
     CHECK_NOTNULL(sf_cur);
     // Decide the largest landmark IDs for each frame!
     int max_id;
-    if (sf_ref->getLeftFrame().landmarks_.size() == 0 &&
-        sf_cur->getLeftFrame().landmarks_.size() == 0) {
+    if (sf_ref->left_frame_.landmarks_.size() == 0 &&
+        sf_cur->left_frame_.landmarks_.size() == 0) {
       max_id = 0;
     } else {
       vector<LandmarkId>::const_iterator max_id_ref =
-          max_element(sf_ref->getLeftFrame().landmarks_.begin(),
-                      sf_ref->getLeftFrame().landmarks_.end());
+          max_element(sf_ref->left_frame_.landmarks_.begin(),
+                      sf_ref->left_frame_.landmarks_.end());
       vector<LandmarkId>::const_iterator max_id_cur =
-          max_element(sf_cur->getLeftFrame().landmarks_.begin(),
-                      sf_cur->getLeftFrame().landmarks_.end());
+          max_element(sf_cur->left_frame_.landmarks_.begin(),
+                      sf_cur->left_frame_.landmarks_.end());
       max_id = max(*max_id_ref, *max_id_cur);
     }
 
     // Add the versors to the stereo frames
-    sf_ref->get3DKptsMutable()->push_back(v_ref);
-    sf_cur->get3DKptsMutable()->push_back(v_cur);
+    sf_ref->keypoints_3d_.push_back(v_ref);
+    sf_cur->keypoints_3d_.push_back(v_cur);
 
     // create ref stereo camera
-    VIO::StereoCamera ref_stereo_camera(sf_ref->getLeftFrame().cam_param_,
-                                        sf_ref->getRightFrame().cam_param_);
+    VIO::StereoCamera ref_stereo_camera(sf_ref->left_frame_.cam_param_,
+                                        sf_ref->right_frame_.cam_param_);
     Rot3 camLrect_R_camL = UtilsOpenCV::cvMatToGtsamRot3(
         ref_stereo_camera.getR1());
     gtsam::StereoCamera stereoCam = 
         gtsam::StereoCamera(Pose3(), ref_stereo_camera.getStereoCalib());
 
     StereoPoint2 sp2 = stereoCam.project(camLrect_R_camL.rotate(Point3(v_ref)));
-    sf_ref->getLeftKptsRectifiedMutable()->push_back(
+    sf_ref->left_keypoints_rectified_.push_back(
         StatusKeypointCV(KeypointStatus::VALID,
         KeypointCV(sp2.uL(), sp2.v())));
-    sf_ref->getRightKptsRectifiedMutable()->push_back(
+    sf_ref->right_keypoints_rectified_.push_back(
         StatusKeypointCV(KeypointStatus::VALID,
         KeypointCV(sp2.uR(), sp2.v())));
 
     // create cur stereo camera
-    VIO::StereoCamera cur_stereo_camera(sf_cur->getLeftFrame().cam_param_,
-                                        sf_cur->getRightFrame().cam_param_);
+    VIO::StereoCamera cur_stereo_camera(sf_cur->left_frame_.cam_param_,
+                                        sf_cur->right_frame_.cam_param_);
     camLrect_R_camL = UtilsOpenCV::cvMatToGtsamRot3(
         cur_stereo_camera.getR1());
     stereoCam =
         gtsam::StereoCamera(Pose3(), cur_stereo_camera.getStereoCalib());
 
     sp2 = stereoCam.project(camLrect_R_camL.rotate(Point3(v_cur)));
-    sf_cur->getLeftKptsRectifiedMutable()->push_back(
+    sf_cur->left_keypoints_rectified_.push_back(
         StatusKeypointCV(KeypointStatus::VALID,
         KeypointCV(sp2.uL(), sp2.v())));
-    sf_cur->getRightKptsRectifiedMutable()->push_back(
+    sf_cur->right_keypoints_rectified_.push_back(
         StatusKeypointCV(KeypointStatus::VALID,
         KeypointCV(sp2.uR(), sp2.v())));
 
     // Assign landmark ids to them!
-    sf_ref->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
-    sf_cur->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
+    sf_ref->left_frame_.landmarks_.push_back(max_id + 1);
+    sf_cur->left_frame_.landmarks_.push_back(max_id + 1);
 
-    sf_ref->getLeftFrameMutable()->landmarks_age_.push_back(0);
-    sf_cur->getLeftFrameMutable()->landmarks_age_.push_back(1);
+    sf_ref->left_frame_.landmarks_age_.push_back(0);
+    sf_cur->left_frame_.landmarks_age_.push_back(1);
   }
 
   void AddNonPlanarInliersToStereoFrame(StereoFrame* sf_ref,
@@ -389,12 +389,12 @@ class TestTracker : public ::testing::Test {
     CHECK_NOTNULL(sf_cur);
     for (int i = 0; i < inlierNum; i++) {
       // Randomly synthesize left keypoint!
-      KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
-                        rand() % sf_ref->getLeftFrame().img_.rows);
+      KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
+                        rand() % sf_ref->left_frame_.img_.rows);
 
       // Calibrate the point
-      Vector3 versor_ref =
-          UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, sf_ref->getLeftFrame().cam_param_);
+      Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(
+          pt_ref, sf_ref->left_frame_.cam_param_);
       // Randomly generate the depth
       double depth =
           depth_range[0] +
@@ -415,11 +415,11 @@ class TestTracker : public ::testing::Test {
 
   void ClearStereoFrame(StereoFrame* sf) {
     CHECK_NOTNULL(sf);
-    ClearFrame(sf->getLeftFrameMutable());
-    ClearFrame(sf->getRightFrameMutable());
-    sf->get3DKptsMutable()->clear();
-    sf->getLeftKptsRectifiedMutable()->clear();
-    sf->getRightKptsRectifiedMutable()->clear();
+    ClearFrame(&sf->left_frame_);
+    ClearFrame(&sf->right_frame_);
+    sf->keypoints_3d_.clear();
+    sf->left_keypoints_rectified_.clear();
+    sf->right_keypoints_rectified_.clear();
   }
 
   void AddOutliersToStereoFrame(StereoFrame* sf_ref,
@@ -432,16 +432,16 @@ class TestTracker : public ::testing::Test {
     for (int i = 0; i < outlierNum; i++) {
       while (true) {
         // Keypoints
-        KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
-                          rand() % sf_ref->getLeftFrame().img_.rows);
-        KeypointCV pt_cur(rand() % sf_cur->getLeftFrame().img_.cols,
-                          rand() % sf_cur->getLeftFrame().img_.rows);
+        KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
+                          rand() % sf_ref->left_frame_.img_.rows);
+        KeypointCV pt_cur(rand() % sf_cur->left_frame_.img_.cols,
+                          rand() % sf_cur->left_frame_.img_.rows);
 
         // Calibrate keypoints
         Vector3 versor_ref =
-            UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, sf_ref->getLeftFrame().cam_param_);
+            UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, sf_ref->left_frame_.cam_param_);
         Vector3 versor_cur =
-            UndistorterRectifier::UndistortKeypointAndGetVersor(pt_cur, sf_cur->getLeftFrame().cam_param_);
+            UndistorterRectifier::UndistortKeypointAndGetVersor(pt_cur, sf_cur->left_frame_.cam_param_);
 
         // Check that they are indeed outliers!
         double depth_ref = depth_range[0] +
@@ -482,11 +482,11 @@ class TestTracker : public ::testing::Test {
     // All points are on the plane: PlaneN * x = d
     for (int i = 0; i < inlierNum; i++) {
       // Randomly synthesize the point!
-      KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
-                        rand() % sf_ref->getLeftFrame().img_.rows);
+      KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
+                        rand() % sf_ref->left_frame_.img_.rows);
       // Calibrate the point
-      Vector3 versor_ref =
-          UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, sf_ref->getLeftFrame().cam_param_);
+      Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(
+          pt_ref, sf_ref->left_frame_.cam_param_);
 
       // Compute the intersection between the versor and the plane.
       Vector3 versor_plane = IntersectVersorPlane(versor_ref, PlaneN, PlaneD);
@@ -504,12 +504,11 @@ class TestTracker : public ::testing::Test {
     CHECK_NOTNULL(sf);
     default_random_engine generator;
     normal_distribution<double> distribution(0, noise_sigma);
-    std::vector<Vector3>* kpts_3d = sf->get3DKptsMutable();
-    for (int i = 0; i < kpts_3d->size(); i++) {
+    for (int i = 0; i < sf->keypoints_3d_.size(); i++) {
       Vector3 noise(distribution(generator),
                     distribution(generator),
                     distribution(generator));
-      kpts_3d->at(i) = kpts_3d->at(i) + noise;
+      sf->keypoints_3d_.at(i) = sf->keypoints_3d_.at(i) + noise;
     }
   }
 
@@ -835,26 +834,26 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 
       // Check the correctness of the outlier rejection!
       for (int i = 0; i < inlier_num; i++) {
-        EXPECT_EQ(ref_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
-        EXPECT_GT((ref_stereo_frame->get3DKpts()[i] - Vector3::Zero()).norm(),
+        EXPECT_GT((ref_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
                   tol);
 
-        EXPECT_EQ(cur_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
-        EXPECT_GT((cur_stereo_frame->get3DKpts()[i] - Vector3::Zero()).norm(),
+        EXPECT_GT((cur_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
                   tol);
       }
 
       for (int i = inlier_num; i < inlier_num + outlier_num; i++) {
-        EXPECT_EQ(ref_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
-        EXPECT_LT((ref_stereo_frame->get3DKpts()[i] - Vector3::Zero()).norm(),
+        EXPECT_LT((ref_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
                   tol);
 
-        EXPECT_EQ(cur_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
-        EXPECT_LT((cur_stereo_frame->get3DKpts()[i] - Vector3::Zero()).norm(),
+        EXPECT_LT((cur_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
                   tol);
       }
 
@@ -871,10 +870,10 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 
       for (int i = 0; i < inlier_num; i++) {  // compare only inliers
         Vector3 right_pt_3d_exp = estimated_pose.inverse().rotation() *
-                                      ref_stereo_frame->get3DKpts().at(i) +
+                                      ref_stereo_frame->keypoints_3d_.at(i) +
                                   estimated_pose.inverse().translation();
         double diff =
-            (right_pt_3d_exp - cur_stereo_frame->get3DKpts().at(i)).norm();
+            (right_pt_3d_exp - cur_stereo_frame->keypoints_3d_.at(i)).norm();
         EXPECT_LT(diff, tolPoint3);
       }
     }
@@ -970,26 +969,26 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       Pose3 estimated_pose = poseStatus.second;
       // Check the correctness of the outlier rejection!
       for (int i = 0; i < inlier_num; i++) {
-        EXPECT_EQ(ref_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
-        EXPECT_GT((ref_stereo_frame->get3DKpts().at(i) - Vector3::Zero()).norm(),
+        EXPECT_GT((ref_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
 
-        EXPECT_EQ(cur_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
-        EXPECT_GT((cur_stereo_frame->get3DKpts().at(i) - Vector3::Zero()).norm(),
+        EXPECT_GT((cur_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
       }
 
       for (int i = inlier_num; i < inlier_num + outlier_num; i++) {
-        EXPECT_EQ(ref_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
-        EXPECT_LT((ref_stereo_frame->get3DKpts().at(i) - Vector3::Zero()).norm(),
+        EXPECT_LT((ref_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
 
-        EXPECT_EQ(cur_stereo_frame->getRightKptsRectified().at(i).first,
+        EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
-        EXPECT_LT((cur_stereo_frame->get3DKpts().at(i) - Vector3::Zero()).norm(),
+        EXPECT_LT((cur_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
       }
 
@@ -1006,10 +1005,10 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
 
       for (int i = 0; i < inlier_num; i++) {  // compare only inliers
         Vector3 right_pt_3d_exp = estimated_pose.inverse().rotation() *
-                                      ref_stereo_frame->get3DKpts().at(i) +
+                                      ref_stereo_frame->keypoints_3d_.at(i) +
                                   estimated_pose.inverse().translation();
         double diff =
-            (right_pt_3d_exp - cur_stereo_frame->get3DKpts().at(i)).norm();
+            (right_pt_3d_exp - cur_stereo_frame->keypoints_3d_.at(i)).norm();
         EXPECT_LT(diff, tolPoint3);
       }
     }
@@ -1020,8 +1019,8 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
 TEST_F(TestTracker, getPoint3AndCovariance) {
   ClearStereoFrame(ref_stereo_frame.get());
   // create stereo cam
-  VIO::StereoCamera ref_stereo_camera(ref_stereo_frame->getLeftFrame().cam_param_,
-                                      ref_stereo_frame->getRightFrame().cam_param_);
+  VIO::StereoCamera ref_stereo_camera(ref_stereo_frame->left_frame_.cam_param_,
+                                      ref_stereo_frame->right_frame_.cam_param_);
   gtsam::StereoCamera stereoCam =
       gtsam::StereoCamera(Pose3(), ref_stereo_camera.getStereoCalib());
 
@@ -1038,11 +1037,11 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   Matrix3 stereoPtCov = Matrix3::Identity();
 
   // populate stereoFrame:
-  ref_stereo_frame->getLeftKptsRectifiedMutable()->push_back(
+  ref_stereo_frame->left_keypoints_rectified_.push_back(
       StatusKeypointCV(KeypointStatus::VALID, KeypointCV(xL, v)));
-  ref_stereo_frame->getRightKptsRectifiedMutable()->push_back(
+  ref_stereo_frame->right_keypoints_rectified_.push_back(
       StatusKeypointCV(KeypointStatus::VALID, KeypointCV(xR, v)));
-  ref_stereo_frame->get3DKptsMutable()->push_back(point3);
+  ref_stereo_frame->keypoints_3d_.push_back(point3);
 
   // use function to get actual answer
   Vector3 f_ref_i_expected, f_ref_i_actual;
@@ -1224,63 +1223,63 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
   const int num_landmarks_cur = 80;
   const int num_landmarks_invalid = 70;
 
-  ref_stereo_frame->getLeftFrameMutable()->landmarks_.reserve(
+  ref_stereo_frame->left_frame_.landmarks_.reserve(
       num_landmarks_common + num_landmarks_ref + num_landmarks_invalid);
-  cur_stereo_frame->getLeftFrameMutable()->landmarks_.reserve(
+  cur_stereo_frame->left_frame_.landmarks_.reserve(
       num_landmarks_common + num_landmarks_cur + num_landmarks_invalid);
 
   // landmark ids in common!
   for (int i = 0; i < num_landmarks_common; i++) {
-    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i);
-    cur_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i);
+    ref_stereo_frame->left_frame_.landmarks_.push_back(3 * i);
+    cur_stereo_frame->left_frame_.landmarks_.push_back(3 * i);
   }
 
   // landmark ids unique to ref_stereo_frame
   for (int i = 0; i < num_landmarks_ref; i++) {
-    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i + 1);
+    ref_stereo_frame->left_frame_.landmarks_.push_back(3 * i + 1);
   }
 
   // landmark ids unique to ref_stereo_frame
   for (int i = 0; i < num_landmarks_cur; i++) {
-    cur_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i + 2);
+    cur_stereo_frame->left_frame_.landmarks_.push_back(3 * i + 2);
   }
 
   // add a bunch of invalid landmarks to both frames
   for (int i = 0; i < num_landmarks_invalid; i++) {
-    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(-1);
-    cur_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(-1);
+    ref_stereo_frame->left_frame_.landmarks_.push_back(-1);
+    cur_stereo_frame->left_frame_.landmarks_.push_back(-1);
   }
 
   // shuffle landmarks in both frames
-  random_shuffle(ref_stereo_frame->getLeftFrameMutable()->landmarks_.begin(),
-                 ref_stereo_frame->getLeftFrameMutable()->landmarks_.end());
-  random_shuffle(cur_stereo_frame->getLeftFrameMutable()->landmarks_.begin(),
-                 cur_stereo_frame->getLeftFrameMutable()->landmarks_.end());
+  random_shuffle(ref_stereo_frame->left_frame_.landmarks_.begin(),
+                 ref_stereo_frame->left_frame_.landmarks_.end());
+  random_shuffle(cur_stereo_frame->left_frame_.landmarks_.begin(),
+                 cur_stereo_frame->left_frame_.landmarks_.end());
 
   //   Set right_keypoints_status!
-  ref_stereo_frame->getRightKptsRectifiedMutable()->resize(
-      ref_stereo_frame->getLeftFrame().landmarks_.size());
-  for (int i = 0; i < ref_stereo_frame->getLeftFrame().landmarks_.size(); i++) {
-    int l_id = ref_stereo_frame->getLeftFrameMutable()->landmarks_[i];
+  ref_stereo_frame->right_keypoints_rectified_.resize(
+      ref_stereo_frame->left_frame_.landmarks_.size());
+  for (int i = 0; i < ref_stereo_frame->left_frame_.landmarks_.size(); i++) {
+    int l_id = ref_stereo_frame->left_frame_.landmarks_[i];
     if (l_id % 6 == 0) {
-      ref_stereo_frame->getRightKptsRectifiedMutable()->at(i).first = 
+      ref_stereo_frame->right_keypoints_rectified_.at(i).first = 
           KeypointStatus::VALID;
     } else {
-      ref_stereo_frame->getRightKptsRectifiedMutable()->at(i).first = 
+      ref_stereo_frame->right_keypoints_rectified_.at(i).first = 
           KeypointStatus::NO_RIGHT_RECT;
     }
   }
 
   //   Set right_keypoints_status!
-  cur_stereo_frame->getRightKptsRectifiedMutable()->resize(
-      cur_stereo_frame->getLeftFrame().landmarks_.size());
-  for (int i = 0; i < cur_stereo_frame->getLeftFrame().landmarks_.size(); i++) {
-    int l_id = cur_stereo_frame->getLeftFrameMutable()->landmarks_[i];
+  cur_stereo_frame->right_keypoints_rectified_.resize(
+      cur_stereo_frame->left_frame_.landmarks_.size());
+  for (int i = 0; i < cur_stereo_frame->left_frame_.landmarks_.size(); i++) {
+    int l_id = cur_stereo_frame->left_frame_.landmarks_[i];
     if (l_id % 6 == 0) {
-      cur_stereo_frame->getRightKptsRectifiedMutable()->at(i).first = 
+      cur_stereo_frame->right_keypoints_rectified_.at(i).first = 
           KeypointStatus::VALID;
     } else {
-      cur_stereo_frame->getRightKptsRectifiedMutable()->at(i).first = 
+      cur_stereo_frame->right_keypoints_rectified_.at(i).first = 
           KeypointStatus::NO_RIGHT_RECT;
     }
   }
@@ -1293,10 +1292,9 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
   EXPECT_EQ(matches_ref_cur.size(), (num_landmarks_common + 1) / 2);
   set<int> landmarks_found;
   for (auto match_ref_cur : matches_ref_cur) {
-    int l_ref = ref_stereo_frame->getLeftFrameMutable()
-                    ->landmarks_[match_ref_cur.first];
-    int l_cur = cur_stereo_frame->getLeftFrameMutable()
-                    ->landmarks_[match_ref_cur.second];
+    int l_ref = ref_stereo_frame->left_frame_.landmarks_[match_ref_cur.first];
+    int l_cur =
+        cur_stereo_frame->left_frame_.landmarks_[match_ref_cur.second];
 
     EXPECT_EQ(l_ref, l_cur);
     EXPECT_EQ(l_ref % 6, 0);

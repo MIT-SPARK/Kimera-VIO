@@ -104,11 +104,15 @@ class Pipeline {
   }
 
   /**
-   * @brief shutdownWhenFinished//! Callback called when the VIO pipeline has shut down.
-   * This must be specified in derived classes because it must reference the data 
-   * provider module.
+   * @brief shutdownWhenFinished
+   * Shutdown the pipeline once all data has been consumed, or if the backend
+   * has died unexpectedly.
+   * @param sleep_time_ms period of time between checks of vio status.
+   * @return true if shutdown succesful, false otherwise (only returns
+   * if running in sequential mode, or if shutdown happens).
    */
-  virtual bool shutdownWhenFinished(const int& sleep_time_ms) = 0;
+  virtual bool shutdownWhenFinished(const int& sleep_time_ms = 500,
+                                    const bool& print_stats = false) = 0;
 
   /**
    * @brief shutdown Shutdown processing pipeline: stops and joins threads,
@@ -129,6 +133,8 @@ class Pipeline {
       shutdown_pipeline_cb_();
     }
   }
+
+  inline bool isShutdown() const { return shutdown_; }
 
   /**
    * @brief resume Resumes all queues.

@@ -48,7 +48,7 @@ struct StereoFrontendOutput : public PipelinePayload {
                  const ImuAccGyrS& imu_acc_gyrs,
                  const cv::Mat& feature_tracks,
                  const DebugTrackerInfo& debug_tracker_info)
-      : PipelinePayload(stereo_frame_lkf.getTimestamp()),
+      : PipelinePayload(stereo_frame_lkf.timestamp_),
         is_keyframe_(is_keyframe),
         status_stereo_measurements_(status_stereo_measurements),
         tracker_status_(tracker_status),
@@ -57,8 +57,8 @@ struct StereoFrontendOutput : public PipelinePayload {
         stereo_frame_lkf_(stereo_frame_lkf),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        feature_tracks_(feature_tracks),
-        debug_tracker_info_(debug_tracker_info) {}
+        debug_tracker_info_(debug_tracker_info),
+        feature_tracks_(feature_tracks) {}
 
   virtual ~StereoFrontendOutput() = default;
 

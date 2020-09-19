@@ -213,7 +213,7 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinShutdownWhenFinished) {
   auto handle_shutdown = std::async(std::launch::async,
                                     &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
-                                    500);
+                                    500, true);
   EXPECT_TRUE(handle_shutdown.get());
   EXPECT_FALSE(handle_pipeline.get());
   EXPECT_FALSE(handle.get());
@@ -291,7 +291,7 @@ TEST_F(VioPipelineFixture, OfflineParallelSpinShutdownWhenFinished) {
   auto handle_shutdown = std::async(std::launch::async,
                                     &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
-                                    500);
+                                    500, true);
   EXPECT_TRUE(handle_shutdown.get());
   EXPECT_FALSE(handle_pipeline.get());
   EXPECT_FALSE(handle.get());
@@ -329,7 +329,7 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinBackendFailureGracefulShutdown) {
   auto handle_shutdown = std::async(std::launch::async,
                                     &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
-                                    500);
+                                    500, true);
   EXPECT_TRUE(handle_shutdown.get());
   EXPECT_FALSE(handle_pipeline.get());
   EXPECT_FALSE(handle.get());
@@ -352,7 +352,7 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinRegularBackendFailureGracefulShutdo
   auto handle_shutdown = std::async(std::launch::async,
                                     &VIO::StereoPipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
-                                    500);
+                                    500, true);
   EXPECT_TRUE(handle_shutdown.get());
   EXPECT_FALSE(handle_pipeline.get());
   EXPECT_FALSE(handle.get());

@@ -146,7 +146,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
     if (cropped) {
       VLOG(5) << "Undistorted Rectified keypoint out of image!\n"
                << "Keypoint undistorted: \n"
-               << undistorted_kp << '\n'
+               << undistorted_kps[i] << '\n'
                << "Image Size (map x size): " << map_x_.size;
       invalid_count += 1;
       status_kps->push_back(

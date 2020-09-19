@@ -43,7 +43,12 @@ FeatureDetector::FeatureDetector(
           10;  // Very small bcs we don't use descriptors (yet).
       static constexpr int first_level = 0;
       static constexpr int WTA_K = 0;  // We don't use descriptors (yet).
+#if CV_VERSION_MAJOR == 3
       static constexpr int score_type = cv::ORB::HARRIS_SCORE;
+#else
+      static constexpr cv::ORB::ScoreType score_type =
+          cv::ORB::ScoreType::HARRIS_SCORE;
+#endif
       // Needs to be larger than 2
       static constexpr int patch_size = 2;  // We don't use descriptors (yet).
       feature_detector_ =
