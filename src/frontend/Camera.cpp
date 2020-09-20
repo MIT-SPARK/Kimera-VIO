@@ -34,7 +34,9 @@ Camera::Camera(const CameraParams& cam_params)
                    cam_params.intrinsics_.at(3)),
       undistorter_(nullptr),
       camera_impl_(nullptr) {
-  cv::Mat P = cv::Mat::eye(3,3,CV_32FC1);  // TODO(marcus): possible failure!
+  // NOTE: no rectification, use camera matrix as P for cv::undistortPoints
+  // see https://stackoverflow.com/questions/22027419/bad-results-when-undistorting-points-using-opencv-in-python
+  cv::Mat P = cam_params.K_;
   cv::Mat R = cv::Mat::eye(3,3,CV_32FC1);
   undistorter_ = VIO::make_unique<UndistorterRectifier>(P, cam_params_, R);
   CHECK(undistorter_);

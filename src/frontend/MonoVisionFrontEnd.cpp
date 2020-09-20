@@ -117,6 +117,9 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
   VLOG(10) << "Finished processStereoFrame.";
   //////////////////////////////////////////////////////////////////////////////
 
+  if (VLOG_IS_ON(10))
+    MonoVisionFrontEnd::printStatusMonoMeasurements(*status_mono_measurements);
+
   if (mono_frame_km1_->isKeyframe_) {
     CHECK_EQ(mono_frame_lkf_->timestamp_, mono_frame_km1_->timestamp_);
     CHECK_EQ(mono_frame_lkf_->id_, mono_frame_km1_->id_);
@@ -356,6 +359,19 @@ void MonoVisionFrontEnd::getSmartMonoMeasurements(
     smart_mono_measurements->push_back(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
+}
+
+void MonoVisionFrontEnd::printStatusMonoMeasurements(
+    const StatusMonoMeasurements& status_mono_measurements) {
+  LOG(INFO) << "SmartMonoMeasurements with status: ";
+  printTrackingStatus(status_mono_measurements.first.kfTrackingStatus_mono_,
+                      "mono");
+  LOG(INFO) << " stereo points:";
+  const MonoMeasurements& mono_measurements = status_mono_measurements.second;
+  for (const auto& meas : mono_measurements) {
+    std::cout << " " << meas.second << " ";
+  }
+  std::cout << std::endl;
 }
 
 }  // namespace VIO

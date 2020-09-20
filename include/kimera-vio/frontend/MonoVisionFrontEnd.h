@@ -69,6 +69,9 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
 
   // void sendMonoTrackingToLogger() const;
 
+  static void printStatusMonoMeasurements(
+      const StatusMonoMeasurements& status_mono_measurements);
+
  private:
   // Current frame
   Frame::Ptr mono_frame_k_;

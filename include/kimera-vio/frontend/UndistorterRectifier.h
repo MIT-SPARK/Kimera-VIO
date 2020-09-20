@@ -58,8 +58,8 @@ class UndistorterRectifier {
       const KeypointsCV& keypoints,
       KeypointsCV* undistorted_keypoints,
       const CameraParams& cam_param,
-      const cv::Mat& R = cv::Mat::eye(3, 3, CV_32FC1),
-      const cv::Mat& P = cv::Mat::eye(3, 3, CV_32FC1));
+      boost::optional<cv::Mat> R = boost::none,
+      boost::optional<cv::Mat> P = boost::none);
 
   /**
    * @brief UndistortKeypointAndGetVersor undistort a single pixel,

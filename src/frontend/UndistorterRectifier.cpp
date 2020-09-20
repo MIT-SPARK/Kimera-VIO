@@ -33,16 +33,16 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
     const KeypointsCV& keypoints,
     KeypointsCV* undistorted_keypoints,
     const CameraParams& cam_param,
-    const cv::Mat& R,
-    const cv::Mat& P) {
+    boost::optional<cv::Mat> R,
+    boost::optional<cv::Mat> P) {
   switch (cam_param.distortion_model_) {
     case DistortionModel::RADTAN: {
       cv::undistortPoints(keypoints,
                           *undistorted_keypoints,
                           cam_param.K_,
                           cam_param.distortion_coeff_mat_,
-                          R,
-                          P);
+                          R ? R.get() : cv::noArray(),
+                          P ? P.get() : cv::noArray());
     } break;
     case DistortionModel::EQUIDISTANT: {
       // TODO: Create unit test for fisheye / equidistant model
@@ -50,8 +50,8 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
                                    *undistorted_keypoints,
                                    cam_param.K_,
                                    cam_param.distortion_coeff_mat_,
-                                   R,
-                                   P);
+                                   R ? R.get() : cv::noArray(),
+                                   P ? P.get() : cv::noArray());
     } break;
     default: {
       LOG(FATAL) << "Unknown distortion model.";
@@ -145,9 +145,9 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
 
     if (cropped) {
       VLOG(5) << "Undistorted Rectified keypoint out of image!\n"
-               << "Keypoint undistorted: \n"
-               << undistorted_kps[i] << '\n'
-               << "Image Size (map x size): " << map_x_.size;
+              << "Keypoint undistorted: \n"
+              << undistorted_kps[i] << '\n'
+              << "Image Size (map x size): " << map_x_.size;
       invalid_count += 1;
       status_kps->push_back(
           std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
@@ -176,8 +176,9 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
     }
   }
 
-  VLOG_IF(10, invalid_count > 0) << "undistortRectifyPoints: unable to match "
-                                 << invalid_count << " keypoints";
+  VLOG_IF(5, invalid_count > 0) << "undistortRectifyPoints: unable to match "
+                                 << invalid_count << " keypoints of "
+                                 << undistorted_kps.size() << " total.";
 }
 
 void UndistorterRectifier::distortUnrectifyKeypoints(

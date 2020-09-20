@@ -154,6 +154,10 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
   VLOG(10) << "Finished processStereoFrame.";
   //////////////////////////////////////////////////////////////////////////////
 
+  if (VLOG_IS_ON(10))
+    StereoVisionFrontEnd::printStatusStereoMeasurements(
+        *status_stereo_measurements);
+
   if (stereoFrame_km1_->isKeyframe()) {
     // We got a keyframe!
     CHECK_EQ(stereoFrame_lkf_->timestamp_,
@@ -724,10 +728,10 @@ void StereoVisionFrontEnd::printStatusStereoMeasurements(
                       "mono");
   printTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_stereo_,
                       "stereo");
-  LOG(INFO) << " observing landmarks:";
+  LOG(INFO) << " stereo points:";
   const StereoMeasurements& smartStereoMeas = statusStereoMeasurements.second;
   for (const auto& smart_stereo_meas : smartStereoMeas) {
-    std::cout << " " << smart_stereo_meas.first << " ";
+    std::cout << " " << smart_stereo_meas.second << " ";
   }
   std::cout << std::endl;
 }
