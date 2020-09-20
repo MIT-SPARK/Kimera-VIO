@@ -977,7 +977,7 @@ bool VioBackEnd::optimize(
   }
 
   // Recreate the graph before marginalization.
-  if (VLOG_IS_ON(10) || FLAGS_debug_graph_before_opt) {
+  if (VLOG_IS_ON(10) && FLAGS_debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = smoother_->getFactors();
     debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
     debug_info_.graphToBeDeleted.resize(delete_slots.size());
@@ -1334,7 +1334,7 @@ bool VioBackEnd::updateSmoother(Smoother::Result* result,
       VLOG(10) << "Finished cleanCheiralityLmk.";
 
       // Recreate the graph before marginalization.
-      if (VLOG_IS_ON(5) || FLAGS_debug_graph_before_opt) {
+      if (VLOG_IS_ON(5) && FLAGS_debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
         debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
         debug_info_.graphToBeDeleted.resize(delete_slots_cheirality.size());
