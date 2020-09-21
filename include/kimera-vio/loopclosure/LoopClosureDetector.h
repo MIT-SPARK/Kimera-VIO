@@ -97,9 +97,12 @@ class LoopClosureDetector {
    *  query frame, in the coordinates of the match frame.
    * @return True if the verification check passes, false otherwise.
    */
-  bool geometricVerificationCheck(const FrameId& query_id,
-                                  const FrameId& match_id,
-                                  gtsam::Pose3* camCur_T_camRef_mono);
+  bool geometricVerificationCheck(
+      const FrameId& query_id,
+      const FrameId& match_id,
+      gtsam::Pose3* camCur_T_camRef_mono,
+      std::vector<FrameId>* inlier_id_in_query_frame,
+      std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Determine the 3D pose betwen two frames.
@@ -310,9 +313,12 @@ class LoopClosureDetector {
    *  with translation up to a scale factor.
    * @return True if the verification passes, false otherwise.
    */
-  bool geometricVerificationNister(const FrameId& query_id,
-                                   const FrameId& match_id,
-                                   gtsam::Pose3* camCur_T_camRef_mono);
+  bool geometricVerificationNister(
+      const FrameId& query_id,
+      const FrameId& match_id,
+      gtsam::Pose3* camCur_T_camRef_mono,
+      std::vector<FrameId>* inlier_id_in_query_frame,
+      std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Checks geometric verification and determines a pose that is
@@ -324,7 +330,9 @@ class LoopClosureDetector {
    */
   bool recoverPoseArun(const FrameId& query_id,
                        const FrameId& match_id,
-                       gtsam::Pose3* bodyCur_T_bodyRef);
+                       gtsam::Pose3* bodyCur_T_bodyRef,
+                       std::vector<FrameId>* inlier_id_in_query_frame,
+                       std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Checks geometric verification and determines a pose that is
@@ -338,7 +346,9 @@ class LoopClosureDetector {
   bool recoverPoseGivenRot(const FrameId& query_id,
                            const FrameId& match_id,
                            const gtsam::Pose3& camCur_T_camRef_mono,
-                           gtsam::Pose3* bodyCur_T_bodyRef);
+                           gtsam::Pose3* bodyCur_T_bodyRef,
+                           std::vector<FrameId>* inlier_id_in_query_frame,
+                           std::vector<FrameId>* inlier_id_in_match_frame);
 
  private:
   enum class LcdState {

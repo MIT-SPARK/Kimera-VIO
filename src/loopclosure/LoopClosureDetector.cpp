@@ -154,9 +154,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
-    default: {
-      LOG(FATAL) << "Unrecognized LCD state.";
-    }
+    default: { LOG(FATAL) << "Unrecognized LCD state."; }
   }
 
   // Process the StereoFrame and check for a loop closure with previous ones.
@@ -345,8 +343,14 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
           } else {
             // Perform geometric verification check.
             gtsam::Pose3 camCur_T_camRef_mono;
-            bool pass_geometric_verification = geometricVerificationCheck(
-                frame_id, best_island.best_id_, &camCur_T_camRef_mono);
+            std::vector<FrameId> inlier_id_in_query_frame;
+            std::vector<FrameId> inlier_id_in_match_frame;
+            bool pass_geometric_verification =
+                geometricVerificationCheck(frame_id,
+                                           best_island.best_id_,
+                                           &camCur_T_camRef_mono,
+                                           &inlier_id_in_query_frame,
+                                           &inlier_id_in_match_frame);
 
             if (!pass_geometric_verification) {
               result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
@@ -357,7 +361,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
                               result->match_id_,
                               camCur_T_camRef_mono,
                               &bodyCur_T_bodyRef_stereo);
-
+              // TODO (Yun, Luca) Add factor graph
               if (!pass_3d_pose_compute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
               } else {
@@ -385,7 +389,9 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
 bool LoopClosureDetector::geometricVerificationCheck(
     const FrameId& query_id,
     const FrameId& match_id,
-    gtsam::Pose3* camCur_T_camRef_mono) {
+    gtsam::Pose3* camCur_T_camRef_mono,
+    std::vector<FrameId>* inlier_id_in_query_frame,
+    std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(camCur_T_camRef_mono);
   switch (lcd_params_.geom_check_) {
     case GeomVerifOption::NISTER: {
@@ -405,23 +411,33 @@ bool LoopClosureDetector::geometricVerificationCheck(
 }
 
 /* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::recoverPose(const FrameId& query_id,
-                                      const FrameId& match_id,
-                                      const gtsam::Pose3& camCur_T_camRef_mono,
-                                      gtsam::Pose3* bodyCur_T_bodyRef_stereo) {
+bool LoopClosureDetector::recoverPose(
+    const FrameId& query_id,
+    const FrameId& match_id,
+    const gtsam::Pose3& camCur_T_camRef_mono,
+    gtsam::Pose3* bodyCur_T_bodyRef_stereo,
+    std::vector<FrameId>* inlier_id_in_query_frame,
+    std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(bodyCur_T_bodyRef_stereo);
 
   bool passed_pose_recovery = false;
 
   switch (lcd_params_.pose_recovery_option_) {
     case PoseRecoveryOption::RANSAC_ARUN: {
-      passed_pose_recovery =
-          recoverPoseArun(query_id, match_id, bodyCur_T_bodyRef_stereo);
+      passed_pose_recovery = recoverPoseArun(query_id,
+                                             match_id,
+                                             bodyCur_T_bodyRef_stereo,
+                                             inlier_id_in_query_frame,
+                                             inlier_id_in_match_frame);
       break;
     }
     case PoseRecoveryOption::GIVEN_ROT: {
-      passed_pose_recovery = recoverPoseGivenRot(
-          query_id, match_id, camCur_T_camRef_mono, bodyCur_T_bodyRef_stereo);
+      passed_pose_recovery = recoverPoseGivenRot(query_id,
+                                                 match_id,
+                                                 camCur_T_camRef_mono,
+                                                 bodyCur_T_bodyRef_stereo,
+                                                 inlier_id_in_query_frame,
+                                                 inlier_id_in_match_frame);
       break;
     }
     default: {
@@ -666,7 +682,9 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
 bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id,
     const FrameId& match_id,
-    gtsam::Pose3* camCur_T_camRef_mono) {
+    gtsam::Pose3* camCur_T_camRef_mono,
+    std::vector<FrameId>* inlier_id_in_query_frame,
+    std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(camCur_T_camRef_mono);
 
   // Find correspondences between keypoints.
@@ -717,6 +735,12 @@ bool LoopClosureDetector::geometricVerificationNister(
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
         if (ransac.iterations_ < lcd_params_.max_ransac_iterations_mono_) {
           opengv::transformation_t transformation = ransac.model_coefficients_;
+          // Remove the outliers based on ransac.inliers (modify i_query and
+          // i_match AND pass the result out)
+          for (auto i : ransac.inliers_) {
+            inlier_id_in_query_frame.push_back(i_query[i]);
+            inlier_id_in_match_frame.push_back(i_match[i]);
+          }
           *camCur_T_camRef_mono =
               UtilsOpenCV::openGvTfToGtsamPose3(transformation);
 
@@ -730,14 +754,19 @@ bool LoopClosureDetector::geometricVerificationNister(
 }
 
 /* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
-                                          const FrameId& match_id,
-                                          gtsam::Pose3* bodyCur_T_bodyRef) {
+bool LoopClosureDetector::recoverPoseArun(
+    const FrameId& query_id,
+    const FrameId& match_id,
+    gtsam::Pose3* bodyCur_T_bodyRef,
+    std::vector<FrameId>* inlier_id_in_query_frame,
+    std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
   // Find correspondences between frames.
   std::vector<FrameId> i_query, i_match;
-  computeMatchedIndices(query_id, match_id, &i_query, &i_match, false);
+  // Use mono ransac inliers as correspondences instead of re-matching
+  i_query = *inlier_id_in_query_frame;
+  i_match = *inlier_id_in_match_frame;
 
   BearingVectors f_ref, f_cur;
 
@@ -780,6 +809,13 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
       if (ransac.iterations_ < lcd_params_.max_ransac_iterations_stereo_) {
         transformation = ransac.model_coefficients_;
 
+        // Remove the outliers based on ransac.inliers (modify i_query and
+        // i_match AND pass the result out)
+        for (auto i : ransac.inliers_) {
+          inlier_id_in_query_frame.push_back(i_query[i]);
+          inlier_id_in_match_frame.push_back(i_match[i]);
+        }
+
         // Transform pose from camera frame to body frame.
         gtsam::Pose3 camCur_T_camRef =
             UtilsOpenCV::openGvTfToGtsamPose3(transformation);
@@ -798,14 +834,18 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     const FrameId& query_id,
     const FrameId& match_id,
     const gtsam::Pose3& camCur_T_camRef_mono,
-    gtsam::Pose3* bodyCur_T_bodyRef) {
+    gtsam::Pose3* bodyCur_T_bodyRef,
+    std::vector<FrameId>* inlier_id_in_query_frame,
+    std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
   const gtsam::Rot3& R = camCur_T_camRef_mono.rotation();
 
   // Find correspondences between frames.
   std::vector<FrameId> i_query, i_match;
-  computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
+  // Use mono ransac inliers as correspondences instead of re-matching
+  i_query = *inlier_id_in_query_frame;
+  i_match = *inlier_id_in_match_frame;
 
   // Fill point clouds with matched 3D keypoints.
   const size_t& n_matches = i_match.size();
@@ -817,12 +857,13 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     std::vector<double> z_coord(n_matches);
 
     for (size_t i = 0; i < n_matches; i++) {
-      const gtsam::Vector3& keypoint_cur =
+      const gtsam::Vector3& keypoint_3d_cur =
           db_frames_[query_id].keypoints_3d_.at(i_query[i]);
-      const gtsam::Vector3& keypoint_ref =
+      const gtsam::Vector3& keypoint_3d_ref =
           db_frames_[match_id].keypoints_3d_.at(i_match[i]);
 
-      gtsam::Vector3 rotated_keypoint_diff = keypoint_ref - (R * keypoint_cur);
+      gtsam::Vector3 rotated_keypoint_diff =
+          keypoint_3d_ref - (R * keypoint_3d_cur);
       x_coord[i] = rotated_keypoint_diff[0];
       y_coord[i] = rotated_keypoint_diff[1];
       z_coord[i] = rotated_keypoint_diff[2];
@@ -846,6 +887,18 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     gtsam::Pose3 camCur_T_camRef_stereo(R, scaled_t);
     transformCameraPoseToBodyPose(camCur_T_camRef_stereo, bodyCur_T_bodyRef);
 
+    for (size_t i = 0; i < n_matches; i++) {
+      gtsam::Vector3 residual_error_vector =
+          gtsam::Vector3(x_coord[i] - scaled_t.x(),
+                         y_coord[i] - scaled_t.y(),
+                         z_coord[i] - scaled_t.z());
+      double residual_error = residual_error_vector.norm();
+
+      if (residual_error <= lcd_params_.ransac_threshold_stereo_) {
+        inlier_id_in_query_frame.push_back(i_query[i]);
+        inlier_id_in_match_frame.push_back(i_match[i]);
+      }
+    }
     return true;
   }
 
