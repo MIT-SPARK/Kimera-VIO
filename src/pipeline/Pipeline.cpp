@@ -399,7 +399,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
                                 << display_module_->isWorking();
 
     // Print all statistics
-    if (print_stats) LOG(INFO) << utils::Statistics::Print();
+    LOG_IF(INFO, print_stats) << utils::Statistics::Print();
     std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 
     if (!parallel_run_) {
