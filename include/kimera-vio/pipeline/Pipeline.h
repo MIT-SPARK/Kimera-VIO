@@ -106,6 +106,20 @@ class Pipeline {
   bool spinViz();
 
   /**
+   * @brief printStatus Returns a string with useful information to monitor the
+   * status of the pipeline, in particular, whether the pipeline's modules are
+   * working and if their queues are filled.
+   * @return String with pipeline status information
+   */
+  std::string printStatus() const;
+
+  /**
+   * @brief hasFinished
+   * @return Whether the pipeline has finished working or not.
+   */
+  bool hasFinished() const;
+
+  /**
    * @brief shutdownWhenFinished
    * Shutdown the pipeline once all data has been consumed, or if the backend
    * has died unexpectedly.
