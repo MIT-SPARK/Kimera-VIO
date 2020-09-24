@@ -74,12 +74,12 @@ pipeline {
                   sh 'evo_config set plot_export_format pdf'
                   sh 'evo_config set plot_split false'
                   // 2. Run evaluation
-                  sh 'python3 $evaluator/evaluation/main_evaluation.py -r -a -v \
+                  sh 'python3.5 $evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
-                  sh 'python3 $evaluator/evaluation/tools/performance_summary.py \
+                  sh 'python3.5 $evaluator/evaluation/tools/performance_summary.py \
                     $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
                     $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }

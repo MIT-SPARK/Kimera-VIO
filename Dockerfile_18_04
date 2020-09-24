@@ -83,21 +83,23 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN apt-get update && apt-get install -y python3 python3-dev python-pip python3-pip python-tk python3-tk
+RUN sudo add-apt-repository ppa:deadsnakes/ppa && \
+         apt-get update && \\
+         apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
 ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/evo-1.git
-RUN cd evo-1 && python3 -m pip install .
+RUN cd evo-1 && python3.5 -m pip install .
 
 # Install spark_vio_evaluation
-RUN python3 -m pip install ipython prompt_toolkit
+RUN python3.5 -m pip install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
 # We use `pip install -e .` so that Jinja2 has access to the webiste template...
-RUN cd Kimera-VIO-Evaluation && python3 -m pip install -e .
+RUN cd Kimera-VIO-Evaluation && python3.5 -m pip install -e .
 
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
