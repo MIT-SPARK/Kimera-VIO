@@ -83,9 +83,9 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN sudo add-apt-repository ppa:deadsnakes/ppa && \
-         apt-get update && \\
-         apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
+RUN add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \\
+    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
