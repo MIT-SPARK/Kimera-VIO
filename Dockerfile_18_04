@@ -83,8 +83,10 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \\
+RUN apt-get install software-properties-common && \
+    apt-get update && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
     apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
 
 # Install evo-1 for evaluation
