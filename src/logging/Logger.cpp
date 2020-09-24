@@ -583,7 +583,7 @@ void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
 
   const gtsam::Values& traj = lcd_output.states_;
 
-  for (size_t i = 1; i < traj.size(); i++) {
+  for (size_t i = 0; i < traj.size(); i++) {
     const gtsam::Pose3& pose = traj.at<gtsam::Pose3>(i);
     const gtsam::Point3& trans = pose.translation();
     const gtsam::Quaternion& quat = pose.rotation().toQuaternion();
