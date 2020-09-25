@@ -70,7 +70,7 @@ class UndistortRectifierFixture : public ::testing::Test {
   VIO::CameraParams cam_params_left;
   VIO::CameraParams cam_params_right;
 
-  VIO::StereoCamera::Ptr stereo_camera;
+  VIO::StereoCamera::ConstPtr stereo_camera;
   VIO::UndistorterRectifier::UniquePtr undistorter_rectifier;
 };
 

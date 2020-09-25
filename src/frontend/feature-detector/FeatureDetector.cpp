@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"  // Just for ExtractCorners...
 
@@ -87,7 +88,10 @@ FeatureDetector::FeatureDetector(
 }
 
 // TODO(Toni) Optimize this function.
-void FeatureDetector::featureDetection(Frame* cur_frame) {
+// NOTE: for stereo cameras we pass R to ensure we rectify the versors
+// and 3D points of the features we detect.
+void FeatureDetector::featureDetection(Frame* cur_frame,
+                                       boost::optional<cv::Mat> R) {
   CHECK_NOTNULL(cur_frame);
 
   // Check how many new features we need: maxFeaturesPerFrame_ - n_existing
@@ -138,7 +142,7 @@ void FeatureDetector::featureDetection(Frame* cur_frame) {
       cur_frame->landmarks_age_.push_back(1u);
       cur_frame->keypoints_.push_back(corner);
       cur_frame->scores_.push_back(0.0);  // NOT IMPLEMENTED
-      cur_frame->versors_.push_back(Frame::calibratePixel(corner, cam_param));
+      cur_frame->versors_.push_back(UndistorterRectifier::UndistortKeypointAndGetVersor(corner, cam_param, R));
       ++lmk_id;
     }
     VLOG(10) << "featureExtraction: frame " << cur_frame->id_

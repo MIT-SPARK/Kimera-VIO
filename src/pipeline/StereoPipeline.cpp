@@ -37,7 +37,8 @@ StereoPipeline::StereoPipeline(const VioParams& params,
                                Visualizer3D::UniquePtr&& visualizer,
                                DisplayBase::UniquePtr&& displayer)
     : Pipeline(params),
-      stereo_camera_(nullptr) {
+      stereo_camera_(nullptr),
+      data_provider_module_(nullptr) {
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u) << "Need two cameras for StereoPipeline.";
   stereo_camera_ = std::make_shared<StereoCamera>(

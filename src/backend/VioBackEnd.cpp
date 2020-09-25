@@ -349,6 +349,9 @@ bool VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
       input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
+  LOG_IF(WARNING, use_stereo_btw_factor && 
+                  input.stereo_ransac_body_pose_ == boost::none)
+      << "User set useStereoBetweenFactor = true, but stereo_ransac_body_pose_ not available!"; 
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
   bool is_smoother_ok = addVisualInertialStateAndOptimize(
@@ -974,7 +977,7 @@ bool VioBackEnd::optimize(
   }
 
   // Recreate the graph before marginalization.
-  if (VLOG_IS_ON(10) || FLAGS_debug_graph_before_opt) {
+  if (VLOG_IS_ON(10) && FLAGS_debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = smoother_->getFactors();
     debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
     debug_info_.graphToBeDeleted.resize(delete_slots.size());
@@ -1331,7 +1334,7 @@ bool VioBackEnd::updateSmoother(Smoother::Result* result,
       VLOG(10) << "Finished cleanCheiralityLmk.";
 
       // Recreate the graph before marginalization.
-      if (VLOG_IS_ON(5) || FLAGS_debug_graph_before_opt) {
+      if (VLOG_IS_ON(5) && FLAGS_debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
         debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
         debug_info_.graphToBeDeleted.resize(delete_slots_cheirality.size());

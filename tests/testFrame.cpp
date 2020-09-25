@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 
 DECLARE_string(test_data_path);
 
@@ -97,7 +98,7 @@ TEST(testFrame, getNrValidKeypoints) {
 }
 
 /* ************************************************************************* */
-TEST(testFrame, CalibratePixel) {
+TEST(testFrame, UndistortKeypointAndGetVersor) {
   // Perform a scan on the grid to verify the correctness of pixel calibration!
   const int numTestRows = 8;
   const int numTestCols = 8;
@@ -120,7 +121,7 @@ TEST(testFrame, CalibratePixel) {
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end();
        iter++) {
-    Vector3 versor = Frame::calibratePixel(*iter, cam_params);
+    Vector3 versor = UndistorterRectifier::UndistortKeypointAndGetVersor(*iter, cam_params);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
@@ -139,7 +140,7 @@ TEST(testFrame, CalibratePixel) {
 
 /* ************************************************************************* */
 // TODO: Create test for Calibrate Pixel with pinhole equidistant model
-TEST(testFrame, DISABLED_CalibratePixel) {
+TEST(testFrame, DISABLED_UndistortKeypointAndGetVersor) {
   // Perform a scan on the grid to verify the correctness of pixel calibration!
   const int numTestRows = 8;
   const int numTestCols = 8;
@@ -166,7 +167,7 @@ TEST(testFrame, DISABLED_CalibratePixel) {
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end();
        iter++) {
-    Vector3 versor = Frame::calibratePixel(*iter, cam_params);
+    Vector3 versor = UndistorterRectifier::UndistortKeypointAndGetVersor(*iter, cam_params);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
@@ -179,7 +180,7 @@ TEST(testFrame, DISABLED_CalibratePixel) {
   }
 }
 
-// TEST(testFrame, CalibratePixelEquidistant) {}
+// TEST(testFrame, UndistortKeypointAndGetVersorEquidistant) {}
 
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {

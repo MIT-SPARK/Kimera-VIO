@@ -123,8 +123,9 @@ class StereoFrameFixture : public ::testing::Test {
           5 * landmark_count_);  // seen in a single (key)frame
       sfnew->left_frame_.scores_.push_back(10 * landmark_count_);
       sfnew->left_frame_.versors_.push_back(
-          Frame::calibratePixel(sfnew->left_frame_.keypoints_.at(i),
-                                sfnew->left_frame_.cam_param_));
+          UndistorterRectifier::UndistortKeypointAndGetVersor(
+              sfnew->left_frame_.keypoints_.at(i),
+              sfnew->left_frame_.cam_param_));
       ++landmark_count_;
     }
 
@@ -135,7 +136,7 @@ class StereoFrameFixture : public ::testing::Test {
   FrontendParams tp;
   CameraParams cam_params_left;
   CameraParams cam_params_right;
-  VIO::StereoCamera::Ptr stereo_camera_;
+  VIO::StereoCamera::ConstPtr stereo_camera_;
   VIO::StereoMatcher::UniquePtr stereo_matcher_;
   StereoFrame::Ptr sf;
   StereoFrame::Ptr sfnew;

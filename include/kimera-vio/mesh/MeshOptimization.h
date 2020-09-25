@@ -49,7 +49,7 @@ class MeshOptimization {
  public:
   MeshOptimization(const MeshOptimizerType& solver_type,
                    const MeshColorType& mesh_color_type,
-                   Camera::Ptr camera,
+                   Camera::ConstPtr camera,
                    OpenCvVisualizer3D::Ptr visualizer = nullptr);
   virtual ~MeshOptimization() = default;
 
@@ -175,7 +175,7 @@ class MeshOptimization {
   static constexpr float kMaxZ = 10.0f;
 
   //! Camera with which the noisy point cloud and the 2d mesh were generated.
-  Camera::Ptr mono_camera_;
+  Camera::ConstPtr mono_camera_;
   gtsam::Pose3 body_pose_cam_;
 
   //! Mesh count: just for visualization to change the ids of the 3d mesh widget

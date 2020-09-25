@@ -131,6 +131,7 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   }
   stereo_camera_->undistortRectifyStereoFrame(stereo_frame);
   CHECK(stereo_frame->isRectified());
+
   //! Undistort rectify left keypoints
   CHECK_GT(stereo_frame->left_frame_.keypoints_.size(), 0u)
       << "Call feature detection on left frame first...";
@@ -141,25 +142,28 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
                              stereo_frame->getRightImgRectified(),
                              stereo_frame->left_keypoints_rectified_,
                              &stereo_frame->right_keypoints_rectified_);
+
   //! Fill out keypoint depths
   // TODO(marcus): we are trying to replace this method with something else?
   getDepthFromRectifiedMatches(stereo_frame->left_keypoints_rectified_,
                                stereo_frame->right_keypoints_rectified_,
                                &stereo_frame->keypoints_depth_);
+
   //! Fill out right frame keypoints
-  CHECK_EQ(stereo_frame->right_frame_.keypoints_.size(), 0);
   CHECK_GT(stereo_frame->right_keypoints_rectified_.size(), 0);
   stereo_camera_->distortUnrectifyRightKeypoints(
       stereo_frame->right_keypoints_rectified_,
       &stereo_frame->right_frame_.keypoints_);
+
   //! Fill out 3D keypoints in ref frame of left camera
-  gtsam::Rot3 camLrect_R_camL =
-      UtilsOpenCV::cvMatToGtsamRot3(stereo_camera_->getR1());
+  stereo_frame->keypoints_3d_.clear();
+  stereo_frame->keypoints_3d_.reserve(
+      stereo_frame->right_keypoints_rectified_.size());
   for (size_t i = 0; i < stereo_frame->right_keypoints_rectified_.size(); i++) {
     if (stereo_frame->right_keypoints_rectified_[i].first == 
         KeypointStatus::VALID) {
-      Vector3 versor = camLrect_R_camL.rotate(
-          stereo_frame->left_frame_.versors_[i]);
+      // NOTE: versors are already in the rectified frame.
+      Vector3 versor = stereo_frame->left_frame_.versors_[i];
       CHECK_GE(versor(2), 1e-3)
           << "sparseStereoMatching: found point with nonpositive depth!";
       // keypoints_depth_ is not the norm of the vector, it is the z component.
@@ -312,6 +316,7 @@ void StereoMatcher::searchRightKeypointEpipolar(
     *score = -1.0;
     *right_keypoint_rectified =
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0));
+    return;
   }
   // Compensate when the template falls off the image.
   int offset_temp = 0;
@@ -353,6 +358,7 @@ void StereoMatcher::searchRightKeypointEpipolar(
     *score = -1.0;
     *right_keypoint_rectified =
         std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0));
+    return;
   }
 
   // Compensate when the template falls off the image
@@ -429,6 +435,7 @@ void StereoMatcher::getDepthFromRectifiedMatches(
     StatusKeypointsCV& left_keypoints_rectified,
     StatusKeypointsCV& right_keypoints_rectified,
     std::vector<double>* keypoints_depth) const {
+  CHECK_NOTNULL(keypoints_depth)->clear();
   // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
   double fx_b =
       stereo_camera_->getStereoCalib()->fx() * stereo_camera_->getBaseline();
@@ -464,11 +471,17 @@ void StereoMatcher::getDepthFromRectifiedMatches(
       }
     } else {
       // Something is wrong.
-      if (left_keypoints_rectified[i].first != KeypointStatus::VALID) {
+      if (left_keypoints_rectified[i].first != KeypointStatus::VALID &&
+          right_keypoints_rectified.at(i).first != 
+          left_keypoints_rectified[i].first) {
         // We cannot have a valid right, without a valid left keypoint.
-        // LOG(WARNING) 
-        //     << "Cannot have a valid right kpt without also a valid left kpt!";
-        right_keypoints_rectified[i].first =
+        LOG(WARNING) 
+            << "Cannot have a valid right kpt without also a valid left kpt!"
+            << "\nLeft kpt status: "
+            << to_underlying(left_keypoints_rectified[i].first)
+            << "\nRight kpt status: "
+            << to_underlying(right_keypoints_rectified.at(i).first);
+        right_keypoints_rectified.at(i).first =
             left_keypoints_rectified[i].first;
       }
       keypoints_depth->push_back(0.0);

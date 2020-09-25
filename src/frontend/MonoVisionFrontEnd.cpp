@@ -27,7 +27,7 @@ MonoVisionFrontEnd::MonoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const MonoFrontendParams& frontend_params,
-    const Camera::Ptr& camera,
+    const Camera::ConstPtr& camera,
     DisplayQueue* display_queue,
     bool log_output)
     : VisionFrontEnd(imu_params, imu_initial_bias, display_queue, log_output),
@@ -52,12 +52,6 @@ MonoVisionFrontEnd::~MonoVisionFrontEnd() {
   LOG(INFO) << "MonoVisionFrontEnd destructor called.";
 }
 
-gtsam::Pose3 MonoVisionFrontEnd::getRelativePoseBody() const {
-  gtsam::Pose3 body_Pose_cam = mono_camera_->getBodyPoseCamRect();
-  return body_Pose_cam * tracker_status_summary_.lkf_T_k_mono_ * 
-         body_Pose_cam.inverse();
-}
-
 MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
     const MonoFrontEndInputPayload& input) {
   CHECK(frontend_state_ == FrontendState::Bootstrap);
@@ -73,7 +67,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
   return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
                                               nullptr,
                                               TrackingStatus::DISABLED,
-                                              getRelativePoseBody(),
+                                              gtsam::Pose3(),  // no stereo!
                                               mono_camera_->getBodyPoseCam(),
                                               *mono_frame_lkf_,
                                               nullptr,
@@ -104,7 +98,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
       input.getImuStamps(), input.getImuAccGyrs());
   CHECK(pim);
   const gtsam::Rot3 body_R_cam = 
-      mono_camera_->getBodyPoseCamRect().rotation();
+      mono_camera_->getBodyPoseCam().rotation();
   const gtsam::Rot3 cam_R_body = body_R_cam.inverse();
   gtsam::Rot3 camLrectLkf_R_camLrectK_imu = 
       cam_R_body * pim->deltaRij() * body_R_cam;
@@ -122,6 +116,9 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
   CHECK(!mono_frame_k_);  // We want a nullptr at the end of the processing.
   VLOG(10) << "Finished processStereoFrame.";
   //////////////////////////////////////////////////////////////////////////////
+
+  if (VLOG_IS_ON(5))
+    MonoVisionFrontEnd::printStatusMonoMeasurements(*status_mono_measurements);
 
   if (mono_frame_km1_->isKeyframe_) {
     CHECK_EQ(mono_frame_lkf_->timestamp_, mono_frame_km1_->timestamp_);
@@ -141,8 +138,8 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
       // TODO(marcus): Last arg is usually stereo, need to refactor logger
       // to not require that.
       logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
-                                getRelativePoseBody(),
-                                gtsam::Pose3());
+                                 tracker_status_summary_.lkf_T_k_mono_,
+                                 gtsam::Pose3());
     }
     //////////////////////////////////////////////////////////////////////////////
 
@@ -158,9 +155,9 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
     return VIO::make_unique<MonoFrontendOutput>(
         true,
         status_mono_measurements,
-        tracker_status_summary_.kfTrackingStatus_mono_,
-        getRelativePoseBody(),
-        mono_camera_->getBodyPoseCamRect(),
+        TrackingStatus::DISABLED,  // This is a stereo status only
+        gtsam::Pose3(),  // don't pass stereo pose to backend!
+        mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input.getImuAccGyrs(),
@@ -174,9 +171,9 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
     return VIO::make_unique<MonoFrontendOutput>(
         false,
         status_mono_measurements,
-        TrackingStatus::INVALID,
-        getRelativePoseBody(),
-        mono_camera_->getBodyPoseCamRect(),
+        TrackingStatus::DISABLED,  // This is a stereo status only
+        gtsam::Pose3(),  // don't pass stereo pose to backend!
+        mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input.getImuAccGyrs(),
@@ -191,14 +188,16 @@ void MonoVisionFrontEnd::processFirstFrame(const Frame& first_frame) {
   mono_frame_k_->isKeyframe_ = true;
   last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
 
-  LOG(INFO) << "processing firstframe";
-
   CHECK_EQ(mono_frame_k_->keypoints_.size(), 0)
       << "Keypoints already present in first frame: please do not extract"
          " keypoints manually";
 
   CHECK(feature_detector_);
   feature_detector_->featureDetection(mono_frame_k_.get());
+
+  // Undistort keypoints:
+  mono_camera_->undistortKeypoints(mono_frame_k_->keypoints_,
+                                   &mono_frame_k_->keypoints_undistorted_);
 
   // TODO(marcus): get 3d points if possible?
   mono_frame_km1_ = mono_frame_k_;
@@ -215,7 +214,7 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     cv::Mat* feature_tracks) {
   LOG(INFO) << "processing frame";
   VLOG(2) << "===================================================\n"
-          << "Frame numbaer: " << frame_count_ << " at time "
+          << "Frame number: " << frame_count_ << " at time "
           << cur_frame.timestamp_ << " empirical framerate (sec): "
           << UtilsNumerical::NsecToSec(cur_frame.timestamp_ -
                                        mono_frame_km1_->timestamp_)
@@ -239,7 +238,7 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
 
   // TODO(marcus): need another structure for monocular slam
   tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
-  tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
+  tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
 
   MonoMeasurements smart_mono_measurements;
 
@@ -256,8 +255,6 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     VLOG(2) << "Keframe after [s]: "
             << UtilsNumerical::NsecToSec(mono_frame_k_->timestamp_ - 
                                          last_keyframe_timestamp_);
-    last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
-    mono_frame_k_->isKeyframe_ = true;
     ++keyframe_count_;
 
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
@@ -265,24 +262,35 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
         << tracker_->tracker_params_.min_number_features_ << ").";
 
-    CHECK(feature_detector_);
-    feature_detector_->featureDetection(mono_frame_k_.get());
-
     if (tracker_->tracker_params_.useRANSAC_) {
-      // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
       outlierRejectionMono(keyframe_R_cur_frame,
                            mono_frame_lkf_.get(),
                            mono_frame_k_.get(),
                            &status_pose_mono);
+      tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
+
+      if (status_pose_mono.first == TrackingStatus::VALID) {
+        tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
+      }
     } else {
       tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_, "mono");
-      }
-      tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
     }
 
+    if (VLOG_IS_ON(2)) {
+      printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_,
+                          "mono");
+    }
+
+    last_keyframe_timestamp_ = mono_frame_k_->timestamp_;
+    mono_frame_k_->isKeyframe_ = true;
+
+    CHECK(feature_detector_);
+    feature_detector_->featureDetection(mono_frame_k_.get());
+
+    // Undistort keypoints:
+    mono_camera_->undistortKeypoints(mono_frame_k_->keypoints_,
+                                     &mono_frame_k_->keypoints_undistorted_);
     // Log images if needed.
     // if (logger_ &&
     //     (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
@@ -323,13 +331,18 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     std::make_pair(tracker_status_summary_, smart_mono_measurements));
 }
 
+// TODO(marcus): for convenience mono measurements are gtsam::StereoPoint2
+// hence this is near identical to getSmartStereoMeasurements
+// but want to switch to gtsam::Point2
 void MonoVisionFrontEnd::getSmartMonoMeasurements(
     const Frame::Ptr& frame, MonoMeasurements* smart_mono_measurements) {
   // TODO(marcus): convert to point2 when ready!
+  CHECK_NOTNULL(smart_mono_measurements);
   frame->checkFrame();
+
   const LandmarkIds& landmarkId_kf = frame->landmarks_;
-  const KeypointsCV& keypoints =
-      frame->keypoints_;
+  const StatusKeypointsCV& keypoints_undistorted =
+      frame->keypoints_undistorted_;
 
   // Pack information in landmark structure.
   smart_mono_measurements->clear();
@@ -341,13 +354,27 @@ void MonoVisionFrontEnd::getSmartMonoMeasurements(
 
     // TODO implicit conversion float to double increases floating-point
     // precision!
-    const double& uL = keypoints.at(i).x;
-    const double& v = keypoints.at(i).y;
+    const double& uL = keypoints_undistorted.at(i).second.x;
+    const double& v = keypoints_undistorted.at(i).second.y;
+
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();
     smart_mono_measurements->push_back(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
+}
+
+void MonoVisionFrontEnd::printStatusMonoMeasurements(
+    const StatusMonoMeasurements& status_mono_measurements) {
+  LOG(INFO) << "SmartMonoMeasurements with status: ";
+  printTrackingStatus(status_mono_measurements.first.kfTrackingStatus_mono_,
+                      "mono");
+  LOG(INFO) << " stereo points:";
+  const MonoMeasurements& mono_measurements = status_mono_measurements.second;
+  for (const auto& meas : mono_measurements) {
+    std::cout << " " << meas.second << " ";
+  }
+  std::cout << std::endl;
 }
 
 }  // namespace VIO

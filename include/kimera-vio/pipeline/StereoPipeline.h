@@ -106,7 +106,7 @@ class StereoPipeline : public Pipeline<StereoImuSyncPacket, StereoFrontendOutput
 
  protected:
   //! Definition of sensor rig used
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
 
   //! Specified data provider module
   StereoDataProviderModule::UniquePtr data_provider_module_;

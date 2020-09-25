@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <gtsam/geometry/Point3.h>
+
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 
@@ -49,6 +51,28 @@ class UndistorterRectifier {
   virtual ~UndistorterRectifier() = default;
 
  public:
+  /**
+   * @brief undistortRectifyKeypoints undistorts and rectifies
+   */
+  static void UndistortRectifyKeypoints(
+      const KeypointsCV& keypoints,
+      KeypointsCV* undistorted_keypoints,
+      const CameraParams& cam_param,
+      boost::optional<cv::Mat> R = boost::none,
+      boost::optional<cv::Mat> P = boost::none);
+
+  /**
+   * @brief UndistortKeypointAndGetVersor undistort a single pixel,
+   * and return the corresponding versor.
+   * (unit norm vector corresponding to bearing).
+   * @param cv_px keypoint
+   * @param cam_param CameraParams instance
+   */
+  static gtsam::Vector3 UndistortKeypointAndGetVersor(
+      const KeypointCV& keypoint,
+      const CameraParams& cam_param,
+      boost::optional<cv::Mat> R = boost::none);
+
   /**
    * @brief undistortRectifyImage Given distorted (and optionally non-rectified)
    * image, returns a distortion-free rectified one.

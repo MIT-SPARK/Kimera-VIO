@@ -98,7 +98,7 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
       gtsam::StereoCamera(B_Pose_camLrect_, stereo_calibration_);
 }
 
-StereoCamera::StereoCamera(Camera::Ptr left_camera, Camera::Ptr right_camera)
+StereoCamera::StereoCamera(Camera::ConstPtr left_camera, Camera::ConstPtr right_camera)
     : StereoCamera(
           left_camera->getCamParams(),
           right_camera->getCamParams()) {}

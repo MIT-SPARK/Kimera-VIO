@@ -54,7 +54,7 @@ class Tracker {
    * @param camera_params Parameters for the camera used for tracking.
    */
   Tracker(const FrontendParams& tracker_params,
-          const Camera::Ptr& camera,
+          const Camera::ConstPtr& camera,
           DisplayQueue* display_queue = nullptr);
 
   // Tracker parameters.
@@ -66,7 +66,8 @@ class Tracker {
  public:
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame,
-                       const gtsam::Rot3& inter_frame_rotation);
+                       const gtsam::Rot3& inter_frame_rotation,
+                       boost::optional<cv::Mat> R = boost::none);
 
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.
@@ -86,15 +87,14 @@ class Tracker {
   geometricOutlierRejectionMonoGivenRotation(
       Frame* ref_frame,
       Frame* cur_frame,
-      const gtsam::Rot3& R,
-      VIO::StereoCamera::ConstPtr stereo_camera = nullptr);
+      const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
   std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
   geometricOutlierRejectionStereoGivenRotation(
       StereoFrame& ref_stereoFrame,
       StereoFrame& cur_stereoFrame,
       VIO::StereoCamera::ConstPtr stereo_camera,
-      const gtsam::Rot3& R);
+      const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
   void removeOutliersMono(const std::vector<int>& inliers,
                           Frame* ref_frame,
@@ -156,7 +156,7 @@ class Tracker {
 
   // StereoCamera object for the camera we are tracking. We use the left camera.
   // TODO(marcus): this should be general to all camera types!
-  Camera::Ptr camera_;
+  Camera::ConstPtr camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of
   // where the features moved from frame to frame.

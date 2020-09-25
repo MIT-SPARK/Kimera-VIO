@@ -214,7 +214,7 @@ class TestTracker : public ::testing::Test {
       // Randomly synthesize the point!
       KeypointCV pt_ref(rand() % f_ref->img_.cols, rand() % f_ref->img_.rows);
       // Calibrate the point
-      Vector3 versor_ref = Frame::calibratePixel(pt_ref, f_ref->cam_param_);
+      Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, f_ref->cam_param_);
 
       // Compute the intersection between the versor and the plane.
       Vector3 versor_plane = IntersectVersorPlane(versor_ref, PlaneN, PlaneD);
@@ -251,7 +251,7 @@ class TestTracker : public ::testing::Test {
       KeypointCV pt_ref(rand() % f_ref->img_.cols, rand() % f_ref->img_.rows);
 
       // Calibrate the point
-      Vector3 versor_ref = Frame::calibratePixel(pt_ref, f_ref->cam_param_);
+      Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, f_ref->cam_param_);
 
       // Randomly generate the depth
       double depth =
@@ -291,8 +291,8 @@ class TestTracker : public ::testing::Test {
         KeypointCV pt_cur(rand() % f_cur->img_.cols, rand() % f_cur->img_.rows);
 
         // Calibrate keypoints
-        Vector3 versor_ref = Frame::calibratePixel(pt_ref, f_ref->cam_param_);
-        Vector3 versor_cur = Frame::calibratePixel(pt_cur, f_cur->cam_param_);
+        Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, f_ref->cam_param_);
+        Vector3 versor_cur = UndistorterRectifier::UndistortKeypointAndGetVersor(pt_cur, f_cur->cam_param_);
 
         // Check that they are indeed outliers!
         double depth = camRef_pose_camCur.translation().norm();
@@ -393,8 +393,8 @@ class TestTracker : public ::testing::Test {
                         rand() % sf_ref->left_frame_.img_.rows);
 
       // Calibrate the point
-      Vector3 versor_ref =
-          Frame::calibratePixel(pt_ref, sf_ref->left_frame_.cam_param_);
+      Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(
+          pt_ref, sf_ref->left_frame_.cam_param_);
       // Randomly generate the depth
       double depth =
           depth_range[0] +
@@ -439,9 +439,9 @@ class TestTracker : public ::testing::Test {
 
         // Calibrate keypoints
         Vector3 versor_ref =
-            Frame::calibratePixel(pt_ref, sf_ref->left_frame_.cam_param_);
+            UndistorterRectifier::UndistortKeypointAndGetVersor(pt_ref, sf_ref->left_frame_.cam_param_);
         Vector3 versor_cur =
-            Frame::calibratePixel(pt_cur, sf_cur->left_frame_.cam_param_);
+            UndistorterRectifier::UndistortKeypointAndGetVersor(pt_cur, sf_cur->left_frame_.cam_param_);
 
         // Check that they are indeed outliers!
         double depth_ref = depth_range[0] +
@@ -485,8 +485,8 @@ class TestTracker : public ::testing::Test {
       KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
                         rand() % sf_ref->left_frame_.img_.rows);
       // Calibrate the point
-      Vector3 versor_ref =
-          Frame::calibratePixel(pt_ref, sf_ref->left_frame_.cam_param_);
+      Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(
+          pt_ref, sf_ref->left_frame_.cam_param_);
 
       // Compute the intersection between the versor and the plane.
       Vector3 versor_plane = IntersectVersorPlane(versor_ref, PlaneN, PlaneD);
@@ -553,7 +553,7 @@ class TestTracker : public ::testing::Test {
 
   Frame::Ptr ref_frame, cur_frame;
   StereoFrame::Ptr ref_stereo_frame, cur_stereo_frame;
-  VIO::StereoCamera::Ptr stereo_camera_;
+  VIO::StereoCamera::ConstPtr stereo_camera_;
   VIO::StereoMatcher::UniquePtr stereo_matcher_;
 };
 
@@ -725,7 +725,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
           tracker_->geometricOutlierRejectionMonoGivenRotation(
-              ref_frame.get(), cur_frame.get(), R, stereo_camera_);
+              ref_frame.get(), cur_frame.get(), R);
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
 

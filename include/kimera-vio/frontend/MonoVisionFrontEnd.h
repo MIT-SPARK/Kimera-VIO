@@ -21,7 +21,6 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
 #include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/frontend/VisionFrontEnd.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
@@ -44,12 +43,10 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
   MonoVisionFrontEnd(const ImuParams& imu_params,
                      const ImuBias& imu_initial_bias,
                      const MonoFrontendParams& frontend_params,
-                     const Camera::Ptr& camera,
+                     const Camera::ConstPtr& camera,
                      DisplayQueue* display_queue = nullptr,
                      bool log_output = false);
   virtual ~MonoVisionFrontEnd();
-
-  gtsam::Pose3 getRelativePoseBody() const;
 
  private:
   void processFirstFrame(const Frame& firstFrame);
@@ -72,6 +69,9 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
 
   // void sendMonoTrackingToLogger() const;
 
+  static void printStatusMonoMeasurements(
+      const StatusMonoMeasurements& status_mono_measurements);
+
  private:
   // Current frame
   Frame::Ptr mono_frame_k_;
@@ -84,7 +84,7 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
 
   FeatureDetector::UniquePtr feature_detector_;
 
-  Camera::Ptr mono_camera_;
+  Camera::ConstPtr mono_camera_;
 
   MonoFrontendParams frontend_params_;
 };

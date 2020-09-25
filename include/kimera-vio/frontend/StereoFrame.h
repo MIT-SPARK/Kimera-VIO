@@ -167,7 +167,7 @@ class StereoFrame {
   std::vector<double> keypoints_depth_;
 
   //! 3D positions of the stereo points as given by reprojection using stereo
-  //! disparity
+  //! disparity; in the rectified left frame.
   std::vector<gtsam::Vector3> keypoints_3d_;
 
   /// Friends with access rights to the StereoFrame inner members.

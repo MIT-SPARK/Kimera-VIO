@@ -272,8 +272,8 @@ class Pipeline {
 
     backend_input_queue_.shutdown();
     // TODO(marcus): enable:
-    // CHECK(vio_backend_module_);
-    // vio_backend_module_->shutdown();
+    CHECK(vio_backend_module_);
+    vio_backend_module_->shutdown();
 
     frontend_input_queue_.shutdown();
     CHECK(vio_frontend_module_);

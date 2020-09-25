@@ -328,7 +328,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   clearStereoFrame(ref_stereo_frame);
   ref_stereo_frame->setIsKeyframe(true);
 
-  VIO::StereoCamera::Ptr stereo_camera =
+  VIO::StereoCamera::ConstPtr stereo_camera =
       std::make_shared<VIO::StereoCamera>(cam_params_left_, cam_params_right_);
 
   StereoVisionFrontEnd st(imu_params_, ImuBias(), FrontendParams(), stereo_camera);
@@ -471,9 +471,9 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
       loadCorners(synthetic_stereo_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
-  VIO::Camera::Ptr left_camera = std::make_shared<VIO::Camera>(cam_params_left);
-  VIO::Camera::Ptr right_camera = std::make_shared<VIO::Camera>(cam_params_right);
-  VIO::StereoCamera::Ptr stereo_camera =
+  VIO::Camera::ConstPtr left_camera = std::make_shared<VIO::Camera>(cam_params_left);
+  VIO::Camera::ConstPtr right_camera = std::make_shared<VIO::Camera>(cam_params_right);
+  VIO::StereoCamera::ConstPtr stereo_camera =
       std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
 
   StereoVisionFrontEnd st(imu_params_, ImuBias(), p, stereo_camera);
@@ -522,7 +522,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
     Vector3 v_expect =
-        Frame::calibratePixel(left_frame.keypoints_[i], left_frame.cam_param_);
+        UndistorterRectifier::UndistortKeypointAndGetVersor(left_frame.keypoints_[i], left_frame.cam_param_);
     Vector3 v_actual = left_frame.versors_[i];
     EXPECT_LT((v_actual - v_expect).norm(), 0.1);
   }
@@ -603,7 +603,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
     double depth_expect = depth_gt[idx_gt];
     double depth_actual = sf.keypoints_3d_[i](2);
     Vector3 v_expected =
-        Frame::calibratePixel(KeypointCV(left_distort_corners[idx_gt].x(),
+        UndistorterRectifier::UndistortKeypointAndGetVersor(KeypointCV(left_distort_corners[idx_gt].x(),
                                          left_distort_corners[idx_gt].y()),
                               left_frame.cam_param_);
     v_expected = v_expected * (depth_gt[idx_gt]);

@@ -45,6 +45,8 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   data_provider_module_->registerVioPipelineCallback(
     std::bind(&MonoPipeline::spinOnce, this, std::placeholders::_1));
 
+  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_) 
+      << "useStereoTracking is set to true, but this is a mono pipeline!";
   vio_frontend_module_ = VIO::make_unique<MonoVisionFrontEndModule>(
       &frontend_input_queue_,
       parallel_run_,
@@ -69,7 +71,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
           output->tracker_status_,
           output->pim_,
           output->imu_acc_gyrs_,
-          output->relative_pose_body_));
+          boost::none));  // don't pass stereo pose to backend!
     } else {
       VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
     }
@@ -77,36 +79,40 @@ MonoPipeline::MonoPipeline(const VioParams& params,
 
   //! Params for what the backend outputs.
   // TODO(Toni): put this into backend params.
-  // BackendOutputParams backend_output_params(
-  //     static_cast<VisualizationType>(FLAGS_viz_type) !=
-  //         VisualizationType::kNone,
-  //     FLAGS_min_num_obs_for_mesher_points,
-  //     FLAGS_visualize && FLAGS_visualize_lmk_type);
+  BackendOutputParams backend_output_params(
+      static_cast<VisualizationType>(FLAGS_viz_type) !=
+          VisualizationType::kNone,
+      FLAGS_min_num_obs_for_mesher_points,
+      FLAGS_visualize && FLAGS_visualize_lmk_type);
 
   //! Create backend
-  // TODO(marcus): enable backend when ready!
-  // CHECK(backend_params_);
-  // vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
-  //     &backend_input_queue_,
-  //     parallel_run_,
-  //     BackEndFactory::createBackend(
-  //         static_cast<BackendType>(params.backend_type_),
-  //         // These two should be given by parameters.
-  //         camera_->getBodyPoseCamRect(),
-  //         camera_->getCalibration(),
-  //         *backend_params_,
-  //         imu_params_,
-  //         backend_output_params,
-  //         FLAGS_log_output));
+  // TODO(marcus): get rid of fake stereocam
+  LOG_IF(FATAL, params.backend_params_->addBetweenStereoFactors_)
+      << "addBetweenStereoFactors is set to true, but this is a mono pipeline!";
+  VIO::StereoCamera stereo_cam(params.camera_params_.at(0),
+                               params.camera_params_.at(1));
+  CHECK(backend_params_);
+  vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
+      &backend_input_queue_,
+      parallel_run_,
+      BackEndFactory::createBackend(
+          static_cast<BackendType>(params.backend_type_),
+          // These two should be given by parameters.
+          camera_->getBodyPoseCam(),
+          stereo_cam.getStereoCalib(),
+          *backend_params_,
+          imu_params_,
+          backend_output_params,
+          FLAGS_log_output));
 
-  // vio_backend_module_->registerOnFailureCallback(
-  //     std::bind(&MonoPipeline::signalBackendFailure, this));
+  vio_backend_module_->registerOnFailureCallback(
+      std::bind(&MonoPipeline::signalBackendFailure, this));
 
-  // vio_backend_module_->registerImuBiasUpdateCallback(
-  //     std::bind(&MonoVisionFrontEndModule::updateImuBias,
-  //               // Send a cref: constant reference bcs updateImuBias is const
-  //               std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
-  //               std::placeholders::_1));
+  vio_backend_module_->registerImuBiasUpdateCallback(
+      std::bind(&MonoVisionFrontEndModule::updateImuBias,
+                // Send a cref: constant reference bcs updateImuBias is const
+                std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
+                std::placeholders::_1));
 
   // TOOD(marcus): enable use of mesher for mono pipeline
   // if (static_cast<VisualizationType>(FLAGS_viz_type) ==
@@ -115,7 +121,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   //       parallel_run_,
   //       MesherFactory::createMesher(
   //           MesherType::PROJECTIVE,
-  //           MesherParams(camera_->getBodyPoseCamRect(),
+  //           MesherParams(camera_->getBodyPoseCam(),
   //                        params.camera_params_.at(0u).image_size_)));
 
   //   //! Register input callbacks
@@ -152,7 +158,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
     //               std::placeholders::_1));
 
     // TODO(marcus): either make all frontend outputs the same or make visualizer
-    //   accept mono outputs
+    // accept mono outputs
     // vio_frontend_module_->registerOutputCallback(
     //     std::bind(&VisualizerModule::fillFrontendQueue,
     //               std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
@@ -226,10 +232,9 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
     lcd_and_lcd_input_finished = false;
   }
 
-  // TODO(marcus): uncomment all backend module refs
   CHECK(data_provider_module_);
   CHECK(vio_frontend_module_);
-  // CHECK(vio_backend_module_);
+  CHECK(vio_backend_module_);
 
   while (
       !shutdown_ &&         // Loop while not explicitly shutdown.
@@ -240,8 +245,8 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
          (frontend_input_queue_.isShutdown() ||
           frontend_input_queue_.empty()) &&
          !vio_frontend_module_->isWorking() &&
-        //  (backend_input_queue_.isShutdown() || backend_input_queue_.empty()) &&
-        //  !vio_backend_module_->isWorking() &&
+         (backend_input_queue_.isShutdown() || backend_input_queue_.empty()) &&
+         !vio_backend_module_->isWorking() &&
          (mesher_module_ ? !mesher_module_->isWorking() : true) &&
          (lcd_module_ ? !lcd_module_->isWorking() : true) &&
          (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
@@ -255,7 +260,7 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
             << "Pipeline initialized? " << isInitialized() << '\n'
             << "Frontend initialized? " << vio_frontend_module_->isInitialized()
             << '\n'
-            // << "Backend initialized? " << vio_backend_module_->isInitialized()
+            << "Backend initialized? " << vio_backend_module_->isInitialized()
             << '\n'
             << "Data provider is working? "
             << data_provider_module_->isWorking() << '\n'
@@ -266,10 +271,10 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
             << "Frontend is working? " << vio_frontend_module_->isWorking()
             << '\n'
             << "Backend Input queue shutdown? "
-            // << backend_input_queue_.isShutdown() << '\n'
-            // << "Backend Input queue empty? " << backend_input_queue_.empty()
+            << backend_input_queue_.isShutdown() << '\n'
+            << "Backend Input queue empty? " << backend_input_queue_.empty()
             << '\n'
-            // << "Backend is working? " << vio_backend_module_->isWorking()
+            << "Backend is working? " << vio_backend_module_->isWorking()
             << '\n'
             << "Mesher is working? "
             << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
@@ -308,7 +313,7 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
           << "Pipeline initialized? " << isInitialized() << '\n'
           << "Frontend initialized? " << vio_frontend_module_->isInitialized()
           << '\n'
-          // << "Backend initialized? " << vio_backend_module_->isInitialized()
+          << "Backend initialized? " << vio_backend_module_->isInitialized()
           << '\n'
           << "Data provider is working? " << data_provider_module_->isWorking()
           << '\n'
@@ -319,10 +324,10 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
           << "Frontend is working? " << vio_frontend_module_->isWorking()
           << '\n'
           << "Backend Input queue shutdown? "
-          // << backend_input_queue_.isShutdown() << '\n'
-          // << "Backend Input queue empty? " << backend_input_queue_.empty()
+          << backend_input_queue_.isShutdown() << '\n'
+          << "Backend Input queue empty? " << backend_input_queue_.empty()
           << '\n'
-          // << "Backend is working? " << vio_backend_module_->isWorking() << '\n'
+          << "Backend is working? " << vio_backend_module_->isWorking() << '\n'
           << "Mesher is working? "
           << (mesher_module_ ? mesher_module_->isWorking() : false) << '\n'
           << "LCD is working? "
@@ -343,16 +348,6 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
 /* -------------------------------------------------------------------------- */
 void MonoPipeline::shutdown() {
   Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::shutdown();
-
-  // First: call registered shutdown callbacks, these are typically to signal
-  // data providers that they should now die.
-  if (shutdown_pipeline_cb_) {
-    LOG(INFO) << "Calling registered shutdown callbacks...";
-    // Mind that this will raise a SIGSEGV seg fault if the callee is
-    // destroyed.
-    shutdown_pipeline_cb_();
-  }
-
   // Second: stop data provider
   CHECK(data_provider_module_);
   data_provider_module_->shutdown();
@@ -374,9 +369,8 @@ void MonoPipeline::spinSequential() {
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();
 
-  // TODO(marcus): add back in!
-  // CHECK(vio_backend_module_);
-  // vio_backend_module_->spin();
+  CHECK(vio_backend_module_);
+  vio_backend_module_->spin();
 
   if (mesher_module_) mesher_module_->spin();
 

@@ -49,7 +49,7 @@ enum class KeypointStatus {
 using FrameId = std::uint64_t;  // Frame id is used as the index of gtsam symbol
                                 // (not as a gtsam key).
 using PlaneId = std::uint64_t;
-using LandmarkId = size_t;  // -1 for invalid landmarks. // int would be too
+using LandmarkId = long int;  // -1 for invalid landmarks. // int would be too
                             // small if it is 16 bits!
 using LandmarkIds = std::vector<LandmarkId>;
 using LandmarkCV = cv::Point3d;

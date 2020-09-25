@@ -150,29 +150,22 @@ class VisionFrontEnd {
     return imu_frontend_->getPreintegrationGravity();
   }
 
-  void outlierRejectionMono(const gtsam::Rot3& keyframe_R_cur_frame,
-                            Frame* frame_lkf,
-                            Frame* frame_k,
-                            TrackingStatusPose* status_pose_mono) {
+  void outlierRejectionMono(
+      const gtsam::Rot3& keyframe_R_cur_frame,
+      Frame* frame_lkf,
+      Frame* frame_k,
+      TrackingStatusPose* status_pose_mono) {
     CHECK_NOTNULL(status_pose_mono);
     if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
         !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
       // 2-point RANSAC.
+      // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
       *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(
           frame_lkf, frame_k, keyframe_R_cur_frame);
     } else {
       // 5-point RANSAC.
       *status_pose_mono =
           tracker_->geometricOutlierRejectionMono(frame_lkf, frame_k);
-    }
-
-    tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono->first;
-    if (VLOG_IS_ON(2)) {
-      printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_, "mono");
-    }
-
-    if (status_pose_mono->first == TrackingStatus::VALID) {
-      tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono->second;
     }
   }
 
