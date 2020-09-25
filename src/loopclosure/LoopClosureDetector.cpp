@@ -343,24 +343,29 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
           } else {
             // Perform geometric verification check.
             gtsam::Pose3 camCur_T_camRef_mono;
-            std::vector<FrameId> inlier_id_in_query_frame;
-            std::vector<FrameId> inlier_id_in_match_frame;
+
+            // Find correspondences between keypoints.
+            std::vector<FrameId> i_query, i_match;
+            computeMatchedIndices(
+                frame_id, best_island.best_id_, &i_query, &i_match, true);
+
             bool pass_geometric_verification =
                 geometricVerificationCheck(frame_id,
                                            best_island.best_id_,
                                            &camCur_T_camRef_mono,
-                                           &inlier_id_in_query_frame,
-                                           &inlier_id_in_match_frame);
+                                           &i_query,
+                                           &i_match);
 
             if (!pass_geometric_verification) {
               result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
             } else {
               gtsam::Pose3 bodyCur_T_bodyRef_stereo;
-              bool pass_3d_pose_compute =
-                  recoverPose(result->query_id_,
-                              result->match_id_,
-                              camCur_T_camRef_mono,
-                              &bodyCur_T_bodyRef_stereo);
+              bool pass_3d_pose_compute = recoverPose(result->query_id_,
+                                                      result->match_id_,
+                                                      camCur_T_camRef_mono,
+                                                      &bodyCur_T_bodyRef_stereo,
+                                                      &i_query,
+                                                      &i_match);
               // TODO (Yun, Luca) Add factor graph
               if (!pass_3d_pose_compute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
@@ -395,8 +400,11 @@ bool LoopClosureDetector::geometricVerificationCheck(
   CHECK_NOTNULL(camCur_T_camRef_mono);
   switch (lcd_params_.geom_check_) {
     case GeomVerifOption::NISTER: {
-      return geometricVerificationNister(
-          query_id, match_id, camCur_T_camRef_mono);
+      return geometricVerificationNister(query_id,
+                                         match_id,
+                                         camCur_T_camRef_mono,
+                                         inlier_id_in_match_frame,
+                                         inlier_id_in_query_frame);
     }
     case GeomVerifOption::NONE: {
       return true;
@@ -687,9 +695,11 @@ bool LoopClosureDetector::geometricVerificationNister(
     std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(camCur_T_camRef_mono);
 
-  // Find correspondences between keypoints.
+  // Correspondences between frames.
   std::vector<FrameId> i_query, i_match;
-  computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
+  // Use mono ransac inliers as correspondences instead of re-matching
+  i_query = *inlier_id_in_query_frame;
+  i_match = *inlier_id_in_match_frame;
 
   BearingVectors query_versors, match_versors;
 
@@ -737,9 +747,11 @@ bool LoopClosureDetector::geometricVerificationNister(
           opengv::transformation_t transformation = ransac.model_coefficients_;
           // Remove the outliers based on ransac.inliers (modify i_query and
           // i_match AND pass the result out)
+          inlier_id_in_query_frame->clear();
+          inlier_id_in_match_frame->clear();
           for (auto i : ransac.inliers_) {
-            inlier_id_in_query_frame.push_back(i_query[i]);
-            inlier_id_in_match_frame.push_back(i_match[i]);
+            inlier_id_in_query_frame->push_back(i_query[i]);
+            inlier_id_in_match_frame->push_back(i_match[i]);
           }
           *camCur_T_camRef_mono =
               UtilsOpenCV::openGvTfToGtsamPose3(transformation);
@@ -762,7 +774,7 @@ bool LoopClosureDetector::recoverPoseArun(
     std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
-  // Find correspondences between frames.
+  // Correspondences between frames.
   std::vector<FrameId> i_query, i_match;
   // Use mono ransac inliers as correspondences instead of re-matching
   i_query = *inlier_id_in_query_frame;
@@ -811,9 +823,11 @@ bool LoopClosureDetector::recoverPoseArun(
 
         // Remove the outliers based on ransac.inliers (modify i_query and
         // i_match AND pass the result out)
+        inlier_id_in_query_frame->clear();
+        inlier_id_in_match_frame->clear();
         for (auto i : ransac.inliers_) {
-          inlier_id_in_query_frame.push_back(i_query[i]);
-          inlier_id_in_match_frame.push_back(i_match[i]);
+          inlier_id_in_query_frame->push_back(i_query[i]);
+          inlier_id_in_match_frame->push_back(i_match[i]);
         }
 
         // Transform pose from camera frame to body frame.
@@ -841,7 +855,7 @@ bool LoopClosureDetector::recoverPoseGivenRot(
 
   const gtsam::Rot3& R = camCur_T_camRef_mono.rotation();
 
-  // Find correspondences between frames.
+  // Correspondences between frames.
   std::vector<FrameId> i_query, i_match;
   // Use mono ransac inliers as correspondences instead of re-matching
   i_query = *inlier_id_in_query_frame;
@@ -887,6 +901,8 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     gtsam::Pose3 camCur_T_camRef_stereo(R, scaled_t);
     transformCameraPoseToBodyPose(camCur_T_camRef_stereo, bodyCur_T_bodyRef);
 
+    inlier_id_in_query_frame->clear();
+    inlier_id_in_match_frame->clear();
     for (size_t i = 0; i < n_matches; i++) {
       gtsam::Vector3 residual_error_vector =
           gtsam::Vector3(x_coord[i] - scaled_t.x(),
@@ -895,8 +911,8 @@ bool LoopClosureDetector::recoverPoseGivenRot(
       double residual_error = residual_error_vector.norm();
 
       if (residual_error <= lcd_params_.ransac_threshold_stereo_) {
-        inlier_id_in_query_frame.push_back(i_query[i]);
-        inlier_id_in_match_frame.push_back(i_match[i]);
+        inlier_id_in_query_frame->push_back(i_query[i]);
+        inlier_id_in_match_frame->push_back(i_match[i]);
       }
     }
     return true;

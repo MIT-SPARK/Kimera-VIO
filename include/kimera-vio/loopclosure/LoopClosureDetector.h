@@ -117,7 +117,9 @@ class LoopClosureDetector {
   bool recoverPose(const FrameId& query_id,
                    const FrameId& match_id,
                    const gtsam::Pose3& camCur_T_camRef_mono,
-                   gtsam::Pose3* bodyCur_T_bodyRef_stereo);
+                   gtsam::Pose3* bodyCur_T_bodyRef_stereo,
+                   std::vector<FrameId>* inlier_id_in_query_frame,
+                   std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Gets a copy of the parameters of the LoopClosureDetector.
@@ -287,7 +289,6 @@ class LoopClosureDetector {
    */
   void initializePGO(const OdometryFactor& factor);
 
- private:
   /* ------------------------------------------------------------------------ */
   /** @brief Computes the indices of keypoints that match between two frames.
    * @param[in] query_id The frame ID of the query frame in the database.
@@ -303,6 +304,7 @@ class LoopClosureDetector {
                              std::vector<FrameId>* i_match,
                              bool cut_matches = false) const;
 
+ private:
   /* ------------------------------------------------------------------------ */
   /** @brief Checks geometric verification and determines a pose with
    *  a translation up to a scale factor between two frames, using Nister's
@@ -352,8 +354,8 @@ class LoopClosureDetector {
 
  private:
   enum class LcdState {
-    Bootstrap, //! Lcd is initializing
-    Nominal    //! Lcd is running in nominal mode
+    Bootstrap,  //! Lcd is initializing
+    Nominal     //! Lcd is running in nominal mode
   };
   LcdState lcd_state_ = LcdState::Bootstrap;
 

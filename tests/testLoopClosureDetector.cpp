@@ -296,8 +296,13 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   lcd_detector_->processAndAddFrame(*ref1_stereo_frame_);
   lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
 
+  // Find correspondences between keypoints.
+  std::vector<FrameId> i_query, i_match;
+  lcd_detector_->computeMatchedIndices(1, 0, &i_query, &i_match, true);
+
   gtsam::Pose3 camRef1_T_camCur1_mono;
-  lcd_detector_->geometricVerificationCheck(1, 0, &camRef1_T_camCur1_mono);
+  lcd_detector_->geometricVerificationCheck(
+      1, 0, &camRef1_T_camCur1_mono, &i_query, &i_match);
 
   gtsam::Pose3 ref_to_cur_gnd_truth_pose = gtsam::Pose3(
       ref1_to_cur1_pose_.rotation(), ref1_to_cur1_pose_.translation());
@@ -329,8 +334,12 @@ TEST_F(LCDFixture, recoverPoseArun) {
   lcd_detector_->processAndAddFrame(*ref1_stereo_frame_);
   lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
 
+  // Find correspondences between keypoints.
+  std::vector<FrameId> i_query, i_match;
+  lcd_detector_->computeMatchedIndices(1, 0, &i_query, &i_match, true);
+
   gtsam::Pose3 pose_1;
-  lcd_detector_->recoverPose(1, 0, empty_pose, &pose_1);
+  lcd_detector_->recoverPose(1, 0, empty_pose, &pose_1, &i_query, &i_match);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       ref1_to_cur1_pose_, pose_1, true);
@@ -373,8 +382,13 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   lcd_detector_->transformBodyPoseToCameraPose(body_input_pose,
                                                &cam_input_pose);
 
+  // Find correspondences between keypoints.
+  std::vector<FrameId> i_query, i_match;
+  lcd_detector_->computeMatchedIndices(1, 0, &i_query, &i_match, true);
+
   gtsam::Pose3 pose_0_1;
-  lcd_detector_->recoverPose(1, 0, cam_input_pose, &pose_0_1);
+  lcd_detector_->recoverPose(
+      1, 0, cam_input_pose, &pose_0_1, &i_query, &i_match);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       ref1_to_cur1_pose_, pose_0_1, false);
@@ -393,8 +407,12 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   lcd_detector_->transformBodyPoseToCameraPose(body_input_pose,
                                                &cam_input_pose);
 
+  // Find correspondences between keypoints.
+  lcd_detector_->computeMatchedIndices(3, 2, &i_query, &i_match, true);
+
   gtsam::Pose3 pose_2_3;
-  lcd_detector_->recoverPose(3, 2, cam_input_pose, &pose_2_3);
+  lcd_detector_->recoverPose(
+      3, 2, cam_input_pose, &pose_2_3, &i_query, &i_match);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       ref2_to_cur2_pose_, pose_2_3, true);
