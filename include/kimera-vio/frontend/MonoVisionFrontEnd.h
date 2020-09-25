@@ -43,7 +43,7 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
   MonoVisionFrontEnd(const ImuParams& imu_params,
                      const ImuBias& imu_initial_bias,
                      const MonoFrontendParams& frontend_params,
-                     const Camera::Ptr& camera,
+                     const Camera::ConstPtr& camera,
                      DisplayQueue* display_queue = nullptr,
                      bool log_output = false);
   virtual ~MonoVisionFrontEnd();
@@ -84,7 +84,7 @@ class MonoVisionFrontEnd : public VisionFrontEnd<MonoFrontEndInputPayload,
 
   FeatureDetector::UniquePtr feature_detector_;
 
-  Camera::Ptr mono_camera_;
+  Camera::ConstPtr mono_camera_;
 
   MonoFrontendParams frontend_params_;
 };

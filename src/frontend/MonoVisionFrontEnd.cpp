@@ -27,7 +27,7 @@ MonoVisionFrontEnd::MonoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const MonoFrontendParams& frontend_params,
-    const Camera::Ptr& camera,
+    const Camera::ConstPtr& camera,
     DisplayQueue* display_queue,
     bool log_output)
     : VisionFrontEnd(imu_params, imu_initial_bias, display_queue, log_output),
@@ -117,7 +117,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
   VLOG(10) << "Finished processStereoFrame.";
   //////////////////////////////////////////////////////////////////////////////
 
-  if (VLOG_IS_ON(10))
+  if (VLOG_IS_ON(5))
     MonoVisionFrontEnd::printStatusMonoMeasurements(*status_mono_measurements);
 
   if (mono_frame_km1_->isKeyframe_) {
@@ -331,6 +331,9 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     std::make_pair(tracker_status_summary_, smart_mono_measurements));
 }
 
+// TODO(marcus): for convenience mono measurements are gtsam::StereoPoint2
+// hence this is near identical to getSmartStereoMeasurements
+// but want to switch to gtsam::Point2
 void MonoVisionFrontEnd::getSmartMonoMeasurements(
     const Frame::Ptr& frame, MonoMeasurements* smart_mono_measurements) {
   // TODO(marcus): convert to point2 when ready!

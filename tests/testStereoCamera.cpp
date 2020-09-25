@@ -157,7 +157,7 @@ class StereoCameraFixture : public ::testing::Test {
   // Default Parms
   //! Params
   VioParams vio_params_;
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
   StereoMatcher::UniquePtr stereo_matcher_;
 
   EurocDataProvider::UniquePtr euroc_data_provider_;

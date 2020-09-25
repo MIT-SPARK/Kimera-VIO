@@ -136,7 +136,7 @@ class StereoFrameFixture : public ::testing::Test {
   FrontendParams tp;
   CameraParams cam_params_left;
   CameraParams cam_params_right;
-  VIO::StereoCamera::Ptr stereo_camera_;
+  VIO::StereoCamera::ConstPtr stereo_camera_;
   VIO::StereoMatcher::UniquePtr stereo_matcher_;
   StereoFrame::Ptr sf;
   StereoFrame::Ptr sfnew;

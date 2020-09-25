@@ -76,7 +76,7 @@ class Camera {
                    LandmarkCV* lmk) const;
 
   void undistortKeypoints(const KeypointsCV& keypoints,
-                          StatusKeypointsCV* status_keypoints);
+                          StatusKeypointsCV* status_keypoints) const;
 
   /**
    * @brief getCalibration

@@ -70,7 +70,8 @@ class UndistorterRectifier {
    */
   static gtsam::Vector3 UndistortKeypointAndGetVersor(
       const KeypointCV& keypoint,
-      const CameraParams& cam_param);
+      const CameraParams& cam_param,
+      boost::optional<cv::Mat> R = boost::none);
 
   /**
    * @brief undistortRectifyImage Given distorted (and optionally non-rectified)

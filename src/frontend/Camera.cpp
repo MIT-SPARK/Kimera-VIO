@@ -100,7 +100,7 @@ void Camera::backProject(const KeypointCV& kp,
 // TODO(marcus): copy-pasted from StereoCamera.
 //  Maybe there should be some inheritance..
 void Camera::undistortKeypoints(const KeypointsCV& keypoints,
-                                StatusKeypointsCV* status_keypoints) {
+                                StatusKeypointsCV* status_keypoints) const {
   KeypointsCV undistorted_keypoints;
   CHECK(undistorter_);
   undistorter_->undistortRectifyKeypoints(

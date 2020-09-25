@@ -239,7 +239,7 @@ class LCDFixture : public ::testing::Test {
   CameraParams cam_params_left_, cam_params_right_;
 
   // Stereo members
-  StereoCamera::Ptr stereo_camera_;
+  StereoCamera::ConstPtr stereo_camera_;
   StereoMatcher::UniquePtr stereo_matcher_;
 
   // LCD members

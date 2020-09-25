@@ -78,7 +78,7 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
   void spinSequential() override;
 
  protected:
-  Camera::Ptr camera_;
+  Camera::ConstPtr camera_;
   MonoDataProviderModule::UniquePtr data_provider_module_;
 };
 

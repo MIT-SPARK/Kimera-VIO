@@ -114,7 +114,7 @@ class StereoMatcherFixture : public ::testing::Test {
   VIO::CameraParams cam_params_left;
   VIO::CameraParams cam_params_right;
   StereoFrame::Ptr sf, sfnew;
-  VIO::StereoCamera::Ptr stereo_camera;
+  VIO::StereoCamera::ConstPtr stereo_camera;
   VIO::StereoMatcher::UniquePtr stereo_matcher;
 };
 

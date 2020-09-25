@@ -35,7 +35,8 @@ class FeatureDetector {
   virtual ~FeatureDetector() = default;
 
  public:
-  void featureDetection(Frame* cur_frame);
+  void featureDetection(Frame* cur_frame,
+                        boost::optional<cv::Mat> R = boost::none);
 
   /**
    * @brief rawFeatureDetection Raw feature detection: in image, out keypoints

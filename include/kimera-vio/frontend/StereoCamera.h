@@ -51,8 +51,8 @@ class StereoCamera {
   StereoCamera(const CameraParams& left_cam_params,
                const CameraParams& right_cam_params);
 
-  StereoCamera(Camera::Ptr left_camera,
-               Camera::Ptr right_camera);
+  StereoCamera(Camera::ConstPtr left_camera,
+               Camera::ConstPtr right_camera);
 
   virtual ~StereoCamera() = default;
 
@@ -131,12 +131,16 @@ class StereoCamera {
   void backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
                                       cv::Mat* depth) const;
 
-  inline const Camera::Ptr& getLeftCamera() const {
+  inline const Camera::ConstPtr& getLeftCamera() const {
     return left_camera_;
   }
 
-  inline const Camera::Ptr& getRightCamera() const {
+  inline const Camera::ConstPtr& getRightCamera() const {
     return right_camera_;
+  }
+
+  inline gtsam::StereoCamera getUndistortedRectifiedStereoCamera() const {
+    return undistorted_rectified_stereo_camera_impl_;
   }
 
   /**
@@ -252,8 +256,8 @@ class StereoCamera {
 
  private:
   //! Left and right Camera objects
-  VIO::Camera::Ptr left_camera_;
-  VIO::Camera::Ptr right_camera_;
+  VIO::Camera::ConstPtr left_camera_;
+  VIO::Camera::ConstPtr right_camera_;
 
   //! Stereo camera implementation
   gtsam::StereoCamera undistorted_rectified_stereo_camera_impl_;

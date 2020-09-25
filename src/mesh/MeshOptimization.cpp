@@ -42,7 +42,7 @@ namespace VIO {
 
 MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
                                    const MeshColorType& mesh_color_type,
-                                   Camera::Ptr camera,
+                                   Camera::ConstPtr camera,
                                    OpenCvVisualizer3D::Ptr visualizer)
     : visualizer_(visualizer),
       mesh_optimizer_type_(solver_type),

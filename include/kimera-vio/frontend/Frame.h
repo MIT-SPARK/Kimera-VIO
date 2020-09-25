@@ -59,7 +59,14 @@ class Frame : public PipelinePayload {
         id_(id),
         cam_param_(cam_param),
         img_(img),
-        isKeyframe_(false) {}
+        isKeyframe_(false),
+        keypoints_(),
+        keypoints_undistorted_(),
+        scores_(),
+        landmarks_(),
+        landmarks_age_(),
+        versors_(),
+        descriptors_() {}
 
   // TODO(TONI): delete all copy constructors!!
   // Look at the waste of time this is :O
@@ -167,7 +174,7 @@ class Frame : public PipelinePayload {
   LandmarkIds landmarks_;
   //! How many consecutive *keyframes* saw the keypoint
   std::vector<size_t> landmarks_age_;
-  //! in the ref frame of the UNRECTIFIED left frame
+  //! in the ref frame of the RECTIFIED left frame
   BearingVectors versors_;
   //! Not currently used
   cv::Mat descriptors_;

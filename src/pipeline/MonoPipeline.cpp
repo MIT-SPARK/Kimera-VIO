@@ -98,7 +98,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
       BackEndFactory::createBackend(
           static_cast<BackendType>(params.backend_type_),
           // These two should be given by parameters.
-          stereo_cam.getBodyPoseLeftCamRect(),  // TODO(marcus): switch back to mono cam!
+          camera_->getBodyPoseCam(),
           stereo_cam.getStereoCalib(),
           *backend_params_,
           imu_params_,

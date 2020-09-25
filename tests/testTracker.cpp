@@ -553,7 +553,7 @@ class TestTracker : public ::testing::Test {
 
   Frame::Ptr ref_frame, cur_frame;
   StereoFrame::Ptr ref_stereo_frame, cur_stereo_frame;
-  VIO::StereoCamera::Ptr stereo_camera_;
+  VIO::StereoCamera::ConstPtr stereo_camera_;
   VIO::StereoMatcher::UniquePtr stereo_matcher_;
 };
 
@@ -725,7 +725,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
           tracker_->geometricOutlierRejectionMonoGivenRotation(
-              ref_frame.get(), cur_frame.get(), R, stereo_camera_);
+              ref_frame.get(), cur_frame.get(), R);
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
 
