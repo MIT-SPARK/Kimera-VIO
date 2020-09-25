@@ -25,10 +25,11 @@ namespace VIO {
 UndistorterRectifier::UndistorterRectifier(const cv::Mat& P,
                                            const CameraParams& cam_params,
                                            const cv::Mat& R)
-    : P_(P), R_(R), cam_params_(cam_params) {
+    : map_x_(), map_y_(), P_(P), R_(R), cam_params_(cam_params) {
   initUndistortRectifyMaps(cam_params, R, P, &map_x_, &map_y_);
 }
 
+// TODO(marcus): add unit test w/ and w/o rectification
 void UndistorterRectifier::UndistortRectifyKeypoints(
     const KeypointsCV& keypoints,
     KeypointsCV* undistorted_keypoints,
@@ -59,9 +60,13 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
   }
 }
 
+// NOTE: we don't pass P because we want normalized/canonical pixel
+// coordinates (3D bearing vectors with last element = 1) for versors.
+// If we were to pass P, it would convert back to pixel coordinates.
 gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
     const KeypointCV& keypoint,
-    const CameraParams& cam_param) {
+    const CameraParams& cam_param,
+    boost::optional<cv::Mat> R) {
   // Calibrate pixel.
   // matrix of px with a single entry, i.e., a single pixel
   KeypointsCV distorted_keypoint;
@@ -71,7 +76,9 @@ gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
   UndistorterRectifier::UndistortRectifyKeypoints(
       distorted_keypoint,
       &undistorted_keypoint,
-      cam_param);
+      cam_param,
+      R,
+      boost::none);
 
   // Transform to unit vector.
   Vector3 versor(

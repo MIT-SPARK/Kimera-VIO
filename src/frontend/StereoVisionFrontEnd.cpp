@@ -154,7 +154,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
   VLOG(10) << "Finished processStereoFrame.";
   //////////////////////////////////////////////////////////////////////////////
 
-  if (VLOG_IS_ON(10))
+  if (VLOG_IS_ON(5))
     StereoVisionFrontEnd::printStatusStereoMeasurements(
         *status_stereo_measurements);
 
@@ -197,7 +197,9 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
         true,
         status_stereo_measurements,
         tracker_status_summary_.kfTrackingStatus_stereo_,
-        getRelativePoseBodyStereo(),
+        tracker_->tracker_params_.useStereoTracking_
+            ? getRelativePoseBodyStereo()
+            : gtsam::Pose3(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -214,7 +216,9 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
         false,
         status_stereo_measurements,
         TrackingStatus::INVALID,
-        getRelativePoseBodyStereo(),
+        tracker_->tracker_params_.useStereoTracking_
+            ? getRelativePoseBodyStereo()
+            : gtsam::Pose3(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         *stereoFrame_lkf_,
         pim,
@@ -243,7 +247,7 @@ void StereoVisionFrontEnd::processFirstStereoFrame(
 
   // Perform feature detection.
   CHECK(feature_detector_);
-  feature_detector_->featureDetection(left_frame);
+  feature_detector_->featureDetection(left_frame, stereo_camera_->getR1());
 
   // Get 3D points via stereo.
   stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
@@ -288,7 +292,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
   tracker_->featureTracking(&stereoFrame_km1_->left_frame_,
                            left_frame_k,
-                           ref_frame_R_cur_frame);
+                           ref_frame_R_cur_frame,
+                           stereo_camera_->getR1());
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
     // TODO(Toni): this image should already be computed and inside the
@@ -337,8 +342,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       outlierRejectionMono(keyframe_R_cur_frame,
                            left_frame_lkf,
                            left_frame_k,
-                           &status_pose_mono,
-                           stereo_camera_);
+                           &status_pose_mono);
       tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
       if (status_pose_mono.first == TrackingStatus::VALID) {
         tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
@@ -389,7 +393,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     // Perform feature detection (note: this must be after RANSAC,
     // since if we discard more features, we need to extract more)
     CHECK(feature_detector_);
-    feature_detector_->featureDetection(left_frame_k);
+    feature_detector_->featureDetection(left_frame_k,
+                                        stereo_camera_->getR1());
 
     // Get 3D points via stereo, including newly extracted
     // (this might be only for the visualization).

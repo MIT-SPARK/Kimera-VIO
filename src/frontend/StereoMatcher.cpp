@@ -159,13 +159,11 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   stereo_frame->keypoints_3d_.clear();
   stereo_frame->keypoints_3d_.reserve(
       stereo_frame->right_keypoints_rectified_.size());
-  gtsam::Rot3 camLrect_R_camL =
-      UtilsOpenCV::cvMatToGtsamRot3(stereo_camera_->getR1());
   for (size_t i = 0; i < stereo_frame->right_keypoints_rectified_.size(); i++) {
     if (stereo_frame->right_keypoints_rectified_[i].first == 
         KeypointStatus::VALID) {
-      Vector3 versor = camLrect_R_camL.rotate(
-          stereo_frame->left_frame_.versors_[i]);
+      // NOTE: versors are already in the rectified frame.
+      Vector3 versor = stereo_frame->left_frame_.versors_[i];
       CHECK_GE(versor(2), 1e-3)
           << "sparseStereoMatching: found point with nonpositive depth!";
       // keypoints_depth_ is not the norm of the vector, it is the z component.

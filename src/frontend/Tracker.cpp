@@ -35,7 +35,7 @@ DEFINE_bool(visualize_feature_predictions,
 namespace VIO {
 
 Tracker::Tracker(const FrontendParams& tracker_params,
-                 const Camera::Ptr& camera,
+                 const Camera::ConstPtr& camera,
                  DisplayQueue* display_queue)
     : landmark_count_(0),
       tracker_params_(tracker_params),
@@ -70,9 +70,12 @@ Tracker::Tracker(const FrontendParams& tracker_params,
 
 // TODO(Toni) a pity that this function is not const just because
 // it modifies debuginfo_...
+// NOTE: you do not need R in the mono case. For stereo cameras we pass R 
+// to ensure we rectify the versors and 3D points of the features we detect.
 void Tracker::featureTracking(Frame* ref_frame,
                               Frame* cur_frame,
-                              const gtsam::Rot3& ref_R_cur) {
+                              const gtsam::Rot3& ref_R_cur,
+                              boost::optional<cv::Mat> R) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
   auto tic = utils::Timer::tic();
@@ -160,7 +163,7 @@ void Tracker::featureTracking(Frame* ref_frame,
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
     cur_frame->keypoints_.push_back(px_cur[i]);
     cur_frame->versors_.push_back(
-        UndistorterRectifier::UndistortKeypointAndGetVersor(px_cur[i], ref_frame->cam_param_));
+        UndistorterRectifier::UndistortKeypointAndGetVersor(px_cur[i], ref_frame->cam_param_, R));
   }
 
   // max number of frames in which a feature is seen
@@ -276,8 +279,7 @@ std::pair<TrackingStatus, gtsam::Pose3>
 Tracker::geometricOutlierRejectionMonoGivenRotation(
     Frame* ref_frame,
     Frame* cur_frame,
-    const gtsam::Rot3& R,
-    VIO::StereoCamera::ConstPtr stereo_camera) {
+    const gtsam::Rot3& camLrectlkf_R_camLrectkf) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
 
@@ -287,6 +289,9 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   KeypointMatches matches_ref_cur;
   findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
 
+  // NOTE: versors are already in the rectified left camera frame.
+  // No further rectification needed.
+
   // Vector of bearing vectors.
   BearingVectors f_cur;
   f_cur.reserve(matches_ref_cur.size());
@@ -294,7 +299,8 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   f_ref.reserve(matches_ref_cur.size());
   for (const KeypointMatch& it : matches_ref_cur) {
     f_ref.push_back(ref_frame->versors_.at(it.first));
-    f_cur.push_back(R.rotate(cur_frame->versors_.at(it.second)));
+    f_cur.push_back(
+        camLrectlkf_R_camLrectkf.rotate(cur_frame->versors_.at(it.second)));
   }
 
   // Setup problem.
@@ -351,37 +357,18 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   // Get the resulting transformation: a 3x4 matrix [R t].
   opengv::transformation_t best_transformation =
       mono_ransac_given_rot_.model_coefficients_;
-  gtsam::Pose3 camLlkf_P_camLkf =
+  gtsam::Pose3 camLrectlkf_P_camLrectkf =
       UtilsOpenCV::openGvTfToGtsamPose3(best_transformation);
   // note: this always returns the identity rotation, hence we have to
   // substitute it:
-  camLlkf_P_camLkf = gtsam::Pose3(R, camLlkf_P_camLkf.translation());
+  camLrectlkf_P_camLrectkf = gtsam::Pose3(
+      camLrectlkf_R_camLrectkf, camLrectlkf_P_camLrectkf.translation());
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
   debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
 
-  // TODO(marcus): remove stereo_camera, use R1 as input arg
-  if (stereo_camera) {
-    gtsam::Pose3 camLrectlkf_P_camLrectkf = camLlkf_P_camLkf;
-    // check if we have to compensate for rectification (if we have a valid
-    // left-cam rectification matrix )
-    // TODO(marcus): assumes both frames from same stereocam and both are left.
-    // TODO(marcus): can we simplify? We don't need both rot mats...
-    const cv::Mat& R1 = stereo_camera->getR1();
-    if (R1.rows == 3) {
-      gtsam::Rot3 camLrect_R_camL_ref = UtilsOpenCV::cvMatToGtsamRot3(R1);
-      gtsam::Rot3 camLrect_R_camL_cur = UtilsOpenCV::cvMatToGtsamRot3(R1);
-      camLrectlkf_P_camLrectkf =
-          gtsam::Pose3(camLrect_R_camL_ref, Point3()) * camLlkf_P_camLkf *
-          gtsam::Pose3(camLrect_R_camL_cur.inverse(), Point3());
-    }
-
-    debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-
-    return std::make_pair(status, camLrectlkf_P_camLrectkf);
-  }
-  return std::make_pair(status, camLlkf_P_camLkf);
+  return std::make_pair(status, camLrectlkf_P_camLrectkf);
 }
 
 std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
@@ -426,7 +413,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
     StereoFrame& ref_stereoFrame,
     StereoFrame& cur_stereoFrame,
     VIO::StereoCamera::ConstPtr stereo_camera,
-    const gtsam::Rot3& R) {
+    const gtsam::Rot3& camLrectlkf_R_camLrectkf) {
   auto start_time_tic = utils::Timer::tic();
 
   KeypointMatches matches_ref_cur;
@@ -451,6 +438,9 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   //============================================================================
   auto timeCreatePointsAndCov_p_tic = utils::Timer::tic();
   size_t nrMatches = matches_ref_cur.size();
+
+  // NOTE: 3d points are constructed by versors, which are already in the
+  // rectified left camera frame. No further rectification needed.
   Vector3 f_ref_i, R_f_cur_i;
   Matrix3 cov_ref_i, cov_R_cur_i;
 
@@ -475,8 +465,12 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
     std::tie(f_ref_i, cov_ref_i) = Tracker::getPoint3AndCovariance(
         ref_stereoFrame, stereoCam, it.first, stereoPtCov);
     // Get current vectors and covariance:
-    std::tie(R_f_cur_i, cov_R_cur_i) = Tracker::getPoint3AndCovariance(
-        cur_stereoFrame, stereoCam, it.second, stereoPtCov, R.matrix());
+    std::tie(R_f_cur_i, cov_R_cur_i) =
+        Tracker::getPoint3AndCovariance(cur_stereoFrame,
+                                        stereoCam,
+                                        it.second,
+                                        stereoPtCov,
+                                        camLrectlkf_R_camLrectkf.matrix());
 
     // Populate relative translation estimates and their covariances.
     Vector3 v = f_ref_i - R_f_cur_i;
@@ -634,7 +628,8 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   debug_info_.stereoRansacIters_ = 1;  // this is bcs we use coherent sets here.
 
   return std::make_pair(
-      std::make_pair(status, gtsam::Pose3(R, gtsam::Point3(t))),
+      std::make_pair(status,
+                     gtsam::Pose3(camLrectlkf_R_camLrectkf, gtsam::Point3(t))),
       totalInfo.cast<double>());
 }
 
@@ -651,6 +646,9 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
 
   VLOG(5) << "geometricOutlierRejectionStereo:"
               " starting 3-point RANSAC (voting)";
+
+  // NOTE: 3d points are constructed by versors, which are already in the
+  // rectified left camera frame. No further rectification needed.
 
   // Vector of 3D vectors
   const size_t& n_matches = matches_ref_cur.size();
