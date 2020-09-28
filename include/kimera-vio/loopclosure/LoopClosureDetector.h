@@ -122,6 +122,23 @@ class LoopClosureDetector {
                    std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
+  /** @brief Refine relative pose given by ransac using smart factors.
+   * @param[in] query_id The frame ID of the query image in the database.
+   * @param[in] match_id The frame ID of the match image in the database.
+   * @param[in] camCur_T_camRef_stereo The relative pose between the match frame
+   *  and the query frame, in the coordinates of the match frame.
+   * @param[in] inlier correspondences (from ransac) in the query frame
+   * @param[in] inlier correspondences (from ransac) in the match frame
+   * @return refined relative pose
+   */
+  gtsam::Pose3 refinePoses(
+      const FrameId query_id,
+      const FrameId match_id,
+      const gtsam::Pose3& camCur_T_camRef_stereo,
+      const std::vector<FrameId>& inlier_id_in_query_frame,
+      const std::vector<FrameId>& inlier_id_in_match_frame);
+
+  /* ------------------------------------------------------------------------ */
   /** @brief Gets a copy of the parameters of the LoopClosureDetector.
    * @return The local parameters of the LoopClosureDetector.
    */
