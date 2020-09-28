@@ -2,3 +2,4 @@
 --debug_graph_before_opt=false
 --process_cheirality=true
 --max_number_of_cheirality_exceptions=5
+--compute_state_covariance=true

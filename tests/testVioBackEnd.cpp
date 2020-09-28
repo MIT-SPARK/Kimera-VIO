@@ -43,10 +43,11 @@ using StereoPoses = std::vector<std::pair<gtsam::Pose3, gtsam::Pose3>>;
 
 class BackendFixture : public ::testing::Test {
  public:
-  BackendFixture() : vio_params_(), imu_params_() {
+  BackendFixture() : backend_params_(), imu_params_() {
     // Update vio params
-    vio_params_.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
-    vio_params_.horizon_ = 100;
+    backend_params_.landmarkDistanceThreshold_ =
+        30;  // we simulate points 20m away
+    backend_params_.horizon_ = 100;
 
     // Update IMU params
     imu_params_.gyro_noise_ = 0.00016968;
@@ -163,7 +164,7 @@ class BackendFixture : public ::testing::Test {
   const size_t before_start_imu_msgs_ = 10u;
 
  public:
-  BackendParams vio_params_;
+  BackendParams backend_params_;
   ImuParams imu_params_;
 };
 
@@ -342,6 +343,17 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
       EXPECT_LT((imu_bias_lkf - imu_bias_).vector().norm(), tol);
     }
   }
+}
+
+TEST_F(BackendFixture, marginals) {
+  gtsam::ISAM2Params isam_param;
+  BackendParams::setIsam2Params(backend_params_, &isam_param);
+
+  gtsam::IncrementalFixedLagSmoother smoother(backend_params_.horizon_,
+                                              isam_param);
+  gtsam::Values state = smoother.calculateEstimate();
+  gtsam::Marginals marginals(
+      smoother.getFactors(), state, gtsam::Marginals::Factorization::CHOLESKY);
 }
 
 }  // namespace VIO
