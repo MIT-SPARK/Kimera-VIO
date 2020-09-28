@@ -84,7 +84,7 @@ RUN cd Kimera-RPGO && \
       make -j$(nproc)
 
 RUN apt-get update && \
-    apt-get install software-properties-common -y && \
+    apt-get install software-properties-common -y
 # Get python3
 RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa
