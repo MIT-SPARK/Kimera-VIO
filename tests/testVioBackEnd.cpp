@@ -45,8 +45,8 @@ class BackendFixture : public ::testing::Test {
  public:
   BackendFixture() : backend_params_(), imu_params_() {
     // Update vio params
-    backend_params_.landmarkDistanceThreshold_ =
-        30;  // we simulate points 20m away
+    // we simulate points 20m away
+    backend_params_.landmarkDistanceThreshold_ = 30;
     backend_params_.horizon_ = 100;
 
     // Update IMU params
@@ -228,13 +228,13 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
   ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
 
   // Create backend.
-  vio_params_.initial_ground_truth_state_ =
+  backend_params_.initial_ground_truth_state_ =
       VioNavState(poses[0].first, velocity_x_, imu_bias_);
   gtsam::Pose3 B_pose_camLrect;
   std::shared_ptr<VioBackEnd> vio =
       std::make_shared<VioBackEnd>(B_pose_camLrect,
                                    stereo_calibration,
-                                   vio_params_,
+                                   backend_params_,
                                    imu_params_,
                                    BackendOutputParams(false, 0, false),
                                    false);
