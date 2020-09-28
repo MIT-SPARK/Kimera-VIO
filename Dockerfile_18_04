@@ -90,7 +90,7 @@ RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get update && \
     apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
-RUN python3 -m pip install PyQt5
+RUN python3.5 -m pip install PyQt5
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
