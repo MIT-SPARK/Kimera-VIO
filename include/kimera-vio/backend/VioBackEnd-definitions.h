@@ -257,27 +257,30 @@ struct BackendInput : public PipelinePayload {
  public:
   void print() const {
     LOG(INFO) << "VioBackEnd Input Payload print:\n"
-              << "Timestamp: " << timestamp_ << '\n'
-              << "Status smart stereo measurements: "
-              << "\n\t Meas size: "
-              << status_stereo_measurements_kf_->second.size();
+              << "Timestamp: " << timestamp_;
+    if (status_stereo_measurements_kf_) {
+      LOG(INFO)
+        << "Status smart stereo measurements: "
+        << "\n\t Meas size: "
+        << status_stereo_measurements_kf_->second.size();
 
-    LOG(INFO)
-        << "Mono Tracking Status: "
-        << TrackerStatusSummary::asString(
-               status_stereo_measurements_kf_->first.kfTrackingStatus_mono_);
-    status_stereo_measurements_kf_->first.lkf_T_k_mono_.print(
-        "\n\t Tracker Pose (mono): ");
-    LOG(INFO)
-        << "Stereo Tracking Status: "
-        << TrackerStatusSummary::asString(
-               status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_);
-    status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
-        "\n\t Tracker Pose (stereo): ");
+      LOG(INFO)
+          << "Mono Tracking Status: "
+          << TrackerStatusSummary::asString(
+                 status_stereo_measurements_kf_->first.kfTrackingStatus_mono_);
+      status_stereo_measurements_kf_->first.lkf_T_k_mono_.print(
+          "\n\t Tracker Pose (mono): ");
+      LOG(INFO)
+          << "Stereo Tracking Status: "
+          << TrackerStatusSummary::asString(
+                 status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_);
+      status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
+          "\n\t Tracker Pose (stereo): ");
 
-    LOG(INFO) << "Stereo Tracking Status: "
-              << TrackerStatusSummary::asString(stereo_tracking_status_);
-    pim_->print("PIM : ");
+      LOG(INFO) << "Stereo Tracking Status: "
+                << TrackerStatusSummary::asString(stereo_tracking_status_);
+    }
+    if (pim_) pim_->print("PIM : ");
     LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: "
                                            << *stereo_ransac_body_pose_;
   }

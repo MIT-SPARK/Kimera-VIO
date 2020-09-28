@@ -106,20 +106,37 @@ class Pipeline {
   bool spinViz();
 
   /**
+   * @brief printStatus Returns a string with useful information to monitor the
+   * status of the pipeline, in particular, whether the pipeline's modules are
+   * working and if their queues are filled.
+   * @return String with pipeline status information
+   */
+  std::string printStatus() const;
+
+  /**
+   * @brief hasFinished
+   * @return Whether the pipeline has finished working or not.
+   */
+  bool hasFinished() const;
+
+  /**
    * @brief shutdownWhenFinished
    * Shutdown the pipeline once all data has been consumed, or if the backend
    * has died unexpectedly.
    * @param sleep_time_ms period of time between checks of vio status.
-   * @return true if shutdown succesful, false otherwise (never returns
-   * unless successful shutdown).
+   * @return true if shutdown succesful, false otherwise (only returns
+   * if running in sequential mode, or if shutdown happens).
    */
-  bool shutdownWhenFinished(const int& sleep_time_ms = 500);
+  bool shutdownWhenFinished(const int& sleep_time_ms = 500,
+                            const bool& print_stats = false);
 
   /**
    * @brief shutdown Shutdown processing pipeline: stops and joins threads,
    * stops queues. And closes logfiles.
    */
   void shutdown();
+
+  inline bool isShutdown() const { return shutdown_; }
 
   /**
    * @brief resume Resumes all queues.
