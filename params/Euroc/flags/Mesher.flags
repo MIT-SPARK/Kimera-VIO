@@ -54,4 +54,4 @@
 --z_histogram_max_number_of_peaks_to_select=3
 
 # Extras
---return_mesh_2d=false
+--return_mesh_2d=true
