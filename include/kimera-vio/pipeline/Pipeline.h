@@ -63,38 +63,38 @@ class Pipeline {
   // Callbacks to fill input queues.
   //! Callbacks to fill stereo frames
   inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
-    CHECK(stereo_data_provider_module_);
+    CHECK(data_provider_module_);
     CHECK(left_frame);
-    stereo_data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
+    data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
   }
   inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
-    CHECK(stereo_data_provider_module_);
+    CHECK(data_provider_module_);
     CHECK(right_frame);
-    stereo_data_provider_module_->fillRightFrameQueue(std::move(right_frame));
+    data_provider_module_->fillRightFrameQueue(std::move(right_frame));
   }
   //! Callbacks to fill queues but they block if queues are getting full.
   //! Useful when parsing datasets, don't use with real sensors.
   inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
-    CHECK(stereo_data_provider_module_);
+    CHECK(data_provider_module_);
     CHECK(left_frame);
-    stereo_data_provider_module_->fillLeftFrameQueueBlockingIfFull(
+    data_provider_module_->fillLeftFrameQueueBlockingIfFull(
         std::move(left_frame));
   }
   inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
-    CHECK(stereo_data_provider_module_);
+    CHECK(data_provider_module_);
     CHECK(right_frame);
-    stereo_data_provider_module_->fillRightFrameQueueBlockingIfFull(
+    data_provider_module_->fillRightFrameQueueBlockingIfFull(
         std::move(right_frame));
   }
   //! Fill one IMU measurement at a time.
   inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
-    CHECK(stereo_data_provider_module_);
-    stereo_data_provider_module_->fillImuQueue(imu_measurement);
+    CHECK(data_provider_module_);
+    data_provider_module_->fillImuQueue(imu_measurement);
   }
   //! Fill multiple IMU measurements in batch
   inline void fillMultiImuQueue(const ImuMeasurements& imu_measurements) {
-    CHECK(stereo_data_provider_module_);
-    stereo_data_provider_module_->fillImuQueue(imu_measurements);
+    CHECK(data_provider_module_);
+    data_provider_module_->fillImuQueue(imu_measurements);
   }
 
  public:
@@ -104,6 +104,20 @@ class Pipeline {
    * parallel mode, it does not return unless shutdown.
    */
   bool spinViz();
+
+  /**
+   * @brief printStatus Returns a string with useful information to monitor the
+   * status of the pipeline, in particular, whether the pipeline's modules are
+   * working and if their queues are filled.
+   * @return String with pipeline status information
+   */
+  std::string printStatus() const;
+
+  /**
+   * @brief hasFinished
+   * @return Whether the pipeline has finished working or not.
+   */
+  bool hasFinished() const;
 
   /**
    * @brief shutdownWhenFinished
@@ -181,9 +195,9 @@ class Pipeline {
    */
   bool spin() {
     // Feed data to the pipeline
-    CHECK(stereo_data_provider_module_);
+    CHECK(data_provider_module_);
     LOG(INFO) << "Spinning Kimera-VIO.";
-    return stereo_data_provider_module_->spin();
+    return data_provider_module_->spin();
   }
 
   /**
@@ -244,7 +258,7 @@ class Pipeline {
 
   // Pipeline Modules
   //! Data provider.
-  StereoDataProviderModule::UniquePtr stereo_data_provider_module_;
+  StereoDataProviderModule::UniquePtr data_provider_module_;
 
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
