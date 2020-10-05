@@ -18,6 +18,8 @@
 #include <iostream>
 #include <random>
 
+#include <boost/smart_ptr/make_shared.hpp>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -231,14 +233,14 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
   backend_params_.initial_ground_truth_state_ =
       VioNavState(poses[0].first, velocity_x_, imu_bias_);
   gtsam::Pose3 B_pose_camLrect;
-  std::shared_ptr<VioBackEnd> vio =
+  std::shared_ptr<VioBackEnd> vio_backend =
       std::make_shared<VioBackEnd>(B_pose_camLrect,
                                    stereo_calibration,
                                    backend_params_,
                                    imu_params_,
                                    BackendOutputParams(false, 0, false),
                                    false);
-  vio->registerImuBiasUpdateCallback(std::bind(
+  vio_backend->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontEnd::updateBias, std::ref(imu_frontend), std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
@@ -290,18 +292,19 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
     // process data with VIO
-    vio->spinOnce(BackendInput(timestamp_k,
-                               all_measurements[k],
-                               tracker_status_valid.kfTrackingStatus_stereo_,
-                               pim,
-                               imu_accgyr));
+    vio_backend->spinOnce(
+        BackendInput(timestamp_k,
+                     all_measurements[k],
+                     tracker_status_valid.kfTrackingStatus_stereo_,
+                     pim,
+                     imu_accgyr));
 
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
 
     // Check the number of factors
-    const gtsam::NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
+    const gtsam::NonlinearFactorGraph& nlfg = vio_backend->getFactorsUnsafe();
     size_t nr_factors_in_smoother = 0u;
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) nr_factors_in_smoother++;
@@ -331,7 +334,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
     }
 
     // Check the results!
-    const gtsam::Values& results = vio->getState();
+    const gtsam::Values& results = vio_backend->getState();
     for (FrameId f_id = 0u; f_id <= k; f_id++) {
       Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
       gtsam::Vector3 W_Vel_Blkf =
@@ -342,6 +345,12 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
       EXPECT_LT((W_Vel_Blkf - velocity_x_).norm(), tol);
       EXPECT_LT((imu_bias_lkf - imu_bias_).vector().norm(), tol);
     }
+
+    LOG(ERROR) << "Saving graph: ";
+    std::string file_path = "graph.txt";
+    vio_backend->saveGraph(file_path);
+
+    vio_backend->computeStateCovariance();
   }
 }
 
@@ -351,6 +360,30 @@ TEST_F(BackendFixture, marginals) {
 
   gtsam::IncrementalFixedLagSmoother smoother(backend_params_.horizon_,
                                               isam_param);
+  // Build factor graph: one prior + btw factor
+  gtsam::NonlinearFactorGraph new_factors;
+
+  gtsam::Pose3 prior = gtsam::Pose3::identity();
+  gtsam::Vector6 precisions;
+  precisions.head<3>().setConstant(0.1);
+  precisions.tail<3>().setConstant(0.1);
+  const gtsam::SharedNoiseModel& noise =
+      gtsam::noiseModel::Diagonal::Precisions(precisions);
+
+  new_factors.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
+      1, prior, noise);
+
+  gtsam::Pose3 btw_pose = gtsam::Pose3::identity();
+  new_factors.push_back(boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
+      1, 2, btw_pose, noise));
+
+  gtsam::Values new_values;
+  new_values.insert(1, Pose3::identity());
+  new_values.insert(2, Pose3::identity());
+
+  // Optimize
+  smoother.update(new_factors, new_values);
+
   gtsam::Values state = smoother.calculateEstimate();
   gtsam::Marginals marginals(
       smoother.getFactors(), state, gtsam::Marginals::Factorization::CHOLESKY);

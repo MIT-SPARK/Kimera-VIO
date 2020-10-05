@@ -187,6 +187,11 @@ class VioBackEnd {
         VioNavStateTimestamped(input.timestamp_, initial_state_estimate));
   }
 
+  inline void saveGraph(const std::string& filepath) const {
+    OfstreamWrapper ofstream_wrapper (filepath);
+    smoother_->getFactors().saveGraph(ofstream_wrapper.ofstream_);
+  }
+
  protected:
   enum class BackendState {
     Bootstrap = 0u,  //! Initialize backend
