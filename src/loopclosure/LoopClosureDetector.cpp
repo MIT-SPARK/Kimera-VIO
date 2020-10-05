@@ -23,6 +23,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
 #include <opengv/relative_pose/CentralRelativeAdapter.hpp>
@@ -503,7 +504,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Unit::Create(6);
   nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-      gtsam::Symbol('x', query_id), gtsam::Pose3, noise));
+      gtsam::Symbol('x', query_id), gtsam::Pose3(), noise));
 
   gtsam::SharedNoiseModel noise_stereo = gtsam::noiseModel::Unit::Create(3);
   for (size_t i = 0; i < inlier_id_in_query_frame.size(); i++) {
@@ -520,9 +521,8 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
     SmartStereoFactor stereo_factor_i(noise_stereo);
 
-    // TODO: add stereo calibration
     stereo_factor_i.add(
-        sp_query_i, gtsam::Symbol('x', query_id), B_Pose_camLrect_);
+        sp_query_i, gtsam::Symbol('x', query_id), stereo_calibration_);
 
     KeypointCV undistorted_rectified_left_match_keypoint =
         (db_frames_[match_id]
@@ -536,7 +536,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
                                    undistorted_rectified_left_match_keypoint.y);
 
     stereo_factor_i.add(
-        sp_match_i, gtsam::Symbol('x', match_id), B_Pose_camLrect_);
+        sp_match_i, gtsam::Symbol('x', match_id), stereo_calibration_);
 
     nfg.add(stereo_factor_i);
   }
@@ -585,6 +585,16 @@ void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
   lcd_params_.principle_point_ = cv::Point2d(intrinsics[2], intrinsics[3]);
 
   B_Pose_camLrect_ = stereo_frame.getBPoseCamLRect();
+
+  gtsam::Cal3_S2 left_undist_rect_cam_mat =
+      stereo_frame.getLeftUndistRectCamMat();
+  stereo_calibration_ =
+      boost::make_shared<gtsam::Cal3_S2Stereo>(left_undist_rect_cam_mat.fx(),
+                                               left_undist_rect_cam_mat.fy(),
+                                               left_undist_rect_cam_mat.skew(),
+                                               left_undist_rect_cam_mat.px(),
+                                               left_undist_rect_cam_mat.py(),
+                                               stereo_frame.getBaseline());
   set_intrinsics_ = true;
 }
 
@@ -742,8 +752,6 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
 
   // We reserve instead of resize because some of the matches will be pruned.
   const size_t& n_matches = matches.size();
-  i_query->reserve(n_matches);
-  i_match->reserve(n_matches);
   for (size_t i = 0; i < n_matches; i++) {
     const DMatchVec& match = matches[i];
     CHECK_EQ(match.size(), 2);

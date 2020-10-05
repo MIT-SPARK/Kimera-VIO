@@ -396,6 +396,7 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
+  gtsam::Cal3_S2Stereo::shared_ptr stereo_calibration_;
 
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
