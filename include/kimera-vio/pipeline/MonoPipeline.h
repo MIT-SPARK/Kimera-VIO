@@ -74,6 +74,22 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
 
   void shutdown() override;
 
+  std::string printStatus() const override {
+    std::stringstream ss;
+    ss << "Data provider is working? " << !data_provider_module_->isWorking()
+       << '\n';
+
+    return Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::printStatus() +
+           ss.str();
+  }
+
+  bool hasFinished() const override {
+    CHECK(data_provider_module_);
+
+    return Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::hasFinished() &&
+           !data_provider_module_->isWorking();
+  }
+
  protected:
   void spinSequential() override;
 

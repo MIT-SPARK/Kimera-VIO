@@ -101,6 +101,23 @@ class StereoPipeline : public Pipeline<StereoImuSyncPacket, StereoFrontendOutput
 
   void shutdown() override;
 
+  std::string printStatus() const override {
+    std::stringstream ss;
+    ss << "Data provider is working? " 
+       << !data_provider_module_->isWorking()
+       << '\n';
+
+    return Pipeline<StereoImuSyncPacket, StereoFrontendOutput>::printStatus()
+        + ss.str();
+  }
+
+  bool hasFinished() const override {
+    CHECK(data_provider_module_);
+
+    return Pipeline<StereoImuSyncPacket, StereoFrontendOutput>::hasFinished() &&
+           !data_provider_module_->isWorking();
+  }
+
  protected:
   void spinSequential() override;
 

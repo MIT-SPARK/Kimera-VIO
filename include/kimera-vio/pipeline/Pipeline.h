@@ -104,6 +104,84 @@ class Pipeline {
   }
 
   /**
+   * @brief printStatus Returns a string with useful information to monitor the
+   * status of the pipeline, in particular, whether the pipeline's modules are
+   * working and if their queues are filled.
+   * @return String with pipeline status information
+   */
+  virtual std::string printStatus() const {
+    std::stringstream ss;
+    ss << "shutdown_: " << shutdown_ << '\n'
+       << "VIO pipeline status: \n"
+       << "Pipeline initialized? " << isInitialized() << '\n'
+       << "Frontend initialized? " << vio_frontend_module_->isInitialized()
+       << '\n'
+       << "Backend initialized? " << vio_backend_module_->isInitialized()
+       << '\n'
+       << "Frontend input queue shutdown? "
+       << frontend_input_queue_.isShutdown() << '\n'
+       << "Frontend input queue empty? " << frontend_input_queue_.empty()
+       << '\n'
+       << "Frontend is working? " << vio_frontend_module_->isWorking() << '\n'
+       << "Backend Input queue shutdown? " << backend_input_queue_.isShutdown()
+       << '\n'
+       << "Backend Input queue empty? " << backend_input_queue_.empty() << '\n'
+       << "Backend is working? " << vio_backend_module_->isWorking() << '\n'
+       << (mesher_module_
+               ? ("Mesher is working? " +
+                  std::string(mesher_module_->isWorking() ? "Yes" : "No"))
+               : "No mesher module.")
+       << '\n'
+       << (lcd_module_ ? ("LCD is working? " +
+                          std::string(lcd_module_->isWorking() ? "Yes" : "No"))
+                       : "No LCD module.")
+       << '\n'
+       << (visualizer_module_
+               ? ("Visualizer is working? " +
+                  std::string(visualizer_module_->isWorking() ? "Yes" : "No"))
+               : "No visualizer module.")
+       << '\n'
+       << "Display Input queue shutdown? " << display_input_queue_.isShutdown()
+       << '\n'
+       << "Display Input queue empty? " << display_input_queue_.empty() << '\n'
+       << (display_module_
+               ? ("Displayer is working? " +
+                  std::string(display_module_->isWorking() ? "Yes" : "No"))
+               : "No display module.");
+    return ss.str();
+  }
+
+  /**
+   * @brief hasFinished
+   * @return Whether the pipeline has finished working or not.
+   */
+  virtual bool hasFinished() const {  
+    CHECK(vio_frontend_module_);
+    CHECK(vio_backend_module_);
+
+    // This is a very rough way of knowing if we have finished...
+    // Since threads might be in the middle of processing data while we
+    // query if the queues are empty.
+    return !(              // Negate everything (too lazy to negate everything)
+        !shutdown_ &&      // Loop while not explicitly shutdown.
+        is_backend_ok_ &&  // Loop while backend is fine.
+        (!isInitialized() ||  // Pipeline is not initialized and
+                              // data is not yet consumed.
+         !((frontend_input_queue_.isShutdown() ||
+            frontend_input_queue_.empty()) &&
+           !vio_frontend_module_->isWorking() &&
+           (backend_input_queue_.isShutdown() ||
+            backend_input_queue_.empty()) &&
+           !vio_backend_module_->isWorking() &&
+           (mesher_module_ ? !mesher_module_->isWorking() : true) &&
+           (lcd_module_ ? !lcd_module_->isWorking() : true) &&
+           (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
+           (display_input_queue_.isShutdown() ||
+            display_input_queue_.empty()) &&
+           (display_module_ ? !display_module_->isWorking() : true))));
+  }
+
+  /**
    * @brief shutdownWhenFinished
    * Shutdown the pipeline once all data has been consumed, or if the backend
    * has died unexpectedly.
@@ -271,7 +349,6 @@ class Pipeline {
     VLOG(1) << "Stopping workers and queues...";
 
     backend_input_queue_.shutdown();
-    // TODO(marcus): enable:
     CHECK(vio_backend_module_);
     vio_backend_module_->shutdown();
 
@@ -335,9 +412,7 @@ class Pipeline {
   //! Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
 
-  //! Callback called when the VIO pipeline has shut down.
-  ShutdownPipelineCallback shutdown_pipeline_cb_;
-
+  // Pipeline Modules
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
   typename VisionFrontEndModule<FInput, FOutput>::UniquePtr vio_frontend_module_;
@@ -368,6 +443,10 @@ class Pipeline {
 
   // Atomic Flags
   std::atomic_bool is_backend_ok_ = {true};
+
+  // Pipeline Callbacks
+  //! Callback called when the VIO pipeline has shut down.
+  ShutdownPipelineCallback shutdown_pipeline_cb_;
 
   // Pipeline Threads.
   std::unique_ptr<std::thread> frontend_thread_ = {nullptr};
