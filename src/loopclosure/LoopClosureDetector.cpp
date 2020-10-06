@@ -370,7 +370,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
                                                       &bodyCur_T_bodyRef_stereo,
                                                       &i_query,
                                                       &i_match);
-              // TODO (Yun, Luca) Add factor graph
+
               if (!pass_3d_pose_compute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
               } else {
@@ -407,8 +407,8 @@ bool LoopClosureDetector::geometricVerificationCheck(
       return geometricVerificationNister(query_id,
                                          match_id,
                                          camCur_T_camRef_mono,
-                                         inlier_id_in_match_frame,
-                                         inlier_id_in_query_frame);
+                                         inlier_id_in_query_frame,
+                                         inlier_id_in_match_frame);
     }
     case GeomVerifOption::NONE: {
       return true;
@@ -739,6 +739,8 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
                                                 bool cut_matches) const {
   CHECK_NOTNULL(i_query);
   CHECK_NOTNULL(i_match);
+  i_query->clear();
+  i_match->clear();
 
   // Get two best matches between frame descriptors.
   std::vector<DMatchVec> matches;
