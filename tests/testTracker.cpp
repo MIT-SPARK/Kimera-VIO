@@ -137,6 +137,9 @@ class TestTracker : public ::testing::Test {
 
     stereo_matcher_->sparseStereoReconstruction(ref_stereo_frame.get());
     stereo_matcher_->sparseStereoReconstruction(cur_stereo_frame.get());
+
+    ClearStereoFrame(ref_stereo_frame.get());
+    ClearStereoFrame(cur_stereo_frame.get());
   }
 
   Vector3 IntersectVersorPlane(const Vector3& versor,
@@ -318,8 +321,7 @@ class TestTracker : public ::testing::Test {
   void AddVersorsToStereoFrames(StereoFrame* sf_ref,
                                 StereoFrame* sf_cur,
                                 Vector3& v_ref,
-                                Vector3& v_cur,
-                                bool zero_depth=false) {
+                                Vector3& v_cur) {
     CHECK_NOTNULL(sf_ref);
     CHECK_NOTNULL(sf_cur);
     // Decide the largest landmark IDs for each frame!
@@ -374,13 +376,8 @@ class TestTracker : public ::testing::Test {
         KeypointCV(sp2.uR(), sp2.v())));
 
     // depth!
-    if (zero_depth) {
-      sf_ref->keypoints_depth_.push_back(0.0);
-      sf_cur->keypoints_depth_.push_back(0.0);
-    } else {
-      sf_ref->keypoints_depth_.push_back(v_ref.norm());
-      sf_cur->keypoints_depth_.push_back(v_cur.norm());
-    }
+    sf_ref->keypoints_depth_.push_back(v_ref.norm());
+    sf_cur->keypoints_depth_.push_back(v_cur.norm());
 
     // Assign landmark ids to them!
     sf_ref->left_frame_.landmarks_.push_back(max_id + 1);
@@ -475,7 +472,7 @@ class TestTracker : public ::testing::Test {
           continue;
         } else {
           // true outliers
-          AddVersorsToStereoFrames(sf_ref, sf_cur, versor_ref, versor_cur, true);
+          AddVersorsToStereoFrames(sf_ref, sf_cur, versor_ref, versor_cur);
           break;
         }
       }
@@ -532,7 +529,7 @@ class TestTracker : public ::testing::Test {
 
     default_random_engine generator;
     Matrix3 sampleCovariance = Matrix3::Zero();
-    int nrRuns = 100000;
+    int nrRuns = 1000000;
     for (int i = 0; i < nrRuns; i++) {  // monte carlo runs
 
       normal_distribution<double> pixelNoise(
@@ -783,7 +780,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
   test_configurations.push_back(std::make_tuple(false, 80, 40, 0));
   // Test case 4: Noisy/Outlier test, Planar scene, 80 inliers, 40 outliers,
   // noise_level 1
-  test_configurations.push_back(std::make_tuple(true, 80, 40, 0.1));
+  test_configurations.push_back(std::make_tuple(true, 80, 40, 0.01));
 
   for (size_t testId = 0; testId < test_configurations.size(); testId++) {
     auto test_conf = test_configurations.at(testId);

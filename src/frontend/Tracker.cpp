@@ -779,10 +779,12 @@ void Tracker::removeOutliersStereo(const std::vector<int>& inliers,
     const KeypointMatch& kp_match = (*matches_ref_cur)[out];
     ref_stereoFrame->right_keypoints_rectified_.at(kp_match.first).first =
         KeypointStatus::FAILED_ARUN;
+    ref_stereoFrame->keypoints_depth_.at(kp_match.first) = 0.0;
     ref_stereoFrame->keypoints_3d_.at(kp_match.first) = Vector3::Zero();
 
     cur_stereoFrame->right_keypoints_rectified_.at(kp_match.second).first =
         KeypointStatus::FAILED_ARUN;
+    cur_stereoFrame->keypoints_depth_.at(kp_match.second) = 0.0;
     cur_stereoFrame->keypoints_3d_.at(kp_match.second) = Vector3::Zero();
   }
 
