@@ -318,7 +318,8 @@ class TestTracker : public ::testing::Test {
   void AddVersorsToStereoFrames(StereoFrame* sf_ref,
                                 StereoFrame* sf_cur,
                                 Vector3& v_ref,
-                                Vector3& v_cur) {
+                                Vector3& v_cur,
+                                bool zero_depth=false) {
     CHECK_NOTNULL(sf_ref);
     CHECK_NOTNULL(sf_cur);
     // Decide the largest landmark IDs for each frame!
@@ -372,6 +373,15 @@ class TestTracker : public ::testing::Test {
         StatusKeypointCV(KeypointStatus::VALID,
         KeypointCV(sp2.uR(), sp2.v())));
 
+    // depth!
+    if (zero_depth) {
+      sf_ref->keypoints_depth_.push_back(0.0);
+      sf_cur->keypoints_depth_.push_back(0.0);
+    } else {
+      sf_ref->keypoints_depth_.push_back(v_ref.norm());
+      sf_cur->keypoints_depth_.push_back(v_cur.norm());
+    }
+
     // Assign landmark ids to them!
     sf_ref->left_frame_.landmarks_.push_back(max_id + 1);
     sf_cur->left_frame_.landmarks_.push_back(max_id + 1);
@@ -418,6 +428,7 @@ class TestTracker : public ::testing::Test {
     ClearFrame(&sf->left_frame_);
     ClearFrame(&sf->right_frame_);
     sf->keypoints_3d_.clear();
+    sf->keypoints_depth_.clear();
     sf->left_keypoints_rectified_.clear();
     sf->right_keypoints_rectified_.clear();
   }
@@ -464,7 +475,7 @@ class TestTracker : public ::testing::Test {
           continue;
         } else {
           // true outliers
-          AddVersorsToStereoFrames(sf_ref, sf_cur, versor_ref, versor_cur);
+          AddVersorsToStereoFrames(sf_ref, sf_cur, versor_ref, versor_cur, true);
           break;
         }
       }
@@ -836,24 +847,28 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
       for (int i = 0; i < inlier_num; i++) {
         EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
-        EXPECT_GT((ref_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
+        EXPECT_NE(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
+        EXPECT_GT((ref_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
 
         EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
-        EXPECT_GT((cur_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
+        EXPECT_NE(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
+        EXPECT_GT((cur_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
       }
 
       for (int i = inlier_num; i < inlier_num + outlier_num; i++) {
         EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
-        EXPECT_LT((ref_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
+        EXPECT_EQ(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
+        EXPECT_LT((ref_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
 
         EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
-        EXPECT_LT((cur_stereo_frame->keypoints_3d_[i] - Vector3::Zero()).norm(),
+        EXPECT_EQ(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
+        EXPECT_LT((cur_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
       }
 
@@ -971,11 +986,13 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       for (int i = 0; i < inlier_num; i++) {
         EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
+        EXPECT_NE(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
         EXPECT_GT((ref_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
 
         EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::VALID);
+        EXPECT_NE(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
         EXPECT_GT((cur_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
       }
@@ -983,11 +1000,13 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       for (int i = inlier_num; i < inlier_num + outlier_num; i++) {
         EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
+        EXPECT_EQ(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
         EXPECT_LT((ref_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
 
         EXPECT_EQ(cur_stereo_frame->right_keypoints_rectified_.at(i).first,
                   KeypointStatus::FAILED_ARUN);
+        EXPECT_EQ(ref_stereo_frame->keypoints_depth_.at(i), 0.0);
         EXPECT_LT((cur_stereo_frame->keypoints_3d_.at(i) - Vector3::Zero()).norm(),
                   tol);
       }
