@@ -377,8 +377,8 @@ TEST_F(LCDFixture, recoverPoseArun) {
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       ref1_to_cur1_pose_, pose_1, true);
 
-  EXPECT_LT(error.first, rot_tol);
-  EXPECT_LT(error.second, tran_tol);
+  EXPECT_LT(error.first, rot_tol * 2.0);
+  EXPECT_LT(error.second, tran_tol * 2.0);
 
   /* Test proper scaled pose recovery between extra and extra_2 images */
   // TODO(marcus): fail this test, likely because extra is just too hard

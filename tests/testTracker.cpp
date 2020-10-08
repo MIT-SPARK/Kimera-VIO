@@ -877,7 +877,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         Vector3 Tactual = estimated_pose.translation();
         EXPECT_TRUE(assert_equal(T, Tactual, tolPoint3));
       } else {
-        tolPoint3 = 1e-2;  // noisy case
+        tolPoint3 = 1e-1;  // noisy case
       }
 
       for (int i = 0; i < inlier_num; i++) {  // compare only inliers
