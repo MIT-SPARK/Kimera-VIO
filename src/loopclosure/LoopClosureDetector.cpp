@@ -512,6 +512,18 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   //                                            camMatch_T_camQuery_stereo,
   //                                            noise));
   gtsam::SharedNoiseModel noise_stereo = gtsam::noiseModel::Unit::Create(3);
+
+  gtsam::SmartStereoProjectionParams smart_factors_params;
+  smart_factors_params =
+      SmartFactorParams(gtsam::HESSIAN,             // JACOBIAN_SVD
+                        gtsam::ZERO_ON_DEGENERACY,  // IGNORE_DEGENERACY
+                        false,                      // ThrowCherality = false
+                        true);                      // verboseCherality = true
+  smart_factors_params.setRankTolerance(1);
+  smart_factors_params.setLandmarkDistanceThreshold(10);
+  smart_factors_params.setRetriangulationThreshold(0.001);
+  smart_factors_params.setDynamicOutlierRejectionThreshold(3);
+
   for (size_t i = 0; i < inlier_id_in_query_frame.size(); i++) {
     KeypointCV undistorted_rectified_left_query_keypoint =
         (db_frames_[query_id]
@@ -524,7 +536,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
                                    undistorted_rectified_right_query_keypoint.x,
                                    undistorted_rectified_left_query_keypoint.y);
 
-    SmartStereoFactor stereo_factor_i(noise_stereo);
+    SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
 
     stereo_factor_i.add(
         sp_query_i, key_query, stereo_calibration_);
