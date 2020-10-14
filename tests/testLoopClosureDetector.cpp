@@ -38,7 +38,7 @@ class LCDFixture : public ::testing::Test {
  protected:
   // Tolerances
   const double tol = 1e-7;
-  const double rot_tol = 0.05;
+  const double rot_tol = 0.1;
   const double tran_tol = 0.20;
 
  public:
@@ -335,14 +335,14 @@ TEST_F(LCDFixture, recoverPoseArun) {
   lcd_detector_->processAndAddFrame(*cur1_stereo_frame_);
 
   // Find correspondences between keypoints.
-  std::vector<FrameId> i_query, i_match;
-  lcd_detector_->computeMatchedIndices(1, 0, &i_query, &i_match, true);
+  std::vector<FrameId> i_cur, i_ref;
+  lcd_detector_->computeMatchedIndices(1, 0, &i_cur, &i_ref, true);
 
-  gtsam::Pose3 pose_1;
-  lcd_detector_->recoverPose(1, 0, empty_pose, &pose_1, &i_query, &i_match);
-
+  gtsam::Pose3 bodyRef_T_bodyCur;
+  lcd_detector_->recoverPose(
+      1, 0, empty_pose, &bodyRef_T_bodyCur, &i_cur, &i_ref);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      ref1_to_cur1_pose_, pose_1, true);
+      ref1_to_cur1_pose_, bodyRef_T_bodyCur, true);
 
   EXPECT_LT(error.first, rot_tol);
   EXPECT_LT(error.second, tran_tol);
@@ -383,15 +383,15 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
                                                &cam_input_pose);
 
   // Find correspondences between keypoints.
-  std::vector<FrameId> i_query, i_match;
-  lcd_detector_->computeMatchedIndices(1, 0, &i_query, &i_match, true);
+  std::vector<FrameId> i_cur, i_ref;
+  lcd_detector_->computeMatchedIndices(1, 0, &i_cur, &i_ref, true);
 
-  gtsam::Pose3 pose_0_1;
+  gtsam::Pose3 bodyRef_T_bodyCur;
   lcd_detector_->recoverPose(
-      1, 0, cam_input_pose, &pose_0_1, &i_query, &i_match);
+      1, 0, cam_input_pose, &bodyRef_T_bodyCur, &i_cur, &i_ref);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      ref1_to_cur1_pose_, pose_0_1, false);
+      ref1_to_cur1_pose_, bodyRef_T_bodyCur, false);
   EXPECT_LT(error.first, rot_tol);
   EXPECT_LT(error.second, tran_tol);
 
@@ -408,14 +408,13 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
                                                &cam_input_pose);
 
   // Find correspondences between keypoints.
-  lcd_detector_->computeMatchedIndices(3, 2, &i_query, &i_match, true);
+  lcd_detector_->computeMatchedIndices(3, 2, &i_cur, &i_ref, true);
 
-  gtsam::Pose3 pose_2_3;
-  lcd_detector_->recoverPose(
-      3, 2, cam_input_pose, &pose_2_3, &i_query, &i_match);
+  gtsam::Pose3 body2_T_body3;
+  lcd_detector_->recoverPose(3, 2, cam_input_pose, &body2_T_body3, &i_cur, &i_ref);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      ref2_to_cur2_pose_, pose_2_3, true);
+      ref2_to_cur2_pose_, body2_T_body3, true);
   EXPECT_LT(error.first, rot_tol);
   EXPECT_LT(error.second, tran_tol);
 }
