@@ -74,18 +74,22 @@ class LCDFixture : public ::testing::Test {
 
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
+    // Euroc V1_01_easy ts: 1403715386762142976
     world_T_match1_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),
         gtsam::Point3(1.573832, 2.023348, 1.738755));
 
+    // Euroc V1_01_easy ts: 1403715288312143104
     world_T_query1_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.478634, 0.415595, -0.700197, 0.328505)),
         gtsam::Point3(1.872115, 1.786064, 1.586159));
 
+    // Euroc V1_01_easy ts: 1403715400762142976
     world_T_match2_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.3394, -0.672895, -0.492724, -0.435018)),
         gtsam::Point3(-0.662997, -0.495046, 1.347300));
 
+    // Euroc V1_01_easy ts: 1403715400262142976
     world_T_query2_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.39266, -0.590667, -0.58023, -0.400326)),
         gtsam::Point3(-0.345638, -0.501712, 1.320441));
