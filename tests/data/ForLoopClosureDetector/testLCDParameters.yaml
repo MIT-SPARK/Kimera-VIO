@@ -26,6 +26,7 @@ ransac_threshold_stereo: 0.15
 ransac_randomize_stereo: 0
 ransac_inlier_threshold_stereo: 0.0
 use_mono_rot: 0
+refine_pose: 1
 
 lowe_ratio: 0.7
 matcher_type: 3

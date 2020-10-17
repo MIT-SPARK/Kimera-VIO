@@ -61,7 +61,7 @@ class LoopClosureDetectorParams : public PipelineParams {
       bool ransac_randomize_stereo = false,
       double ransac_inlier_threshold_stereo = 0.5,
       bool use_mono_rot = true,
-
+      bool refine_pose = true,
       double lowe_ratio = 0.7,
 #if CV_VERSION_MAJOR == 3
       int matcher_type = cv::DescriptorMatcher::BRUTEFORCE_HAMMING,
@@ -130,7 +130,7 @@ class LoopClosureDetectorParams : public PipelineParams {
       ransac_randomize_stereo_== rhs.ransac_randomize_stereo_ &&
       ransac_inlier_threshold_stereo_== rhs.ransac_inlier_threshold_stereo_ &&
       use_mono_rot_== rhs.use_mono_rot_ &&
-
+      refine_pose_ == rhs.refine_pose_ &&
       lowe_ratio_== rhs.lowe_ratio_ &&
       matcher_type_== rhs.matcher_type_ &&
 
@@ -187,6 +187,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   bool ransac_randomize_stereo_;
   double ransac_inlier_threshold_stereo_;
   bool use_mono_rot_;
+  bool refine_pose_;
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature matching params ////////////////////////

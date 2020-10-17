@@ -458,12 +458,13 @@ bool LoopClosureDetector::recoverPose(
                         static_cast<int>(lcd_params_.pose_recovery_option_));
     }
   }
-
-  camMatch_T_camQuery_stereo = refinePoses(query_id,
-                                           match_id,
-                                           camMatch_T_camQuery_stereo,
-                                           *inlier_id_in_query_frame,
-                                           *inlier_id_in_match_frame);
+  if (lcd_params_.refine_pose_) {
+    camMatch_T_camQuery_stereo = refinePoses(query_id,
+                                             match_id,
+                                             camMatch_T_camQuery_stereo,
+                                             *inlier_id_in_query_frame,
+                                             *inlier_id_in_match_frame);
+  }
 
   transformCameraPoseToBodyPose(camMatch_T_camQuery_stereo,
                                 bodyMatch_T_bodyQuery_stereo);
