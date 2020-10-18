@@ -47,7 +47,7 @@ DECLARE_bool(use_lcd);
 
 namespace VIO {
 
-template <class FInput, class FOutput>
+template <class FrontendInputPacketBase, class FrontendOutputPacketBase>
 class Pipeline {
  public:
   KIMERA_POINTER_TYPEDEFS(Pipeline);
@@ -241,7 +241,7 @@ class Pipeline {
 
  protected:
   // Spin the pipeline only once.
-  virtual void spinOnce(std::unique_ptr<FInput> input) {
+  virtual void spinOnce(std::unique_ptr<FrontendInputPacketBase> input) {
     CHECK(input);
     if (!shutdown_) {
       // Push to frontend input queue.
@@ -287,7 +287,9 @@ class Pipeline {
   }
 
   inline void registerFrontendOutputCallback(
-      const MonoVisionFrontEndModule::OutputCallback& callback) {
+      const typename VisionFrontEndModule<
+          FrontendInputPacketBase,
+          FrontendOutputPacketBase>::OutputCallback& callback) {
     CHECK(vio_frontend_module_);
     vio_frontend_module_->registerOutputCallback(callback);
   }
@@ -316,7 +318,8 @@ class Pipeline {
   virtual void launchThreads() {
     if (parallel_run_) {
       frontend_thread_ = VIO::make_unique<std::thread>(
-          &VisionFrontEndModule<FInput, FOutput>::spin,
+          &VisionFrontEndModule<FrontendInputPacketBase,
+                                FrontendOutputPacketBase>::spin,
           CHECK_NOTNULL(vio_frontend_module_.get()));
 
       backend_thread_ = VIO::make_unique<std::thread>(
@@ -415,10 +418,12 @@ class Pipeline {
   // Pipeline Modules
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
-  typename VisionFrontEndModule<FInput, FOutput>::UniquePtr vio_frontend_module_;
+  typename VisionFrontEndModule<FrontendInputPacketBase,
+                                FrontendOutputPacketBase>::UniquePtr vio_frontend_module_;
 
   //! Vision frontend payloads.
-  typename VisionFrontEndModule<FInput, FOutput>::InputQueue frontend_input_queue_;
+  typename VisionFrontEndModule<FrontendInputPacketBase,
+                                FrontendOutputPacketBase>::InputQueue frontend_input_queue_;
 
   //! Backend
   VioBackEndModule::UniquePtr vio_backend_module_;

@@ -14,19 +14,21 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
+
 #include <atomic>
 #include <memory>
 
-#include <gflags/gflags.h>
-
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
-#include "kimera-vio/pipeline/PipelineModule.h"
 
 DECLARE_bool(visualize_feature_tracks);
 DECLARE_bool(visualize_frontend_images);
@@ -37,7 +39,6 @@ DECLARE_bool(log_stereo_matching_images);
 
 namespace VIO {
 
-template<class InputT, class OutputT>
 class VisionFrontEnd {
  public:
   KIMERA_POINTER_TYPEDEFS(VisionFrontEnd);
@@ -67,7 +68,8 @@ class VisionFrontEnd {
   }
 
  public:
-  std::unique_ptr<OutputT> spinOnce(const InputT& input) {
+  std::unique_ptr<FrontendOutputPacketBase>
+      spinOnce(const FrontendInputPacketBase& input) {
     switch(frontend_state_) {
       case FrontendState::Bootstrap: {
         return bootstrapSpin(input);
@@ -130,9 +132,11 @@ class VisionFrontEnd {
   }
 
  protected:
-  virtual std::unique_ptr<OutputT> bootstrapSpin(const InputT& input) = 0;
+  virtual std::unique_ptr<FrontendOutputPacketBase>
+      bootstrapSpin(const FrontendInputPacketBase& input) = 0;
 
-  virtual std::unique_ptr<OutputT> nominalSpin(const InputT& input) = 0;
+  virtual std::unique_ptr<FrontendOutputPacketBase>
+      nominalSpin(const FrontendInputPacketBase& input) = 0;
 
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.

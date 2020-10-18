@@ -14,12 +14,10 @@
 
 #pragma once
 
-#include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
-#include "kimera-vio/pipeline/PipelinePayload.h"
-#include "kimera-vio/utils/Macros.h"
+
 
 namespace VIO {
 
@@ -32,7 +30,7 @@ enum class FrontendType {
   kStereoImu = 1
 };
 
-struct StereoFrontendOutput : public PipelinePayload {
+struct StereoFrontendOutput : public FrontendOutputPacketBase {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoFrontendOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoFrontendOutput);
@@ -48,29 +46,26 @@ struct StereoFrontendOutput : public PipelinePayload {
                  const ImuAccGyrS& imu_acc_gyrs,
                  const cv::Mat& feature_tracks,
                  const DebugTrackerInfo& debug_tracker_info)
-      : PipelinePayload(stereo_frame_lkf.timestamp_),
-        is_keyframe_(is_keyframe),
+      : FrontendOutputPacketBase(stereo_frame_lkf.timestamp_,
+                                 is_keyframe,
+                                 pim,
+                                 imu_acc_gyrs),
         status_stereo_measurements_(status_stereo_measurements),
         tracker_status_(tracker_status),
         relative_pose_body_stereo_(relative_pose_body_stereo),
         b_Pose_camL_rect_(b_Pose_camL_rect),
         stereo_frame_lkf_(stereo_frame_lkf),
-        pim_(pim),
-        imu_acc_gyrs_(imu_acc_gyrs),
         debug_tracker_info_(debug_tracker_info),
         feature_tracks_(feature_tracks) {}
 
   virtual ~StereoFrontendOutput() = default;
 
  public:
-  const bool is_keyframe_;
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
   const gtsam::Pose3 b_Pose_camL_rect_;
   const StereoFrame stereo_frame_lkf_;
-  const ImuFrontEnd::PimPtr pim_;
-  const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
   const cv::Mat feature_tracks_;
 

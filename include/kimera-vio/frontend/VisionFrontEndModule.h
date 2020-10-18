@@ -23,7 +23,8 @@
 
 namespace VIO {
 
-template <typename Input, typename Output>
+template <typename Input = FrontendInputPacketBase,
+          typename Output = FrontendOutputPacketBase>
 class VisionFrontEndModule : public SIMOPipelineModule<Input, Output> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisionFrontEndModule);
@@ -43,7 +44,7 @@ class VisionFrontEndModule : public SIMOPipelineModule<Input, Output> {
   explicit VisionFrontEndModule(
       InputQueue* input_queue,
       bool parallel_run,
-      std::unique_ptr<VisionFrontEnd<Input, Output>> vio_frontend)
+      std::unique_ptr<VisionFrontEnd> vio_frontend)
       : SIMO(input_queue, "VioFrontEnd", parallel_run),
         vio_frontend_(std::move(vio_frontend)) {
     CHECK(vio_frontend_);
@@ -76,7 +77,7 @@ class VisionFrontEndModule : public SIMOPipelineModule<Input, Output> {
   }
 
  private:
-  std::unique_ptr<VisionFrontEnd<Input, Output>> vio_frontend_;
+  std::unique_ptr<VisionFrontEnd> vio_frontend_;
 };
 
 typedef VisionFrontEndModule<MonoImuSyncPacket, MonoFrontendOutput>
