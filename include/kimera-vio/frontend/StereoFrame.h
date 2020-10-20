@@ -169,11 +169,6 @@ class StereoFrame {
   //! 3D positions of the stereo points as given by reprojection using stereo
   //! disparity; in the rectified left frame.
   std::vector<gtsam::Vector3> keypoints_3d_;
-
-  /// Friends with access rights to the StereoFrame inner members.
-  //! StereoMatcher computes the right keypoints for the left keypoints using
-  //! the rectified left/right frames and left keypoints.
-  friend class StereoMatcher;
 };
 
 }  // namespace VIO
