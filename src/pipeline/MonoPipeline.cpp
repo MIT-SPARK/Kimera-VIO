@@ -12,19 +12,22 @@
  * @author Marcus Abate
  */
 
-#include <string>
+#include "kimera-vio/pipeline/MonoPipeline.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <string>
+
 #include "kimera-vio/backend/VioBackEndFactory.h"
-#include "kimera-vio/frontend/VisionFrontEndFactory.h"
 #include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/VisionFrontEndFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/pipeline/Pipeline.h"
-#include "kimera-vio/pipeline/MonoPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/visualizer/DisplayFactory.h"
+#include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 namespace VIO {
 
@@ -208,84 +211,6 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   // }
 
   launchThreads();
-}
-
-/* -------------------------------------------------------------------------- */
-MonoPipeline::~MonoPipeline() {
-  if (!shutdown_) {
-    shutdown();
-  } else {
-    LOG(INFO) << "Manual shutdown was requested.";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
-                                        const bool& print_stats) {
-  LOG_IF(INFO, parallel_run_)
-      << "Shutting down VIO pipeline once processing has finished.";
-
-  CHECK(data_provider_module_);
-  CHECK(vio_frontend_module_);
-  CHECK(vio_backend_module_);
-
-  while (!hasFinished()) {
-    // Note that the values in the log below might be different than the
-    // evaluation above since they are separately evaluated at different times.
-    VLOG(5) << printStatus();
-
-    // Print all statistics
-    LOG_IF(INFO, print_stats) << utils::Statistics::Print();
-
-    // Time to sleep between queries to the queues [in milliseconds].
-    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-
-    if (!parallel_run_) {
-      // Don't break, otw we will shutdown the pipeline.
-      return false;
-    }
-  }
-  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
-               "idle.";
-  VLOG(5) << printStatus();
-  if (!shutdown_) shutdown();
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::shutdown() {
-  Pipeline::shutdown();
-  // Second: stop data provider
-  CHECK(data_provider_module_);
-  data_provider_module_->shutdown();
-
-  // Third: stop VIO's threads
-  stopThreads();
-  if (parallel_run_) {
-    joinThreads();
-  }
-  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
-            << "VIO Pipeline successful shutdown.";
-}
-
-void MonoPipeline::spinSequential() {
-  // Spin once each pipeline module.
-  CHECK(data_provider_module_);
-  data_provider_module_->spin();
-
-  CHECK(vio_frontend_module_);
-  vio_frontend_module_->spin();
-
-  CHECK(vio_backend_module_);
-  vio_backend_module_->spin();
-
-  if (mesher_module_) mesher_module_->spin();
-
-  if (lcd_module_) lcd_module_->spin();
-
-  if (visualizer_module_) visualizer_module_->spin();
-
-  if (display_module_) display_module_->spin();
 }
 
 }  // namespace VIO

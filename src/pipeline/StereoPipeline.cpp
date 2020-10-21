@@ -37,8 +37,7 @@ StereoPipeline::StereoPipeline(const VioParams& params,
                                Visualizer3D::UniquePtr&& visualizer,
                                DisplayBase::UniquePtr&& displayer)
     : Pipeline(params),
-      stereo_camera_(nullptr),
-      data_provider_module_(nullptr) {
+      stereo_camera_(nullptr) {
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u) << "Need two cameras for StereoPipeline.";
   stereo_camera_ = std::make_shared<StereoCamera>(
@@ -225,84 +224,6 @@ StereoPipeline::StereoPipeline(const VioParams& params,
   // All modules are ready, launch threads! If the parallel_run flag is set to
   // false this will not do anything.
   launchThreads();
-}
-
-/* -------------------------------------------------------------------------- */
-StereoPipeline::~StereoPipeline() {
-  if (!shutdown_) {
-    shutdown();
-  } else {
-    LOG(INFO) << "Manual shutdown was requested.";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-bool StereoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
-                                          const bool& print_stats) {
-  LOG_IF(INFO, parallel_run_)
-      << "Shutting down VIO pipeline once processing has finished.";
-
-  CHECK(data_provider_module_);
-  CHECK(vio_frontend_module_);
-  CHECK(vio_backend_module_);
-
-  while (!hasFinished()) {
-    // Note that the values in the log below might be different than the
-    // evaluation above since they are separately evaluated at different times.
-    VLOG(5) << printStatus();
-
-    // Print all statistics
-    LOG_IF(INFO, print_stats) << utils::Statistics::Print();
-
-    // Time to sleep between queries to the queues [in milliseconds].
-    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-
-    if (!parallel_run_) {
-      // Don't break, otw we will shutdown the pipeline.
-      return false;
-    }
-  }
-  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
-               "idle.";
-  VLOG(5) << printStatus();
-  if (!shutdown_) shutdown();
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void StereoPipeline::shutdown() {
-  Pipeline::shutdown();
-  // Second: stop data provider
-  CHECK(data_provider_module_);
-  data_provider_module_->shutdown();
-
-  // Third: stop VIO's threads
-  stopThreads();
-  if (parallel_run_) {
-    joinThreads();
-  }
-  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
-            << "VIO Pipeline successful shutdown.";
-}
-
-void StereoPipeline::spinSequential() {
-  // Spin once each pipeline module.
-  CHECK(data_provider_module_);
-  data_provider_module_->spin();
-
-  CHECK(vio_frontend_module_);
-  vio_frontend_module_->spin();
-
-  CHECK(vio_backend_module_);
-  vio_backend_module_->spin();
-
-  if (mesher_module_) mesher_module_->spin();
-
-  if (lcd_module_) lcd_module_->spin();
-
-  if (visualizer_module_) visualizer_module_->spin();
-
-  if (display_module_) display_module_->spin();
 }
 
 }  // namespace VIO

@@ -27,6 +27,7 @@
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/common/VioNavState.h"
+#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/MesherModule.h"
@@ -56,7 +57,32 @@ class Pipeline {
  public:
   Pipeline(const VioParams& params);
 
-  virtual ~Pipeline() = default;
+  virtual ~Pipeline();
+
+ public:
+  //! Callbacks to fill input queues.
+  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
+    CHECK(data_provider_module_);
+    CHECK(left_frame);
+    data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
+  }
+
+  inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
+    CHECK(data_provider_module_);
+    CHECK(left_frame);
+    data_provider_module_->fillLeftFrameQueueBlockingIfFull(
+        std::move(left_frame));
+  }
+
+  inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
+    CHECK(data_provider_module_);
+    data_provider_module_->fillImuQueue(imu_measurement);
+  }
+
+  inline void fillMultiImuQueue(const ImuMeasurements& imu_measurements) {
+    CHECK(data_provider_module_);
+    data_provider_module_->fillImuQueue(imu_measurements);
+  }
 
  public:
   /**
@@ -66,7 +92,8 @@ class Pipeline {
    * @return Data provider module state: false if finished or shutdown, true
    * if working nominally (it does not return unless shutdown in parallel mode).
    */
-  virtual bool spin() = 0;
+  virtual bool spin();
+
   /**
    * @brief spinViz Run an endless loop until shutdown to visualize.
    * @return Returns whether the visualizer_ is running or not. While in
@@ -97,7 +124,7 @@ class Pipeline {
    * if running in sequential mode, or if shutdown happens).
    */
   virtual bool shutdownWhenFinished(const int& sleep_time_ms = 500,
-                                    const bool& print_stats = false) = 0;
+                                    const bool& print_stats = false);
 
   /**
    * @brief shutdown Shutdown processing pipeline: stops and joins threads,
@@ -135,7 +162,7 @@ class Pipeline {
    * Must be written in the derived class because it references the data'
    * provider module.
   */
-  virtual void spinSequential() = 0;
+  virtual void spinSequential();
 
  protected:
   //! Initialize random seed for repeatability (only on the same machine).
@@ -213,6 +240,9 @@ class Pipeline {
   // Pipeline Modules
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
+  MonoDataProviderModule::UniquePtr data_provider_module_;
+
+  // Vision Frontend
   VisionFrontEndModule::UniquePtr vio_frontend_module_;
 
   //! Vision frontend payloads.

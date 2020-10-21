@@ -106,7 +106,24 @@ inline Derived safeCast(const Base& base) {
 }
 
 template <typename Base, typename Derived>
-inline std::unique_ptr<Derived> safeCast(std::unique_ptr<Base> base_ptr) {
+inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
+  CHECK(base_ptr);
+  try {
+    return std::dynamic_pointer_cast<Derived>(base_ptr);
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting an object that is not "
+                  "the one you expected!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when dynamic casting.";
+  }
+}
+
+// NOTE: pass by rvalue because this prevents the copy of the pointer and 
+// is faster. All others don't transfer ownership (aren't using move types)
+// and so don't need to pass by rvalue.
+template <typename Base, typename Derived>
+inline std::unique_ptr<Derived> safeCast(std::unique_ptr<Base>&& base_ptr) {
   std::unique_ptr<Derived> derived_ptr;
   Derived* tmp = nullptr;
   try {
@@ -124,23 +141,9 @@ inline std::unique_ptr<Derived> safeCast(std::unique_ptr<Base> base_ptr) {
   return derived_ptr;
 }
 
-template <typename Base, typename Derived>
-inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
-  CHECK(base_ptr);
-  try {
-    return std::dynamic_pointer_cast<Derived>(base_ptr);
-  } catch (const std::bad_cast& e) {
-    LOG(ERROR) << "Seems that you are casting an object that is not "
-                  "the one you expected!";
-    LOG(FATAL) << e.what();
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when dynamic casting.";
-  }
-}
-
 // TODO(marcus): document and decide on whether we should use it
 template <typename Base, typename Derived>
-inline std::unique_ptr<Derived> unsafeCast(std::unique_ptr<Base> base_ptr) {
+inline std::unique_ptr<Derived> unsafeCast(std::unique_ptr<Base>&& base_ptr) {
   std::unique_ptr<Derived> derived_ptr;
   Derived* tmp = static_cast<Derived*>(base_ptr.release());
   derived_ptr.reset(tmp);

@@ -55,6 +55,7 @@ Pipeline::Pipeline(const VioParams& params)
       imu_params_(params.imu_params_),
       parallel_run_(params.parallel_run_),
       shutdown_pipeline_cb_(nullptr),
+      data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
       vio_backend_module_(nullptr),
       mesher_module_(nullptr),
@@ -74,6 +75,21 @@ Pipeline::Pipeline(const VioParams& params)
   }
 }
 
+Pipeline::~Pipeline() {
+  if (!shutdown_) {
+    shutdown();
+  } else {
+    LOG(INFO) << "Manual shutdown was requested.";
+  }
+}
+
+bool Pipeline::spin() {
+  // Feed data to the pipeline
+  CHECK(data_provider_module_);
+  LOG(INFO) << "Spinning Kimera-VIO.";
+  return data_provider_module_->spin();
+}
+
 bool Pipeline::spinViz() {
   if (display_module_) {
     return display_module_->spin();
@@ -89,9 +105,12 @@ std::string Pipeline::printStatus() const {
      << "Frontend initialized? " << vio_frontend_module_->isInitialized()
      << '\n'
      << "Backend initialized? " << vio_backend_module_->isInitialized() << '\n'
-     << "Frontend input queue shutdown? " << frontend_input_queue_.isShutdown()
+     << "Data provider is working? " << data_provider_module_->isWorking()
      << '\n'
-     << "Frontend input queue empty? " << frontend_input_queue_.empty() << '\n'
+     << "Frontend input queue shutdown? "
+     << frontend_input_queue_.isShutdown() << '\n'
+     << "Frontend input queue empty? " << frontend_input_queue_.empty()
+     << '\n'
      << "Frontend is working? " << vio_frontend_module_->isWorking() << '\n'
      << "Backend Input queue shutdown? " << backend_input_queue_.isShutdown()
      << '\n'
@@ -121,30 +140,83 @@ std::string Pipeline::printStatus() const {
   return ss.str();
 }
 
-bool Pipeline::hasFinished() const {  
+/* -------------------------------------------------------------------------- */
+bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
+                                    const bool& print_stats) {
+  LOG_IF(INFO, parallel_run_)
+      << "Shutting down VIO pipeline once processing has finished.";
+
+  CHECK(data_provider_module_);
+  CHECK(vio_frontend_module_);
+  CHECK(vio_backend_module_);
+
+  while (!hasFinished()) {
+    // Note that the values in the log below might be different than the
+    // evaluation above since they are separately evaluated at different times.
+    VLOG(5) << printStatus();
+
+    // Print all statistics
+    LOG_IF(INFO, print_stats) << utils::Statistics::Print();
+
+    // Time to sleep between queries to the queues [in milliseconds].
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+
+    if (!parallel_run_) {
+      // Don't break, otw we will shutdown the pipeline.
+      return false;
+    }
+  }
+  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
+               "idle.";
+  VLOG(5) << printStatus();
+  if (!shutdown_) shutdown();
+  return true;
+}
+
+void Pipeline::spinSequential() {
+  // Spin once each pipeline module.
+  CHECK(data_provider_module_);
+  data_provider_module_->spin();
+
+  CHECK(vio_frontend_module_);
+  vio_frontend_module_->spin();
+
+  CHECK(vio_backend_module_);
+  vio_backend_module_->spin();
+
+  if (mesher_module_) mesher_module_->spin();
+
+  if (lcd_module_) lcd_module_->spin();
+
+  if (visualizer_module_) visualizer_module_->spin();
+
+  if (display_module_) display_module_->spin();
+}
+
+bool Pipeline::hasFinished() const {
+  CHECK(data_provider_module_);
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
-  return !(              // Negate everything (too lazy to negate everything)
-      !shutdown_ &&      // Loop while not explicitly shutdown.
-      is_backend_ok_ &&  // Loop while backend is fine.
+  return !(                 // Negate everything (too lazy to negate everything)
+      !shutdown_ &&         // Loop while not explicitly shutdown.
+      is_backend_ok_ &&     // Loop while backend is fine.
       (!isInitialized() ||  // Pipeline is not initialized and
                             // data is not yet consumed.
-        !((frontend_input_queue_.isShutdown() ||
+       !(!data_provider_module_->isWorking() &&
+         (frontend_input_queue_.isShutdown() ||
           frontend_input_queue_.empty()) &&
-          !vio_frontend_module_->isWorking() &&
-          (backend_input_queue_.isShutdown() ||
-          backend_input_queue_.empty()) &&
-          !vio_backend_module_->isWorking() &&
-          (mesher_module_ ? !mesher_module_->isWorking() : true) &&
-          (lcd_module_ ? !lcd_module_->isWorking() : true) &&
-          (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
-          (display_input_queue_.isShutdown() ||
-          display_input_queue_.empty()) &&
-          (display_module_ ? !display_module_->isWorking() : true))));
+         !vio_frontend_module_->isWorking() &&
+         (backend_input_queue_.isShutdown() || backend_input_queue_.empty()) &&
+         !vio_backend_module_->isWorking() &&
+         (mesher_module_ ? !mesher_module_->isWorking() : true) &&
+         (lcd_module_ ? !lcd_module_->isWorking() : true) &&
+         (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
+         (display_input_queue_.isShutdown() || display_input_queue_.empty()) &&
+         (display_module_ ? !display_module_->isWorking() : true))));
 }
 
 void Pipeline::shutdown() {
@@ -161,6 +233,18 @@ void Pipeline::shutdown() {
     // destroyed.
     shutdown_pipeline_cb_();
   }
+
+  // Second: stop data provider
+  CHECK(data_provider_module_);
+  data_provider_module_->shutdown();
+
+  // Third: stop VIO's threads
+  stopThreads();
+  if (parallel_run_) {
+    joinThreads();
+  }
+  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
+            << "VIO Pipeline successful shutdown.";
 }
 
 void Pipeline::resume() {
