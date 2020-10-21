@@ -27,7 +27,6 @@ class StereoPipeline : public Pipeline {
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoPipeline);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
- public:
   /**
      * @brief StereoPipeline
      * @param params Vio parameters
@@ -55,9 +54,14 @@ class StereoPipeline : public Pipeline {
   inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
     CHECK(data_provider_module_);
     CHECK(right_frame);
-    VIO::safeCast<MonoDataProviderModule, StereoDataProviderModule>(
-        std::move(data_provider_module_))
-        ->fillRightFrameQueueBlockingIfFull(std::move(right_frame));
+    StereoDataProviderModule::UniquePtr stereo_dataprovider =
+        VIO::safeCast<MonoDataProviderModule, StereoDataProviderModule>(
+            std::move(data_provider_module_));
+    stereo_dataprovider->fillRightFrameQueueBlockingIfFull(
+        std::move(right_frame));
+    data_provider_module_ =
+        VIO::safeCast<StereoDataProviderModule, MonoDataProviderModule>(
+            std::move(stereo_dataprovider));
   }
 
  protected:

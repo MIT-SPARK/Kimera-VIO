@@ -87,7 +87,7 @@ StereoDataProviderModule::getInputPacket() {
 
 void StereoDataProviderModule::shutdownQueues() {
   right_frame_queue_.shutdown();
-  DataProviderModule::shutdownQueues();
+  MonoDataProviderModule::shutdownQueues();
 }
 
 }  // namespace VIO
