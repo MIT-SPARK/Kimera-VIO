@@ -38,10 +38,11 @@ class LCDFixture : public ::testing::Test {
  protected:
   // Tolerances
   const double tol = 1e-7;
-  const double rot_tol_mono = 0.05; // radians
-  const double tran_tol_mono = 0.1; // meters (error rescaled using ground-truth)
-  const double rot_tol_stereo = 0.1; // radians
-  const double tran_tol_stereo = 0.1; // meters
+  const double rot_tol_mono = 0.05;  // radians
+  const double tran_tol_mono =
+      0.1;  // meters (error rescaled using ground-truth)
+  const double rot_tol_stereo = 0.1;   // radians
+  const double tran_tol_stereo = 0.1;  // meters
 
  public:
   LCDFixture()
@@ -108,16 +109,20 @@ class LCDFixture : public ::testing::Test {
     cam_params_right.parseYAML(lcd_test_data_path_ + "/sensorRight.yaml");
 
     std::string img_name_match1_left = lcd_test_data_path_ + "/left_img_0.png";
-    std::string img_name_match1_right = lcd_test_data_path_ + "/right_img_0.png";
+    std::string img_name_match1_right =
+        lcd_test_data_path_ + "/right_img_0.png";
 
     std::string img_name_query1_left = lcd_test_data_path_ + "/left_img_1.png";
-    std::string img_name_query1_right = lcd_test_data_path_ + "/right_img_1.png";
+    std::string img_name_query1_right =
+        lcd_test_data_path_ + "/right_img_1.png";
 
     std::string img_name_match2_left = lcd_test_data_path_ + "/left_img_2.png";
-    std::string img_name_match2_right = lcd_test_data_path_ + "/right_img_2.png";
+    std::string img_name_match2_right =
+        lcd_test_data_path_ + "/right_img_2.png";
 
     std::string img_name_query2_left = lcd_test_data_path_ + "/left_img_3.png";
-    std::string img_name_query2_right = lcd_test_data_path_ + "/right_img_3.png";
+    std::string img_name_query2_right =
+        lcd_test_data_path_ + "/right_img_3.png";
 
     // Initialize StereoFrame objects for reference and current frames
     FrontendParams tp;
@@ -209,7 +214,8 @@ class LCDFixture : public ::testing::Test {
   std::unique_ptr<LoopClosureDetector> lcd_detector_;
 
   // Stored frame members
-  gtsam::Pose3 world_T_match1_, world_T_match2_, world_T_query1_, world_T_query2_;
+  gtsam::Pose3 world_T_match1_, world_T_match2_, world_T_query1_,
+      world_T_query2_;
   gtsam::Pose3 match1_T_query1_, match2_T_query2_;
   std::unique_ptr<StereoFrame> match1_stereo_frame_, query1_stereo_frame_;
   std::unique_ptr<StereoFrame> match2_stereo_frame_, query2_stereo_frame_;
@@ -310,7 +316,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   lcd_detector_->geometricVerificationCheck(
       1, 0, &camMatch1_T_camQuery1_mono, &i_query, &i_match);
 
-  // Pose transforms points from query1 to match1 frame. 
+  // Pose transforms points from query1 to match1 frame.
   gtsam::Pose3 match1_T_query1_ground_truth = match1_T_query1_;
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1;
@@ -355,19 +361,25 @@ TEST_F(LCDFixture, recoverPoseArun) {
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
 
-  /* Test proper scaled pose recovery between extra and extra_2 images */
-  // TODO(marcus): fail this test, likely because extra is just too hard
-  // lcd_detector_->processAndAddFrame(*match2_stereo_frame_);
-  // lcd_detector_->processAndAddFrame(*query2_stereo_frame_);
-  //
-  // gtsam::Pose3 pose_2;
-  // lcd_detector_->recoverPose(3, 2, empty_pose, &pose_2);
-  //
-  // error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-  //     match2_T_query2_, pose_2, true);
-  //
-  // EXPECT_LT(error.first, rot_tol);
-  // EXPECT_LT(error.second, tran_tol);
+  /* Test pose recovery on other two images */
+  CHECK(match2_stereo_frame_);
+  CHECK(query2_stereo_frame_);
+  lcd_detector_->processAndAddFrame(*match2_stereo_frame_);
+  lcd_detector_->processAndAddFrame(*query2_stereo_frame_);
+
+  // Find correspondences between keypoints.
+  std::vector<FrameId> i_query2, i_match2;
+  lcd_detector_->computeMatchedIndices(3, 2, &i_query2, &i_match2, true);
+
+  gtsam::Pose3 bodyMatch2_T_bodyQuery2_stereo;
+  lcd_detector_->recoverPose(
+      3, 2, empty_pose, &bodyMatch2_T_bodyQuery2_stereo, &i_query2, &i_match2);
+
+  error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
+      match2_T_query2_, bodyMatch2_T_bodyQuery2_stereo, false);
+
+  EXPECT_LT(error.first, rot_tol_stereo);
+  EXPECT_LT(error.second, tran_tol_stereo);
 }
 
 TEST_F(LCDFixture, recoverPoseGivenRot) {
@@ -409,28 +421,40 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
 
-  // /* Test pose recovery on other two images */
-  // CHECK(match2_stereo_frame_);
-  // CHECK(query2_stereo_frame_);
-  // FrameId frm_2 = lcd_detector_->processAndAddFrame(*match2_stereo_frame_);
-  // FrameId frm_3 = lcd_detector_->processAndAddFrame(*query2_stereo_frame_);
+  /* Test pose recovery on other two images */
+  gtsam::Pose3 bodyMatch2_T_bodyQuery2_gt, camMatch2_T_camQuery2_gt;
 
-  // bodyMatch1_T_bodyQuery1_gt = gtsam::Pose3(match2_T_query2_.rotation(),
-  //                                match2_T_query2_.translation() /
-  //                                    match2_T_query2_.translation().norm());
-  // lcd_detector_->transformBodyPoseToCameraPose(bodyMatch1_T_bodyQuery1_gt,
-  //                                              &camMatch1_T_camQuery1_gt);
+  CHECK(match2_stereo_frame_);
+  CHECK(query2_stereo_frame_);
+  FrameId frm_2 = lcd_detector_->processAndAddFrame(*match2_stereo_frame_);
+  FrameId frm_3 = lcd_detector_->processAndAddFrame(*query2_stereo_frame_);
 
-  // // Find correspondences between keypoints.
-  // lcd_detector_->computeMatchedIndices(3, 2, &i_cur, &i_ref, true);
+  bodyMatch2_T_bodyQuery2_gt = match2_T_query2_;
+  lcd_detector_->transformBodyPoseToCameraPose(bodyMatch2_T_bodyQuery2_gt,
+                                               &camMatch2_T_camQuery2_gt);
 
-  // gtsam::Pose3 body2_T_body3;
-  // lcd_detector_->recoverPose(3, 2, camMatch1_T_camQuery1_gt, &body2_T_body3, &i_cur, &i_ref);
+  // Fake mono ransac with translation up to scale
+  gtsam::Pose3 camMatch2_T_camQuery2_mono_gt =
+      gtsam::Pose3(camMatch2_T_camQuery2_gt.rotation(),
+                   camMatch2_T_camQuery2_gt.translation() /
+                       camMatch2_T_camQuery2_gt.translation().norm());
 
-  // error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-  //     match2_T_query2_, body2_T_body3, true);
-  // EXPECT_LT(error.first, rot_tol_stereo);
-  // EXPECT_LT(error.second, tran_tol_stereo);
+  // Find correspondences between keypoints.
+  std::vector<FrameId> i_query2, i_match2;
+  lcd_detector_->computeMatchedIndices(3, 2, &i_query2, &i_match2, true);
+
+  gtsam::Pose3 bodyMatch2_T_bodyQuery2_stereo;
+  lcd_detector_->recoverPose(3,
+                             2,
+                             camMatch2_T_camQuery2_gt,
+                             &bodyMatch2_T_bodyQuery2_stereo,
+                             &i_query2,
+                             &i_match2);
+
+  error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
+      match2_T_query2_, bodyMatch2_T_bodyQuery2_stereo, false);
+  EXPECT_LT(error.first, rot_tol_stereo);
+  EXPECT_LT(error.second, tran_tol_stereo);
 }
 
 TEST_F(LCDFixture, detectLoop) {
@@ -449,27 +473,25 @@ TEST_F(LCDFixture, detectLoop) {
   lcd_detector_->detectLoop(*match2_stereo_frame_, &loop_result_0);
   EXPECT_EQ(loop_result_0.isLoop(), false);
 
+  /* Test the detectLoop method against two images that are identical */
+  lcd_detector_->detectLoop(*match2_stereo_frame_, &loop_result_2);
+  EXPECT_EQ(loop_result_2.isLoop(), true);
+  EXPECT_EQ(loop_result_2.query_id_, 1);
+  EXPECT_EQ(loop_result_2.match_id_, 0);
+  EXPECT_TRUE(loop_result_2.relative_pose_.equals(
+      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(0, 0, 0)), tol));
+
   lcd_detector_->detectLoop(*match1_stereo_frame_, &loop_result_1);
   EXPECT_EQ(loop_result_1.isLoop(), false);
-
-  /* Test the detectLoop method against two images that are identical */
-  // TODO(marcus): why isn't geom_check working for two identical images?
-  lcd_detector_->detectLoop(*match1_stereo_frame_, &loop_result_2);
-  // EXPECT_EQ(output_payload_2.is_loop_, true);
-  // EXPECT_EQ(output_payload_2.timestamp_kf_, timestamp_match1_);
-  // EXPECT_EQ(output_payload_2.id_recent_, id_match1_);
-  // EXPECT_EQ(output_payload_2.id_match_, id_match1_);
-  // EXPECT_TRUE(output_payload_2.relative_pose_.equals(gtsam::Pose3(
-  //     gtsam::Rot3::identity(), gtsam::Point3(0,0,0)), tol));
 
   /* Test the detectLoop method against two unidentical, similar images */
   lcd_detector_->detectLoop(*query1_stereo_frame_, &loop_result_3);
   EXPECT_EQ(loop_result_3.isLoop(), true);
-  EXPECT_EQ(loop_result_3.match_id_, 1);
+  EXPECT_EQ(loop_result_3.match_id_, 2);
   EXPECT_EQ(loop_result_3.query_id_, 3);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, loop_result_3.relative_pose_, true);
+      match1_T_query1_, loop_result_3.relative_pose_, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
