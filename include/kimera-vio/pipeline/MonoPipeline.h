@@ -26,7 +26,7 @@
 
 namespace VIO {
 
-class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
+class MonoPipeline : public Pipeline {
  public:
   KIMERA_POINTER_TYPEDEFS(MonoPipeline);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MonoPipeline);
@@ -79,14 +79,14 @@ class MonoPipeline : public Pipeline<MonoImuSyncPacket, MonoFrontendOutput> {
     ss << "Data provider is working? " << !data_provider_module_->isWorking()
        << '\n';
 
-    return Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::printStatus() +
+    return Pipeline::printStatus() +
            ss.str();
   }
 
   bool hasFinished() const override {
     CHECK(data_provider_module_);
 
-    return Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::hasFinished() &&
+    return Pipeline::hasFinished() &&
            !data_provider_module_->isWorking();
   }
 

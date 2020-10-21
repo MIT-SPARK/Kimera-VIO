@@ -47,7 +47,6 @@ DECLARE_bool(use_lcd);
 
 namespace VIO {
 
-template <class FrontendInputPacketBase, class FrontendOutputPacketBase>
 class Pipeline {
  public:
   KIMERA_POINTER_TYPEDEFS(Pipeline);
@@ -55,32 +54,9 @@ class Pipeline {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  Pipeline(const VioParams& params)
-      : backend_params_(params.backend_params_),
-        frontend_params_(params.frontend_params_),
-        imu_params_(params.imu_params_),
-        parallel_run_(params.parallel_run_),
-        shutdown_pipeline_cb_(nullptr),
-        vio_frontend_module_(nullptr),
-        vio_backend_module_(nullptr),
-        mesher_module_(nullptr),
-        lcd_module_(nullptr),
-        visualizer_module_(nullptr),
-        display_module_(nullptr),
-        frontend_input_queue_("frontend_input_queue"),
-        backend_input_queue_("backend_input_queue"),
-        display_input_queue_("display_input_queue"),
-        frontend_thread_(nullptr),
-        backend_thread_(nullptr),
-        mesher_thread_(nullptr),
-        lcd_thread_(nullptr),
-        visualizer_thread_(nullptr) {
-    if (FLAGS_deterministic_random_number_generator) {
-      setDeterministicPipeline();
-    }
-  }
+  Pipeline(const VioParams& params);
 
-  virtual ~Pipeline() {}
+  virtual ~Pipeline() = default;
 
  public:
   /**
@@ -96,12 +72,7 @@ class Pipeline {
    * @return Returns whether the visualizer_ is running or not. While in
    * parallel mode, it does not return unless shutdown.
    */
-  virtual bool spinViz() {
-    if (display_module_) {
-      return display_module_->spin();
-    }
-    return true;
-  }
+  virtual bool spinViz();
 
   /**
    * @brief printStatus Returns a string with useful information to monitor the
@@ -109,77 +80,13 @@ class Pipeline {
    * working and if their queues are filled.
    * @return String with pipeline status information
    */
-  virtual std::string printStatus() const {
-    std::stringstream ss;
-    ss << "shutdown_: " << shutdown_ << '\n'
-       << "VIO pipeline status: \n"
-       << "Pipeline initialized? " << isInitialized() << '\n'
-       << "Frontend initialized? " << vio_frontend_module_->isInitialized()
-       << '\n'
-       << "Backend initialized? " << vio_backend_module_->isInitialized()
-       << '\n'
-       << "Frontend input queue shutdown? "
-       << frontend_input_queue_.isShutdown() << '\n'
-       << "Frontend input queue empty? " << frontend_input_queue_.empty()
-       << '\n'
-       << "Frontend is working? " << vio_frontend_module_->isWorking() << '\n'
-       << "Backend Input queue shutdown? " << backend_input_queue_.isShutdown()
-       << '\n'
-       << "Backend Input queue empty? " << backend_input_queue_.empty() << '\n'
-       << "Backend is working? " << vio_backend_module_->isWorking() << '\n'
-       << (mesher_module_
-               ? ("Mesher is working? " +
-                  std::string(mesher_module_->isWorking() ? "Yes" : "No"))
-               : "No mesher module.")
-       << '\n'
-       << (lcd_module_ ? ("LCD is working? " +
-                          std::string(lcd_module_->isWorking() ? "Yes" : "No"))
-                       : "No LCD module.")
-       << '\n'
-       << (visualizer_module_
-               ? ("Visualizer is working? " +
-                  std::string(visualizer_module_->isWorking() ? "Yes" : "No"))
-               : "No visualizer module.")
-       << '\n'
-       << "Display Input queue shutdown? " << display_input_queue_.isShutdown()
-       << '\n'
-       << "Display Input queue empty? " << display_input_queue_.empty() << '\n'
-       << (display_module_
-               ? ("Displayer is working? " +
-                  std::string(display_module_->isWorking() ? "Yes" : "No"))
-               : "No display module.");
-    return ss.str();
-  }
+  virtual std::string printStatus() const;
 
   /**
    * @brief hasFinished
    * @return Whether the pipeline has finished working or not.
    */
-  virtual bool hasFinished() const {  
-    CHECK(vio_frontend_module_);
-    CHECK(vio_backend_module_);
-
-    // This is a very rough way of knowing if we have finished...
-    // Since threads might be in the middle of processing data while we
-    // query if the queues are empty.
-    return !(              // Negate everything (too lazy to negate everything)
-        !shutdown_ &&      // Loop while not explicitly shutdown.
-        is_backend_ok_ &&  // Loop while backend is fine.
-        (!isInitialized() ||  // Pipeline is not initialized and
-                              // data is not yet consumed.
-         !((frontend_input_queue_.isShutdown() ||
-            frontend_input_queue_.empty()) &&
-           !vio_frontend_module_->isWorking() &&
-           (backend_input_queue_.isShutdown() ||
-            backend_input_queue_.empty()) &&
-           !vio_backend_module_->isWorking() &&
-           (mesher_module_ ? !mesher_module_->isWorking() : true) &&
-           (lcd_module_ ? !lcd_module_->isWorking() : true) &&
-           (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
-           (display_input_queue_.isShutdown() ||
-            display_input_queue_.empty()) &&
-           (display_module_ ? !display_module_->isWorking() : true))));
-  }
+  virtual bool hasFinished() const;
 
   /**
    * @brief shutdownWhenFinished
@@ -196,34 +103,14 @@ class Pipeline {
    * @brief shutdown Shutdown processing pipeline: stops and joins threads,
    * stops queues. And closes logfiles.
    */
-  virtual void shutdown() {
-    LOG_IF(ERROR, shutdown_) << "Shutdown requested, but Pipeline was already "
-                                "shutdown.";
-    LOG(INFO) << "Shutting down VIO pipeline.";
-    shutdown_ = true;
-
-    // First: call registered shutdown callbacks, these are typically to signal
-    // data providers that they should now die.
-    if (shutdown_pipeline_cb_) {
-      LOG(INFO) << "Calling registered shutdown callbacks...";
-      // Mind that this will raise a SIGSEGV seg fault if the callee is
-      // destroyed.
-      shutdown_pipeline_cb_();
-    }
-  }
+  virtual void shutdown();
 
   inline bool isShutdown() const { return shutdown_; }
 
   /**
    * @brief resume Resumes all queues.
    */
-  virtual void resume() {
-    LOG(INFO) << "Restarting frontend workers and queues...";
-    frontend_input_queue_.resume();
-
-    LOG(INFO) << "Restarting backend workers and queues...";
-    backend_input_queue_.resume();
-  }
+  virtual void resume();
 
   //! Register external callback to be called when the VIO pipeline shuts down.
   virtual void registerShutdownCallback(
@@ -241,21 +128,7 @@ class Pipeline {
 
  protected:
   // Spin the pipeline only once.
-  virtual void spinOnce(std::unique_ptr<FrontendInputPacketBase> input) {
-    CHECK(input);
-    if (!shutdown_) {
-      // Push to frontend input queue.
-      VLOG(2) << "Push input payload to Frontend.";
-      frontend_input_queue_.pushBlockingIfFull(std::move(input), 5u);
-
-      if (!parallel_run_) {
-        // Run the pipeline sequentially.
-        spinSequential();
-      }
-    } else {
-      LOG(WARNING) << "Not spinning pipeline as it's been shutdown.";
-    }
-  }
+  virtual void spinOnce(FrontendInputPacketBase::UniquePtr input);
 
   /**
    * @brief Sequential pipeline runner.
@@ -287,9 +160,7 @@ class Pipeline {
   }
 
   inline void registerFrontendOutputCallback(
-      const typename VisionFrontEndModule<
-          FrontendInputPacketBase,
-          FrontendOutputPacketBase>::OutputCallback& callback) {
+      const typename VisionFrontEndModule::OutputCallback& callback) {
     CHECK(vio_frontend_module_);
     vio_frontend_module_->registerOutputCallback(callback);
   }
@@ -315,93 +186,17 @@ class Pipeline {
   }
 
   /// Launch threads for each pipeline module.
-  virtual void launchThreads() {
-    if (parallel_run_) {
-      frontend_thread_ = VIO::make_unique<std::thread>(
-          &VisionFrontEndModule<FrontendInputPacketBase,
-                                FrontendOutputPacketBase>::spin,
-          CHECK_NOTNULL(vio_frontend_module_.get()));
-
-      backend_thread_ = VIO::make_unique<std::thread>(
-          &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
-
-      if (mesher_module_) {
-        mesher_thread_ = VIO::make_unique<std::thread>(
-            &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
-      }
-
-      if (lcd_module_) {
-        lcd_thread_ = VIO::make_unique<std::thread>(
-            &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
-      }
-
-      if (visualizer_module_) {
-        visualizer_thread_ = VIO::make_unique<std::thread>(
-            &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
-      }
-      LOG(INFO) << "Pipeline Modules launched (parallel_run set to "
-                << parallel_run_ << ").";
-    } else {
-      LOG(INFO) << "Pipeline Modules running in sequential mode"
-                << " (parallel_run set to " << parallel_run_ << ").";
-    }
-  }
+  virtual void launchThreads();
   
   /// Shutdown processes and queues.
-  virtual void stopThreads() {
-    VLOG(1) << "Stopping workers and queues...";
-
-    backend_input_queue_.shutdown();
-    CHECK(vio_backend_module_);
-    vio_backend_module_->shutdown();
-
-    frontend_input_queue_.shutdown();
-    CHECK(vio_frontend_module_);
-    vio_frontend_module_->shutdown();
-
-    if (mesher_module_) mesher_module_->shutdown();
-    if (lcd_module_) lcd_module_->shutdown();
-    if (visualizer_module_) visualizer_module_->shutdown();
-    if (display_module_) {
-      display_input_queue_.shutdown();
-      display_module_->shutdown();
-    }
-
-    VLOG(1) << "Sent stop flag to all module and queues...";
-  }
+  virtual void stopThreads();
 
   /// Join threads to do a clean shutdown.
-  virtual void joinThreads() {
-    LOG_IF(WARNING, !parallel_run_)
-        << "Asked to join threads while in sequential mode, this is ok, but "
-        << "should not happen.";
-    VLOG(1) << "Joining threads...";
-
-    joinThread("backend", backend_thread_.get());
-    joinThread("frontend", frontend_thread_.get());
-    joinThread("mesher", mesher_thread_.get());
-    joinThread("lcd", lcd_thread_.get());
-    joinThread("visualizer", visualizer_thread_.get());
-
-    VLOG(1) << "All threads joined.";
-  }
+  virtual void joinThreads();
 
   /// Join a single thread.
   virtual void joinThread(const std::string& thread_name,
-                          std::thread* thread) {
-    if (thread) {
-      VLOG(1) << "Joining " << thread_name.c_str() << " thread...";
-      if (thread->joinable()) {
-        thread->join();
-        VLOG(1) << "Joined " << thread_name.c_str() << " thread...";
-      } else {
-        LOG_IF(ERROR, parallel_run_)
-            << thread_name.c_str() << " thread is not joinable...";
-      }
-    } else {
-      LOG(WARNING) << "No " << thread_name.c_str() << " thread, not joining.";
-    }
-  }
+                          std::thread* thread);
 
  protected:
   // VIO parameters
@@ -418,12 +213,10 @@ class Pipeline {
   // Pipeline Modules
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
-  typename VisionFrontEndModule<FrontendInputPacketBase,
-                                FrontendOutputPacketBase>::UniquePtr vio_frontend_module_;
+  VisionFrontEndModule::UniquePtr vio_frontend_module_;
 
   //! Vision frontend payloads.
-  typename VisionFrontEndModule<FrontendInputPacketBase,
-                                FrontendOutputPacketBase>::InputQueue frontend_input_queue_;
+  VisionFrontEndModule::InputQueue frontend_input_queue_;
 
   //! Backend
   VioBackEndModule::UniquePtr vio_backend_module_;

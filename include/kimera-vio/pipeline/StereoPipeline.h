@@ -33,7 +33,7 @@
 
 namespace VIO {
 
-class StereoPipeline : public Pipeline<StereoImuSyncPacket, StereoFrontendOutput> {
+class StereoPipeline : public Pipeline {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoPipeline);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoPipeline);
@@ -107,14 +107,14 @@ class StereoPipeline : public Pipeline<StereoImuSyncPacket, StereoFrontendOutput
        << !data_provider_module_->isWorking()
        << '\n';
 
-    return Pipeline<StereoImuSyncPacket, StereoFrontendOutput>::printStatus()
+    return Pipeline::printStatus()
         + ss.str();
   }
 
   bool hasFinished() const override {
     CHECK(data_provider_module_);
 
-    return Pipeline<StereoImuSyncPacket, StereoFrontendOutput>::hasFinished() &&
+    return Pipeline::hasFinished() &&
            !data_provider_module_->isWorking();
   }
 

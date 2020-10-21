@@ -45,17 +45,17 @@ class TestStereoDataProviderModule : public ::testing::Test {
 
     // Create the output queue
     output_queue_ =
-        VIO::make_unique<VIO::StereoVisionFrontEndModule::InputQueue>("output");
+        VIO::make_unique<VIO::VisionFrontEndModule::InputQueue>("output");
 
     // Create the StereoDataProviderModule
     dummy_queue_ =
-        VIO::make_unique<VIO::StereoVisionFrontEndModule::InputQueue>("unused");
+        VIO::make_unique<VIO::VisionFrontEndModule::InputQueue>("unused");
     VIO::StereoMatchingParams dummy_params;
     bool parallel = false;
     stereo_data_provider_module_ = VIO::make_unique<VIO::StereoDataProviderModule>(
         dummy_queue_.release(), "Stereo Data Provider", parallel, dummy_params);
     stereo_data_provider_module_->registerVioPipelineCallback(
-        [this](VIO::StereoImuSyncPacket::UniquePtr sync_packet) {
+        [this](VIO::FrontendInputPacketBase::UniquePtr sync_packet) {
           output_queue_->push(std::move(sync_packet));
         });
   }
@@ -65,8 +65,8 @@ class TestStereoDataProviderModule : public ::testing::Test {
   }
 
  protected:
-  VIO::StereoVisionFrontEndModule::InputQueue::UniquePtr output_queue_;
-  VIO::StereoVisionFrontEndModule::InputQueue::UniquePtr dummy_queue_;
+  VIO::VisionFrontEndModule::InputQueue::UniquePtr output_queue_;
+  VIO::VisionFrontEndModule::InputQueue::UniquePtr dummy_queue_;
   VIO::StereoDataProviderModule::UniquePtr stereo_data_provider_module_;
   static constexpr size_t kImuTestBundleSize = 6;
 
@@ -138,8 +138,11 @@ TEST_F(TestStereoDataProviderModule, basicSequentialCase) {
   current_time = fillImuQueueN(current_time, 1);
   spinStereoDataProviderModuleWithTimeout();
 
-  VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue_->pop(result));
+  VIO::FrontendInputPacketBase::UniquePtr result_base;
+  CHECK(output_queue_->pop(result_base));
+  VIO::StereoImuSyncPacket::UniquePtr result =
+      VIO::safeCast<VIO::FrontendInputPacketBase, VIO::StereoImuSyncPacket>(
+          std::move(result_base));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(2),
@@ -174,8 +177,11 @@ TEST_F(TestStereoDataProviderModule, noImuTest) {
   fillLeftRightQueue(++current_id, ++current_time);
   current_time = fillImuQueueN(current_time, 1);
   spinStereoDataProviderModuleWithTimeout();
-  VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue_->pop(result));
+  VIO::FrontendInputPacketBase::UniquePtr result_base;
+  CHECK(output_queue_->pop(result_base));
+  VIO::StereoImuSyncPacket::UniquePtr result =
+      VIO::safeCast<VIO::FrontendInputPacketBase, VIO::StereoImuSyncPacket>(
+          std::move(result_base));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(num_frames_to_reject + 2),
@@ -207,8 +213,11 @@ TEST_F(TestStereoDataProviderModule, manyImuTest) {
 
   for (size_t i = 0; i < num_valid_frames; i++) {
     spinStereoDataProviderModuleWithTimeout();
-    VIO::StereoImuSyncPacket::UniquePtr result;
-    CHECK(output_queue_->pop(result));
+    VIO::FrontendInputPacketBase::UniquePtr result_base;
+    CHECK(output_queue_->pop(result_base));
+    VIO::StereoImuSyncPacket::UniquePtr result =
+        VIO::safeCast<VIO::FrontendInputPacketBase, VIO::StereoImuSyncPacket>(
+            std::move(result_base));
     CHECK(result);
     EXPECT_EQ(static_cast<VIO::FrameId>(2 + i),
               result->getStereoFrame().id_);
@@ -239,8 +248,11 @@ TEST_F(TestStereoDataProviderModule, imageBeforeImuTest) {
   current_time = fillImuQueueN(current_time, 1);
   spinStereoDataProviderModuleWithTimeout();
 
-  VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue_->pop(result));
+  VIO::FrontendInputPacketBase::UniquePtr result_base;
+  CHECK(output_queue_->pop(result_base));
+  VIO::StereoImuSyncPacket::UniquePtr result =
+      VIO::safeCast<VIO::FrontendInputPacketBase, VIO::StereoImuSyncPacket>(
+          std::move(result_base));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
@@ -274,8 +286,11 @@ TEST_F(TestStereoDataProviderModule, imageBeforeImuDelayedSpinTest) {
   // Third frame should work
   spinStereoDataProviderModuleWithTimeout();
 
-  VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue_->pop(result));
+  VIO::FrontendInputPacketBase::UniquePtr result_base;
+  CHECK(output_queue_->pop(result_base));
+  VIO::StereoImuSyncPacket::UniquePtr result =
+      VIO::safeCast<VIO::FrontendInputPacketBase, VIO::StereoImuSyncPacket>(
+          std::move(result_base));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(3),

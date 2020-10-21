@@ -8,15 +8,14 @@
 
 #pragma once
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/rgbd/RgbdFrame.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
-class RgbdImuSyncPacket : public PipelinePayload {
+class RgbdImuSyncPacket : public FrontendInputPacketBase {
  public:
   KIMERA_POINTER_TYPEDEFS(RgbdImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdImuSyncPacket);
@@ -31,8 +30,6 @@ class RgbdImuSyncPacket : public PipelinePayload {
 
  public:
   RgbdFrame::UniquePtr rgbd_frame_;
-  const ImuStampS imu_stamps_;
-  const ImuAccGyrS imu_accgyr_;
 };
 
 }  // namespace VIO

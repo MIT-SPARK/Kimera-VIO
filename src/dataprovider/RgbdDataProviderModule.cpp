@@ -23,9 +23,7 @@ namespace VIO {
 RgbdDataProviderModule::RgbdDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run)
-    : DataProviderModule<RgbdImuSyncPacket, RgbdImuSyncPacket>(output_queue,
-                                                               name_id,
-                                                               parallel_run),
+    : MonoDataProviderModule(output_queue, name_id, parallel_run),
       depth_frame_queue_("data_provider_depth_frame_queue") {}
 
 RgbdDataProviderModule::InputUniquePtr

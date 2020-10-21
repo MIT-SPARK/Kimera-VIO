@@ -45,6 +45,9 @@ enum class KeypointStatus {
   FAILED_ARUN
 };
 
+using Depth = double;
+using Depths = std::vector<Depth>;
+
 // Definitions relevant to frame types
 using FrameId = std::uint64_t;  // Frame id is used as the index of gtsam symbol
                                 // (not as a gtsam key).
@@ -89,9 +92,10 @@ constexpr typename std::underlying_type<E>::type to_underlying(E e) noexcept {
 }
 
 template <class Base, class Derived>
-inline Derived safeCast(const Base& params) {
+inline Derived safeCast(const Base& base) {
   try {
-    return dynamic_cast<const Derived&>(params);
+    // NOTE: This will create a copy
+    return dynamic_cast<const Derived&>(base);
   } catch (const std::bad_cast& e) {
     LOG(ERROR) << "Seems that you are casting an object that is not "
                   "the one you expected!";
@@ -99,6 +103,48 @@ inline Derived safeCast(const Base& params) {
   } catch (...) {
     LOG(FATAL) << "Exception caught when dynamic casting.";
   }
+}
+
+template <typename Base, typename Derived>
+inline std::unique_ptr<Derived> safeCast(std::unique_ptr<Base> base_ptr) {
+  std::unique_ptr<Derived> derived_ptr;
+  Derived* tmp = nullptr;
+  try {
+    tmp = dynamic_cast<Derived*>(base_ptr.get());
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting an object that is not "
+                  "the one you expected!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when dynamic casting.";
+  }
+  if (!tmp) return nullptr;
+  base_ptr.release();
+  derived_ptr.reset(tmp);
+  return derived_ptr;
+}
+
+template <typename Base, typename Derived>
+inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
+  CHECK(base_ptr);
+  try {
+    return std::dynamic_pointer_cast<Derived>(base_ptr);
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting an object that is not "
+                  "the one you expected!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when dynamic casting.";
+  }
+}
+
+// TODO(marcus): document and decide on whether we should use it
+template <typename Base, typename Derived>
+inline std::unique_ptr<Derived> unsafeCast(std::unique_ptr<Base> base_ptr) {
+  std::unique_ptr<Derived> derived_ptr;
+  Derived* tmp = static_cast<Derived*>(base_ptr.release());
+  derived_ptr.reset(tmp);
+  return derived_ptr;
 }
 
 }  // namespace VIO

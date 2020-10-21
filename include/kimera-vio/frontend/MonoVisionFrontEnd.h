@@ -50,11 +50,29 @@ class MonoVisionFrontEnd : public VisionFrontEnd {
  private:
   void processFirstFrame(const Frame& firstFrame);
 
-  MonoFrontendOutput::UniquePtr bootstrapSpin(
-      const MonoFrontEndInputPayload& input);
+  inline FrontendOutputPacketBase::UniquePtr bootstrapSpin(
+      FrontendInputPacketBase::UniquePtr&& input) override {
+    CHECK(frontend_state_ == FrontendState::Bootstrap);
+    CHECK(input);
+    return bootstrapSpinMono(
+        VIO::safeCast<FrontendInputPacketBase, MonoFrontEndInputPayload>(
+            std::move(input)));
+  }
 
-  MonoFrontendOutput::UniquePtr nominalSpin(
-      const MonoFrontEndInputPayload& input);
+  inline FrontendOutputPacketBase::UniquePtr nominalSpin(
+      FrontendInputPacketBase::UniquePtr&& input) override {
+    CHECK(frontend_state_ == FrontendState::Nominal);
+    CHECK(input);
+    return nominalSpinMono(
+        VIO::safeCast<FrontendInputPacketBase, MonoFrontEndInputPayload>(
+            std::move(input)));
+  }
+
+  MonoFrontendOutput::UniquePtr nominalSpinMono(
+      MonoFrontEndInputPayload::UniquePtr&& input);
+
+  MonoFrontendOutput::UniquePtr bootstrapSpinMono(
+      MonoFrontEndInputPayload::UniquePtr&& input);
 
   StatusMonoMeasurementsPtr processFrame(
       const Frame& cur_frame,

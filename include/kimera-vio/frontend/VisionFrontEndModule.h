@@ -15,23 +15,19 @@
 #pragma once
 
 #include "kimera-vio/frontend/VisionFrontEnd.h"
-#include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/MonoVisionFrontEnd.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 
 namespace VIO {
 
-template <typename Input = FrontendInputPacketBase,
-          typename Output = FrontendOutputPacketBase>
-class VisionFrontEndModule : public SIMOPipelineModule<Input, Output> {
+class VisionFrontEndModule : public 
+    SIMOPipelineModule<FrontendInputPacketBase, FrontendOutputPacketBase> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(VisionFrontEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using SIMO = SIMOPipelineModule<Input, Output>;
+  using SIMO =
+      SIMOPipelineModule<FrontendInputPacketBase, FrontendOutputPacketBase>;
   using InputQueue = ThreadsafeQueue<typename SIMO::InputUniquePtr>;
 
   /**
@@ -44,19 +40,13 @@ class VisionFrontEndModule : public SIMOPipelineModule<Input, Output> {
   explicit VisionFrontEndModule(
       InputQueue* input_queue,
       bool parallel_run,
-      std::unique_ptr<VisionFrontEnd> vio_frontend)
-      : SIMO(input_queue, "VioFrontEnd", parallel_run),
-        vio_frontend_(std::move(vio_frontend)) {
-    CHECK(vio_frontend_);
-  }
+      VisionFrontEnd::UniquePtr vio_frontend);
 
   virtual ~VisionFrontEndModule() = default;
 
  public:
-  virtual std::unique_ptr<Output> spinOnce(std::unique_ptr<Input> input) {
-    CHECK(input);
-    return vio_frontend_->spinOnce(*input);
-  }
+  virtual FrontendOutputPacketBase::UniquePtr
+      spinOnce(FrontendInputPacketBase::UniquePtr input);
 
   inline bool isInitialized() const {
     return vio_frontend_->isInitialized();
@@ -77,12 +67,7 @@ class VisionFrontEndModule : public SIMOPipelineModule<Input, Output> {
   }
 
  private:
-  std::unique_ptr<VisionFrontEnd> vio_frontend_;
+  VisionFrontEnd::UniquePtr vio_frontend_;
 };
-
-typedef VisionFrontEndModule<MonoImuSyncPacket, MonoFrontendOutput>
-    MonoVisionFrontEndModule;
-typedef VisionFrontEndModule<StereoImuSyncPacket, StereoFrontendOutput>
-    StereoVisionFrontEndModule;
 
 }  // namespace VIO

@@ -24,7 +24,7 @@
 #include <string>
 #include <utility>  // for move
 
-#include "kimera-vio/dataprovider/DataProviderModule.h"
+#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
@@ -33,8 +33,7 @@
 
 namespace VIO {
 
-class StereoDataProviderModule
-    : public DataProviderModule<StereoImuSyncPacket, StereoImuSyncPacket> {
+class StereoDataProviderModule : public MonoDataProviderModule {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoDataProviderModule);
   KIMERA_POINTER_TYPEDEFS(StereoDataProviderModule);
@@ -47,8 +46,7 @@ class StereoDataProviderModule
 
   ~StereoDataProviderModule() override = default;
 
-  inline OutputUniquePtr spinOnce(
-      StereoImuSyncPacket::UniquePtr input) override {
+  inline OutputUniquePtr spinOnce(InputUniquePtr input) override {
     // Called by spin(), which also calls getInputPacket().
     // Data provider syncs and publishes input sensor information, which
     // is done at the level of getInputPacket. No other action needed.
@@ -74,7 +72,7 @@ class StereoDataProviderModule
 
   //! Checks if the module has work to do (should check input queues are empty)
   inline bool hasWork() const override {
-    return DataProviderModule::hasWork() || !right_frame_queue_.empty();
+    return MonoDataProviderModule::hasWork() || !right_frame_queue_.empty();
   }
 
  private:

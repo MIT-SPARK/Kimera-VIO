@@ -14,10 +14,8 @@ RgbdImuSyncPacket::RgbdImuSyncPacket(const Timestamp& timestamp,
                                      RgbdFrame::UniquePtr rgbd_frame,
                                      const ImuStampS& imu_stamps,
                                      const ImuAccGyrS& imu_accgyr)
-    : PipelinePayload(timestamp),
-      rgbd_frame_(std::move(rgbd_frame)),
-      imu_stamps_(imu_stamps),
-      imu_accgyr_(imu_accgyr) {}
+    : FrontendInputPacketBase(rgbd_frame->timestamp_, imu_stamps, imu_accgyr),
+      rgbd_frame_(std::move(rgbd_frame)) {}
 
 void RgbdImuSyncPacket::print() const {
   // TODO

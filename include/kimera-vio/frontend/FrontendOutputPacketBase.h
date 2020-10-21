@@ -15,7 +15,6 @@
 #pragma once
 
 #include "kimera-vio/common/vio_types.h"
-// #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"

@@ -47,10 +47,10 @@ MonoPipeline::MonoPipeline(const VioParams& params,
 
   LOG_IF(FATAL, params.frontend_params_.useStereoTracking_) 
       << "useStereoTracking is set to true, but this is a mono pipeline!";
-  vio_frontend_module_ = VIO::make_unique<MonoVisionFrontEndModule>(
+  vio_frontend_module_ = VIO::make_unique<VisionFrontEndModule>(
       &frontend_input_queue_,
       parallel_run_,
-      VisionFrontEndFactory::createMonoFrontend(
+      VisionFrontEndFactory::createFrontend(
         params.frontend_type_,
         params.imu_params_,
         gtsam::imuBias::ConstantBias(),
@@ -61,16 +61,18 @@ MonoPipeline::MonoPipeline(const VioParams& params,
 
   auto& backend_input_queue = backend_input_queue_;
   vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const MonoFrontendOutput::Ptr& output) {
-    CHECK(output);
-    if (output->is_keyframe_) {
+      const FrontendOutputPacketBase::Ptr& output) {
+    MonoFrontendOutput::Ptr converted_output = 
+        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
+
+    if (converted_output->is_keyframe_) {
       //! Only push to backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
-          output->frame_lkf_.timestamp_,
-          output->status_mono_measurements_,
-          output->tracker_status_,
-          output->pim_,
-          output->imu_acc_gyrs_,
+          converted_output->frame_lkf_.timestamp_,
+          converted_output->status_mono_measurements_,
+          converted_output->tracker_status_,
+          converted_output->pim_,
+          converted_output->imu_acc_gyrs_,
           boost::none));  // don't pass stereo pose to backend!
     } else {
       VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
@@ -109,7 +111,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
       std::bind(&MonoPipeline::signalBackendFailure, this));
 
   vio_backend_module_->registerImuBiasUpdateCallback(
-      std::bind(&MonoVisionFrontEndModule::updateImuBias,
+      std::bind(&VisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
@@ -252,7 +254,7 @@ bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
 
 /* -------------------------------------------------------------------------- */
 void MonoPipeline::shutdown() {
-  Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::shutdown();
+  Pipeline::shutdown();
   // Second: stop data provider
   CHECK(data_provider_module_);
   data_provider_module_->shutdown();
