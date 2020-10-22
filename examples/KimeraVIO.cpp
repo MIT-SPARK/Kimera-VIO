@@ -59,9 +59,9 @@ int main(int argc, char* argv[]) {
           dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
         } break;
         default: {
-          LOG(FATAL) << "Unrecognized pipeline type: " << FLAGS_dataset_type
-                     << "."
-                     << " 0: Mono, 1: Stereo.";
+          LOG(FATAL) << "Unrecognized frontend type: "
+                     << VIO::to_underlying(vio_params.frontend_type_)
+                     << ". 0: Mono, 1: Stereo.";
         }
       }
     } break;
@@ -85,8 +85,9 @@ int main(int argc, char* argv[]) {
       vio_pipeline = VIO::make_unique<VIO::StereoPipeline>(vio_params);
     } break;
     default: {
-      LOG(FATAL) << "Unrecognized pipeline type: " << FLAGS_dataset_type << "."
-                 << " 0: Mono, 1: Stereo.";
+      LOG(FATAL) << "Unrecognized frontend type: "
+                 << VIO::to_underlying(vio_params.frontend_type_)
+                 << ". 0: Mono, 1: Stereo.";
     } break;
   }
 
