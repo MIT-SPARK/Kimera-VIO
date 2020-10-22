@@ -75,138 +75,92 @@ int main(int argc, char* argv[]) {
   }
   CHECK(dataset_parser);
 
+  VIO::Pipeline::UniquePtr vio_pipeline;
+
   switch (vio_params.frontend_type_) {
     case VIO::FrontendType::kMonoImu: {
-      VIO::MonoPipeline vio_pipeline(vio_params);
-
-      // Register callback to shutdown data provider in case VIO pipeline
-      // shutsdown.
-      vio_pipeline.registerShutdownCallback(
-          std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser));
-
-      // Register callback to vio pipeline.
-      dataset_parser->registerImuSingleCallback(
-          std::bind(&VIO::MonoPipeline::fillSingleImuQueue,
-                    &vio_pipeline,
-                    std::placeholders::_1));
-      // We use blocking variants to avoid overgrowing the input queues (use
-      // the non-blocking versions with real sensor streams)
-      dataset_parser->registerLeftFrameCallback(
-          std::bind(&VIO::MonoPipeline::fillLeftFrameQueue,
-                    &vio_pipeline,
-                    std::placeholders::_1));
-
-      // Spin dataset.
-      auto tic = VIO::utils::Timer::tic();
-      bool is_pipeline_successful = false;
-      if (vio_params.parallel_run_) {
-        auto handle = std::async(std::launch::async,
-                                 &VIO::DataProviderInterface::spin,
-                                 dataset_parser);
-        auto handle_pipeline = std::async(
-            std::launch::async, &VIO::MonoPipeline::spin, &vio_pipeline);
-        auto handle_shutdown =
-            std::async(std::launch::async,
-                       &VIO::MonoPipeline::shutdownWhenFinished,
-                       &vio_pipeline,
-                       500,
-                       true);
-        vio_pipeline.spinViz();
-        is_pipeline_successful = !handle.get();
-        handle_shutdown.get();
-        handle_pipeline.get();
-      } else {
-        while (dataset_parser->spin() && vio_pipeline.spin()) {
-          continue;
-        };
-        vio_pipeline.shutdown();
-        is_pipeline_successful = true;
-      }
-
-      // Output stats.
-      auto spin_duration = VIO::utils::Timer::toc(tic);
-      LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-      LOG(INFO) << "Pipeline successful? "
-                << (is_pipeline_successful ? "Yes!" : "No!");
-
-      if (is_pipeline_successful) {
-        // Log overall time of pipeline run.
-        VIO::PipelineLogger logger;
-        logger.logPipelineOverallTiming(spin_duration);
-      }
-
-      return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
+      vio_pipeline = VIO::make_unique<VIO::MonoPipeline>(vio_params);
     } break;
     case VIO::FrontendType::kStereoImu: {
-      VIO::StereoPipeline vio_pipeline(vio_params);
-
-      // Register callback to shutdown data provider in case VIO pipeline
-      // shutsdown.
-      vio_pipeline.registerShutdownCallback(
-          std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser));
-
-      // Register callback to vio pipeline.
-      dataset_parser->registerImuSingleCallback(
-          std::bind(&VIO::StereoPipeline::fillSingleImuQueue,
-                    &vio_pipeline,
-                    std::placeholders::_1));
-      // We use blocking variants to avoid overgrowing the input queues (use
-      // the non-blocking versions with real sensor streams)
-      dataset_parser->registerLeftFrameCallback(
-          std::bind(&VIO::StereoPipeline::fillLeftFrameQueue,
-                    &vio_pipeline,
-                    std::placeholders::_1));
-      dataset_parser->registerRightFrameCallback(
-          std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
-                    &vio_pipeline,
-                    std::placeholders::_1));
-
-      // Spin dataset.
-      auto tic = VIO::utils::Timer::tic();
-      bool is_pipeline_successful = false;
-      if (vio_params.parallel_run_) {
-        auto handle = std::async(std::launch::async,
-                                 &VIO::DataProviderInterface::spin,
-                                 dataset_parser);
-        auto handle_pipeline = std::async(
-            std::launch::async, &VIO::StereoPipeline::spin, &vio_pipeline);
-        auto handle_shutdown =
-            std::async(std::launch::async,
-                       &VIO::StereoPipeline::shutdownWhenFinished,
-                       &vio_pipeline,
-                       500,
-                       true);
-        vio_pipeline.spinViz();
-        is_pipeline_successful = !handle.get();
-        handle_shutdown.get();
-        handle_pipeline.get();
-      } else {
-        while (dataset_parser->spin() && vio_pipeline.spin()) {
-          continue;
-        };
-        vio_pipeline.shutdown();
-        is_pipeline_successful = true;
-      }
-
-      // Output stats.
-      auto spin_duration = VIO::utils::Timer::toc(tic);
-      LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-      LOG(INFO) << "Pipeline successful? "
-                << (is_pipeline_successful ? "Yes!" : "No!");
-
-      if (is_pipeline_successful) {
-        // Log overall time of pipeline run.
-        VIO::PipelineLogger logger;
-        logger.logPipelineOverallTiming(spin_duration);
-      }
-
-      return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
+      vio_pipeline = VIO::make_unique<VIO::StereoPipeline>(vio_params);
     } break;
     default: {
       LOG(FATAL) << "Unrecognized pipeline type: " << FLAGS_dataset_type << "."
                  << " 0: Mono, 1: Stereo.";
-    }
+    } break;
   }
 
-  return 0;
+  // Register callback to shutdown data provider in case VIO pipeline
+  // shutsdown.
+  vio_pipeline->registerShutdownCallback(
+      std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser));
+
+  // Register callback to vio pipeline.
+  dataset_parser->registerImuSingleCallback(
+      std::bind(&VIO::Pipeline::fillSingleImuQueue,
+                std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
+                std::placeholders::_1));
+  // We use blocking variants to avoid overgrowing the input queues (use
+  // the non-blocking versions with real sensor streams)
+  dataset_parser->registerLeftFrameCallback(
+      std::bind(&VIO::Pipeline::fillLeftFrameQueue,
+                std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
+                std::placeholders::_1));
+
+  if (vio_params.frontend_type_ == VIO::FrontendType::kStereoImu) {
+    VIO::StereoPipeline::UniquePtr stereo_pipeline =
+        VIO::safeCast<VIO::Pipeline, VIO::StereoPipeline>(
+            std::move(vio_pipeline));
+
+    dataset_parser->registerRightFrameCallback(
+        std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
+                  std::ref(*CHECK_NOTNULL(stereo_pipeline.get())),
+                  std::placeholders::_1));
+
+    vio_pipeline = VIO::safeCast<VIO::StereoPipeline, VIO::Pipeline>(
+        std::move(stereo_pipeline));
+  }
+
+  // Spin dataset.
+  auto tic = VIO::utils::Timer::tic();
+  bool is_pipeline_successful = false;
+  if (vio_params.parallel_run_) {
+    auto handle = std::async(std::launch::async,
+                              &VIO::DataProviderInterface::spin,
+                              dataset_parser);
+    auto handle_pipeline =
+        std::async(std::launch::async,
+                   &VIO::Pipeline::spin,
+                   std::ref(*CHECK_NOTNULL(vio_pipeline.get())));
+    auto handle_shutdown =
+        std::async(std::launch::async,
+                    &VIO::Pipeline::shutdownWhenFinished,
+                    std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
+                    500,
+                    true);
+    vio_pipeline->spinViz();
+    is_pipeline_successful = !handle.get();
+    handle_shutdown.get();
+    handle_pipeline.get();
+  } else {
+    while (dataset_parser->spin() && vio_pipeline->spin()) {
+      continue;
+    };
+    vio_pipeline->shutdown();
+    is_pipeline_successful = true;
+  }
+
+  // Output stats.
+  auto spin_duration = VIO::utils::Timer::toc(tic);
+  LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
+  LOG(INFO) << "Pipeline successful? "
+            << (is_pipeline_successful ? "Yes!" : "No!");
+
+  if (is_pipeline_successful) {
+    // Log overall time of pipeline run.
+    VIO::PipelineLogger logger;
+    logger.logPipelineOverallTiming(spin_duration);
+  }
+
+  return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
 }
