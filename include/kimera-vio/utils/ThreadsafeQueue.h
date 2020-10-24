@@ -257,8 +257,8 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
 
 template <typename T>
 ThreadsafeQueueBase<T>::ThreadsafeQueueBase(const std::string& queue_id)
-    : mutex_(),
-      queue_id_(queue_id),
+    : queue_id_(queue_id),
+      mutex_(),
       data_queue_(),
       data_cond_(),
       shutdown_(false) {}

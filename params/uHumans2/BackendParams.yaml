@@ -2,9 +2,8 @@
 # Backend modality for regular VIO
 # 0: Structureless factors only, 4: SPR pipeline
 backend_modality: 0
-
 #INITIALIZATION PARAMETERS
-autoInitialize: 1
+autoInitialize: 0
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
@@ -30,7 +29,7 @@ rankTolerance: 1
 #   * if the landmark is triangulated at distance larger than this,
 #   * result is flagged as degenerate.
 #   */
-landmarkDistanceThreshold: 15
+landmarkDistanceThreshold: 10
 
 # DynamicOutlierRejection:
 #  /**
@@ -38,16 +37,16 @@ landmarkDistanceThreshold: 15
 #   * is smaller than this threshold after triangulation, otherwise result is
 #   * flagged as degenerate.
 #   */
-outlierRejection: 8
+outlierRejection: 3
 # ///< threshold to decide whether to re-triangulate
 retriangulationThreshold: 0.001
 
 ## Noise models ##
-smartNoiseSigma: 3.25
+smartNoiseSigma: 3.0
 monoNoiseSigma: 1.8
 monoNormType: 2
 monoNormParam: 4.6851
-stereoNoiseSigma: 0.03
+stereoNoiseSigma: 1.8
 stereoNormType: 2
 stereoNormParam: 4.6851
 regularityNoiseSigma: 0.03

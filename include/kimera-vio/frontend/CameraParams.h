@@ -53,10 +53,10 @@ class CameraParams : public PipelineParams {
         camera_id_(),
         camera_model_(),
         intrinsics_(),
+        K_(),
         body_Pose_cam_(),
         frame_rate_(),
         image_size_(),
-        K_(),
         distortion_model_(),
         distortion_coeff_(),
         distortion_coeff_mat_(),
@@ -92,7 +92,8 @@ class CameraParams : public PipelineParams {
   Intrinsics intrinsics_;
   // OpenCV structures: needed to compute the undistortion map.
   // 3x3 camera matrix K (last row is {0,0,1})
-  cv::Mat K_;
+  cv::Mat 
+    ;
 
   // Sensor extrinsics wrt body-frame
   gtsam::Pose3 body_Pose_cam_;

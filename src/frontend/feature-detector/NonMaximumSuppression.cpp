@@ -51,7 +51,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
   }
   std::vector<int> Indx(responseVector.size());
   std::iota(std::begin(Indx), std::end(Indx), 0);
-  cv::sortIdx(responseVector, Indx, CV_SORT_DESCENDING);
+  cv::sortIdx(responseVector, Indx, cv::SortFlags::SORT_DESCENDING);
   std::vector<cv::KeyPoint> keyPointsSorted;
   for (unsigned int i = 0; i < keyPoints.size(); i++) {
     keyPointsSorted.push_back(keyPoints[Indx[i]]);
