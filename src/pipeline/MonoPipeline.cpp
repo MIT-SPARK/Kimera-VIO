@@ -156,18 +156,21 @@ MonoPipeline::MonoPipeline(const VioParams& params,
                          static_cast<BackendType>(params.backend_type_)));
 
     //! Register input callbacks
-    // CHECK(vio_backend_module_);
-    // vio_backend_module_->registerOutputCallback(
-    //     std::bind(&VisualizerModule::fillBackendQueue,
-    //               std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-    //               std::placeholders::_1));
+    CHECK(vio_backend_module_);
+    vio_backend_module_->registerOutputCallback(
+        std::bind(&VisualizerModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                  std::placeholders::_1));
 
-    // TODO(marcus): either make all frontend outputs the same or make visualizer
-    // accept mono outputs
-    // vio_frontend_module_->registerOutputCallback(
-    //     std::bind(&VisualizerModule::fillFrontendQueue,
-    //               std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-    //               std::placeholders::_1));
+    auto& visualizer_module = visualizer_module_;
+    vio_frontend_module_->registerOutputCallback(
+        [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
+          MonoFrontendOutput::Ptr converted_output =
+              VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                  output);
+          CHECK_NOTNULL(visualizer_module.get())
+              ->fillFrontendQueue(converted_output);
+    });
 
     // if (mesher_module_) {
     //   mesher_module_->registerOutputCallback(

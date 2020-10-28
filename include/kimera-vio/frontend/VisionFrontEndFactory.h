@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/VisionFrontEnd.h"
 #include "kimera-vio/frontend/MonoVisionFrontEnd.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"

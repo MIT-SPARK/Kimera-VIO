@@ -22,6 +22,7 @@
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"

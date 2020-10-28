@@ -19,6 +19,7 @@
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 
 namespace VIO {
 
@@ -50,15 +51,16 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
                      const DebugTrackerInfo& debug_tracker_info)
       : FrontendOutputPacketBase(frame_lkf.timestamp_,
                                  is_keyframe,
+                                 FrontendType::kMonoImu,
                                  pim,
-                                 imu_acc_gyrs),
+                                 imu_acc_gyrs,
+                                 debug_tracker_info),
         status_mono_measurements_(status_mono_measurements),
         tracker_status_(tracker_status),
         relative_pose_body_(relative_pose_body),
         b_Pose_cam_rect_(b_Pose_cam_rect),
         frame_lkf_(frame_lkf),
-        feature_tracks_(feature_tracks),
-        debug_tracker_info_(debug_tracker_info) {}
+        feature_tracks_(feature_tracks) {}
 
   virtual ~MonoFrontendOutput() = default;
 
@@ -68,10 +70,7 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
   const gtsam::Pose3 relative_pose_body_;
   const gtsam::Pose3 b_Pose_cam_rect_;
   const Frame frame_lkf_;
-  const DebugTrackerInfo debug_tracker_info_;
   const cv::Mat feature_tracks_;
-
-  inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
 
 }  // namespace VIO

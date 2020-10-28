@@ -139,9 +139,6 @@ StereoPipeline::StereoPipeline(const VioParams& params,
           CHECK_NOTNULL(mesher_module.get())
               ->fillFrontendQueue(converted_output);
         });
-    // std::bind(&MesherModule::fillFrontendQueue,
-    //           std::ref(*CHECK_NOTNULL(mesher_module_.get())),
-    //           std::placeholders::_1));
   }
 
   if (FLAGS_visualize) {
@@ -171,9 +168,6 @@ StereoPipeline::StereoPipeline(const VioParams& params,
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
         });
-        // std::bind(&VisualizerModule::fillFrontendQueue,
-        //           std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-        //           std::placeholders::_1));
 
     if (mesher_module_) {
       mesher_module_->registerOutputCallback(
@@ -216,9 +210,6 @@ StereoPipeline::StereoPipeline(const VioParams& params,
               VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
           CHECK_NOTNULL(lcd_module.get())->fillFrontendQueue(converted_output);
         });
-        // std::bind(&LcdModule::fillFrontendQueue,
-        //           std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-        //           std::placeholders::_1));
   }
 
   // All modules are ready, launch threads! If the parallel_run flag is set to

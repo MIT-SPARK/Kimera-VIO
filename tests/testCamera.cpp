@@ -22,6 +22,7 @@
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 DECLARE_string(test_data_path);
 

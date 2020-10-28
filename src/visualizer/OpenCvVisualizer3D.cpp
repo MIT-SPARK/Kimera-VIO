@@ -28,6 +28,8 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -116,7 +118,11 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
 
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe =
-      input.frontend_output_->stereo_frame_lkf_.left_frame_;
+      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)->stereo_frame_lkf_.left_frame_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput> (
+                input.frontend_output_)->frame_lkf_;
   switch (visualization_type_) {
     // Computes and visualizes 3D mesh from 2D triangulation.
     // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
@@ -356,9 +362,16 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   // Visualize trajectory.
   // First, add current pose to trajectory
   VLOG(10) << "Starting trajectory visualization...";
+  const gtsam::Pose3& b_Pose_cam_rect =
+      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_camL_rect_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_cam_rect_;
   addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-      input.backend_output_->W_State_Blkf_.pose_.compose(
-          input.frontend_output_->b_Pose_camL_rect_)));
+      input.backend_output_->W_State_Blkf_.pose_.compose(b_Pose_cam_rect)));
   // Generate line through all poses
   visualizeTrajectory3D(&output->widgets_);
   // Generate frustums for the last 10 poses.
