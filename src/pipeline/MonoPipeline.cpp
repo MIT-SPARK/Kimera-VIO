@@ -152,7 +152,9 @@ MonoPipeline::MonoPipeline(const VioParams& params,
                          VisualizerType::OpenCV,
                          // TODO(Toni): bundle these three params in
                          // VisualizerParams...
-                         static_cast<VisualizationType>(FLAGS_viz_type),
+                         // NOTE: use kNone for now because mesher isn't enabled
+                         // TODO(marcus): handle in params instead!
+                         static_cast<VisualizationType>(VisualizationType::kNone),
                          static_cast<BackendType>(params.backend_type_)));
 
     //! Register input callbacks
