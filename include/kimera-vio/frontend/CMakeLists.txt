@@ -18,6 +18,7 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEnd.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEnd-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndModule.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndFactory.h"

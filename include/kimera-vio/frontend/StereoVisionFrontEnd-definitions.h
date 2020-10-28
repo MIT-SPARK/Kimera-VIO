@@ -16,19 +16,10 @@
 
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame-definitions.h"
+#include "kimera-vio/frontend/VisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
 
-
 namespace VIO {
-
-// TODO(marcus): move this to VisionFrontEnd.h 
-//  (raises weird errors, includes must be wrong somewhere).
-enum class FrontendType {
-  //! Frontend that works with Mono camera and Imu
-  kMonoImu = 0,
-  //! Frontend that works with Stereo camera and Imu
-  kStereoImu = 1
-};
 
 struct StereoFrontendOutput : public FrontendOutputPacketBase {
  public:
