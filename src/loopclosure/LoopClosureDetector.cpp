@@ -351,11 +351,11 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
             // Find correspondences between keypoints.
             std::vector<FrameId> i_query, i_match;
             computeMatchedIndices(
-                frame_id, best_island.best_id_, &i_query, &i_match, true);
+                result->query_id_, result->match_id_, &i_query, &i_match, true);
 
             bool pass_geometric_verification =
-                geometricVerificationCheck(frame_id,
-                                           best_island.best_id_,
+                geometricVerificationCheck(result->query_id_,
+                                           result->match_id_,
                                            &camMatch_T_camQuery_mono,
                                            &i_query,
                                            &i_match);
