@@ -364,12 +364,13 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
               result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
             } else {
               gtsam::Pose3 bodyMatch_T_bodyQuery_stereo;
-              bool pass_3d_pose_compute = recoverPose(result->query_id_,
-                                                      result->match_id_,
-                                                      camMatch_T_camQuery_mono,
-                                                      &bodyMatch_T_bodyQuery_stereo,
-                                                      &i_query,
-                                                      &i_match);
+              bool pass_3d_pose_compute =
+                  recoverPose(result->query_id_,
+                              result->match_id_,
+                              camMatch_T_camQuery_mono,
+                              &bodyMatch_T_bodyQuery_stereo,
+                              &i_query,
+                              &i_match);
 
               if (!pass_3d_pose_compute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
@@ -484,8 +485,8 @@ bool LoopClosureDetector::recoverPose(
     const gtsam::Point3& bodyMatch_t_bodyQuery_stereo =
         bodyMatch_T_bodyQuery_stereo->translation();
 
-    *bodyMatch_T_bodyQuery_stereo =
-        gtsam::Pose3(bodyMatch_R_bodyQuery_stereo, bodyMatch_t_bodyQuery_stereo);
+    *bodyMatch_T_bodyQuery_stereo = gtsam::Pose3(bodyMatch_R_bodyQuery_stereo,
+                                                 bodyMatch_t_bodyQuery_stereo);
   }
 
   return passed_pose_recovery;
@@ -507,13 +508,8 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   values.insert(key_query, camMatch_T_camQuery_stereo);
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Unit::Create(6);
-  nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-      key_match, gtsam::Pose3(), noise));
+  nfg.add(gtsam::PriorFactor<gtsam::Pose3>(key_match, gtsam::Pose3(), noise));
 
-  // nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(key_match,
-  //                                            key_query,
-  //                                            camMatch_T_camQuery_stereo,
-  //                                            noise));
   gtsam::SharedNoiseModel noise_stereo = gtsam::noiseModel::Unit::Create(3);
 
   gtsam::SmartStereoProjectionParams smart_factors_params;
@@ -541,8 +537,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
     SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
 
-    stereo_factor_i.add(
-        sp_query_i, key_query, stereo_calibration_);
+    stereo_factor_i.add(sp_query_i, key_query, stereo_calibration_);
 
     KeypointCV undistorted_rectified_left_match_keypoint =
         (db_frames_[match_id]
@@ -555,8 +550,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
                                    undistorted_rectified_right_match_keypoint.x,
                                    undistorted_rectified_left_match_keypoint.y);
 
-    stereo_factor_i.add(
-        sp_match_i, key_match, stereo_calibration_);
+    stereo_factor_i.add(sp_match_i, key_match, stereo_calibration_);
 
     nfg.add(stereo_factor_i);
   }
@@ -955,7 +949,8 @@ bool LoopClosureDetector::recoverPoseArun(
         }
 
         // Transform pose from camera frame to body frame.
-        *camMatch_T_camQuery = UtilsOpenCV::openGvTfToGtsamPose3(transformation);
+        *camMatch_T_camQuery =
+            UtilsOpenCV::openGvTfToGtsamPose3(transformation);
 
         return true;
       }
