@@ -7,6 +7,9 @@
 *.ipynb_checkpoints
 *.autosave
 
+% Ignore ILLIXR common
+common
+
 % Ignore VS code settings
 *.vscode
 

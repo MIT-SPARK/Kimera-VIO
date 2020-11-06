@@ -40,7 +40,7 @@ DEFINE_bool(extract_planes_from_the_scene,
             "Whether to use structural regularities in the scene,"
             "currently only planes.");
 
-DEFINE_bool(visualize, true, "Enable overall visualization.");
+DEFINE_bool(visualize, false, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
 DEFINE_int32(viz_type,
              0,

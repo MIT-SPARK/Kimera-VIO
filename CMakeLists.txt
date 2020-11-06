@@ -1,6 +1,10 @@
 cmake_minimum_required (VERSION 3.5)
 project(kimera_vio VERSION 1.0 LANGUAGES CXX)
 
+# ILLIXR requires C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Make sure that custom modules like FindXXXX are found
 # Prefer to use system installation of gflags/glog
 set(GFLAGS_PREFER_EXPORTED_GFLAGS_CMAKE_CONFIGURATION TRUE)
@@ -156,6 +160,10 @@ add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
+
+add_library(plugin SHARED ./examples/plugin.cpp)
+target_include_directories(plugin PRIVATE ./common)
+target_link_libraries(plugin PUBLIC kimera_vio::kimera_vio)
 
 ############################### TESTS ##########################################
 ### Add testing
