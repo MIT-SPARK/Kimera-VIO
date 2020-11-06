@@ -45,7 +45,7 @@ enum class VisualizationType {
 };
 
 typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
-typedef std::unordered_map<std::string, WidgetPtr> WidgetsMap;
+typedef std::map<std::string, WidgetPtr> WidgetsMap;
 
 struct ImageToDisplay {
   ImageToDisplay() = default;

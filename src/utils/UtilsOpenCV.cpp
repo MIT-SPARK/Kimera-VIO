@@ -560,24 +560,30 @@ void UtilsOpenCV::DrawTextInPlace(cv::Mat& img,
 /* -------------------------------------------------------------------------- */
 // Concatenate two images and return results as a new mat.
 // Clones the two images.
-cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat& imL_in,
-                                          const cv::Mat& imR_in) {
-  cv::Mat imL = imL_in.clone();
-  if (imL.channels() == 1) {
-    cv::cvtColor(imL, imL, cv::COLOR_GRAY2BGR);
+cv::Mat UtilsOpenCV::concatenateTwoImages(const cv::Mat& left_img,
+                                          const cv::Mat& right_img) {
+  cv::Mat left_img_tmp = left_img.clone();
+  if (left_img_tmp.channels() == 1) {
+    cv::cvtColor(left_img_tmp, left_img_tmp, cv::COLOR_GRAY2BGR);
   }
-  cv::Mat imR = imR_in.clone();
-  if (imR.channels() == 1) {
-    cv::cvtColor(imR, imR, cv::COLOR_GRAY2BGR);
+  cv::Mat right_img_tmp = right_img.clone();
+  if (right_img_tmp.channels() == 1) {
+    cv::cvtColor(right_img_tmp, right_img_tmp, cv::COLOR_GRAY2BGR);
   }
-  cv::Size szL = imL.size();
-  cv::Size szR = imR.size();
-  cv::Mat originalLR(szL.height, szL.width + szR.width, CV_8UC3);
-  cv::Mat left(originalLR, cv::Rect(0, 0, szL.width, szL.height));
-  imL.copyTo(left);
-  cv::Mat right(originalLR, cv::Rect(szL.width, 0, szR.width, szR.height));
-  imR.copyTo(right);
-  return originalLR;
+  cv::Size left_img_size = left_img_tmp.size();
+  cv::Size right_img_size = right_img_tmp.size();
+  cv::Mat dual_img(left_img_size.height,
+                   left_img_size.width + right_img_size.width,
+                   CV_8UC3);
+  cv::Mat left(dual_img,
+               cv::Rect(0, 0, left_img_size.width, left_img_size.height));
+  left_img_tmp.copyTo(left);
+  cv::Mat right(
+      dual_img,
+      cv::Rect(
+          left_img_size.width, 0, right_img_size.width, right_img_size.height));
+  right_img_tmp.copyTo(right);
+  return dual_img;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -589,7 +595,7 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
     const std::vector<cv::Point2f>& corners2,
     const std::vector<cv::DMatch>& matches,
     const bool randomColor) {
-  cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
+  cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
   cv::RNG rng(12345);
   for (int i = 0; i < matches.size(); i++) {
@@ -677,7 +683,7 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
     const cv::Mat img2,
     const std::vector<cv::Point2f>& corners2,
     const std::vector<cv::DMatch>& matches) {
-  cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
+  cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
 
   for (int i = 0; i < matches.size(); i++) {
@@ -916,6 +922,26 @@ void UtilsOpenCV::safeOpenCVFileStorage(cv::FileStorage* fs,
     CHECK(fs->isOpened()) << "Cannot open file: " << file_path << " (remember "
                           << "that first line of yaml file must be: %YAML:1.0)";
   }
+}
+
+void UtilsOpenCV::getDisparityVis(cv::InputArray src,
+                                  cv::OutputArray dst,
+                                  int unknown_disparity) {
+  CHECK(!src.empty() && (src.depth() == CV_16S || src.depth() == CV_32F) &&
+        (src.channels() == 1));
+  cv::Mat srcMat = src.getMat();
+  dst.create(srcMat.rows, srcMat.cols, CV_8UC1);
+  cv::Mat& dstMat = dst.getMatRef();
+
+  // Check its extreme values.
+  double min_val;
+  double max_val;
+  cv::minMaxLoc(src, &min_val, &max_val);
+
+  // Multiply by 1.25 just to saturate a bit the extremums.
+  double scale = 2.0 * 255.0 / (max_val - min_val);
+  srcMat.convertTo(dstMat, CV_8UC1, scale / 16.0);
+  dstMat &= (srcMat != unknown_disparity);
 }
 
 }  // namespace VIO

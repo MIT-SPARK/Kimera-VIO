@@ -48,9 +48,13 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     bool ransac_randomize_stereo,
     double ransac_inlier_threshold_stereo,
     bool use_mono_rot,
-
+    bool refine_pose,
     double lowe_ratio,
+#if CV_VERSION_MAJOR == 3
     int matcher_type,
+#else
+    cv::DescriptorMatcher::MatcherType matcher_type,
+#endif
 
     int nfeatures,
     float scale_factor,
@@ -58,7 +62,11 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     int edge_threshold,
     int first_level,
     int WTA_K,
+#if CV_VERSION_MAJOR == 3
     int score_type,
+#else
+    cv::ORB::ScoreType score_type,
+#endif
     int patch_sze,
     int fast_threshold,
 
@@ -96,6 +104,7 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       ransac_randomize_stereo_(ransac_randomize_stereo),
       ransac_inlier_threshold_stereo_(ransac_inlier_threshold_stereo),
       use_mono_rot_(use_mono_rot),
+      refine_pose_(refine_pose),
 
       lowe_ratio_(lowe_ratio),
       matcher_type_(matcher_type),
@@ -181,6 +190,7 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("ransac_inlier_threshold_stereo",
                            &ransac_inlier_threshold_stereo_);
   yaml_parser.getYamlParam("use_mono_rot", &use_mono_rot_);
+  yaml_parser.getYamlParam("refine_pose", &refine_pose_);
   yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
   yaml_parser.getYamlParam("matcher_type", &matcher_type_);
   yaml_parser.getYamlParam("nfeatures", &nfeatures_);
@@ -194,7 +204,11 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("score_type_id", &score_type_id);
   switch (score_type_id) {
     case 0:
+#if CV_VERSION_MAJOR == 3
       score_type_ = cv::ORB::HARRIS_SCORE;
+#else
+      score_type_ = cv::ORB::ScoreType::HARRIS_SCORE;
+#endif
       break;
     // TODO(marcus): add the rest of the options here
     default:
@@ -277,7 +291,8 @@ void LoopClosureDetectorParams::print() const {
                         ransac_inlier_threshold_stereo_,
                         "use_mono_rot_:",
                         use_mono_rot_,
-
+                        "refine_pose_:",
+                        refine_pose_,
                         "lowe_ratio_: ",
                         lowe_ratio_,
                         "matcher_type_:",
@@ -296,7 +311,7 @@ void LoopClosureDetectorParams::print() const {
                         "WTA_K_: ",
                         WTA_K_,
                         "score_type_: ",
-                        score_type_,
+                        static_cast<unsigned int>(score_type_),
                         "patch_sze_: ",
                         patch_sze_,
                         "fast_threshold_: ",

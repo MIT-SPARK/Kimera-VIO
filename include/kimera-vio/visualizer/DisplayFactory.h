@@ -30,12 +30,13 @@ class DisplayFactory {
   DisplayFactory() = default;
   virtual ~DisplayFactory() = default;
 
+  template<class ... Types>
   static DisplayBase::UniquePtr makeDisplay(
       const DisplayType& display_type,
-      const ShutdownPipelineCallback& shutdown_pipeline_cb) {
+      Types ... args) {
     switch (display_type) {
       case DisplayType::kOpenCV: {
-        return VIO::make_unique<OpenCv3dDisplay>(shutdown_pipeline_cb);
+        return VIO::make_unique<OpenCv3dDisplay>(args...);
       }
       default: {
         LOG(FATAL) << "Requested display type is not supported.\n"

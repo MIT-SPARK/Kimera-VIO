@@ -59,7 +59,9 @@ struct LCDFrame {
            const std::vector<gtsam::Vector3>& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
-           const BearingVectors& versors)
+           const BearingVectors& versors,
+           const KeypointsCV& left_keypoints_rectified,
+           const KeypointsCV& right_keypoints_rectified)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -67,7 +69,9 @@ struct LCDFrame {
         keypoints_3d_(keypoints_3d),
         descriptors_vec_(descriptors_vec),
         descriptors_mat_(descriptors_mat),
-        versors_(versors) {}
+        versors_(versors),
+        left_keypoints_rectified_(left_keypoints_rectified),
+        right_keypoints_rectified_(right_keypoints_rectified) {}
 
   Timestamp timestamp_;
   FrameId id_;
@@ -77,6 +81,8 @@ struct LCDFrame {
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors versors_;
+  KeypointsCV left_keypoints_rectified_;
+  KeypointsCV right_keypoints_rectified_;
 };  // struct LCDFrame
 
 struct MatchIsland {
