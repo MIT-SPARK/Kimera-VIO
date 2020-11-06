@@ -431,6 +431,8 @@ bool LoopClosureDetector::recoverPose(
     std::vector<FrameId>* inlier_id_in_query_frame,
     std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(bodyMatch_T_bodyQuery_stereo);
+  CHECK_NOTNULL(inlier_id_in_query_frame);
+  CHECK_NOTNULL(inlier_id_in_match_frame);
 
   bool passed_pose_recovery = false;
   gtsam::Pose3 camMatch_T_camQuery_stereo;
@@ -558,10 +560,9 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
     nfg.add(stereo_factor_i);
   }
-  // nfg.print("Refine poses nfg. ");
+
   gtsam::LevenbergMarquardtParams params;
   params.setVerbosityLM("ERROR");
-  // std::cout << "before optimize." << std::endl;
   try {
     values = gtsam::LevenbergMarquardtOptimizer(nfg, values, params).optimize();
   } catch (const gtsam::CheiralityException& e) {
@@ -580,8 +581,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
   }
-  // std::cout << "after optimize." << std::endl;
-  // values.print("Refine pose values. \n");
+
   return values.at<gtsam::Pose3>(key_query);
 }
 
@@ -814,6 +814,8 @@ bool LoopClosureDetector::geometricVerificationNister(
     std::vector<FrameId>* inlier_id_in_query_frame,
     std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(camMatch_T_camQuery_mono);
+  CHECK_NOTNULL(inlier_id_in_query_frame);
+  CHECK_NOTNULL(inlier_id_in_match_frame);
 
   // Correspondences between frames.
   std::vector<FrameId> i_query, i_match;
@@ -869,7 +871,7 @@ bool LoopClosureDetector::geometricVerificationNister(
           // i_match AND pass the result out)
           inlier_id_in_query_frame->clear();
           inlier_id_in_match_frame->clear();
-          for (auto i : ransac.inliers_) {
+          for (const auto i : ransac.inliers_) {
             inlier_id_in_query_frame->push_back(i_query[i]);
             inlier_id_in_match_frame->push_back(i_match[i]);
           }
@@ -893,6 +895,8 @@ bool LoopClosureDetector::recoverPoseArun(
     std::vector<FrameId>* inlier_id_in_query_frame,
     std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(camMatch_T_camQuery);
+  CHECK_NOTNULL(inlier_id_in_query_frame);
+  CHECK_NOTNULL(inlier_id_in_match_frame);
 
   // Correspondences between frames.
   std::vector<FrameId> i_query, i_match;
@@ -945,7 +949,7 @@ bool LoopClosureDetector::recoverPoseArun(
         // i_match AND pass the result out)
         inlier_id_in_query_frame->clear();
         inlier_id_in_match_frame->clear();
-        for (auto i : ransac.inliers_) {
+        for (const auto i : ransac.inliers_) {
           inlier_id_in_query_frame->push_back(i_query[i]);
           inlier_id_in_match_frame->push_back(i_match[i]);
         }
@@ -970,6 +974,8 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     std::vector<FrameId>* inlier_id_in_query_frame,
     std::vector<FrameId>* inlier_id_in_match_frame) {
   CHECK_NOTNULL(camMatch_T_camQuery);
+  CHECK_NOTNULL(inlier_id_in_query_frame);
+  CHECK_NOTNULL(inlier_id_in_match_frame);
 
   const gtsam::Rot3& camMatch_R_camQuery = camMatch_T_camQuery_mono.rotation();
 
