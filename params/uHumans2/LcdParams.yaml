@@ -1,7 +1,7 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.9
+alpha: 0.5
 min_temporal_matches: 0
 dist_local: 20
 max_db_results: 50
@@ -11,23 +11,24 @@ max_intragroup_gap: 3
 max_distance_between_groups: 3
 max_distance_between_queries: 2
 
-geom_check_id: 1
+geom_check_id: 0
 min_correspondences: 12
 max_ransac_iterations_mono: 500
 ransac_probability_mono: 0.99
-ransac_threshold_mono: 1e-6
+ransac_threshold_mono: 1e-5
 ransac_randomize_mono: 0
 ransac_inlier_threshold_mono: 0.5
 
 pose_recovery_option_id: 0
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.995
-ransac_threshold_stereo: 0.15
+ransac_threshold_stereo: 0.3
 ransac_randomize_stereo: 0
 ransac_inlier_threshold_stereo: 0.5
-use_mono_rot: 1
+use_mono_rot: 0
+refine_pose: 1
 
-lowe_ratio: 0.7
+lowe_ratio: 0.5
 matcher_type: 3
 
 nfeatures: 500
