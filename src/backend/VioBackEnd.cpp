@@ -229,6 +229,7 @@ bool VioBackEnd::initStateAndSetPriors(
   imu_bias_prev_kf_ = vio_nav_state_initial_seed.imu_bias_;
 
   VLOG(2) << "Initial state seed: \n"
+          << " - Initial timestamp: " << timestamp_lkf_ << '\n'
           << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
           << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
           << " - Initial IMU bias: " << imu_bias_lkf_;
@@ -973,7 +974,7 @@ bool VioBackEnd::optimize(
   }
 
   // Recreate the graph before marginalization.
-  if (VLOG_IS_ON(10) || FLAGS_debug_graph_before_opt) {
+  if (VLOG_IS_ON(10) && FLAGS_debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = smoother_->getFactors();
     debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
     debug_info_.graphToBeDeleted.resize(delete_slots.size());
@@ -1330,7 +1331,7 @@ bool VioBackEnd::updateSmoother(Smoother::Result* result,
       VLOG(10) << "Finished cleanCheiralityLmk.";
 
       // Recreate the graph before marginalization.
-      if (VLOG_IS_ON(5) || FLAGS_debug_graph_before_opt) {
+      if (VLOG_IS_ON(5) && FLAGS_debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
         debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
         debug_info_.graphToBeDeleted.resize(delete_slots_cheirality.size());
@@ -1930,7 +1931,7 @@ void VioBackEnd::computeSmartFactorStatistics() {
             debug_info_.meanTrackLength_ += trackLength;
           }
         } else {
-          VLOG(1) << "Triangulation result is not initialized...";
+          VLOG(5) << "Triangulation result is not initialized...";
           debug_info_.numNonInitialized_ += 1;
         }
       }
