@@ -28,7 +28,7 @@ ransac_inlier_threshold_stereo: 0.5
 use_mono_rot: 0
 refine_pose: 1
 
-lowe_ratio: 0.5
+lowe_ratio: 0.2
 matcher_type: 3
 
 nfeatures: 500
