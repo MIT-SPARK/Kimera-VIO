@@ -19,9 +19,11 @@ RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev
+ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
+    git checkout master && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON .. && \
@@ -81,12 +83,12 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-# [Optional] Install spark_vio_evaluation from PyPI
+## [Optional] Install Kimera-VIO-Evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
-# Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-RUN cd spark_vio_evaluation && pip install .
+## Hack to avoid Docker's cache when Kimera-VIO-Evaluation master branch is updated.
+ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+RUN cd Kimera-VIO-Evaluation && pip install .
 
 # Add credentials on build
 ARG SSH_PRIVATE_KEY
