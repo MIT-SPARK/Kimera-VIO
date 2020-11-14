@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 # -------------------------------------------------------------------------- #
 # * Copyright 2019, Massachusetts Institute of Technology,
 # * Cambridge, MA 02139
@@ -7,510 +6,326 @@
 # * Authors: Luca Carlone, et al. (see THANKS for the full author list)
 # * See LICENSE for the license information
 # -------------------------------------------------------------------------- #
+"""
+Creates proper configurations for real hardware from a Kalibr calibration.
 
-# @file   kalibr2kimeravio.py
-# @brief  create calibration.yaml config from Kalibr files (pinhole radtan)
-# @author Sandro Berchier
-# @author Antoni Rosinol
+This script creates yaml config files for Kimera-VIO from a Kalibr camera and
+IMU calibration.  Further description TBD
 
-# * Print Instructions by calling: `python config2kimeravio.py --flags`
-# The script creates yaml config files for Kimera-VIO from Kalibr or
-# ROS info topics.
-# Options: stereo-radtan, stereo-equidistant or RGB-D.
-#       -config_option    --> VIO config option, default='stereo-radtan'
-#       -output           --> path for output directory, default='./example'
-#       -responsible      --> person who performed the calibration, default='unknown'
-#       -date             --> date when calibration was performed, default='unknown'
-#       -camera           --> camera hardware used in calibration, default='unknown'
-#       -IMU              --> IMU hardware used in calibration, default='unknown'
-#       -cam_rate         --> camera rate in hz, default=20
-#       -input_cam        --> path to directory with input file for cameras, default='./example/camchain.yaml'
-#       -input_imu        --> path to directory with input file for imu, default='./example/imu.yaml'
-#       -baseline         --> baseline in m, default=0.05m
-#       -tf_topic_cam0    --> tf frame name of cam0, default='realsense_infra1_optical_frame'
-#       -info_topic_cam0  --> camera info topic name of cam0, default='realsense/infra1/camera_info'
-#       -tf_topic_cam1    --> tf frame name of cam1, default='realsense_infra2_optical_frame'
-#       -info_topic_cam1  --> camera info topic name of cam1, default='realsense/infra2/camera_info'\
-#       -tf_topic_imu0    --> tf frame name of imu0, default='realsense_accel_frame'
-#
-# * Example:
-#   ```
-#         python config2kimeravio.py
-#         -config_option 'stereo-radtan'
-#         -input_cam /home/sb/ETH/example/camchain.yaml
-#         -input_imu /home/sb/ETH/example/imu.yaml
-#         -output /home/sb/ETH/example
-#         -responsible 'Sandro Berchier'
-#         -date '05.06.2019'
-#         -camera 'MyntEye S'
-#         -IMU 'MyntEye S'
-#   ```
-# -------------------------------------------------------------------------- #
+Authors:
+    * Sandro Berchier
+    * Antoni Rosinol
+    * Nathan Hughes
 
-#!/usr/bin/env python
+Example:
+    You can run this module as a script like so::
+     python kalibr_params_to_kimera_params.py
+     -config_option 'stereo-radtan'
+     -input_cam /home/sb/ETH/example/camchain.yaml
+     -input_imu /home/sb/ETH/example/imu.yaml
+     -output /home/sb/ETH/example
+     -responsible 'Sandro Berchier'
+     -date '05.06.2019'
+     -camera 'MyntEye S'
+     -IMU 'MyntEye S'
+
+    Run ``python kalibr_params_to_kimera_params.py --help`` for more information
+
+"""
 
 import numpy as np
+import argparse
+import datetime
+import logging
+import pathlib
+import jinja2
 import yaml
-
-import rospy
-import tf
-from tf.transformations import quaternion_matrix
-from sensor_msgs.msg import CameraInfo
-import argparse, os
+import sys
 
 
-# Creates config file for Kimera-VIO from Kalibr yaml.
-def kalibr_configure(args):
-    # Read in Kalibr yaml files
-    kalibr_stereo = yaml.load(open(args.input_directory_cam))
-    kalibr_imu = yaml.load(open(args.input_directory_imu))
+VALID_MODELS = ["stereo-radtan", "stereo-equi"]
 
-    # Create config class
-    kimera_vio_config = spark_config_class()
-    header, camera_header, left_camera, right_camera, body, imu = ([], ) * 6
+CAMERA_MAPPINGS = {
+    "T_BS": ("T_cam_imu", lambda x: np.linalg.inv(np.array(x))),
+    "camera_width": ("resolution", lambda x: x[0]),
+    "camera_height": ("resolution", lambda x: x[1]),
+    "camera_model": ("camera_model", None),
+    "u_focal_length": ("intrinsics", lambda x: x[0]),
+    "v_focal_length": ("intrinsics", lambda x: x[1]),
+    "u_principal_point": ("intrinsics", lambda x: x[2]),
+    "v_principal_point": ("intrinsics", lambda x: x[3]),
+    "distortion_model": ("distortion_model", None),
+    "distortion_coefficients": ("distortion_coeffs", np.array),
+}
 
-    # Fill header
-    header = kimera_vio_config.header_string(args.responsible_calibration,
-                                             args.date_calibration,
-                                             args.camera_hardware,
-                                             args.IMU_hardware)
-
-    # Fill camera header
-    camera_header = kimera_vio_config.camera_header_string(
-        kalibr_stereo['cam0']['camera_model'], \
-        kalibr_stereo['cam0']['distortion_model'], \
-        args.cam_rate_hz, \
-        kalibr_stereo['cam0']['resolution'])
-
-    if (args.config_option == 'stereo-radtan'):
-        # Fill left camera
-        left_camera = kimera_vio_config.camera_string(
-            "left", ["k1", "k2", "p1", "p2"],
-            kalibr_stereo['cam0']['intrinsics'],
-            kalibr_stereo['cam0']['distortion_coeffs'],
-            np.linalg.inv(np.array(kalibr_stereo['cam0']['T_cam_imu'])))
-        # Fill right camera
-        right_camera = kimera_vio_config.camera_string(
-            "right", ["k1", "k2", "p1", "p2"],
-            kalibr_stereo['cam1']['intrinsics'],
-            kalibr_stereo['cam1']['distortion_coeffs'],
-            np.linalg.inv(np.array(kalibr_stereo['cam1']['T_cam_imu'])))
-    elif (args.config_option == 'RGBD-radtan'):
-        # Adding virtual baseline
-        virtual_pose = np.eye(4)
-        virtual_pose[0, 3] = -float(args.baseline)
-        T_depth_imu = np.matmul(virtual_pose,
-                                np.array(kalibr_stereo['cam0']['T_cam_imu']))
-        # Fill left camera
-        left_camera = kimera_vio_config.camera_string(
-            "left", ["k1", "k2", "p1", "p2"],
-            kalibr_stereo['cam0']['intrinsics'],
-            kalibr_stereo['cam0']['distortion_coeffs'],
-            np.linalg.inv(np.array(kalibr_stereo['cam0']['T_cam_imu'])))
-        # Fill right camera
-        right_camera = kimera_vio_config.camera_string(
-            "right", ["k1", "k2", "p1", "p2"],
-            kalibr_stereo['cam0']['intrinsics'],
-            kalibr_stereo['cam0']['distortion_coeffs'],
-            np.linalg.inv(T_depth_imu))
-    elif (args.config_option == 'stereo-equi'):
-        # Fill left camera
-        left_camera = kimera_vio_config.camera_string(
-            "left", ["k1", "k2", "k3", "k4"],
-            kalibr_stereo['cam0']['intrinsics'],
-            kalibr_stereo['cam0']['distortion_coeffs'],
-            np.linalg.inv(np.array(kalibr_stereo['cam0']['T_cam_imu'])))
-        # Fill right camera
-        right_camera = kimera_vio_config.camera_string(
-            "right", ["k1", "k2", "k3", "k4"],
-            kalibr_stereo['cam1']['intrinsics'],
-            kalibr_stereo['cam1']['distortion_coeffs'],
-            np.linalg.inv(np.array(kalibr_stereo['cam1']['T_cam_imu'])))
-
-    # Fill body
-    body = kimera_vio_config.body_string(np.eye(4))
-
-    # Fill imu
-    imu = kimera_vio_config.imu_string(
-        kalibr_imu['imu0']['update_rate'],
-        kalibr_stereo['cam0']['timeshift_cam_imu'] if 'timeshift_cam_imu' in kalibr_stereo['cam0'] else 0.0,
-        np.array(kalibr_imu['imu0']['T_i_b']),
-        kalibr_imu['imu0']['gyroscope_noise_density'],
-        kalibr_imu['imu0']['gyroscope_random_walk'],
-        kalibr_imu['imu0']['accelerometer_noise_density'],
-        kalibr_imu['imu0']['accelerometer_random_walk'])
-
-    # Concatenate all strings
-    kimera_vio_config.create_strings(header, camera_header, left_camera,
-                                     right_camera, body, imu)
-
-    # Return config
-    return kimera_vio_config
+IMU_MAPPINGS = {
+    "T_BS": ("T_i_b", lambda x: np.linalg.inv(np.array(x))),
+    "rate_hz": ("update_rate", None),
+    "gyroscope_noise_density": ("gyroscope_noise_density", None),
+    "gyroscope_random_walk": ("gyroscope_random_walk", None),
+    "accelerometer_noise_density": ("accelerometer_noise_density", None),
+    "accelerometer_random_walk": ("accelerometer_random_walk", None),
+}
 
 
-# Creates stereo pinhole radtan config file for Kimera-VIO from ROS-info.
-def intel_configure_pinhole_radtan(args):
+def remap_kalibr_config(kalibr_config, mapping):
+    """Map relevant fields from kalibr to kimera."""
+    kimera_config = {}
 
-    rospy.init_node('realsense_tf_listener')
-    listener = tf.TransformListener()
+    for kimera_key, kalibr_key_map_pair in mapping.items():
+        kalibr_key, transform_func = kalibr_key_map_pair
+        if transform_func is None:
+            kimera_config[kimera_key] = kalibr_config[kalibr_key]
+        else:
+            kimera_config[kimera_key] = transform_func(kalibr_config[kalibr_key])
 
-    # Get ROS messages
-    rate = rospy.Rate(0.5)
-    while not rospy.is_shutdown():
-        try:
-            # Camera 0
-            cam0_intr = topic_calibration(args.info_topic_cam0)
-            cam0_extr = tf_topic_pose(args.tf_frame_imu0, args.tf_frame_cam0,
-                                      listener)
-            # Camera 1
-            cam1_intr = topic_calibration(args.info_topic_cam0)
-            cam1_extr = tf_topic_pose(args.tf_frame_imu0, args.tf_frame_cam1,
-                                      listener)
-            # IMU 0
-            imu0_extr = tf_topic_pose(args.tf_frame_imu0, args.tf_frame_imu0,
-                                      listener)
-            break
-        except (tf.LookupException, tf.ConnectivityException, \
-                tf.ExtrapolationException):
-            continue
-        rate.sleep()
-
-    # Default values for IMU: (this needs to be changed!)
-    # Info topic doesn't work...
-    imu_rate_hz = 400
-    imu_shift = 0.0
-    gyroscope_noise_density = 0.013000000
-    gyroscope_random_walk = 0.001300000
-    accelerometer_noise_density = 0.083000000
-    accelerometer_random_walk = 0.008300000
-
-    # Create config class (using plumb_bob = pinhole radtan)
-    kimera_vio_config = spark_config_class()
-
-    # Fill header
-    kimera_vio_config.header_string(args.responsible_calibration,
-                                    args.date_calibration,
-                                    args.camera_hardware, args.IMU_hardware)
-
-    # Fill camera header
-    kimera_vio_config.camera_header_string(
-        "pinhole", "radtan", args.cam_rate_hz,
-        np.array([cam0_intr.width, cam0_intr.height]))
-
-    # Fill left camera
-    kimera_vio_config.camera_string(
-        "left", ["k1", "k2", "p1", "p2"],
-        np.array(
-            [cam0_intr.K[0], cam0_intr.K[4], cam0_intr.K[2], cam0_intr.K[5]]),
-        np.array(
-            [cam0_intr.D[0], cam0_intr.D[1], cam0_intr.D[2], cam0_intr.D[3]]),
-        cam0_extr)
-
-    # Fill right camera
-    kimera_vio_config.camera_string(
-        "right", ["k1", "k2", "p1", "p2"],
-        np.array(
-            [cam1_intr.K[0], cam1_intr.K[4], cam1_intr.K[2], cam1_intr.K[5]]),
-        np.array(
-            [cam1_intr.D[0], cam1_intr.D[1], cam1_intr.D[2], cam1_intr.D[3]]),
-        cam1_extr)
-
-    # Fill body
-    kimera_vio_config.body_string(np.eye(4))
-
-    # Fill imu
-    kimera_vio_config.imu_string(
-        imu_rate_hz, \
-        imu_shift, \
-        imu0_extr, \
-        gyroscope_noise_density, \
-        gyroscope_random_walk, \
-        accelerometer_noise_density, \
-        accelerometer_random_walk)
-
-    # Return config
-    return kimera_vio_config
+    return kimera_config
 
 
-# Computes pose between to ROS tf frames.
-def tf_topic_pose(frame1, frame2, listener):
-
-    # Listen to transform
-    (tras, quat) = listener.lookupTransform(frame1, frame2, rospy.Time(0))
-
-    # Get translation and quaternion
-    traslation = np.array([[tras[0]], [tras[1]], [tras[2]]])
-    quaternion = np.array([quat[0], quat[1], quat[2], quat[3]])
-
-    # Build inverse pose
-    pose_inv = np.array(quaternion_matrix(quaternion))
-    pose_inv[0, 3] = traslation[0]
-    pose_inv[1, 3] = traslation[1]
-    pose_inv[2, 3] = traslation[2]
-    #pose = np.linalg.inv(pose_inv)
-    pose = pose_inv
-
-    # Print pose for frame 1 to frame 2
-    np.set_printoptions(precision=3, suppress=True)
-    print("Pose: " + frame1 + " to " + frame2)
-    print(pose)
-
-    # Return pose
-    return pose
+def make_header(values, width=80, comment_character="#"):
+    """Create a pretty-print header as a jinja filter."""
+    bookend = comment_character * width
+    lines = ["# {}: {}".format(key, value) for key, value in values.items()]
+    lines = [line + " " * (width - len(line) - 1) + "#" for line in lines]
+    lines = [bookend] + lines + [bookend]
+    return "\n".join(lines)
 
 
-# Get one ROS info message.
-def topic_calibration(cam_info):
+def numpy_display(value, flat=True, format_str="1.8f"):
+    """Create a properly-formatted array as a jinja filter."""
+    if type(value) is not np.ndarray:
+        return str(value)
 
-    # Listen to topic once
-    cam_intrinsics = rospy.wait_for_message(cam_info, CameraInfo)
+    # punt on arrays with more than 2 dimensions
+    if len(value.shape) > 2:
+        return str(value)
 
-    # Print camera info
-    print(cam_intrinsics)
+    # make a lambda function for converting floats to a string
+    float_format = ("{{:{}}}".format(format_str)).format
 
-    # Return camera info
-    return cam_intrinsics
+    with np.printoptions(floatmode="fixed", suppress=True):
+        # avoid messy logic for vectors by forcing flat representation
+        is_flat = len(value.shape) == 1
+        can_be_flat = is_flat or value.shape[0] == 1 or value.shape[1] == 1
 
+        if flat or can_be_flat:
+            # return single line vector
+            elements = np.squeeze(value).tolist()
+            return "[{}]".format(", ".join(map(float_format, elements)))
 
-############################## CONFIG CLASS ###################################
-# Class to output yaml file for Kimera-VIO
-class spark_config_class:
-    # Constructor
-    def __init__(self):
-        self.str = ""
-        print("Config class constructed.")
-
-    # Create complete string
-    def create_strings(self, header_string, camera_header_string,
-                       left_camera_string, right_camera_string, body_string,
-                       imu_string):
-        self.str = header_string + camera_header_string + \
-        left_camera_string + right_camera_string + \
-        body_string + imu_string
-
-    # Create header string
-    def header_string(self, responsible_calibration, date_calibration,
-                      camera_hardware, IMU_hardware):
-        output_string = """\
-        # Calibration
-        # -----------------------------------------------------------------------------
-        # General Info
-        responsible: %s
-        date: %s
-
-        # Hardware
-        camera_hardware: %s
-        IMU_hardware: %s
-
-        """ % (responsible_calibration, date_calibration, camera_hardware,
-               IMU_hardware)
-        return output_string
-
-    def camera_header_string(self, camera_model, camera_distortion_model,
-                             camera_rate_hz, camera_resolution):
-        output_string = """\
-            # Cameras
-            # -----------------------------------------------------------------------------
-            # Rate:
-            camera_rate_hz: %i
-
-            # Camera Model:
-                camera_model: %s
-                distortion_model: %s
-
-            # Resolution:
-                camera_resolution: [%d,%d] # width, height
-
-            """ % (camera_rate_hz, camera_model, camera_distortion_model,
-                   camera_resolution[0], camera_resolution[1])
-        return output_string
-
-    # Create camera string
-    def camera_string(self, camera_name, \
-                      parameters_name, \
-                      camera_intrinsics, \
-                      camera_distortion_coefficients, \
-                      camera_extrinsics):
-        output_string = """\
-                # %s Camera Parameters:
-            %s_camera_intrinsics: [%.3f,%.3f,%.3f,%.3f] # fu, fv, cu, cv
-            %s_camera_distortion_coefficients: [%.9f,%.9f,%.9f,%.9f] # %s, %s, %s, %s
-
-        # %s Camera to IMU Transformation:
-            %s_camera_extrinsics: [%.9f, %.9f, %.9f, %.9f,
-            %.9f, %.9f, %.9f, %.9f,
-            %.9f, %.9f, %.9f, %.9f,
-            %.9f, %.9f, %.9f, %.9f]
-
-        """ % (camera_name, camera_name, camera_intrinsics[0],
-               camera_intrinsics[1], camera_intrinsics[2],
-               camera_intrinsics[3], camera_name,
-               camera_distortion_coefficients[0],
-               camera_distortion_coefficients[1],
-               camera_distortion_coefficients[2],
-               camera_distortion_coefficients[3], parameters_name[0],
-               parameters_name[1], parameters_name[2], parameters_name[3],
-               camera_name, camera_name, camera_extrinsics[0, 0],
-               camera_extrinsics[0, 1], camera_extrinsics[0, 2],
-               camera_extrinsics[0, 3], camera_extrinsics[1, 0],
-               camera_extrinsics[1, 1], camera_extrinsics[1, 2],
-               camera_extrinsics[1, 3], camera_extrinsics[2, 0],
-               camera_extrinsics[2, 1], camera_extrinsics[2, 2],
-               camera_extrinsics[2, 3], camera_extrinsics[3, 0],
-               camera_extrinsics[3, 1], camera_extrinsics[3, 2],
-               camera_extrinsics[3, 3])
-
-        return output_string
-
-    # Create body string
-    def body_string(self, calibration_to_body_frame):
-        output_string = """\
-        # Body
-        # ----------------------------------------------------------------------------------
-        # Transformation:
-            calibration_to_body_frame: [%.9f, %.9f, %.9f, %.9f,
-            %.9f, %.9f, %.9f, %.9f,
-            %.9f, %.9f, %.9f, %.9f,
-            %.9f, %.9f, %.9f, %.9f]
+        # flatten each line and assemble a list
+        to_render = [
+            ", ".join(map(float_format, np.squeeze(row).tolist())) for row in value
+        ]
+        return "[{}]".format("\n".join(to_render))
 
 
-        """ % (
-            calibration_to_body_frame[0, 0], calibration_to_body_frame[0, 1],
-            calibration_to_body_frame[0, 2], calibration_to_body_frame[0, 3],
-            calibration_to_body_frame[1, 0], calibration_to_body_frame[1, 1],
-            calibration_to_body_frame[1, 2], calibration_to_body_frame[1, 3],
-            calibration_to_body_frame[2, 0], calibration_to_body_frame[2, 1],
-            calibration_to_body_frame[2, 2], calibration_to_body_frame[2, 3],
-            calibration_to_body_frame[3, 0], calibration_to_body_frame[3, 1],
-            calibration_to_body_frame[3, 2], calibration_to_body_frame[3, 3])
-        return output_string
+def get_jinja_env():
+    """Make a jinja environment that loads files from the templates directory."""
+    template_path = pathlib.Path(__file__).absolute().parent / "templates"
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(template_path)))
+    env.filters["numpy_display"] = numpy_display
+    env.filters["make_header"] = make_header
 
-    # Create imu string
-    def imu_string(self, imu_rate_hz, imu_shift, imu_extrinsics,
-                   gyroscope_noise_density, gyroscope_random_walk,
-                   accelerometer_noise_density, accelerometer_random_walk):
-        output_string = """\
-                # IMU
-                # ----------------------------------------------------------------------------------
-                # Rate:
-                    imu_rate_hz: %i
+    return env
 
-        # Timeshift:
-            imu_shift: %.6f # t_imu0 = t_cam0 + imu_shift
 
-        # Noise Model Parameters: (Static)
-        gyroscope_noise_density: %.9f    # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
-        gyroscope_random_walk: %.9f       # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
-        accelerometer_noise_density: %.9f  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
-        accelerometer_random_walk: %.9f    # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
+def load_kalibr_information_from_files(camera_file, imu_file):
+    """Load information from files."""
+    with open(camera_file, "r") as fin:
+        kalibr_camera = yaml.load(fin.read(), Loader=yaml.SafeLoader)
 
-        # IMU to Body Transformation:
-            imu_extrinsics: [%.9f, %.9f, %.9f, %.9f,
-                             %.9f, %.9f, %.9f, %.9f,
-                             %.9f, %.9f, %.9f, %.9f,
-                             %.9f, %.9f, %.9f, %.9f]
-            """ % (
-            imu_rate_hz, imu_shift, gyroscope_noise_density,
-            gyroscope_random_walk, accelerometer_noise_density,
-            accelerometer_random_walk, imu_extrinsics[0, 0],
-            imu_extrinsics[0, 1], imu_extrinsics[0, 2], imu_extrinsics[0, 3],
-            imu_extrinsics[1, 0], imu_extrinsics[1, 1], imu_extrinsics[1, 2],
-            imu_extrinsics[1, 3], imu_extrinsics[2, 0], imu_extrinsics[2, 1],
-            imu_extrinsics[2, 2], imu_extrinsics[2, 3], imu_extrinsics[3, 0],
-            imu_extrinsics[3, 1], imu_extrinsics[3, 2], imu_extrinsics[3, 3])
-        return output_string
+    with open(imu_file, "r") as fin:
+        kalibr_imu = yaml.load(fin.read(), Loader=yaml.SafeLoader)
+
+    return kalibr_camera, kalibr_imu
+
+
+def load_kalibr_information(result_directory):
+    """Detect and load kalibr results from a directory."""
+    result_path = pathlib.Path(result_directory)
+    potential_camchains = list(result_path.glob("camchain-imucam*.yaml"))
+    potential_imus = list(result_path.glob("imu*.yaml"))
+
+    if len(potential_camchains) == 0:
+        raise RuntimeError("could not find camchain file")
+
+    if len(potential_camchains) > 1:
+        raise RuntimeError("too many camchain files present")
+
+    if len(potential_imus) == 0:
+        raise RuntimeError("could not find imu file")
+
+    if len(potential_imus) > 1:
+        raise RuntimeError("too many imu files present")
+
+    return load_kalibr_information_from_files(
+        str(potential_camchains[0]), str(potential_imus[0])
+    )
+
+
+def make_camera_config(kalibr_config, kalibr_camera_id, camera_id, extra_information):
+    """Make a camera config."""
+    kimera_config = remap_kalibr_config(
+        kalibr_config[kalibr_camera_id], CAMERA_MAPPINGS
+    )
+    kimera_config["camera_id"] = camera_id
+    kimera_config.update(extra_information)
+    return kimera_config
+
+
+def make_imu_config(kalibr_config, kalibr_imu_id, extra_information):
+    """Make an imu config."""
+    kimera_config = remap_kalibr_config(kalibr_config[kalibr_imu_id], IMU_MAPPINGS)
+
+    if "time_offset" in kalibr_config[kalibr_imu_id]:
+        kimera_config["imu_time_shift"] = kalibr_config[kalibr_imu_id]["time_offset"]
+    else:
+        kimera_config["imu_time_shift"] = 0.0
+
+    kimera_config.update(extra_information)
+    return kimera_config
+
+
+def get_args():
+    """Construct an argparser and return parsed arguments."""
+    parser = argparse.ArgumentParser(description="tool to convert calibration formats")
+
+    parser.add_argument(
+        "-t",
+        "--camera_type",
+        help="camera type (stereo_radtan, stereo_equi)",
+        default="stereo-radtan",
+    )
+    parser.add_argument(
+        "-o", "--output", help="output path (default cwd)", default=None
+    )
+    parser.add_argument(
+        "-a", "--responsible", help="person creating configuration", default=None
+    )
+
+    parser.add_argument(
+        "-i", "--input_directory", help="path to kalibr result directory", default=None
+    )
+    parser.add_argument(
+        "--input_imu", help="explicit path to imu configuration", default=None
+    )
+    parser.add_argument(
+        "--input_camera", help="explicit path to camera configuration", default=None
+    )
+
+    parser.add_argument("-r", "--camera_rate", help="camera rate (in hz)", default=20)
+    parser.add_argument("-n", "--camera_name", help="name of camera", default=None)
+    parser.add_argument(
+        "--imu_name", help="name of imu (if different from camera)", default=None
+    )
+
+    parser.add_argument(
+        "--kalibr_camera_ids",
+        help="kalibr camera ids",
+        nargs=2,
+        default=["cam0", "cam1"],
+    )
+    parser.add_argument("--kalibr_imu_id", help="kalibr imu id", default="imu0")
+
+    parser.add_argument(
+        "--imu_integration_sigma", help="integration covariance", default=1.0e-8
+    )
+    parser.add_argument(
+        "-g", "--gravity", help="gravity vector", nargs=3, default=[0.0, 0.0, -9.81]
+    )
+
+    return parser.parse_args()
+
+
+def verify_args(args):
+    """Make sure we have a valid set of arguments."""
+    if args.camera_type not in VALID_MODELS:
+        logging.critical("camera type is not valid: {}".format(args.camera_type))
+        sys.exit(1)
+
+    input_dir_valid = args.input_directory is not None
+    input_files_valid = args.input_imu is not None and args.input_camera is not None
+    all_invalid = not input_dir_valid and not input_files_valid
+
+    if all_invalid:
+        logging.critical("must either provide an input directory or two input files.")
+        sys.exit(1)
+
+    if input_dir_valid and input_files_valid:
+        logging.warning("both a directory and files specified. Will default to files")
+
+    return input_files_valid
+
+
+def output_kimera_configs(output, left_camera_config, right_camera_config, imu_config):
+    """Write configurations to disk."""
+    env = get_jinja_env()
+    imu_template = env.get_template("imu.yaml")
+    camera_template = env.get_template("camera.yaml")
+
+    if output is not None:
+        output_path = pathlib.Path(output)
+    else:
+        output_path = pathlib.Path(".").absolute()
+
+    with (output_path / "LeftCamera.yaml").open("w") as fout:
+        fout.write(camera_template.render(**left_camera_config))
+
+    with (output_path / "RightCamera.yaml").open("w") as fout:
+        fout.write(camera_template.render(**right_camera_config))
+
+    with (output_path / "ImuParams.yaml").open("w") as fout:
+        fout.write(imu_template.render(**imu_config))
+
+
+def main():
+    """Parse arguments and run everything."""
+    logging.basicConfig(
+        format="%(levelname)s [%(asctime)s]: %(message)s",
+        datefmt="%m/%d/%Y %I:%M:%S %p",
+    )
+
+    args = get_args()
+    input_files_valid = verify_args(args)
+
+    if input_files_valid:
+        kalibr_camera, kalibr_imu = load_kalibr_information_from_files(
+            args.input_camera, args.input_imu
+        )
+    else:
+        kalibr_camera, kalibr_imu = load_kalibr_information(args.input_directory)
+
+    metadata = {
+        "Created by": args.responsible if args.responsible is not None else "Unkown",
+        "Created on": datetime.datetime.now().isoformat(),
+    }
+    if args.camera_name is not None:
+        metadata["Camera"] = args.camera_name
+    if args.imu_name is not None:
+        metadata["IMU"] = args.imu_name
+
+    extra_information = {"metadata": metadata}
+    extra_cam_information = extra_information.copy()
+
+    extra_cam_information["rate_hz"] = args.camera_rate
+
+    extra_imu_information = extra_information.copy()
+    extra_imu_information["imu_integration_sigma"] = args.imu_integration_sigma
+    extra_imu_information["n_gravity"] = np.array(args.gravity)
+
+    kimera_left_camera = make_camera_config(
+        kalibr_camera, args.kalibr_camera_ids[0], "left_cam", extra_cam_information
+    )
+    kimera_right_camera = make_camera_config(
+        kalibr_camera, args.kalibr_camera_ids[1], "right_cam", extra_cam_information
+    )
+    kimera_imu = make_imu_config(kalibr_imu, args.kalibr_imu_id, extra_imu_information)
+
+    output_kimera_configs(
+        args.output, kimera_left_camera, kimera_right_camera, kimera_imu
+    )
 
 
 if __name__ == "__main__":
-    # Parse flags and arguments.
-    parser = argparse.ArgumentParser(description='Parse flags and arguments..')
-    parser.add_argument('-config_option','--config_option',
-                        help=('VIO config options: (stereo-radtan, RGBD,' +
-                              ' stereo-equi from Kalibr and stereo-radtan from rosinfo).'), \
-                        default='stereo-radtan')
-
-    # General
-    parser.add_argument('-output',
-                        '--output_directory',
-                        help='Path to output yamls.',
-                        default='./example')
-    parser.add_argument('-responsible',
-                        '--responsible_calibration',
-                        help='Person who calibrated the VI sensor.',
-                        default='unknown')
-    parser.add_argument('-date',
-                        '--date_calibration',
-                        help='Date of VI sensor calibration.',
-                        default='unknown')
-    parser.add_argument('-camera',
-                        '--camera_hardware',
-                        help='Visual hardware of VI sensor.',
-                        default='unknown')
-    parser.add_argument('-IMU',
-                        '--IMU_hardware',
-                        help='IMU hardware of VI sensor.',
-                        default='unknown')
-    parser.add_argument('-cam_rate',
-                        '--cam_rate_hz',
-                        help='Cam rate [hz].',
-                        default=20)
-
-    # Specific to Stereo and RGB-D
-    parser.add_argument('-input_cam',
-                        '--input_directory_cam',
-                        help='Path of Kalibr yaml for camchain.',
-                        default='./example/camchain.yaml')
-    parser.add_argument('-input_imu',
-                        '--input_directory_imu',
-                        help='Path of Kalibr yaml for imu.',
-                        default='./example/imu.yaml')
-    parser.add_argument('-baseline',
-                        '--baseline',
-                        help='Baseline in m.',
-                        default=0.05)
-
-    # Specific to Intel Calibration
-    parser.add_argument('-tf_topic_cam0',
-                        '--tf_frame_cam0',
-                        help='Frame name of cam0.',
-                        default='realsense_infra1_optical_frame')
-    parser.add_argument('-tf_topic_cam1',
-                        '--tf_frame_cam1',
-                        help='Frame name of cam1.',
-                        default='realsense_infra2_optical_frame')
-    parser.add_argument('-info_topic_cam0',
-                        '--info_topic_cam0',
-                        help='Info topic name of cam0.',
-                        default='realsense/infra1/camera_info')
-    parser.add_argument('-info_topic_cam1',
-                        '--info_topic_cam1',
-                        help='Info topic name of cam1.',
-                        default='realsense/infra2/camera_info')
-    parser.add_argument('-tf_topic_imu0',
-                        '--tf_frame_imu0',
-                        help='Frame name of imu0.',
-                        default='realsense_accel_frame')
-
-    args = parser.parse_args()
-
-    # CREATE CONFIG OPTIONS
-    print("\n>>>>> " + args.config_option + " option selected.\n")
-    if (args.config_option == 'stereo-radtan'
-            or args.config_option == 'RGBD-radtan'
-            or args.config_option == 'stereo-equi'):
-        # Create config class
-        kimera_vio_config = kalibr_configure(args)
-        # Pinhole radtan = plumb bob
-    elif (args.config_option == 'intel-radtan'):
-        # Create config class
-        kimera_vio_config = intel_configure_pinhole_radtan(args)
-    else:
-        print("\n>>>>> Option not listed.\n")
-
-    # PRINT CONFIGURATION FILE
-    # Dump config file
-    config_name = 'calibration.yaml'
-    with open(os.path.join(args.output_directory, config_name),
-              'w+') as outfile:
-        outfile.write(kimera_vio_config.str)
-        print(">>>>> Terminated.\n")
+    main()
