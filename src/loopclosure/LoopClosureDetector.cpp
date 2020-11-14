@@ -914,11 +914,11 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   gtsam::Values value;
 
   CHECK_GT(factor.cur_key_, 0u);
-  const gtsam::Values optimized_values = pgo_->calculateEstimate();
-  const gtsam::Pose3 estimated_last_pose =
+  const gtsam::Values& optimized_values = pgo_->calculateEstimate();
+  const gtsam::Pose3& estimated_last_pose =
       optimized_values.at<gtsam::Pose3>(factor.cur_key_ - 1);
 
-  const gtsam::Pose3 B_llkf_Pose_lkf =
+  const gtsam::Pose3& B_llkf_Pose_lkf =
       W_Pose_Blkf_estimates_.at(factor.cur_key_ - 1)
           .between(factor.W_Pose_Blkf_);
   value.insert(gtsam::Symbol(factor.cur_key_),
