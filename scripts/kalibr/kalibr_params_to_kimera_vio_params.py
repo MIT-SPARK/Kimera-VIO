@@ -19,15 +19,9 @@ Authors:
 
 Example:
     You can run this module as a script like so::
-     python kalibr_params_to_kimera_params.py
-     -config_option 'stereo-radtan'
-     -input_cam /home/sb/ETH/example/camchain.yaml
-     -input_imu /home/sb/ETH/example/imu.yaml
-     -output /home/sb/ETH/example
-     -responsible 'Sandro Berchier'
-     -date '05.06.2019'
-     -camera 'MyntEye S'
-     -IMU 'MyntEye S'
+        python kalibr_params_to_kimera_params.py -i /path/to/kalibr/camera_imu/output \
+                                                 -o /path/to/new/config/home \
+                                                 -a Responsible Person
 
     Run ``python kalibr_params_to_kimera_params.py --help`` for more information
 
