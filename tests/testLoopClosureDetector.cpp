@@ -499,7 +499,7 @@ TEST_F(LCDFixture, spinOnce) {
       timestamp_cur1_, FrameId(2), *cur1_stereo_frame_, gtsam::Pose3()));
 
   EXPECT_EQ(output_0->is_loop_closure_, false);
-  EXPECT_EQ(output_0->timestamp_, 0);
+  EXPECT_EQ(output_0->timestamp_, timestamp_ref1_);
   EXPECT_EQ(output_0->timestamp_query_, 0);
   EXPECT_EQ(output_0->timestamp_match_, 0);
   EXPECT_EQ(output_0->id_match_, 0);
@@ -508,7 +508,7 @@ TEST_F(LCDFixture, spinOnce) {
   EXPECT_EQ(output_0->nfg_.size(), 1);
 
   EXPECT_EQ(output_1->is_loop_closure_, false);
-  EXPECT_EQ(output_1->timestamp_, 0);
+  EXPECT_EQ(output_1->timestamp_, timestamp_ref2_);
   EXPECT_EQ(output_1->timestamp_query_, 0);
   EXPECT_EQ(output_1->timestamp_match_, 0);
   EXPECT_EQ(output_1->id_match_, 0);
