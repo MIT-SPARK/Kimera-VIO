@@ -111,7 +111,7 @@ def numpy_display(value, flat=True, format_str="1.8f"):
         to_render = [
             ", ".join(map(float_format, np.squeeze(row).tolist())) for row in value
         ]
-        return "[{}]".format("\n".join(to_render))
+        return "[{}]".format(",\n".join(to_render))
 
 
 def get_jinja_env():
@@ -263,10 +263,10 @@ def output_kimera_configs(output, left_camera_config, right_camera_config, imu_c
     else:
         output_path = pathlib.Path(".").absolute()
 
-    with (output_path / "LeftCamera.yaml").open("w") as fout:
+    with (output_path / "LeftCameraParams.yaml").open("w") as fout:
         fout.write(camera_template.render(**left_camera_config))
 
-    with (output_path / "RightCamera.yaml").open("w") as fout:
+    with (output_path / "RightCameraParams.yaml").open("w") as fout:
         fout.write(camera_template.render(**right_camera_config))
 
     with (output_path / "ImuParams.yaml").open("w") as fout:
