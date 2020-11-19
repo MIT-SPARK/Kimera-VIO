@@ -128,22 +128,23 @@ Pipeline::Pipeline(const VioParams& params,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
-  vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const FrontendOutput::Ptr& output) {
-    CHECK(output);
-    if (output->is_keyframe_) {
-      //! Only push to backend input queue if it is a keyframe!
-      backend_input_queue.push(VIO::make_unique<BackendInput>(
-          output->stereo_frame_lkf_.getTimestamp(),
-          output->status_stereo_measurements_,
-          output->tracker_status_,
-          output->pim_,
-          output->imu_acc_gyrs_,
-          output->relative_pose_body_stereo_));
-    } else {
-      VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
-    }
-  });
+  vio_frontend_module_->registerOutputCallback(
+      [&backend_input_queue](const FrontendOutput::Ptr& output) {
+        CHECK(output);
+        if (output->is_keyframe_) {
+          //! Only push to backend input queue if it is a keyframe!
+          backend_input_queue.push(VIO::make_unique<BackendInput>(
+              output->stereo_frame_lkf_.getTimestamp(),
+              output->status_stereo_measurements_,
+              output->tracker_status_,
+              output->pim_,
+              output->imu_acc_gyrs_,
+              output->relative_pose_body_stereo_));
+        } else {
+          VLOG(5)
+              << "Frontend did not output a keyframe, skipping backend input.";
+        }
+      });
 
   //! Params for what the backend outputs.
   // TODO(Toni): put this into backend params.
@@ -193,11 +194,29 @@ Pipeline::Pipeline(const VioParams& params,
                   std::placeholders::_1));
   }
 
+  if (FLAGS_use_lcd) {
+    lcd_module_ = VIO::make_unique<LcdModule>(
+        parallel_run_,
+        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
+                              params.lcd_params_,
+                              FLAGS_log_output));
+    //! Register input callbacks
+    vio_backend_module_->registerOutputCallback(
+        std::bind(&LcdModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+    vio_frontend_module_->registerOutputCallback(
+        std::bind(&LcdModule::fillFrontendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+  }
+
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
         //! Send ouput of visualizer to the display_input_queue_
         &display_input_queue_,
         parallel_run_,
+        FLAGS_use_lcd,
         // Use given visualizer if any
         visualizer ? std::move(visualizer)
                    : VisualizerFactory::createVisualizer(
@@ -221,6 +240,12 @@ Pipeline::Pipeline(const VioParams& params,
                     std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                     std::placeholders::_1));
     }
+    if (lcd_module_) {
+      lcd_module_->registerOutputCallback(
+          std::bind(&VisualizerModule::fillLcdQueue,
+                    std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                    std::placeholders::_1));
+    }
     //! Actual displaying of visual data is done in the main thread.
     display_module_ = VIO::make_unique<DisplayModule>(
         &display_input_queue_,
@@ -232,23 +257,6 @@ Pipeline::Pipeline(const VioParams& params,
             : DisplayFactory::makeDisplay(DisplayType::kOpenCV,
                                           std::bind(&Pipeline::shutdown, this),
                                           OpenCv3dDisplayParams()));
-  }
-
-  if (FLAGS_use_lcd) {
-    lcd_module_ = VIO::make_unique<LcdModule>(
-        parallel_run_,
-        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
-                              params.lcd_params_,
-                              FLAGS_log_output));
-    //! Register input callbacks
-    vio_backend_module_->registerOutputCallback(
-        std::bind(&LcdModule::fillBackendQueue,
-                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-                  std::placeholders::_1));
-    vio_frontend_module_->registerOutputCallback(
-        std::bind(&LcdModule::fillFrontendQueue,
-                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-                  std::placeholders::_1));
   }
 
   // All modules are ready, launch threads! If the parallel_run flag is set to
@@ -532,8 +540,8 @@ void Pipeline::joinThread(const std::string& thread_name, std::thread* thread) {
       thread->join();
       VLOG(1) << "Joined " << thread_name.c_str() << " thread...";
     } else {
-      LOG_IF(ERROR, parallel_run_) << thread_name.c_str()
-                                   << " thread is not joinable...";
+      LOG_IF(ERROR, parallel_run_)
+          << thread_name.c_str() << " thread is not joinable...";
     }
   } else {
     LOG(WARNING) << "No " << thread_name.c_str() << " thread, not joining.";
