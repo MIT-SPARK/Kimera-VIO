@@ -154,9 +154,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
-    default: {
-      LOG(FATAL) << "Unrecognized LCD state.";
-    }
+    default: { LOG(FATAL) << "Unrecognized LCD state."; }
   }
 
   // Process the StereoFrame and check for a loop closure with previous ones.
@@ -211,7 +209,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     pgo_states,
                                     pgo_nfg);
   } else {
-    output_payload = VIO::make_unique<LcdOutput>();
+    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_kf_);
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
@@ -219,7 +217,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   CHECK(output_payload) << "Missing LCD output payload.";
 
   if (logger_) {
-    debug_info_.timestamp_ = output_payload->timestamp_kf_;
+    debug_info_.timestamp_ = output_payload->timestamp_;
     debug_info_.loop_result_ = loop_result;
     debug_info_.pgo_size_ = pgo_->size();
     debug_info_.pgo_lc_count_ = pgo_->getNumLC();
@@ -916,10 +914,16 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   gtsam::Values value;
 
   CHECK_GT(factor.cur_key_, 0u);
-  value.insert(gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_);
+  const gtsam::Values& optimized_values = pgo_->calculateEstimate();
+  CHECK_EQ(factor.cur_key_, optimized_values.size());
+  const gtsam::Pose3& estimated_last_pose =
+      optimized_values.at<gtsam::Pose3>(factor.cur_key_ - 1);
 
-  gtsam::Pose3 B_llkf_Pose_lkf = W_Pose_Blkf_estimates_.at(factor.cur_key_ - 1)
-                                     .between(factor.W_Pose_Blkf_);
+  const gtsam::Pose3& B_llkf_Pose_lkf =
+      W_Pose_Blkf_estimates_.at(factor.cur_key_ - 1)
+          .between(factor.W_Pose_Blkf_);
+  value.insert(gtsam::Symbol(factor.cur_key_),
+               estimated_last_pose.compose(B_llkf_Pose_lkf));
 
   nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol(factor.cur_key_ - 1),
                                              gtsam::Symbol(factor.cur_key_),
@@ -929,7 +933,6 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   CHECK(pgo_);
   pgo_->update(nfg, value);
 }
-
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::addLoopClosureFactorAndOptimize(
     const LoopClosureFactor& factor) {
