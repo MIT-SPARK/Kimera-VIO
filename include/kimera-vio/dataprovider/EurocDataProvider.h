@@ -33,6 +33,7 @@
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -41,13 +42,18 @@ namespace VIO {
  */
 class EurocDataProvider : public DataProviderInterface {
  public:
-  // Ctor with params.
+  KIMERA_DELETE_COPY_CONSTRUCTORS(EurocDataProvider);
+  KIMERA_POINTER_TYPEDEFS(EurocDataProvider);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  //! Ctor with params.
   EurocDataProvider(const std::string& dataset_path,
                     const int& initial_k,
                     const int& final_k,
                     const VioParams& vio_params);
-  // Ctor from gflags
+  //! Ctor from gflags
   explicit EurocDataProvider(const VioParams& vio_params);
+
   virtual ~EurocDataProvider();
 
  public:
@@ -59,16 +65,22 @@ class EurocDataProvider : public DataProviderInterface {
    */
   bool spin() override;
 
-  // Print info about dataset.
+  /**
+   * @brief print Print info about dataset.
+   */
   void print() const;
+
 
  public:
   // Ground truth data.
   GroundTruthData gt_data_;
 
+  // Retrieve absolute gt pose at *approx* timestamp.
+  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
+    return getGroundTruthState(timestamp).pose_;
+  }
+
  private:
-  // Parses EuRoC data
-  void parse();
 
   /**
    * @brief spinOnce Send data to VIO pipeline on a per-frame basis
@@ -76,7 +88,23 @@ class EurocDataProvider : public DataProviderInterface {
    */
   bool spinOnce();
 
-  // Parse camera, gt, and imu data if using different Euroc format.
+  /**
+   * @brief sendImuData We send IMU data first (before frames) so that the VIO
+   * pipeline can query all IMU data between frames.
+   */
+  void sendImuData() const;
+
+  /**
+   * @brief parse Parses Euroc dataset. This is done already in spin() and
+   * does not need to be called by the user. Left in public for experimentation.
+   */
+  void parse();
+
+  /**
+   * @brief parseDataset Parse camera, gt, and imu data if using
+   * different Euroc format.
+   * @return
+   */
   bool parseDataset();
 
   //! Parsers
@@ -137,10 +165,6 @@ class EurocDataProvider : public DataProviderInterface {
   bool getImgName(const std::string& camera_name,
                          const size_t& k,
                          std::string* img_filename) const;
-  // Retrieve absolute pose at timestamp.
-  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
-    return getGroundTruthState(timestamp).pose_;
-  }
 
   //! Sanity checks
   bool sanityCheckCameraData(
@@ -193,10 +217,16 @@ class EurocDataProvider : public DataProviderInterface {
 
   //! Flag to signal when the dataset has been parsed.
   bool dataset_parsed_ = false;
+  //! Flag to signal if the IMU data has been sent to the VIO pipeline
+  bool is_imu_data_sent_ = false;
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";
+
+  //! Pre-stored imu-measurements
+  std::vector<ImuMeasurement> imu_measurements_;
+
 
   EurocGtLogger::UniquePtr logger_;
 };

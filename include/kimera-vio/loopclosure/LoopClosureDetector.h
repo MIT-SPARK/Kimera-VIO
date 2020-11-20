@@ -14,19 +14,16 @@
 
 #pragma once
 
-#include <limits>
-#include <memory>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
+#include <DBoW2/DBoW2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 
-#include <opencv/cv.hpp>
-#include <opencv2/features2d.hpp>
-
-#include <DBoW2/DBoW2.h>
+#include <limits>
+#include <memory>
+#include <opencv2/opencv.hpp>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/logging/Logger.h"
@@ -280,12 +277,6 @@ class LoopClosureDetector {
   void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Initializes the RobustSolver member with no prior, or a neutral
-   *  starting pose.
-   */
-  void initializePGO();
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Initializes the RobustSolver member with an initial prior factor,
    *  which can be the first OdometryFactor given by the backend.
    * @param[in] factor An OdometryFactor representing the pose between the
@@ -350,10 +341,16 @@ class LoopClosureDetector {
                            gtsam::Pose3* bodyCur_T_bodyRef);
 
  private:
+  enum class LcdState {
+    Bootstrap, //! Lcd is initializing
+    Nominal    //! Lcd is running in nominal mode
+  };
+  LcdState lcd_state_ = LcdState::Bootstrap;
+
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
-  const bool log_output_ = {false};
-  bool set_intrinsics_ = {false};
+  const bool log_output_ = false;
+  bool set_intrinsics_ = false;
 
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;

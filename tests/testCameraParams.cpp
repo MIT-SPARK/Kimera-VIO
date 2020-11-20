@@ -82,10 +82,10 @@ TEST(testCameraParams, parseYAML) {
                                                    0.00019359, 1.76187114e-05};
   for (int c = 0u; c < 4u; c++) {
     EXPECT_DOUBLE_EQ(distortion_expected[c],
-                     cam_params.distortion_coeff_.at<double>(c));
+                     cam_params.distortion_coeff_mat_.at<double>(c));
   }
-  EXPECT_EQ(cam_params.distortion_coeff_.rows, 1u);
-  EXPECT_EQ(cam_params.distortion_coeff_.cols, 4u);
+  EXPECT_EQ(cam_params.distortion_coeff_mat_.rows, 1u);
+  EXPECT_EQ(cam_params.distortion_coeff_mat_.cols, 4u);
   EXPECT_DOUBLE_EQ(distortion_expected[0], cam_params.calibration_.k1());
   EXPECT_DOUBLE_EQ(distortion_expected[1], cam_params.calibration_.k2());
   EXPECT_DOUBLE_EQ(distortion_expected[2], cam_params.calibration_.p1());
@@ -151,10 +151,10 @@ TEST(testCameraParams, DISABLED_parseKITTICalib) {
       -3.728755e-01, 2.037299e-01, 2.219027e-03, 1.383707e-03, -7.233722e-02};
   for (int c = 0; c < 5; c++) {
     EXPECT_DOUBLE_EQ(distortion_expected[c],
-                     camParams.distortion_coeff_.at<double>(c));
+                     camParams.distortion_coeff_mat_.at<double>(c));
   }
   EXPECT_DOUBLE_EQ(distortion_expected[2],
-                   camParams.distortion_coeff_.at<double>(2));
+                   camParams.distortion_coeff_mat_.at<double>(2));
   EXPECT_DOUBLE_EQ(distortion_expected[0], camParams.calibration_.k1());
   EXPECT_DOUBLE_EQ(distortion_expected[1], camParams.calibration_.k2());
   EXPECT_DOUBLE_EQ(distortion_expected[3], camParams.calibration_.p1());

@@ -52,6 +52,7 @@
 #include "kimera-vio/factors/PointPlaneFactor.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/initial/InitializationFromImu.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
@@ -90,6 +91,14 @@ class VioBackEnd {
   /* ------------------------------------------------------------------------ */
   BackendOutput::UniquePtr spinOnce(const BackendInput& input);
 
+  /**
+   * @brief isInitialized Returns whether the frontend is initializing.
+   * Needs to be Thread-Safe! Therefore, frontend_state_ is atomic.
+   */
+  inline bool isInitialized() const {
+    return backend_state_ != BackendState::Bootstrap;
+  }
+
   /* ------------------------------------------------------------------------ */
   // Register (and trigger!) callback that will be called as soon as the backend
   // comes up with a new IMU bias update.
@@ -124,12 +133,65 @@ class VioBackEnd {
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
 
+  void initializeBackend(const BackendInput& input) {
+    CHECK(backend_state_ == BackendState::Bootstrap);
+    switch (backend_params_.autoInitialize_) {
+      case 0: {
+        initializeFromGt(input);
+        break;
+      }
+      case 1: {
+        initializeFromIMU(input);
+        break;
+      }
+      default: {
+        LOG(FATAL) << "Wrong initialization mode.";
+      }
+    }
+    // Signal that the backend has been initialized.
+    backend_state_ = BackendState::Nominal;
+  }
+
+  bool initializeFromGt(const BackendInput& input) {
+    // If the gtNavState is identity, the params provider probably did a
+    // mistake, although it can happen that the ground truth initial pose is
+    // identity, but this is super unlikely
+    CHECK(!backend_params_.initial_ground_truth_state_.equals(VioNavState()))
+        << "Requested initialization from Ground-Truth pose but got an "
+           "identity pose: did you parse your ground-truth correctly?";
+    return initStateAndSetPriors(VioNavStateTimestamped(
+        input.timestamp_, backend_params_.initial_ground_truth_state_));
+  }
+
+  /**
+   * @brief initializeFromIMU
+   * Assumes Zero Velocity & upright vehicle. Uses the InitializationFromIMU
+   * class.
+   * @param input BackendInput that MUST be castable to a
+   * BackendInputImuInitialization
+   * @return
+   */
+  bool initializeFromIMU(const BackendInput& input) {
+    LOG(INFO) << "------------------- Initialize Pipeline: timestamp = "
+              << input.timestamp_ << "--------------------";
+    // Guess pose from IMU, assumes vehicle to be static.
+    const VioNavState& initial_state_estimate =
+        InitializationFromImu::getInitialStateEstimate(
+            input.imu_acc_gyrs_,
+            imu_params_.n_gravity_,
+            backend_params_.roundOnAutoInitialize_);
+
+    // Initialize Backend using IMU data.
+    return initStateAndSetPriors(
+        VioNavStateTimestamped(input.timestamp_, initial_state_estimate));
+  }
+
  protected:
   enum class BackendState {
     Bootstrap = 0u,  //! Initialize backend
     Nominal = 1u     //! Run backend
   };
-  BackendState backend_state_;
+  std::atomic<BackendState> backend_state_;
 
   /* ------------------------------------------------------------------------ */
   // Store stereo frame info into landmarks table:
