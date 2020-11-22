@@ -780,24 +780,24 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
       // measurements:
       CHECK_NE(imu_params_.nominal_sampling_time_s_, 0.0)
           << "Nominal IMU sampling time cannot be 0 s.";
-      // sqrt(nominal_imu_rate_) to discretize, then
-      // sqrt(pim_->deltaTij() / nominalImuRate_) to count the nr of IMU
-      // measurements.
-      // therefore sqrt(pim_.deltaTij())
-      // const double d = std::sqrt(pim.deltaTij());
-      // gtsam::Vector6 bias_sigmas;
-      // bias_sigmas.head<3>().setConstant(d * imu_params_.acc_random_walk_);
-      // bias_sigmas.tail<3>().setConstant(d * imu_params_.gyro_random_walk_);
-      // const gtsam::SharedNoiseModel& bias_noise_model =
-      //     gtsam::noiseModel::Diagonal::Sigmas(bias_sigmas);
+      // See Trawny05 http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf
+      // Eq. 130
+      const double& sqrt_delta_t_ij = std::sqrt(pim.deltaTij());
+      gtsam::Vector6 bias_sigmas;
+      bias_sigmas.head<3>().setConstant(sqrt_delta_t_ij *
+                                        imu_params_.acc_random_walk_);
+      bias_sigmas.tail<3>().setConstant(sqrt_delta_t_ij *
+                                        imu_params_.gyro_random_walk_);
+      const gtsam::SharedNoiseModel& bias_noise_model =
+          gtsam::noiseModel::Diagonal::Sigmas(bias_sigmas);
 
-      // new_imu_prior_and_other_factors_.push_back(
-      //     boost::make_shared<
-      //         gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
-      //         gtsam::Symbol('b', from_id),
-      //         gtsam::Symbol('b', to_id),
-      //         zero_bias,
-      //         bias_noise_model));
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<
+              gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
+              gtsam::Symbol('b', from_id),
+              gtsam::Symbol('b', to_id),
+              zero_bias,
+              bias_noise_model));
       break;
     }
     default: {
