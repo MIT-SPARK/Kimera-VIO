@@ -35,13 +35,13 @@ void ImuData::print() const {
 
 ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
     : imu_params_(imu_params) {
-  CHECK_GT(imu_params.acc_noise_, 0.0);
-  CHECK_GT(imu_params.acc_walk_, 0.0);
-  CHECK_GT(imu_params.gyro_noise_, 0.0);
-  CHECK_GT(imu_params.gyro_walk_, 0.0);
+  CHECK_GT(imu_params.acc_noise_density_, 0.0);
+  CHECK_GT(imu_params.acc_random_walk_, 0.0);
+  CHECK_GT(imu_params.gyro_noise_density_, 0.0);
+  CHECK_GT(imu_params.gyro_random_walk_, 0.0);
   CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
-  LOG_IF(WARNING, imu_params.imu_shift_ != 0.0)
-      << "Applying IMU timestamp shift of: " << imu_params.imu_shift_ << "ns.";
+  LOG_IF(WARNING, imu_params.imu_time_shift_ != 0.0)
+      << "Applying IMU timestamp shift of: " << imu_params.imu_time_shift_ << "ns.";
   initializeImuFrontEnd(imu_bias);
 }
 
@@ -153,14 +153,14 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
 /* -------------------------------------------------------------------------- */
 gtsam::PreintegrationBase::Params ImuFrontEnd::convertVioImuParamsToGtsam(
     const ImuParams& imu_params) {
-  CHECK_GT(imu_params.acc_noise_, 0.0);
-  CHECK_GT(imu_params.gyro_noise_, 0.0);
+  CHECK_GT(imu_params.acc_noise_density_, 0.0);
+  CHECK_GT(imu_params.gyro_noise_density_, 0.0);
   CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
   gtsam::PreintegrationBase::Params preint_imu_params(imu_params.n_gravity_);
   preint_imu_params.gyroscopeCovariance =
-      std::pow(imu_params.gyro_noise_, 2.0) * Eigen::Matrix3d::Identity();
+      std::pow(imu_params.gyro_noise_density_, 2.0) * Eigen::Matrix3d::Identity();
   preint_imu_params.accelerometerCovariance =
-      std::pow(imu_params.acc_noise_, 2.0) * Eigen::Matrix3d::Identity();
+      std::pow(imu_params.acc_noise_density_, 2.0) * Eigen::Matrix3d::Identity();
   preint_imu_params.integrationCovariance =
       std::pow(imu_params.imu_integration_sigma_, 2.0) *
       Eigen::Matrix3d::Identity();
@@ -199,10 +199,10 @@ ImuFrontEnd::generateCombinedImuParams(const ImuParams& imu_params) {
   ///< continuous-time "Covariance" describing
   ///< accelerometer bias random walk
   combined_imu_params->biasAccCovariance =
-      std::pow(imu_params.acc_walk_, 2.0) * Eigen::Matrix3d::Identity();
+      std::pow(imu_params.acc_random_walk_, 2.0) * Eigen::Matrix3d::Identity();
   ///< continuous-time "Covariance" describing gyroscope bias random walk
   combined_imu_params->biasOmegaCovariance =
-      std::pow(imu_params.gyro_walk_, 2.0) * Eigen::Matrix3d::Identity();
+      std::pow(imu_params.gyro_random_walk_, 2.0) * Eigen::Matrix3d::Identity();
   return combined_imu_params;
 }
 
