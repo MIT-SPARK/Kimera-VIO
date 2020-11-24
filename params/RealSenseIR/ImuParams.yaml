@@ -13,7 +13,7 @@ T_BS:
          0.0, 1.0, 0.0, 0.0,
          0.0, 0.0, 1.0, 0.0,
          0.0, 0.0, 0.0, 1.0]
-rate_hz: 300
+rate_hz: 400
 
 # inertial sensor noise model parameters (static)
 gyroscope_noise_density: 0.000488     # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )

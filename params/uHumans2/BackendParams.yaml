@@ -29,7 +29,7 @@ rankTolerance: 1
 #   * if the landmark is triangulated at distance larger than this,
 #   * result is flagged as degenerate.
 #   */
-landmarkDistanceThreshold: 10
+landmarkDistanceThreshold: 50
 
 # DynamicOutlierRejection:
 #  /**
