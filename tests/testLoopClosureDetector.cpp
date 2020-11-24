@@ -41,8 +41,8 @@ class LCDFixture : public ::testing::Test {
   const double rot_tol_mono = 0.05;  // radians
   const double tran_tol_mono =
       0.1;  // meters (error rescaled using ground-truth)
-  const double rot_tol_stereo = 0.1;   // radians
-  const double tran_tol_stereo = 0.1;  // meters
+  const double rot_tol_stereo = 0.3;   // radians
+  const double tran_tol_stereo = 0.5;  // meters
 
  public:
   LCDFixture()
