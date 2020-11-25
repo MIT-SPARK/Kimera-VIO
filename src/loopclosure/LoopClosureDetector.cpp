@@ -305,6 +305,8 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
       nss_factor = db_BoW_->getVocabulary()->score(bow_vec, latest_bowvec_);
+    } else {
+      LOG(ERROR) << "Setting use_nss as false is deprecated. ";
     }
 
     if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
@@ -789,7 +791,7 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
   const size_t& n_matches = matches.size();
   for (size_t i = 0; i < n_matches; i++) {
     const DMatchVec& match = matches[i];
-    CHECK_EQ(match.size(), 2);
+    if (match.size() < 2) continue;
     if (match[0].distance < lowe_ratio * match[1].distance) {
       i_query->push_back(match[0].queryIdx);
       i_match->push_back(match[0].trainIdx);

@@ -157,8 +157,8 @@ class LoopClosureDetectorParams : public PipelineParams {
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////// Loop Detection Params ///////////////////////////
-  bool use_nss_;              // Use normalized similarity score?
-  float alpha_;               // Alpha threshold for matches
+  bool use_nss_;              // Use normalized similarity score to make similarity score range from 0 to 1. 
+  float alpha_;               // Alpha similarity threshold for matches
   int min_temporal_matches_;  // Min consistent matches to pass temporal check
   int dist_local_;            // Distance between entries to be consider a match
   int max_db_results_;    // Max number of results from db queries to consider
