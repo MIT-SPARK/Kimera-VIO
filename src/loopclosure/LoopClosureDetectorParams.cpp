@@ -48,7 +48,7 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     bool ransac_randomize_stereo,
     double ransac_inlier_threshold_stereo,
     bool use_mono_rot,
-
+    bool refine_pose,
     double lowe_ratio,
 #if CV_VERSION_MAJOR == 3
     int matcher_type,
@@ -104,6 +104,7 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       ransac_randomize_stereo_(ransac_randomize_stereo),
       ransac_inlier_threshold_stereo_(ransac_inlier_threshold_stereo),
       use_mono_rot_(use_mono_rot),
+      refine_pose_(refine_pose),
 
       lowe_ratio_(lowe_ratio),
       matcher_type_(matcher_type),
@@ -189,6 +190,7 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("ransac_inlier_threshold_stereo",
                            &ransac_inlier_threshold_stereo_);
   yaml_parser.getYamlParam("use_mono_rot", &use_mono_rot_);
+  yaml_parser.getYamlParam("refine_pose", &refine_pose_);
   yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
   yaml_parser.getYamlParam("matcher_type", &matcher_type_);
   yaml_parser.getYamlParam("nfeatures", &nfeatures_);
@@ -289,7 +291,8 @@ void LoopClosureDetectorParams::print() const {
                         ransac_inlier_threshold_stereo_,
                         "use_mono_rot_:",
                         use_mono_rot_,
-
+                        "refine_pose_:",
+                        refine_pose_,
                         "lowe_ratio_: ",
                         lowe_ratio_,
                         "matcher_type_:",

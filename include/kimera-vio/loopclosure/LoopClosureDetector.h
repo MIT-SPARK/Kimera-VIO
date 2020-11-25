@@ -93,28 +93,50 @@ class LoopClosureDetector {
       considered a match, and generate a monocular transformation between them.
    * @param[in] query_id The frame ID of the query image in the database.
    * @param[in] match_id The frame ID of the match image in the databse.
-   * @param[out] camCur_T_camRef_mono The pose between the match frame and the
+   * @param[out] camMatch_T_camQuery_mono The pose between the match frame and the
    *  query frame, in the coordinates of the match frame.
    * @return True if the verification check passes, false otherwise.
    */
-  bool geometricVerificationCheck(const FrameId& query_id,
-                                  const FrameId& match_id,
-                                  gtsam::Pose3* camCur_T_camRef_mono);
+  bool geometricVerificationCheck(
+      const FrameId& query_id,
+      const FrameId& match_id,
+      gtsam::Pose3* camMatch_T_camQuery_mono,
+      std::vector<FrameId>* inlier_id_in_query_frame,
+      std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Determine the 3D pose betwen two frames.
    * @param[in] query_id The frame ID of the query image in the database.
    * @param[in] match_id The frame ID of the match image in the database.
-   * @param[in] camCur_T_camRef_mono The relative pose between the match frame
+   * @param[in] camMatch_T_camQuery_mono The relative pose between the match frame
    *  and the query frame, in the coordinates of the match frame.
-   * @param[out] bodyCur_T_bodyRef_stereo The 3D pose between the match frame
+   * @param[out] bodyMatch_T_bodyQuery_stereo The 3D pose between the match frame
    *  and the query frame, in the coordinates of the match frame.
    * @return True if the pose is recovered successfully, false otherwise.
    */
   bool recoverPose(const FrameId& query_id,
                    const FrameId& match_id,
-                   const gtsam::Pose3& camCur_T_camRef_mono,
-                   gtsam::Pose3* bodyCur_T_bodyRef_stereo);
+                   const gtsam::Pose3& camMatch_T_camQuery_mono,
+                   gtsam::Pose3* bodyMatch_T_bodyQuery_stereo,
+                   std::vector<FrameId>* inlier_id_in_query_frame,
+                   std::vector<FrameId>* inlier_id_in_match_frame);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Refine relative pose given by ransac using smart factors.
+   * @param[in] query_id The frame ID of the query image in the database.
+   * @param[in] match_id The frame ID of the match image in the database.
+   * @param[in] camMatch_T_camQuery_stereo The relative pose between the match frame
+   *  and the query frame, in the coordinates of the match frame.
+   * @param[in] inlier correspondences (from ransac) in the query frame
+   * @param[in] inlier correspondences (from ransac) in the match frame
+   * @return refined relative pose
+   */
+  gtsam::Pose3 refinePoses(
+      const FrameId query_id,
+      const FrameId match_id,
+      const gtsam::Pose3& camMatch_T_camQuery_stereo,
+      const std::vector<FrameId>& inlier_id_in_query_frame,
+      const std::vector<FrameId>& inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Gets a copy of the parameters of the LoopClosureDetector.
@@ -241,25 +263,25 @@ class LoopClosureDetector {
   /* ------------------------------------------------------------------------ */
   /** @brief Gives the transform between two frames in the body frame given
    *  that same transform in the camera frame.
-   * @param[in] camCur_T_camRef The relative pose between two frames in the
+   * @param[in] camMatch_T_camQuery The relative pose between two frames in the
    *  camera coordinate frame.
-   * @param[out] bodyCur_T_bodyRef The relative pose between two frames in the
+   * @param[out] bodyMatch_T_bodyQuery The relative pose between two frames in the
    *  body coordinate frame.
    */
   // TODO(marcus): these should be private or util
-  void transformCameraPoseToBodyPose(const gtsam::Pose3& camCur_T_camRef,
-                                     gtsam::Pose3* bodyCur_T_bodyRef) const;
+  void transformCameraPoseToBodyPose(const gtsam::Pose3& camMatch_T_camQuery,
+                                     gtsam::Pose3* bodyMatch_T_bodyQuery) const;
 
   /* ------------------------------------------------------------------------ */
   /** @brief The inverse of transformCameraPoseToBodyPose.
-   * @param[in] bodyCur_T_bodyRef The relative pose between two frames in the
+   * @param[in] bodyMatch_T_bodyQuery The relative pose between two frames in the
    *  body coordinate frame.
-   * @param[out] camCur_T_camRef The relative pose between two frames in the
+   * @param[out] camMatch_T_camQuery The relative pose between two frames in the
    *  camera coordinate frame.
    * @return
    */
-  void transformBodyPoseToCameraPose(const gtsam::Pose3& bodyCur_T_bodyRef,
-                                     gtsam::Pose3* camCur_T_camRef) const;
+  void transformBodyPoseToCameraPose(const gtsam::Pose3& bodyMatch_T_bodyQuery,
+                                     gtsam::Pose3* camMatch_T_camQuery) const;
 
   /* ------------------------------------------------------------------------ */
   /** @brief Adds an odometry factor to the PGO and optimizes the trajectory.
@@ -284,7 +306,6 @@ class LoopClosureDetector {
    */
   void initializePGO(const OdometryFactor& factor);
 
- private:
   /* ------------------------------------------------------------------------ */
   /** @brief Computes the indices of keypoints that match between two frames.
    * @param[in] query_id The frame ID of the query frame in the database.
@@ -300,31 +321,37 @@ class LoopClosureDetector {
                              std::vector<FrameId>* i_match,
                              bool cut_matches = false) const;
 
+ private:
   /* ------------------------------------------------------------------------ */
   /** @brief Checks geometric verification and determines a pose with
    *  a translation up to a scale factor between two frames, using Nister's
    *  five-point method.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] camCur_T_camRef_mono The relative pose between the two frames,
+   * @param[out] camMatch_T_camQuery_mono The relative pose between the two frames,
    *  with translation up to a scale factor.
    * @return True if the verification passes, false otherwise.
    */
-  bool geometricVerificationNister(const FrameId& query_id,
-                                   const FrameId& match_id,
-                                   gtsam::Pose3* camCur_T_camRef_mono);
+  bool geometricVerificationNister(
+      const FrameId& query_id,
+      const FrameId& match_id,
+      gtsam::Pose3* camMatch_T_camQuery_mono,
+      std::vector<FrameId>* inlier_id_in_query_frame,
+      std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Checks geometric verification and determines a pose that is
    *  "stereo" - correct in translation scale using Arun's three-point method.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] bodyCur_T_bodyRef The relative pose between the two frames.
+   * @param[out] bodyMatch_T_bodyQuery The relative pose between the two frames.
    * @return True if the verification passes, false otherwise.
    */
   bool recoverPoseArun(const FrameId& query_id,
                        const FrameId& match_id,
-                       gtsam::Pose3* bodyCur_T_bodyRef);
+                       gtsam::Pose3* bodyMatch_T_bodyQuery,
+                       std::vector<FrameId>* inlier_id_in_query_frame,
+                       std::vector<FrameId>* inlier_id_in_match_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Checks geometric verification and determines a pose that is
@@ -332,18 +359,20 @@ class LoopClosureDetector {
    *  3D keypoints matched between the frames.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] bodyCur_T_bodyRef The relative pose between the two frames.
+   * @param[out] bodyMatch_T_bodyQuery The relative pose between the two frames.
    * @return True if the verification passes, false otherwise.
    */
   bool recoverPoseGivenRot(const FrameId& query_id,
                            const FrameId& match_id,
-                           const gtsam::Pose3& camCur_T_camRef_mono,
-                           gtsam::Pose3* bodyCur_T_bodyRef);
+                           const gtsam::Pose3& camMatch_T_camQuery_mono,
+                           gtsam::Pose3* bodyMatch_T_bodyQuery,
+                           std::vector<FrameId>* inlier_id_in_query_frame,
+                           std::vector<FrameId>* inlier_id_in_match_frame);
 
  private:
   enum class LcdState {
-    Bootstrap, //! Lcd is initializing
-    Nominal    //! Lcd is running in nominal mode
+    Bootstrap,  //! Lcd is initializing
+    Nominal     //! Lcd is running in nominal mode
   };
   LcdState lcd_state_ = LcdState::Bootstrap;
 
@@ -367,6 +396,7 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
+  gtsam::Cal3_S2Stereo::shared_ptr stereo_calibration_;
 
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
