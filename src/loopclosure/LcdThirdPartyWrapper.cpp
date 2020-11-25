@@ -69,42 +69,39 @@ LcdThirdPartyWrapper::~LcdThirdPartyWrapper() {
 /* ------------------------------------------------------------------------ */
 bool LcdThirdPartyWrapper::checkTemporalConstraint(const FrameId& id,
                                                    const MatchIsland& island) {
+  // temporal_entries_ starts at zero and counts the number of
   if (temporal_entries_ == 0 || static_cast<int>(id - latest_query_id_) >
-                                    lcd_params_.max_distance_between_queries_) {
+                                    lcd_params_.max_nrFrames_between_queries_) {
     temporal_entries_ = 1;
   } else {
-    // Check whether current island encloses latest island or vice versa
-    bool cur_encloses_old =
-        island.start_id_ <= latest_matched_island_.start_id_ &&
-        latest_matched_island_.start_id_ <= island.end_id_;
-    bool old_encloses_cur =
-        latest_matched_island_.start_id_ <= island.start_id_ &&
-        island.start_id_ <= latest_matched_island_.end_id_;
+    int a1 = static_cast<int>(latest_matched_island_.start_id_);
+    int a2 = static_cast<int>(latest_matched_island_.end_id_);
+    int b1 = static_cast<int>(island.start_id_);
+    int b2 = static_cast<int>(island.end_id_);
 
-    bool pass_group_constraint = cur_encloses_old || old_encloses_cur;
-    if (!pass_group_constraint) {
+    // Check that segments (a1, a2) and (b1, b2) have some overlap
+    bool overlap = (b1 <= a1 && a1 <= b2) || (a1 <= b1 && b1 <= a2);
+    bool gap_is_small = false;
+    if (!overlap) {
+      // Compute gap between segments (one of the two is negative)
       int d1 = static_cast<int>(latest_matched_island_.start_id_) -
                static_cast<int>(island.end_id_);
       int d2 = static_cast<int>(island.start_id_) -
                static_cast<int>(latest_matched_island_.end_id_);
 
-      int gap;
-      if (d1 > d2) {
-        gap = d1;
-      } else {
-        gap = d2;
-      }
-
-      pass_group_constraint = gap <= lcd_params_.max_distance_between_groups_;
+      int gap = (d1 > d2 ? d1 : d2);  // Choose positive gap
+      gap_is_small = gap <= lcd_params_.max_nrFrames_between_islands_;
     }
 
-    if (pass_group_constraint) {
+    if (overlap || gap_is_small) {
       temporal_entries_++;
     } else {
       temporal_entries_ = 1;
     }
   }
 
+  latest_matched_island_ = island;
+  latest_query_id_ = id;
   return temporal_entries_ > lcd_params_.min_temporal_matches_;
 }
 
@@ -125,7 +122,7 @@ void LcdThirdPartyWrapper::computeIslands(
     island.best_score_ = result.Score;
     islands->push_back(island);
   } else if (!q->empty()) {
-    // sort query results in ascending order of ids
+    // sort query results in ascending order of frame ids
     std::sort(q->begin(), q->end(), DBoW2::Result::ltId);
 
     // create long enough islands
@@ -143,7 +140,7 @@ void LcdThirdPartyWrapper::computeIslands(
     ++dit;
     for (FrameId idx = 1; dit != q->end(); ++dit, ++idx) {
       if (static_cast<int>(dit->Id) - last_island_entry <
-          lcd_params_.max_intragroup_gap_) {
+          lcd_params_.max_intraisland_gap_) {
         last_island_entry = dit->Id;
         i_last = idx;
         if (dit->Score > best_score) {
@@ -153,7 +150,7 @@ void LcdThirdPartyWrapper::computeIslands(
       } else {
         // end of island reached
         int length = last_island_entry - first_island_entry + 1;
-        if (length >= lcd_params_.min_matches_per_group_) {
+        if (length >= lcd_params_.min_matches_per_island_) {
           MatchIsland island =
               MatchIsland(first_island_entry,
                           last_island_entry,
@@ -172,8 +169,9 @@ void LcdThirdPartyWrapper::computeIslands(
       }
     }
     // add last island
+    // TODO: do we need this? why isn't it handled in prev for loop?
     if (last_island_entry - first_island_entry + 1 >=
-        lcd_params_.min_matches_per_group_) {
+        lcd_params_.min_matches_per_island_) {
       MatchIsland island = MatchIsland(first_island_entry,
                                        last_island_entry,
                                        computeIslandScore(*q, i_first, i_last));

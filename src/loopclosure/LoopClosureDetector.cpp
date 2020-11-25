@@ -286,7 +286,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   db_BoW_->getVocabulary()->transform(db_frames_[frame_id].descriptors_vec_,
                                       bow_vec);
 
-  int max_possible_match_id = frame_id - lcd_params_.dist_local_;
+  int max_possible_match_id = frame_id - lcd_params_.recent_frames_window_;
   if (max_possible_match_id < 0) max_possible_match_id = 0;
 
   // Query for BoW vector matches in database.
@@ -330,6 +330,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
         result->match_id_ = query_result[0].Id;
 
         // Compute islands in the matches.
+        // An island is a group of matches with close frame_ids.
         std::vector<MatchIsland> islands;
         lcd_tp_wrapper_->computeIslands(&query_result, &islands);
 
@@ -388,7 +389,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   }
 
   // Update latest bowvec for normalized similarity scoring (NSS).
-  if (static_cast<int>(frame_id + 1) > lcd_params_.dist_local_) {
+  if (static_cast<int>(frame_id + 1) > lcd_params_.recent_frames_window_) {
     latest_bowvec_ = bow_vec;
   } else {
     VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
