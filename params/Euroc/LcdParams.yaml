@@ -41,6 +41,9 @@ score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
 
+betweenRotationPrecision: 10000 # 1/(0.01*0.01)
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
+
 pgo_rot_threshold: 0.001
 pgo_trans_threshold: 0.01
 

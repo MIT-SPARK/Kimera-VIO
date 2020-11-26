@@ -72,9 +72,10 @@ LoopClosureDetector::LoopClosureDetector(
       logger_(nullptr) {
   // TODO(marcus): This should come in with every input payload, not be
   // constant.
-  gtsam::Vector6 sigmas;
-  sigmas << 0.01, 0.01, 0.01, 0.1, 0.1, 0.1;
-  shared_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+  Vector6 precisions;
+  precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
+  precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
+  shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,

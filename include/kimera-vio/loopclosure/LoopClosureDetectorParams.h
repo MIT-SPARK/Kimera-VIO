@@ -84,6 +84,9 @@ class LoopClosureDetectorParams : public PipelineParams {
       int patch_sze = 31,
       int fast_threshold = 20,
 
+      double betweenRotationPrecision = 1/ (0.01 * 0.01),
+      double betweenTranslationPrecision = 1 / (0.1 * 0.1),
+
       double pgo_rot_threshold = 0.01,
       double pgo_trans_threshold = 0.1);
 
@@ -144,6 +147,9 @@ class LoopClosureDetectorParams : public PipelineParams {
       patch_sze_== rhs.patch_sze_ &&
       fast_threshold_== rhs.fast_threshold_ &&
 
+      betweenRotationPrecision_ == rhs.betweenRotationPrecision_ &&
+      betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
+
       pgo_rot_threshold_== rhs.pgo_rot_threshold_ &&
       pgo_trans_threshold_== rhs.pgo_trans_threshold_;
   }
@@ -189,6 +195,9 @@ class LoopClosureDetectorParams : public PipelineParams {
   bool use_mono_rot_;
   bool refine_pose_;
   //////////////////////////////////////////////////////////////////////////////
+
+  double betweenRotationPrecision_;
+  double betweenTranslationPrecision_;
 
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_;

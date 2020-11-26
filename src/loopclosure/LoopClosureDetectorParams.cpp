@@ -70,6 +70,9 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     int patch_sze,
     int fast_threshold,
 
+    double betweenRotationPrecision,
+    double betweenTranslationPrecision,
+
     double pgo_rot_threshold,
     double pgo_trans_threshold)
     : PipelineParams("Loop Closure Parameters"),
@@ -118,6 +121,9 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       score_type_(score_type),
       patch_sze_(patch_sze),
       fast_threshold_(fast_threshold),
+
+      betweenRotationPrecision_(betweenRotationPrecision),
+      betweenTranslationPrecision_(betweenTranslationPrecision),
 
       pgo_rot_threshold_(pgo_rot_threshold),
       pgo_trans_threshold_(pgo_trans_threshold) {
@@ -217,6 +223,8 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   }
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
+  yaml_parser.getYamlParam("betweenRotationPrecision", &betweenRotationPrecision_);
+  yaml_parser.getYamlParam("betweenTranslationPrecision", &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
 
@@ -316,6 +324,11 @@ void LoopClosureDetectorParams::print() const {
                         patch_sze_,
                         "fast_threshold_: ",
                         fast_threshold_,
+
+                        "betweenRotationPrecision_: ",
+                        betweenRotationPrecision_,
+                        "betweenTranslationPrecision_: ",
+                        betweenTranslationPrecision_,
 
                         "pgo_rot_threshold_: ",
                         pgo_rot_threshold_,
