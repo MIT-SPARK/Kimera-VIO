@@ -41,13 +41,13 @@ protected:
   ImuPreintegrationType imu_preintegration_type_ =
       ImuPreintegrationType::kPreintegratedCombinedMeasurements;
 
-  double gyro_noise_ = 0.0;
-  double gyro_walk_ = 0.0;
-  double acc_noise_ = 0.0;
-  double acc_walk_ = 0.0;
-  double imu_shift_ = 0.0;  // Defined as t_imu = t_cam + imu_shift
+  double gyro_noise_density_ = 0.0;
+  double gyro_random_walk_ = 0.0;
+  double acc_noise_density_ = 0.0;
+  double acc_random_walk_ = 0.0;
+  double imu_time_shift_ = 0.0;  // Defined as t_imu = t_cam + imu_shift
 
-  double nominal_rate_ = 0.0;
+  double nominal_sampling_time_s_ = 0.0;
   double imu_integration_sigma_ = 0.0;
 
   gtsam::Vector3 n_gravity_ = gtsam::Vector3::Zero();

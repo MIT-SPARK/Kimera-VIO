@@ -264,7 +264,7 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
       sumOfDelta += (timestamp - previous_timestamp);
       double deltaMismatch = std::fabs(
           static_cast<double>(timestamp - previous_timestamp -
-                              pipeline_params_.imu_params_.nominal_rate_) *
+                              pipeline_params_.imu_params_.nominal_sampling_time_s_) *
           1e-9);
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);

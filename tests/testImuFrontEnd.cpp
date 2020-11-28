@@ -27,10 +27,10 @@ namespace VIO {
 TEST(ImuFrontEnd, ImuFrontEndInitialization) {
   // Check that IMU frontend instantiation works.
   ImuParams imu_params;
-  imu_params.acc_walk_ = 1.0;
-  imu_params.acc_noise_ = 1.0;
-  imu_params.gyro_walk_ = 1.0;
-  imu_params.gyro_noise_ = 1.0;
+  imu_params.acc_random_walk_ = 1.0;
+  imu_params.acc_noise_density_ = 1.0;
+  imu_params.gyro_random_walk_ = 1.0;
+  imu_params.gyro_noise_density_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
   imu_params.imu_preintegration_type_ =
@@ -48,10 +48,10 @@ TEST(ImuFrontEnd, ImuFrontEndInitialization) {
 TEST(ImuFrontEnd, UpdateBias) {
   // Check that IMU frontend bias update works.
   ImuParams imu_params;
-  imu_params.acc_walk_ = 1.0;
-  imu_params.acc_noise_ = 1.0;
-  imu_params.gyro_walk_ = 1.0;
-  imu_params.gyro_noise_ = 1.0;
+  imu_params.acc_random_walk_ = 1.0;
+  imu_params.acc_noise_density_ = 1.0;
+  imu_params.gyro_random_walk_ = 1.0;
+  imu_params.gyro_noise_density_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
   Vector3 bias_acc(1.0, 1.0, 1.0);
@@ -80,10 +80,10 @@ TEST(ImuFrontEnd, UpdateBias) {
 TEST(ImuFrontEnd, UpdateBiasThreadSafe) {
   // Check that IMU frontend bias update works.
   ImuParams imu_params;
-  imu_params.acc_walk_ = 1.0;
-  imu_params.acc_noise_ = 1.0;
-  imu_params.gyro_walk_ = 1.0;
-  imu_params.gyro_noise_ = 1.0;
+  imu_params.acc_random_walk_ = 1.0;
+  imu_params.acc_noise_density_ = 1.0;
+  imu_params.gyro_random_walk_ = 1.0;
+  imu_params.gyro_noise_density_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
   Vector3 bias_acc(1.0, 1.0, 1.0);
@@ -125,10 +125,10 @@ TEST(ImuFrontEnd, UpdateBiasThreadSafe) {
 TEST(ImuFrontEnd, ResetPreintegration) {
   // Check that IMU frontend reset preintegration works.
   ImuParams imu_params;
-  imu_params.acc_walk_ = 1.0;
-  imu_params.acc_noise_ = 1.0;
-  imu_params.gyro_walk_ = 1.0;
-  imu_params.gyro_noise_ = 1.0;
+  imu_params.acc_random_walk_ = 1.0;
+  imu_params.acc_noise_density_ = 1.0;
+  imu_params.gyro_random_walk_ = 1.0;
+  imu_params.gyro_noise_density_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
   Vector3 bias_acc(1.0, 1.0, 1.0);

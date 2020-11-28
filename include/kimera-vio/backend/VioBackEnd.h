@@ -368,47 +368,59 @@ class VioBackEnd {
       gtsam::SharedNoiseModel* zero_velocity_prior_noise,
       gtsam::SharedNoiseModel* constant_velocity_prior_noise);
 
-  /* ------------------------------------------------------------------------ */
+  void setSmartStereoFactorsNoiseModel(const double& smart_noise_sigma,
+                                       gtsam::SharedNoiseModel* smart_noise);
+
   // Set parameters for smart factors.
-  void setSmartFactorsParams(
-      gtsam::SharedNoiseModel* smart_noise,
-      gtsam::SmartStereoProjectionParams* smart_factors_params,
-      const double& smart_noise_sigma,
+  void setSmartStereoFactorsParams(
       const double& rank_tolerance,
       const double& landmark_distance_threshold,
       const double& retriangulation_threshold,
-      const double& outlier_rejection);
+      const double& outlier_rejection,
+      gtsam::SmartStereoProjectionParams* smart_factors_params);
+
+  void setNoMotionFactorsParams(const double& rotation_sigma,
+                                const double& position_sigma,
+                                gtsam::SharedNoiseModel* no_motion_prior_noise);
 
   /// Private printers.
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void print() const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                          const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printPointPlaneFactor(
       boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printPlanePrior(
       boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printPointPrior(
       boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printLinearContainerFactor(
       boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   // Provide a nonlinear factor, which will be casted to any of the selected
   // factors, and then printed.
   // Slot argument, is just to print the slot of the factor if you know it.
@@ -422,7 +434,8 @@ class VioBackEnd {
       const bool print_point_priors = true,
       const bool print_linear_container_factors = true) const;
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void printSelectedGraph(
       const gtsam::NonlinearFactorGraph& graph,
       const bool& print_smart_factors = true,
@@ -432,19 +445,23 @@ class VioBackEnd {
       const bool& print_linear_container_factors = true) const;
 
   /// Debuggers.
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void computeSmartFactorStatistics();
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   void computeSparsityStatistics();
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   // Debugging post optimization and estimate calculation.
   void postDebug(
       const std::chrono::high_resolution_clock::time_point& total_start_time,
       const std::chrono::high_resolution_clock::time_point& start_time);
 
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   */
   // Reset state of debug info.
   void resetDebugInfo(DebugVioInfo* debug_info);
 
@@ -520,7 +537,8 @@ class VioBackEnd {
   LandmarkIdSmartFactorMap new_smart_factors_;
   //!< landmarkId -> {SmartFactorPtr, SlotIndex}
   SmartFactorMap old_smart_factors_;
-  // if SlotIndex is -1, means that the factor has not been inserted yet in the
+  // if SlotIndex is -1, means that the factor has not been inserted yet in
+  // the
   // graph
 
   // Data:
