@@ -478,8 +478,7 @@ class VioBackEnd {
   //!< landmarkId -> {SmartFactorPtr, SlotIndex}
   SmartFactorMap old_smart_factors_;
   // if SlotIndex is -1, means that the factor has not been inserted yet in
-  // the
-  // graph
+  // the graph
 
   // Data:
   // TODO grows unbounded currently, but it should be limited to time horizon.
