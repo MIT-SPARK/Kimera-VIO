@@ -84,11 +84,11 @@ RUN cd Kimera-RPGO && \
       make -j$(nproc)
 
 ## [Optional] Install Kimera-VIO-Evaluation from PyPI
-RUN apt-get update && apt-get install -y python-pip python-dev python-tk
-## Hack to avoid Docker's cache when Kimera-VIO-Evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
-RUN cd Kimera-VIO-Evaluation && pip install .
+# RUN apt-get update && apt-get install -y python-pip python-dev python-tk
+# ## Hack to avoid Docker's cache when Kimera-VIO-Evaluation master branch is updated.
+# ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+# RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+# RUN cd Kimera-VIO-Evaluation && pip install .
 
 # Add credentials on build
 ARG SSH_PRIVATE_KEY
