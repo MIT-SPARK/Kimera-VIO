@@ -50,18 +50,18 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3()))
       << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
-  int rate = 0;
-  yaml_parser.getYamlParam("rate_hz", &rate);
-  CHECK_GT(rate, 0u);
-  nominal_rate_ = 1 / static_cast<double>(rate);
+  double rate_hz = 0.0;
+  yaml_parser.getYamlParam("rate_hz", &rate_hz);
+  CHECK_GT(rate_hz, 0.0);
+  nominal_sampling_time_s_ = 1.0 / rate_hz;
 
   // IMU PARAMS
-  yaml_parser.getYamlParam("gyroscope_noise_density", &gyro_noise_);
-  yaml_parser.getYamlParam("accelerometer_noise_density", &acc_noise_);
-  yaml_parser.getYamlParam("gyroscope_random_walk", &gyro_walk_);
-  yaml_parser.getYamlParam("accelerometer_random_walk", &acc_walk_);
+  yaml_parser.getYamlParam("gyroscope_noise_density", &gyro_noise_density_);
+  yaml_parser.getYamlParam("accelerometer_noise_density", &acc_noise_density_);
+  yaml_parser.getYamlParam("gyroscope_random_walk", &gyro_random_walk_);
+  yaml_parser.getYamlParam("accelerometer_random_walk", &acc_random_walk_);
   yaml_parser.getYamlParam("imu_integration_sigma", &imu_integration_sigma_);
-  yaml_parser.getYamlParam("imu_time_shift", &imu_shift_);
+  yaml_parser.getYamlParam("imu_time_shift", &imu_time_shift_);
   std::vector<double> n_gravity;
   yaml_parser.getYamlParam("n_gravity", &n_gravity);
   CHECK_EQ(n_gravity.size(), 3);
@@ -74,17 +74,17 @@ void ImuParams::print() const {
   std::stringstream out;
   PipelineParams::print(out,
                         "gyroscope_noise_density: ",
-                        gyro_noise_,
+                        gyro_noise_density_,
                         "gyroscope_random_walk: ",
-                        gyro_walk_,
+                        gyro_random_walk_,
                         "accelerometer_noise_density: ",
-                        acc_noise_,
+                        acc_noise_density_,
                         "accelerometer_random_walk: ",
-                        acc_walk_,
+                        acc_random_walk_,
                         "imu_integration_sigma: ",
                         imu_integration_sigma_,
                         "imu_time_shift: ",
-                        imu_shift_,
+                        imu_time_shift_,
                         "n_gravity: ",
                         n_gravity_);
   LOG(INFO) << out.str();
@@ -94,12 +94,12 @@ bool ImuParams::equals(const PipelineParams& obj) const {
   const auto& rhs = static_cast<const ImuParams&>(obj);
   // clang-format off
   return imu_preintegration_type_ == rhs.imu_preintegration_type_ &&
-      gyro_noise_ == rhs.gyro_noise_ &&
-      gyro_walk_ == rhs.gyro_walk_ &&
-      acc_noise_ == rhs.acc_noise_ &&
-      acc_walk_ == rhs.acc_walk_ &&
-      imu_shift_ == rhs.imu_shift_ &&
-      nominal_rate_ == rhs.nominal_rate_ &&
+      gyro_noise_density_ == rhs.gyro_noise_density_ &&
+      gyro_random_walk_ == rhs.gyro_random_walk_ &&
+      acc_noise_density_ == rhs.acc_noise_density_ &&
+      acc_random_walk_ == rhs.acc_random_walk_ &&
+      imu_time_shift_ == rhs.imu_time_shift_ &&
+      nominal_sampling_time_s_ == rhs.nominal_sampling_time_s_ &&
       imu_integration_sigma_ == rhs.imu_integration_sigma_ &&
       n_gravity_ == rhs.n_gravity_;
   // clang-format on
