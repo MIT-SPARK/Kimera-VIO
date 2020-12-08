@@ -105,6 +105,8 @@ bool LcdThirdPartyWrapper::checkTemporalConstraint(const FrameId& id,
     }
   }
 
+  latest_matched_island_ = island;
+  latest_query_id_ = id;
   return temporal_entries_ > lcd_params_.min_temporal_matches_;
 }
 
