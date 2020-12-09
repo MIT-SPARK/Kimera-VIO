@@ -22,7 +22,7 @@ ransac_inlier_threshold_mono: 0.0
 pose_recovery_option_id: 0
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.999
-ransac_threshold_stereo: 0.15
+ransac_threshold_stereo: 0.3
 ransac_randomize_stereo: 0
 ransac_inlier_threshold_stereo: 0.0
 use_mono_rot: 0

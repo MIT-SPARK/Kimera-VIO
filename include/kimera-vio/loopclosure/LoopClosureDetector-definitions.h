@@ -245,7 +245,7 @@ struct LcdInput {
   const gtsam::Pose3 W_Pose_Blkf_;
 };
 
-struct LcdOutput {
+struct LcdOutput : PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(LcdOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -259,8 +259,8 @@ struct LcdOutput {
             const gtsam::Pose3& W_Pose_Map,
             const gtsam::Values& states,
             const gtsam::NonlinearFactorGraph& nfg)
-      : is_loop_closure_(is_loop_closure),
-        timestamp_kf_(timestamp_kf),
+      : PipelinePayload(timestamp_kf),
+        is_loop_closure_(is_loop_closure),
         timestamp_query_(timestamp_query),
         timestamp_match_(timestamp_match),
         id_match_(id_match),
@@ -270,9 +270,9 @@ struct LcdOutput {
         states_(states),
         nfg_(nfg) {}
 
-  LcdOutput()
-      : is_loop_closure_(false),
-        timestamp_kf_(0),
+  LcdOutput(const Timestamp& timestamp_kf)
+      : PipelinePayload(timestamp_kf),
+        is_loop_closure_(false),
         timestamp_query_(0),
         timestamp_match_(0),
         id_match_(0),
@@ -284,7 +284,6 @@ struct LcdOutput {
 
   // TODO(marcus): inlude stats/score of match
   bool is_loop_closure_;
-  Timestamp timestamp_kf_;
   Timestamp timestamp_query_;
   Timestamp timestamp_match_;
   FrameId id_match_;

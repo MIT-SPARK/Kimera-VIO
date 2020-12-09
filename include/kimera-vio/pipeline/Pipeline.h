@@ -48,15 +48,14 @@ class Pipeline {
 
  public:
   /**
-     * @brief Pipeline
-     * @param params Vio parameters
-     * @param visualizer Optional visualizer for visualizing 3D results
-     * @param displayer Optional displayer for visualizing 2D results
-     */
+   * @brief Pipeline
+   * @param params Vio parameters
+   * @param visualizer Optional visualizer for visualizing 3D results
+   * @param displayer Optional displayer for visualizing 2D results
+   */
   Pipeline(const VioParams& params,
            Visualizer3D::UniquePtr&& visualizer = nullptr,
-           DisplayBase::UniquePtr&& displayer = nullptr,
-           LoopClosureDetector::UniquePtr&& lcd = nullptr);
+           DisplayBase::UniquePtr&& displayer = nullptr);
 
   virtual ~Pipeline();
 

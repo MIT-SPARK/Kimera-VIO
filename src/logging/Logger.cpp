@@ -414,7 +414,8 @@ void FrontendLogger::logFrontendStats(
   }
 
   output_stream_stats
-      << timestamp_lkf << ","
+      << timestamp_lkf
+      << ","
       // Mono status.
       << TrackerStatusSummary::asString(tracker_summary.kfTrackingStatus_mono_)
       << ","
@@ -423,18 +424,21 @@ void FrontendLogger::logFrontendStats(
              tracker_summary.kfTrackingStatus_stereo_)
       << ","
       // Nr of keypoints.
-      << nrKeypoints << ","
+      << nrKeypoints
+      << ","
       // Feature detection, tracking and ransac.
       << tracker_info.nrDetectedFeatures_ << ","
       << tracker_info.nrTrackerFeatures_ << "," << tracker_info.nrMonoInliers_
       << "," << tracker_info.nrMonoPutatives_ << ","
       << tracker_info.nrStereoInliers_ << "," << tracker_info.nrStereoPutatives_
       << "," << tracker_info.monoRansacIters_ << ","
-      << tracker_info.stereoRansacIters_ << ","
+      << tracker_info.stereoRansacIters_
+      << ","
       // Performance of sparse-stereo-matching and ransac.
       << tracker_info.nrValidRKP_ << "," << tracker_info.nrNoLeftRectRKP_ << ","
       << tracker_info.nrNoRightRectRKP_ << "," << tracker_info.nrNoDepthRKP_
-      << "," << tracker_info.nrFailedArunRKP_ << ","
+      << "," << tracker_info.nrFailedArunRKP_
+      << ","
       // Info about timing.
       << tracker_info.featureDetectionTime_ << ","
       << tracker_info.featureTrackingTime_ << ","
@@ -557,7 +561,7 @@ void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
   const gtsam::Quaternion& rel_quat =
       lcd_output.relative_pose_.rotation().toQuaternion();
 
-  output_stream_lcd << lcd_output.timestamp_kf_ << ","
+  output_stream_lcd << lcd_output.timestamp_ << ","
                     << lcd_output.timestamp_query_ << ","
                     << lcd_output.timestamp_match_ << ","
                     << lcd_output.is_loop_closure_ << ","
