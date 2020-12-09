@@ -72,9 +72,10 @@ LoopClosureDetector::LoopClosureDetector(
       logger_(nullptr) {
   // TODO(marcus): This should come in with every input payload, not be
   // constant.
-  gtsam::Vector6 sigmas;
-  sigmas << 0.01, 0.01, 0.01, 0.1, 0.1, 0.1;
-  shared_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+  Vector6 precisions;
+  precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
+  precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
+  shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
@@ -286,7 +287,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   db_BoW_->getVocabulary()->transform(db_frames_[frame_id].descriptors_vec_,
                                       bow_vec);
 
-  int max_possible_match_id = frame_id - lcd_params_.dist_local_;
+  int max_possible_match_id = frame_id - lcd_params_.recent_frames_window_;
   if (max_possible_match_id < 0) max_possible_match_id = 0;
 
   // Query for BoW vector matches in database.
@@ -305,6 +306,8 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
       nss_factor = db_BoW_->getVocabulary()->score(bow_vec, latest_bowvec_);
+    } else {
+      LOG(ERROR) << "Setting use_nss as false is deprecated. ";
     }
 
     if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
@@ -328,6 +331,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
         result->match_id_ = query_result[0].Id;
 
         // Compute islands in the matches.
+        // An island is a group of matches with close frame_ids.
         std::vector<MatchIsland> islands;
         lcd_tp_wrapper_->computeIslands(&query_result, &islands);
 
@@ -386,7 +390,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   }
 
   // Update latest bowvec for normalized similarity scoring (NSS).
-  if (static_cast<int>(frame_id + 1) > lcd_params_.dist_local_) {
+  if (static_cast<int>(frame_id + 1) > lcd_params_.recent_frames_window_) {
     latest_bowvec_ = bow_vec;
   } else {
     VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
@@ -789,7 +793,7 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
   const size_t& n_matches = matches.size();
   for (size_t i = 0; i < n_matches; i++) {
     const DMatchVec& match = matches[i];
-    CHECK_EQ(match.size(), 2);
+    if (match.size() < 2) continue;
     if (match[0].distance < lowe_ratio * match[1].distance) {
       i_query->push_back(match[0].queryIdx);
       i_match->push_back(match[0].trainIdx);
