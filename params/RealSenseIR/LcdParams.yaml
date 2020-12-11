@@ -26,6 +26,7 @@ ransac_threshold_stereo: 0.3
 ransac_randomize_stereo: 1
 ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
+refine_pose: 1
 
 lowe_ratio: 0.2  # TODO(marcus): get rid, not used
 matcher_type: 3
