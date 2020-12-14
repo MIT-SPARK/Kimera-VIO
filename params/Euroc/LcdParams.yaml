@@ -3,7 +3,7 @@
 use_nss: 1
 alpha: 0.1
 min_temporal_matches: 3
-recent_frames_window: 40
+recent_frames_window: 30
 max_db_results: 50
 min_nss_factor: 0.05
 min_matches_per_island: 1
@@ -16,14 +16,14 @@ min_correspondences: 12
 max_ransac_iterations_mono: 500
 ransac_probability_mono: 0.995
 ransac_threshold_mono: 1e-5
-ransac_randomize_mono: 0
+ransac_randomize_mono: 1
 ransac_inlier_threshold_mono: 0.01
 
 pose_recovery_option_id: 0
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.995
 ransac_threshold_stereo: 0.3
-ransac_randomize_stereo: 0
+ransac_randomize_stereo: 1
 ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
 refine_pose: 1
