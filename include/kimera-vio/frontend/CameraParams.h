@@ -57,7 +57,6 @@ class CameraParams : public PipelineParams {
         body_Pose_cam_(),
         frame_rate_(),
         image_size_(),
-        calibration_(),
         distortion_model_(),
         distortion_coeff_(),
         distortion_coeff_mat_(),
@@ -93,7 +92,8 @@ class CameraParams : public PipelineParams {
   Intrinsics intrinsics_;
   // OpenCV structures: needed to compute the undistortion map.
   // 3x3 camera matrix K (last row is {0,0,1})
-  cv::Mat K_;
+  cv::Mat 
+    ;
 
   // Sensor extrinsics wrt body-frame
   gtsam::Pose3 body_Pose_cam_;
@@ -101,10 +101,6 @@ class CameraParams : public PipelineParams {
   // Image info.
   double frame_rate_;
   cv::Size image_size_;
-
-  // GTSAM structures to calibrate points:
-  // Contains intrinsics and distortion parameters.
-  gtsam::Cal3DS2 calibration_;
 
   // Distortion parameters
   DistortionModel distortion_model_;
@@ -132,7 +128,7 @@ class CameraParams : public PipelineParams {
       cv::Mat* distortion_coeffs_mat);
   static void convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
                                               cv::Mat* camera_matrix);
-  static void createGtsamCalibration(const std::vector<double>& distortion,
+  static void createGtsamCalibration(const cv::Mat& distortion,
                                      const Intrinsics& intrinsics,
                                      gtsam::Cal3DS2* calibration);
 

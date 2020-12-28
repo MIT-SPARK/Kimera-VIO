@@ -540,9 +540,14 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // left_keypoints_rectified!
   std::vector<gtsam::Point2> left_undistort_corners =
       loadCorners(synthetic_stereo_path + "/corners_undistort_left.txt");
+  const CameraParams& left_cam_params = sf.getLeftFrame().cam_param_;
+  gtsam::Cal3DS2 gtsam_left_cam_calib;
+  CameraParams::createGtsamCalibration(left_cam_params.distortion_coeff_mat_,
+                                       left_cam_params.intrinsics_,
+                                       &gtsam_left_cam_calib);
   std::vector<gtsam::Point2> left_rect_corners =
       convertCornersAcrossCameras(left_undistort_corners,
-                                  sf.getLeftFrame().cam_param_.calibration_,
+                                  gtsam_left_cam_calib,
                                   sf.getLeftUndistRectCamMat());
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
@@ -553,11 +558,16 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   }
 
   // right_keypoints_rectified
+  const CameraParams& right_cam_params = sf.getRightFrame().cam_param_;
+  gtsam::Cal3DS2 gtsam_right_cam_calib;
+  CameraParams::createGtsamCalibration(right_cam_params.distortion_coeff_mat_,
+                                       right_cam_params.intrinsics_,
+                                       &gtsam_right_cam_calib);
   std::vector<gtsam::Point2> right_undistort_corners =
       loadCorners(synthetic_stereo_path + "/corners_undistort_right.txt");
   std::vector<gtsam::Point2> right_rect_corners =
       convertCornersAcrossCameras(right_undistort_corners,
-                                  sf.getRightFrame().cam_param_.calibration_,
+                                  gtsam_right_cam_calib,
                                   sf.getRightUndistRectCamMat());
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
