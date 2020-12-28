@@ -2,8 +2,8 @@
 # LoopClosureDetector parameters:
 use_nss: 1
 alpha: 0.1
-min_temporal_matches: 2
-recent_frames_window: 30
+min_temporal_matches: 3
+recent_frames_window: 60
 max_db_results: 50
 min_nss_factor: 0.05
 min_matches_per_island: 1
@@ -28,7 +28,7 @@ ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
 refine_pose: 1
 
-lowe_ratio: 0.8  # TODO(marcus): get rid, not used
+lowe_ratio: 0.9  # TODO(marcus): get rid, not used
 matcher_type: 3
 
 nfeatures: 1000
