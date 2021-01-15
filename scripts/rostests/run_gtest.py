@@ -58,7 +58,7 @@ def main():
 
     with tempfile.TemporaryDirectory(dir=str(package_path)) as run_dir:
         with change_directory(run_dir):
-            subprocess.run([str(test_location)])
+            subprocess.run([str(test_location)] + sys.argv[1:])
 
 
 if __name__ == "__main__":
