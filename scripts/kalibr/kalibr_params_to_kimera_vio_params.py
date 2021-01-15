@@ -10,7 +10,7 @@
 Creates proper configurations for real hardware from a Kalibr calibration.
 
 This script creates yaml config files for Kimera-VIO from a Kalibr camera and
-IMU calibration.  Further description TBD
+IMU calibration.
 
 Authors:
     * Sandro Berchier
@@ -85,13 +85,17 @@ def make_header(values, width=80, comment_character="#"):
     return "\n".join(lines)
 
 
-def numpy_display(value, flat=True, format_str="1.8f"):
+def numpy_display(value, flat=True, format_str=" 1.8f"):
     """Create a properly-formatted array as a jinja filter."""
     if type(value) is not np.ndarray:
         return str(value)
 
     # punt on arrays with more than 2 dimensions
     if len(value.shape) > 2:
+        return str(value)
+
+    # punt on empty arrays
+    if value.size == 0:
         return str(value)
 
     # make a lambda function for converting floats to a string
@@ -105,13 +109,20 @@ def numpy_display(value, flat=True, format_str="1.8f"):
         if flat or can_be_flat:
             # return single line vector
             elements = np.squeeze(value).tolist()
-            return "[{}]".format(", ".join(map(float_format, elements)))
+            contents = ", ".join(map(float_format, elements))
+            return "[{}]".format(contents[1:] if contents[0] == ' ' else contents)
 
         # flatten each line and assemble a list
         to_render = [
             ", ".join(map(float_format, np.squeeze(row).tolist())) for row in value
         ]
-        return "[{}]".format(",\n".join(to_render))
+        contents = ",\n".join(to_render)
+
+        # handle weirdness at start of list
+        if contents[0] == ' ':
+            return " [{}]".format(contents[1:])
+        else:
+            return "[{}]".format(contents)
 
 
 def get_jinja_env():
@@ -186,12 +197,6 @@ def get_args():
     parser = argparse.ArgumentParser(description="tool to convert calibration formats")
 
     parser.add_argument(
-        "-t",
-        "--camera_type",
-        help="camera type (stereo_radtan, stereo_equi)",
-        default="stereo-radtan",
-    )
-    parser.add_argument(
         "-o", "--output", help="output path (default cwd)", default=None
     )
     parser.add_argument(
@@ -234,10 +239,6 @@ def get_args():
 
 def verify_args(args):
     """Make sure we have a valid set of arguments."""
-    if args.camera_type not in VALID_MODELS:
-        logging.critical("camera type is not valid: {}".format(args.camera_type))
-        sys.exit(1)
-
     input_dir_valid = args.input_directory is not None
     input_files_valid = args.input_imu is not None and args.input_camera is not None
     all_invalid = not input_dir_valid and not input_files_valid
