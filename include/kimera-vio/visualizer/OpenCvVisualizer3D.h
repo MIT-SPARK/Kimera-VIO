@@ -197,16 +197,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
                 const cv::Point3d& pt2,
                 WidgetsMap* widgets);
 
-  //! Draw an arrow in opencv.
-  void drawArrow(const std::string& arrow_id,
-                 const double& from_x,
-                 const double& from_y,
-                 const double& from_z,
-                 const double& to_x,
-                 const double& to_y,
-                 const double& to_z,
-                 WidgetsMap* widgets);
-
   //! Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizeMesh3D(const cv::Mat& mapPoints3d,
                        const cv::Mat& polygonsMesh,
