@@ -83,7 +83,7 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     for (auto it = widgets.begin(); it != widgets.end(); ++it) {
       CHECK(it->second);
       // This is to go around opencv issue #10829, new opencv should have this
-      // fixed.
+      // fixed. cv::viz::Widget3D::getPose segfaults.
       it->second->updatePose(cv::Affine3d());
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());

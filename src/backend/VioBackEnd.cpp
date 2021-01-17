@@ -40,6 +40,7 @@
 
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
+#include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
@@ -160,6 +161,8 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
       getImuBiasPrevKf().print();
     }
 
+    // TODO(Toni): remove all of this.... It should be done in 3DVisualizer
+    // or in the Mesher depending on who needs what...
     // Generate extra optional backend ouputs.
     static const bool kOutputLmkMap =
         backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
@@ -175,6 +178,7 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
       // WARNING this also cleans the lmks inside the old_smart_factors map!
       lmk_ids_to_3d_points_in_time_horizon =
           getMapLmkIdsTo3dPointsInTimeHorizon(
+              smoother_->getFactors(),
               kOutputLmkTypeMap ? &lmk_id_to_lmk_type_map : nullptr,
               kMinLmkObs);
     }
@@ -185,6 +189,7 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
             input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
         // TODO(Toni): Make all below optional!!
         state_,
+        smoother_->getFactors(),
         getCurrentStateCovariance(),
         curr_kf_id_,
         landmark_count_,
@@ -239,9 +244,12 @@ bool VioBackEnd::initStateAndSetPriors(
 
   // TODO encapsulate this in a function, code duplicated in addImuValues.
   // Add initial state seed
-  new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
-  new_values_.insert(gtsam::Symbol('v', curr_kf_id_), W_Vel_B_lkf_);
-  new_values_.insert(gtsam::Symbol('b', curr_kf_id_), imu_bias_lkf_);
+  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_),
+                     W_Pose_B_lkf_);
+  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, curr_kf_id_),
+                     W_Vel_B_lkf_);
+  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, curr_kf_id_),
+                     imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
   return optimize(vio_nav_state_initial_seed.timestamp_,
@@ -418,7 +426,7 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   if (VLOG_IS_ON(10)) new_factor->print();
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     const FrameId& frame_id = obs.first;
-    const gtsam::Symbol& pose_symbol = gtsam::Symbol('x', frame_id);
+    const gtsam::Symbol& pose_symbol = gtsam::Symbol(kPoseSymbolChar, frame_id);
     if (smoother_->getFactors().exists(pose_symbol)) {
       const StereoPoint2& measurement = obs.second;
       new_factor->add(measurement, pose_symbol, stereo_cal_);
@@ -452,7 +460,7 @@ void VioBackEnd::updateLandmarkInGraph(
   // Clone old factor to keep all previous measurements, now append one.
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(*old_factor);
-  gtsam::Symbol pose_symbol('x', new_measurement.first);
+  gtsam::Symbol pose_symbol(kPoseSymbolChar, new_measurement.first);
   if (smoother_->getFactors().exists(pose_symbol)) {
     const StereoPoint2& measurement = new_measurement.second;
     new_factor->add(measurement, pose_symbol, stereo_cal_);
@@ -480,6 +488,7 @@ void VioBackEnd::updateLandmarkInGraph(
 // Get valid 3D points and corresponding lmk id.
 // Warning! it modifies old_smart_factors_!!
 PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
+    const gtsam::NonlinearFactorGraph& graph,
     LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
     const size_t& min_age) {
   PointsWithIdMap points_with_id;
@@ -490,11 +499,10 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
 
   // Step 1:
   /////////////// Add landmarks encoded in the smart factors. //////////////////
-  const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // old_smart_factors_ has all smart factors included so far.
   // Retrieve lmk ids from smart factors in state.
-  size_t nr_valid_smart_lmks = 0, nr_smart_lmks = 0, nr_proj_lmks = 0;
+  size_t nr_valid_smart_lmks = 0, nr_smart_lmks = 0;
   for (SmartFactorMap::iterator old_smart_factor_it =
            old_smart_factors_.begin();
        old_smart_factor_it !=
@@ -573,33 +581,28 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     // Check that the boost::optional result is initialized.
     // Otherwise we will be dereferencing a nullptr and we will head
     // directly to undefined behaviour wonderland.
-    if (result.is_initialized()) {
-      if (result.valid()) {
-        if (gsf->measured().size() >= min_age) {
-          // Triangulation result from smart factor is valid and
-          // we have observed the lmk at least min_age times.
-          VLOG(20) << "Adding lmk with id: " << lmk_id
-                   << " to list of lmks in time horizon";
-          // Check that we have not added this lmk already...
-          CHECK(points_with_id.find(lmk_id) == points_with_id.end());
-          points_with_id[lmk_id] = *result;
-          if (lmk_id_to_lmk_type_map) {
-            (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::SMART;
-          }
-          nr_valid_smart_lmks++;
-        } else {
-          VLOG(20) << "Rejecting lmk with id: " << lmk_id
-                   << " from list of lmks in time horizon: "
-                   << "not enough measurements, " << gsf->measured().size()
-                   << ", vs min_age of " << min_age << ".";
-        }  // gsf->measured().size() >= min_age ?
+    if (result.valid()) {
+      CHECK(result.is_initialized());
+      if (gsf->measured().size() >= min_age) {
+        // Triangulation result from smart factor is valid and
+        // we have observed the lmk at least min_age times.
+        VLOG(20) << "Adding lmk with id: " << lmk_id
+                 << " to list of lmks in time horizon";
+        // Check that we have not added this lmk already...
+        CHECK(points_with_id.find(lmk_id) == points_with_id.end());
+        points_with_id[lmk_id] = *result;
+        if (lmk_id_to_lmk_type_map) {
+          (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::SMART;
+        }
+        nr_valid_smart_lmks++;
       } else {
         VLOG(20) << "Rejecting lmk with id: " << lmk_id
-                 << " from list of lmks in time horizon:\n"
-                 << "triangulation result is not valid (result= {" << result
-                 << "}).";
-      }  // result.valid()?
+                 << " from list of lmks in time horizon: "
+                 << "not enough measurements, " << gsf->measured().size()
+                 << ", vs min_age of " << min_age << ".";
+      }  // gsf->measured().size() >= min_age ?
     } else {
+      // THIS IS FOR THE boost::optional! Not for valid vs invalid lmk... :/
       VLOG(20) << "Triangulation result for smart factor of lmk with id "
                << lmk_id << " is not initialized...";
     }  // result.is_initialized()?
@@ -610,6 +613,7 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
 
   // Step 2:
   ////////////// Add landmarks that now are in projection factors. /////////////
+  size_t nr_proj_lmks = 0;
   for (const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair&
            key_value : state_.filter(gtsam::Symbol::ChrTest('l'))) {
     DCHECK_EQ(gtsam::Symbol(key_value.key).chr(), 'l');
@@ -649,9 +653,9 @@ void VioBackEnd::computeStateCovariance() {
 
   // Current state includes pose, velocity and imu biases.
   gtsam::KeyVector keys;
-  keys.push_back(gtsam::Symbol('x', curr_kf_id_));
-  keys.push_back(gtsam::Symbol('v', curr_kf_id_));
-  keys.push_back(gtsam::Symbol('b', curr_kf_id_));
+  keys.push_back(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_));
+  keys.push_back(gtsam::Symbol(kVelocitySymbolChar, curr_kf_id_));
+  keys.push_back(gtsam::Symbol(kImuBiasSymbolChar, curr_kf_id_));
 
   // Return the marginal covariance matrix.
   state_covariance_lkf_ = UtilsOpenCV::Covariance_bvx2xvb(
@@ -739,9 +743,10 @@ void VioBackEnd::addImuValues(const FrameId& cur_id,
   debug_info_.navstate_k_ = navstate_k;
 
   // Update state with initial guess
-  new_values_.insert(gtsam::Symbol('x', cur_id), navstate_k.pose());
-  new_values_.insert(gtsam::Symbol('v', cur_id), navstate_k.velocity());
-  new_values_.insert(gtsam::Symbol('b', cur_id), imu_bias_lkf_);
+  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), navstate_k.pose());
+  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id),
+                     navstate_k.velocity());
+  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias_lkf_);
 }
 
 /// Factor adders.
@@ -753,12 +758,12 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
     case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
       new_imu_prior_and_other_factors_.push_back(
           boost::make_shared<gtsam::CombinedImuFactor>(
-              gtsam::Symbol('x', from_id),
-              gtsam::Symbol('v', from_id),
-              gtsam::Symbol('x', to_id),
-              gtsam::Symbol('v', to_id),
-              gtsam::Symbol('b', from_id),
-              gtsam::Symbol('b', to_id),
+              gtsam::Symbol(kPoseSymbolChar, from_id),
+              gtsam::Symbol(kVelocitySymbolChar, from_id),
+              gtsam::Symbol(kPoseSymbolChar, to_id),
+              gtsam::Symbol(kVelocitySymbolChar, to_id),
+              gtsam::Symbol(kImuBiasSymbolChar, from_id),
+              gtsam::Symbol(kImuBiasSymbolChar, to_id),
               safeCastToPreintegratedCombinedImuMeasurements(pim)));
 
       break;
@@ -766,11 +771,11 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
     case ImuPreintegrationType::kPreintegratedImuMeasurements: {
       new_imu_prior_and_other_factors_.push_back(
           boost::make_shared<gtsam::ImuFactor>(
-              gtsam::Symbol('x', from_id),
-              gtsam::Symbol('v', from_id),
-              gtsam::Symbol('x', to_id),
-              gtsam::Symbol('v', to_id),
-              gtsam::Symbol('b', from_id),
+              gtsam::Symbol(kPoseSymbolChar, from_id),
+              gtsam::Symbol(kVelocitySymbolChar, from_id),
+              gtsam::Symbol(kPoseSymbolChar, to_id),
+              gtsam::Symbol(kVelocitySymbolChar, to_id),
+              gtsam::Symbol(kImuBiasSymbolChar, from_id),
               safeCastToPreintegratedImuMeasurements(pim)));
 
       static const gtsam::imuBias::ConstantBias zero_bias(
@@ -794,8 +799,8 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
       new_imu_prior_and_other_factors_.push_back(
           boost::make_shared<
               gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
-              gtsam::Symbol('b', from_id),
-              gtsam::Symbol('b', to_id),
+              gtsam::Symbol(kImuBiasSymbolChar, from_id),
+              gtsam::Symbol(kImuBiasSymbolChar, to_id),
               zero_bias,
               bias_noise_model));
       break;
@@ -824,8 +829,8 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id,
 
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
-          gtsam::Symbol('x', from_id),
-          gtsam::Symbol('x', to_id),
+          gtsam::Symbol(kPoseSymbolChar, from_id),
+          gtsam::Symbol(kPoseSymbolChar, to_id),
           from_id_POSE_to_id,
           betweenNoise_));
 
@@ -837,8 +842,8 @@ void VioBackEnd::addNoMotionFactor(const FrameId& from_id,
                                    const FrameId& to_id) {
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
-          gtsam::Symbol('x', from_id),
-          gtsam::Symbol('x', to_id),
+          gtsam::Symbol(kPoseSymbolChar, from_id),
+          gtsam::Symbol(kPoseSymbolChar, to_id),
           gtsam::Pose3::identity(),
           no_motion_prior_noise_));
 
@@ -855,7 +860,7 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
   VLOG(10) << "No motion detected, adding zero velocity prior.";
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
-          gtsam::Symbol('v', frame_id),
+          gtsam::Symbol(kVelocitySymbolChar, frame_id),
           gtsam::Vector3::Zero(),
           zero_velocity_prior_noise_));
 }
@@ -1125,7 +1130,9 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
       gtsam::noiseModel::Gaussian::Covariance(pose_prior_covariance);
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(
-          gtsam::Symbol('x', frame_id), W_Pose_B_lkf_, noise_init_pose));
+          gtsam::Symbol(kPoseSymbolChar, frame_id),
+          W_Pose_B_lkf_,
+          noise_init_pose));
 
   // Add initial velocity priors.
   // TODO(Toni): Make this noise model a member constant.
@@ -1134,7 +1141,9 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
           3, backend_params_.initialVelocitySigma_);
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
-          gtsam::Symbol('v', frame_id), W_Vel_B_lkf_, noise_init_vel_prior));
+          gtsam::Symbol(kVelocitySymbolChar, frame_id),
+          W_Vel_B_lkf_,
+          noise_init_vel_prior));
 
   // Add initial bias priors:
   Vector6 prior_biasSigmas;
@@ -1149,7 +1158,9 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
   }
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
-          gtsam::Symbol('b', frame_id), imu_bias_lkf_, imu_bias_prior_noise));
+          gtsam::Symbol(kImuBiasSymbolChar, frame_id),
+          imu_bias_lkf_,
+          imu_bias_prior_noise));
 
   VLOG(2) << "Added initial priors for frame " << frame_id;
 }
@@ -1160,8 +1171,8 @@ void VioBackEnd::addConstantVelocityFactor(const FrameId& from_id,
   VLOG(10) << "Adding constant velocity factor.";
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
-          gtsam::Symbol('v', from_id),
-          gtsam::Symbol('v', to_id),
+          gtsam::Symbol(kVelocitySymbolChar, from_id),
+          gtsam::Symbol(kVelocitySymbolChar, to_id),
           gtsam::Vector3::Zero(),
           constant_velocity_prior_noise_));
 
@@ -1175,14 +1186,16 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
   state_ = smoother_->calculateEstimate();
   VLOG(10) << "Finished to calculate estimate.";
 
-  DCHECK(state_.find(gtsam::Symbol('x', cur_id)) != state_.end());
-  DCHECK(state_.find(gtsam::Symbol('v', cur_id)) != state_.end());
-  DCHECK(state_.find(gtsam::Symbol('b', cur_id)) != state_.end());
+  DCHECK(state_.find(gtsam::Symbol(kPoseSymbolChar, cur_id)) != state_.end());
+  DCHECK(state_.find(gtsam::Symbol(kVelocitySymbolChar, cur_id)) !=
+         state_.end());
+  DCHECK(state_.find(gtsam::Symbol(kImuBiasSymbolChar, cur_id)) !=
+         state_.end());
 
-  W_Pose_B_lkf_ = state_.at<Pose3>(gtsam::Symbol('x', cur_id));
-  W_Vel_B_lkf_ = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
-  imu_bias_lkf_ =
-      state_.at<gtsam::imuBias::ConstantBias>(gtsam::Symbol('b', cur_id));
+  W_Pose_B_lkf_ = state_.at<Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id));
+  W_Vel_B_lkf_ = state_.at<Vector3>(gtsam::Symbol(kVelocitySymbolChar, cur_id));
+  imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(
+      gtsam::Symbol(kImuBiasSymbolChar, cur_id));
 
   VLOG(1) << "Backend: Update IMU Bias.";
   CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
@@ -1530,8 +1543,9 @@ void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
   // relinearizeThresholdVel_; bThresh << relinearizeThresholdIMU_,
   // relinearizeThresholdIMU_, relinearizeThresholdIMU_,
   // relinearizeThresholdIMU_, relinearizeThresholdIMU_,
-  // relinearizeThresholdIMU_; thresholds['x'] = xThresh; thresholds['v'] =
-  // vThresh; thresholds['b'] = bThresh;
+  // relinearizeThresholdIMU_; thresholds[kPoseSymbolChar] = xThresh;
+  // thresholds[kVelocitySymbolChar] =
+  // vThresh; thresholds[kImuBiasSymbolChar] = bThresh;
   // isam_param.setRelinearizeThreshold(thresholds);
 
   // TODO (Toni): remove hardcoded

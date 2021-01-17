@@ -25,6 +25,12 @@
 
 #include <opencv2/viz.hpp>
 
+#include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/nonlinear/LinearContainerFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
@@ -207,7 +213,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
       if (backend_type_ == BackendType::kStructuralRegularities &&
           FLAGS_visualize_plane_constraints) {
         LandmarkIds lmk_ids_in_current_pp_factors;
-        for (const auto& g : input.backend_output_->graph_) {
+        for (const auto& g : input.backend_output_->factor_graph_) {
           const auto& ppf =
               boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
           if (ppf) {
@@ -341,6 +347,8 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
     // horizon of the optimization.
     case VisualizationType::kPointcloud: {
       // Do not color the cloud, send empty lmk id to lmk type map
+      // TODO(Toni): don't use the backend's maps, instead, build these maps,
+      // in the visualizer using the state and the factor graph.
       visualizePoints3D(input.backend_output_->landmarks_with_id_map_,
                         input.backend_output_->lmk_id_to_lmk_type_map_,
                         &output->widgets_);
@@ -360,18 +368,273 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   // Generate line through all poses
   visualizeTrajectory3D(&output->widgets_);
   // Generate frustums for the last 10 poses.
-  visualizeTrajectoryWithFrustums(&output->widgets_, 10u);
+  // visualizeTrajectoryWithFrustums(&output->widgets_, 10u);
   // Generate frustum with an image inside it for the current pose.
   visualizePoseWithImgInFrustum(
       FLAGS_visualize_mesh_in_frustum ? mesh_2d_img : left_stereo_keyframe.img_,
       trajectory_poses_3d_.back(),
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
+  // Visualize the factor-graph in 3D, this trajectory might be different
+  // than the one above!
+  visualizeFactorGraph(
+      input.backend_output_->state_,
+      input.backend_output_->factor_graph_,
+      input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect(),
+      input.frontend_output_->stereo_frame_lkf_.getBPoseCamRRect(),
+      &output->widgets_);
 
   return output;
 }
 
-/* -------------------------------------------------------------------------- */
+void OpenCvVisualizer3D::visualizeFactorGraph(
+    const gtsam::Values& state,
+    const gtsam::NonlinearFactorGraph& factor_graph,
+    const gtsam::Pose3& body_pose_camLrect,
+    const gtsam::Pose3& body_pose_camRrect,
+    WidgetsMap* widgets_map) {
+  CHECK_NOTNULL(widgets_map);
+  // Assert consistency between state and factor_graph
+
+  // First, recolor all previous poses as inactive (white color) by re-drawing
+  // them, the active ones will be colored later.
+  for (const std::pair<std::string, cv::Affine3d>& widget_id_pose_pair :
+       widget_id_to_pose_map_) {
+    const auto& widget_id = widget_id_pose_pair.first;
+    (*widgets_map)[widget_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, inactive_frustum_scale_, cv::viz::Color::white());
+    (*widgets_map)[widget_id]->setPose(widget_id_pose_pair.second);
+  }
+  widget_id_to_pose_map_.clear();
+
+  // Step 1: visualize variables
+  // Loop over the state
+  for (const gtsam::Values::ConstKeyValuePair& key_value : state) {
+    // Regular Landmarks
+    const auto& variable_symbol = gtsam::Symbol(key_value.key);
+    const auto& variable_type = variable_symbol.chr();
+    const auto& variable_index = variable_symbol.index();
+    const auto& variable_value = key_value.value;
+
+    static constexpr bool draw_imu_pose = true;
+    static constexpr bool draw_left_cam = true;
+    static constexpr bool draw_right_cam = false;
+    static constexpr bool draw_imu_to_left_cam_arrow = false;
+    static constexpr bool draw_velocity = false;
+    if (variable_type == kLandmarkSymbolChar) {
+      // const LandmarkId& lmk_id = variable_index;  // THIS IS NOT LMK_ID!
+      // const gtsam::Point3& lmk_position = variable_value.cast<gtsam::Point3>();
+      // DCHECK(points_with_id.find(lmk_id) == points_with_id.end());
+      // points_with_id[lmk_id] = lmk_position;
+      // lmk_id_to_lmk_type_map[lmk_id] = LandmarkType::PROJECTION;
+    }
+
+    // Smart landmarks
+    // We cannot use the values to get these, since they aren't a variable :(
+
+    // Poses
+
+    if (variable_type == kPoseSymbolChar) {
+      const gtsam::Pose3& imu_pose = variable_value.cast<gtsam::Pose3>();
+      if (draw_imu_pose) {
+        // Visualize IMU pose as a coordinate frame
+        (*widgets_map)["IMU pose " + std::to_string(variable_index)] =
+            VIO::make_unique<cv::viz::WCoordinateSystem>(0.1);
+        (*widgets_map)["IMU pose " + std::to_string(variable_index)]->setPose(
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(imu_pose));
+      }
+
+      // Visualize Camera pose as a frustum
+      // Left Cam
+      const gtsam::Pose3& world_pose_camLrect =
+          imu_pose.compose(body_pose_camLrect);
+      if (draw_left_cam) {
+        std::string left_cam_id =
+            "Left CAM pose " + std::to_string(variable_index);
+        (*widgets_map)[left_cam_id] =
+            VIO::make_unique<cv::viz::WCameraPosition>(
+                K_, left_cam_active_frustum_scale_, cv::viz::Color::green());
+        const cv::Affine3d& left_cam_pose =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect);
+        (*widgets_map)[left_cam_id]->setPose(left_cam_pose);
+        widget_id_to_pose_map_[left_cam_id] = left_cam_pose;
+      }
+
+      // Right Cam
+      if (draw_right_cam) {
+        std::string right_cam_id =
+            "Right CAM pose " + std::to_string(variable_index);
+        (*widgets_map)[right_cam_id] =
+            VIO::make_unique<cv::viz::WCameraPosition>(
+                K_, right_cam_active_frustum_scale_, cv::viz::Color::green());
+        const gtsam::Pose3& world_pose_camRrect =
+            imu_pose.compose(body_pose_camRrect);
+        const cv::Affine3d& right_cam_pose =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camRrect);
+        (*widgets_map)[right_cam_id]->setPose(
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camRrect));
+        widget_id_to_pose_map_[right_cam_id] = right_cam_pose;
+      }
+
+      if (draw_imu_to_left_cam_arrow) {
+        // Visualize arrow from IMU pose to Camera Pose
+        const auto& imu_position = imu_pose.translation();
+        const auto& left_cam_position = world_pose_camLrect.translation();
+        cv::Point3d arrow_start(
+            imu_position.x(), imu_position.y(), imu_position.z());
+        cv::Point3d arrow_end(left_cam_position.x(),
+                              left_cam_position.y(),
+                              left_cam_position.z());
+        std::string imu_to_left_cam_id =
+            "IMU to Left CAM " + std::to_string(variable_index);
+        (*widgets_map)[imu_to_left_cam_id] = VIO::make_unique<cv::viz::WArrow>(
+            arrow_start, arrow_end, 0.01, imu_to_left_cam_vector_color_);
+      }
+    }
+
+    // Velocities
+    if (variable_type == kVelocitySymbolChar && draw_velocity) {
+      const gtsam::Vector3& imu_velocity =
+          variable_value.cast<gtsam::Vector3>();
+      gtsam::Pose3 imu_pose;
+      if (!getEstimateOfKey(state,
+                            gtsam::Symbol(kPoseSymbolChar, variable_index),
+                            &imu_pose)) {
+        LOG(ERROR) << "Couldn't find Pose variable with index: "
+                   << std::to_string(variable_index) << " in state: ";
+        state.print();
+        continue;
+      }
+      const gtsam::Point3& imu_position = imu_pose.translation();
+      gtsam::Point3 end = imu_position + imu_velocity;
+
+      cv::Point3d arrow_start(
+          imu_position.x(), imu_position.y(), imu_position.z());
+      cv::Point3d arrow_end(end.x(), end.y(), end.z());
+
+      // Display the velocity as an arrow centered at the IMU widget.
+      (*widgets_map)["IMU vel " + std::to_string(variable_index)] =
+          VIO::make_unique<cv::viz::WArrow>(
+              arrow_start, arrow_end, 0.001, velocity_vector_color_);
+    }
+
+    // Imu Biases
+    if (variable_type == kImuBiasSymbolChar) {
+      // Arrows? might clutter quite a bit...
+    }
+  }
+
+  // Step 2: visualize Factors
+  static constexpr bool draw_smart_stereo_factors = true;
+  static constexpr bool draw_point_priors = true;
+  static constexpr bool draw_velocity_priors = true;
+  static constexpr bool draw_no_motion_priors = true;
+  static constexpr bool draw_plane_priors = true;
+  static constexpr bool draw_point_plane_factors = true;
+  static constexpr bool draw_linear_container_factors = true;
+  static constexpr bool draw_imu_constant_bias_factors = true;
+  static constexpr bool draw_between_factors = true;
+  for (const boost::shared_ptr<gtsam::NonlinearFactor>& factor : factor_graph) {
+    if (draw_smart_stereo_factors) {
+      const SmartStereoFactor::shared_ptr& smart_stereo_factor =
+          boost::dynamic_pointer_cast<SmartStereoFactor>(factor);
+      if (smart_stereo_factor) {
+        // Get triangulation result from smart factor.
+        const gtsam::TriangulationResult& result = smart_stereo_factor->point();
+        CHECK(smart_stereo_factor->body_P_sensor().equals(body_pose_camLrect));
+        // Check that the boost::optional result is initialized.
+        if (result.valid()) {
+          smart_stereo_factor->keys();
+          // 1. Plot Landmark
+          // Check that we have not added this lmk already...
+          // We don't know the ids of this lmk unfortunately (only backend
+          // knows)
+          // CHECK(points_with_id.find(lmk_id) == points_with_id.end());
+          // points_with_id[lmk_id] = *result;
+          // lmk_id_to_lmk_type_map[lmk_id] = LandmarkType::SMART;
+
+          // 2. Plot factors from Landmark to Poses
+          // TODO(Toni): Color-code lmk with its age by using alpha of edges!!
+          // smart_stereo_factor->measured().size()
+        } else if (result.behindCamera()) {
+          // TODO(TONI): show the measurement rays in RED
+        } else if (result.degenerate()) {
+          // TODO(TONI): show the measurement rays in RED
+        } else if (result.farPoint()) {
+          // TODO(TONI): show the measurement rays in RED
+        } else if (result.outlier()) {
+          // TODO(TONI): show the measurement rays in RED
+        } else {
+          LOG(FATAL) << "Did someone add a new state to triangulation result?";
+        }
+      }
+    }
+
+    if (draw_point_plane_factors) {
+      const auto& ppf =
+          boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(factor);
+      if (ppf) {
+      }
+    }
+
+    if (draw_plane_priors) {
+      const auto& ppp = boost::dynamic_pointer_cast<
+          gtsam::PriorFactor<gtsam::OrientedPlane3>>(factor);
+      if (ppp) {
+      }
+    }
+
+    if (draw_point_priors) {
+      const auto& point_prior_factor =
+          boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(
+              factor);
+      if (point_prior_factor) {
+      }
+    }
+
+    if (draw_linear_container_factors) {
+      const auto& lcf =
+          boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(factor);
+      if (lcf) {
+      }
+    }
+
+    if (draw_velocity_priors) {
+      const auto& velocity_prior =
+          boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Vector3>>(
+              factor);
+      if (velocity_prior) {
+      }
+    }
+
+    if (draw_no_motion_priors) {
+      const auto& no_motion_prior =
+          boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
+              factor);
+      if (no_motion_prior) {
+      }
+    }
+
+    if (draw_imu_constant_bias_factors) {
+      const auto& no_motion_prior = boost::dynamic_pointer_cast<
+          gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(factor);
+      if (no_motion_prior) {
+      }
+    }
+
+    // Combined IMU?
+
+    // Stereo Between Factors?
+    if (draw_between_factors) {
+      const auto& btw_factor =
+          boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
+              factor);
+      if (btw_factor) {
+      }
+    }
+  }
+}
+
 // Create a 2D mesh from 2D corners in an image
 cv::Mat OpenCvVisualizer3D::visualizeMesh2D(
     const std::vector<cv::Vec6f>& triangulation2D,
@@ -408,7 +671,6 @@ cv::Mat OpenCvVisualizer3D::visualizeMesh2D(
   return img_clone;
 }
 
-/* -------------------------------------------------------------------------- */
 // Visualize 2d mesh.
 cv::Mat OpenCvVisualizer3D::visualizeMesh2DStereo(
     const std::vector<cv::Vec6f>& triangulation_2D,
@@ -428,7 +690,8 @@ cv::Mat OpenCvVisualizer3D::visualizeMesh2DStereo(
   // Visualize extra vertices.
   for (size_t i = 0; i < ref_frame.keypoints_.size(); i++) {
     // Only for valid keypoints, but possibly without a right pixel.
-    // Kpts that are both valid and have a right pixel are currently the ones
+    // Kpts that are both valid and have a right pixel are currently the
+    // ones
     // passed to the mesh.
     if (ref_frame.landmarks_[i] != -1) {
       cv::circle(img_clone,
@@ -460,7 +723,8 @@ cv::Mat OpenCvVisualizer3D::visualizeMesh2DStereo(
   return img_clone;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize a 3D point cloud of unique 3D landmarks.
 void OpenCvVisualizer3D::visualizePoints3D(
     const PointsWithIdMap& points_with_id,
@@ -524,7 +788,8 @@ void OpenCvVisualizer3D::visualizePoints3D(
   (*widgets_map)["Point cloud"] = std::move(cloud_widget);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 void OpenCvVisualizer3D::visualizePlane(const PlaneId& plane_index,
                                         const double& n_x,
@@ -560,7 +825,8 @@ void OpenCvVisualizer3D::visualizePlane(const PlaneId& plane_index,
   is_plane_id_in_window_[plane_index] = true;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Draw a line in opencv.
 void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   const double& from_x,
@@ -575,7 +841,8 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
   drawLine(line_id, pt1, pt2, widgets);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   const cv::Point3d& pt1,
                                   const cv::Point3d& pt2,
@@ -584,7 +851,8 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
   (*widgets)[line_id] = VIO::make_unique<cv::viz::WLine>(pt1, pt2);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
 void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& polygons_mesh,
@@ -593,7 +861,8 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   visualizeMesh3D(map_points_3d, colors, polygons_mesh, widgets);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
 // and provide color for each polygon.
 void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
@@ -636,7 +905,8 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   (*widgets)["Mesh"] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize a PLY from filename (absolute path).
 void OpenCvVisualizer3D::visualizePlyMesh(const std::string& filename,
                                           WidgetsMap* widgets) {
@@ -704,9 +974,11 @@ void OpenCvVisualizer3D::visualizeGlobalFrameOfReference(WidgetsMap* widgets,
       VIO::make_unique<cv::viz::WCoordinateSystem>(scale);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-/// Each triangle is colored depending on the cluster it is in, or gray if it
+/// Each triangle is colored depending on the cluster it is in, or gray if
+/// it
 /// is in no cluster.
 /// [in] clusters: a set of triangle clusters. The ids of the triangles must
 ///  match the order in polygons_mesh.
@@ -744,7 +1016,8 @@ void OpenCvVisualizer3D::visualizeMesh3DWithColoredClusters(
   }
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize convex hull in 2D for set of points in triangle cluster,
 // projected along the normal of the cluster.
 void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
@@ -803,7 +1076,8 @@ void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
                                           // map_points_3d.row(idx_3).t();
         map_points_3d.at<cv::Point3f>(idx_3);
 
-    // Keep only 1st and 2nd component, aka the projection of the point on the
+    // Keep only 1st and 2nd component, aka the projection of the point on
+    // the
     // plane.
     points_2d.push_back(cv::Point2f(new_map_point_1.x, new_map_point_1.y));
     z_s.push_back(new_map_point_1.z);
@@ -836,7 +1110,8 @@ void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
       (*widgets_map)["Convex Hull"] =
           VIO::make_unique<cv::viz::WPolyLine>(hull_3d);
     } else {
-      // Visualize convex hull as a mesh of one polygon with multiple points.
+      // Visualize convex hull as a mesh of one polygon with multiple
+      // points.
       if (hull_3d.size() > 2) {
         cv::Mat polygon_hull = cv::Mat(4 * (hull_3d.size() - 2), 1, CV_32SC1);
         size_t i = 1;
@@ -861,8 +1136,8 @@ void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
   }
 }
 
-/* -------------------------------------------------------------------------- */
-// Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
+// Visualize trajectory. Adds an image to the frustum if cv::Mat is not
+// empty.
 void OpenCvVisualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
   CHECK_NOTNULL(widgets_map);
 
@@ -881,13 +1156,13 @@ void OpenCvVisualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
       trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize trajectory with frustums.
 void OpenCvVisualizer3D::visualizeTrajectoryWithFrustums(
     WidgetsMap* widgets_map,
     const size_t& n_last_frustums) {
   CHECK_NOTNULL(widgets_map);
-  static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
   std::vector<cv::Affine3f> trajectory_frustums;
   trajectory_frustums.reserve(n_last_frustums);
   for (auto rit = trajectory_poses_3d_.rbegin();
@@ -898,10 +1173,11 @@ void OpenCvVisualizer3D::visualizeTrajectoryWithFrustums(
   }
   (*widgets_map)["Trajectory Frustums"] =
       VIO::make_unique<cv::viz::WTrajectoryFrustums>(
-          trajectory_frustums, K, 0.2, cv::viz::Color::red());
+          trajectory_frustums, K_, 0.2, cv::viz::Color::red());
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize camera pose with image inside frustum.
 void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
     const cv::Mat& frustum_image,
@@ -909,21 +1185,21 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
     WidgetsMap* widgets_map,
     const std::string& widget_id) {
   CHECK_NOTNULL(widgets_map);
-  static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
   std::unique_ptr<cv::viz::WCameraPosition> cam_widget_ptr = nullptr;
   if (frustum_image.empty()) {
     cam_widget_ptr = VIO::make_unique<cv::viz::WCameraPosition>(
-        K, 1.0, cv::viz::Color::white());
+        K_, 1.0, cv::viz::Color::white());
   } else {
     cam_widget_ptr = VIO::make_unique<cv::viz::WCameraPosition>(
-        K, frustum_image, 1.0, cv::viz::Color::white());
+        K_, frustum_image, 1.0, cv::viz::Color::white());
   }
   CHECK(cam_widget_ptr);
   cam_widget_ptr->setPose(frustum_pose);
   (*widgets_map)[widget_id] = std::move(cam_widget_ptr);
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Remove widget. True if successful, false if not.
 bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
   try {
@@ -941,7 +1217,8 @@ bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
   return false;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Visualize line widgets from plane to lmks.
 // Point key is required to avoid duplicated lines!
 void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
@@ -1109,7 +1386,8 @@ void OpenCvVisualizer3D::addPoseToTrajectory(const cv::Affine3d& pose) {
   }
 }
 
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------
+ */
 Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
     const Timestamp& image_timestamp,
     const cv::Mat& texture_image,
@@ -1130,12 +1408,16 @@ Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
 
   // Add texture to the mesh using the given image.
   // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d
-  // image. As a small hack, we not only use the left_image as texture but we
-  // also horizontally concatenate a white image so we can set a white texture
-  // to those 3d mesh faces which should not have a texture. Below we init all
+  // image. As a small hack, we not only use the left_image as texture but
+  // we
+  // also horizontally concatenate a white image so we can set a white
+  // texture
+  // to those 3d mesh faces which should not have a texture. Below we init
+  // all
   // tcoords to 0.99 (1.0) gives a weird texture... Meaning that all faces
   // start with a default white texture, and then we change that texture to
-  // the right texture for each 2d triangle that has a corresponding 3d face.
+  // the right texture for each 2d triangle that has a corresponding 3d
+  // face.
   Mesh2D::Polygon polygon;
   std::vector<cv::Vec2d> tcoords(mesh_3d.getNumberOfUniqueVertices(),
                                  cv::Vec2d(0.9, 0.9));
@@ -1146,7 +1428,8 @@ Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
     const LandmarkId& lmk1 = polygon.at(1).getLmkId();
     const LandmarkId& lmk2 = polygon.at(2).getLmkId();
 
-    // Returns indices of points in the 3D mesh corresponding to the vertices
+    // Returns indices of points in the 3D mesh corresponding to the
+    // vertices
     // in the 2D mesh.
     int p0_id, p1_id, p2_id;
     if (mesh_3d.getVertex(lmk0, nullptr, &p0_id) &&
@@ -1208,7 +1491,8 @@ Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
   return mesh_3d_viz_props;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
 // Log mesh to ply file.
 void OpenCvVisualizer3D::logMesh(const cv::Mat& map_points_3d,
                                  const cv::Mat& colors,
