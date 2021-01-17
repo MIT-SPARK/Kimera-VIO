@@ -384,6 +384,10 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
       input.frontend_output_->stereo_frame_lkf_.getBPoseCamRRect(),
       &output->widgets_);
 
+  // Add widgets to remove
+  output->widget_ids_to_remove_ = widget_ids_to_remove_;
+  widget_ids_to_remove_.clear();
+
   return output;
 }
 
@@ -407,6 +411,12 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   }
   widget_id_to_pose_map_.clear();
 
+  for (const std::string& line_id : line_ids_to_remove_) {
+    // Remove lmk to pose lines
+    removeWidget(line_id);
+  }
+  line_ids_to_remove_.clear();
+
   // Step 1: visualize variables
   // Loop over the state
   for (const gtsam::Values::ConstKeyValuePair& key_value : state) {
@@ -423,7 +433,8 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
     static constexpr bool draw_velocity = false;
     if (variable_type == kLandmarkSymbolChar) {
       // const LandmarkId& lmk_id = variable_index;  // THIS IS NOT LMK_ID!
-      // const gtsam::Point3& lmk_position = variable_value.cast<gtsam::Point3>();
+      // const gtsam::Point3& lmk_position =
+      // variable_value.cast<gtsam::Point3>();
       // DCHECK(points_with_id.find(lmk_id) == points_with_id.end());
       // points_with_id[lmk_id] = lmk_position;
       // lmk_id_to_lmk_type_map[lmk_id] = LandmarkType::PROJECTION;
@@ -433,7 +444,6 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
     // We cannot use the values to get these, since they aren't a variable :(
 
     // Poses
-
     if (variable_type == kPoseSymbolChar) {
       const gtsam::Pose3& imu_pose = variable_value.cast<gtsam::Pose3>();
       if (draw_imu_pose) {
@@ -544,7 +554,40 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
         CHECK(smart_stereo_factor->body_P_sensor().equals(body_pose_camLrect));
         // Check that the boost::optional result is initialized.
         if (result.valid()) {
-          smart_stereo_factor->keys();
+          // Get lmk
+          CHECK(result.is_initialized());
+          const gtsam::Point3& lmk = *result;
+          // For each left cam in stereo cam, draw line from lmk to optical
+          // center.
+          const gtsam::CameraSet<gtsam::StereoCamera>& stereo_cams =
+              smart_stereo_factor->cameras(state);
+          const gtsam::KeyVector& stereo_cam_keys = smart_stereo_factor->keys();
+          CHECK_EQ(stereo_cams.size(), stereo_cam_keys.size());
+          static LandmarkId lmk_id = 0;
+          // Since I don't know the smart factor lmk id, I just invent it...
+          lmk_id++;
+          for (size_t i = 0u; i < stereo_cams.size(); i++) {
+            // Get Camera pose
+            const gtsam::StereoCamera& stereo_cam = stereo_cams.at(i);
+            const gtsam::Point3& left_cam_pose =
+                stereo_cam.pose().translation();
+
+            std::string cam_to_lmk_line_id =
+                "CAM " + std::to_string(stereo_cam_keys.at(i)) + " Lmk " +
+                std::to_string(lmk_id);
+            cv::Point3d arrow_start(
+                left_cam_pose.x(), left_cam_pose.y(), left_cam_pose.z());
+            cv::Point3d arrow_end(lmk.x(), lmk.y(), lmk.z());
+            cv::Mat in(1, 1, CV_8UC3);
+            in.at<cv::Vec3b>(0, 0) = cv::Vec3b::all(255.0 / std::exp(i * 0.5));
+            cv::Mat out(1, 1, CV_8UC3);
+            cv::applyColorMap(in, out, cv::COLORMAP_PARULA);
+            cv::viz::Color arrow_color(out.at<cv::Vec3b>(0, 0));
+            (*widgets_map)[cam_to_lmk_line_id] =
+                VIO::make_unique<cv::viz::WArrow>(
+                    arrow_start, arrow_end, 0.0005, arrow_color);
+            line_ids_to_remove_.push_back(cam_to_lmk_line_id);
+          }
           // 1. Plot Landmark
           // Check that we have not added this lmk already...
           // We don't know the ids of this lmk unfortunately (only backend
@@ -1198,23 +1241,9 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
   (*widgets_map)[widget_id] = std::move(cam_widget_ptr);
 }
 
-/* --------------------------------------------------------------------------
- */
 // Remove widget. True if successful, false if not.
 bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
-  try {
-    // window_data_.window_.removeWidget(widget_id);
-    return true;
-  } catch (const cv::Exception& e) {
-    VLOG(20) << e.what();
-    LOG(ERROR) << "Widget with id: " << widget_id.c_str()
-               << " is not in window.";
-  } catch (...) {
-    LOG(ERROR) << "Unrecognized exception when using "
-                  "window_data_.window_.removeWidget() "
-               << "with widget with id: " << widget_id.c_str();
-  }
-  return false;
+  widget_ids_to_remove_.push_back(widget_id);
 }
 
 /* --------------------------------------------------------------------------
@@ -1293,8 +1322,6 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
   }
 }
 
-/* --------------------------------------------------------------------------
- */
 // Remove line widgets from plane to lmks, for lines that are not pointing
 // to any lmk_id in lmk_ids.
 void OpenCvVisualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
@@ -1323,8 +1350,6 @@ void OpenCvVisualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
   }
 }
 
-/* --------------------------------------------------------------------------
- */
 // Remove line widgets from plane to lmks.
 void OpenCvVisualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);

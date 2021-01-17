@@ -79,6 +79,8 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     }
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
+
+    // Add requested widgets
     const WidgetsMap& widgets = viz_output->widgets_;
     for (auto it = widgets.begin(); it != widgets.end(); ++it) {
       CHECK(it->second);
@@ -88,6 +90,12 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());
     }
+
+    // Remove requested widgets
+    for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
+      removeWidget(widget_id);
+    }
+
     if (params_.hold_display_) {
       // Spin forever until user closes window
       window_data_.window_.spin();
@@ -175,6 +183,22 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
                                     window_data_.mesh_ambient_);
   mesh_widget->setRenderingProperty(cv::viz::LIGHTING,
                                     window_data_.mesh_lighting_);
+}
+
+bool OpenCv3dDisplay::removeWidget(const std::string& widget_id) {
+  try {
+    window_data_.window_.removeWidget(widget_id);
+    return true;
+  } catch (const cv::Exception& e) {
+    VLOG(20) << e.what();
+    LOG(ERROR) << "Widget with id: " << widget_id.c_str()
+               << " is not in window.";
+  } catch (...) {
+    LOG(ERROR) << "Unrecognized exception when using "
+                  "window_data_.window_.removeWidget() "
+               << "with widget with id: " << widget_id.c_str();
+  }
+  return false;
 }
 
 void OpenCv3dDisplay::keyboardCallback(const cv::viz::KeyboardEvent& event,

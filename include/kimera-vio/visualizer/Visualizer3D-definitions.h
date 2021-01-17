@@ -46,6 +46,7 @@ enum class VisualizationType {
 
 typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
 typedef std::map<std::string, WidgetPtr> WidgetsMap;
+typedef std::vector<std::string> WidgetIds;
 
 struct ImageToDisplay {
   ImageToDisplay() = default;
@@ -105,11 +106,13 @@ struct VisualizerOutput : public DisplayInputBase {
       : DisplayInputBase(),
         visualization_type_(VisualizationType::kNone),
         widgets_(),
+        widget_ids_to_remove_(),
         frustum_pose_(cv::Affine3d::Identity()) {}
   ~VisualizerOutput() = default;
 
   VisualizationType visualization_type_;
   WidgetsMap widgets_;
+  WidgetIds widget_ids_to_remove_;
   cv::Affine3d frustum_pose_;
 };
 

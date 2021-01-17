@@ -1049,12 +1049,8 @@ bool VioBackEnd::optimize(
     // Update slots of smart factors:.
     // TODO(Toni): shouldn't we be doing this after each updateSmoother call?
     VLOG(10) << "Starting to find smart factors slots.";
-#ifdef INCREMENTAL_SMOOTHER
     updateNewSmartFactorsSlots(lmk_ids_of_new_smart_factors_tmp,
                                &old_smart_factors_);
-#else
-    findSmartFactorsSlotsSlow(new_smart_factors_lmkID_tmp);
-#endif
     VLOG(10) << "Finished to find smart factors slots.";
 
     if (VLOG_IS_ON(5) || log_output_) {
