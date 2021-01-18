@@ -344,7 +344,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   std::map<std::string, cv::Affine3d> widget_id_to_pose_map_;
 
   WidgetIds widget_ids_to_remove_;
-  WidgetIds line_ids_to_remove_;
+  WidgetIds widget_ids_to_remove_in_next_iter_;
 
   //! Colors
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
@@ -353,6 +353,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
   float left_cam_active_frustum_scale_ = 0.11;
   float right_cam_active_frustum_scale_ = 0.11;
   float inactive_frustum_scale_ = 0.06;
+  float cam_with_prior_frustum_scale_ = 0.08;
+  cv::viz::Color cam_with_prior_frustum_color_ = cv::viz::Color::pink();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;

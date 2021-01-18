@@ -410,11 +410,11 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   }
   widget_id_to_pose_map_.clear();
 
-  for (const std::string& line_id : line_ids_to_remove_) {
+  for (const std::string& line_id : widget_ids_to_remove_in_next_iter_) {
     // Remove lmk to pose lines
     removeWidget(line_id);
   }
-  line_ids_to_remove_.clear();
+  widget_ids_to_remove_in_next_iter_.clear();
 
   // Step 1: visualize variables
   // Loop over the state
@@ -537,6 +537,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   static constexpr bool draw_smart_stereo_factors = true;
   static constexpr bool draw_point_priors = true;
   static constexpr bool draw_velocity_priors = true;
+  static constexpr bool draw_pose_priors = true;
   static constexpr bool draw_no_motion_priors = true;
   static constexpr bool draw_plane_priors = true;
   static constexpr bool draw_point_plane_factors = true;
@@ -585,7 +586,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
             (*widgets_map)[cam_to_lmk_line_id] =
                 VIO::make_unique<cv::viz::WArrow>(
                     arrow_start, arrow_end, 0.0005, arrow_color);
-            line_ids_to_remove_.push_back(cam_to_lmk_line_id);
+            widget_ids_to_remove_in_next_iter_.push_back(cam_to_lmk_line_id);
           }
           // 1. Plot Landmark
           // Check that we have not added this lmk already...
@@ -635,6 +636,22 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(
               factor);
       if (point_prior_factor) {
+        LOG(ERROR) << "A POINT Prior!";
+        CHECK_EQ(point_prior_factor->keys().size(), 1u);
+        const gtsam::Key& point_key = point_prior_factor->key();
+        gtsam::Symbol point_symbol(point_key);
+        gtsam::Point3 point;
+        getEstimateOfKey(state, point_key, &point);
+        static constexpr float delta = 0.1;
+        cv::Point3d min_point(
+            point.x() - delta, point.y() - delta, point.z() - delta);
+        cv::Point3d max_point(
+            point.x() + delta, point.y() + delta, point.z() + delta);
+        std::string point_prior_id =
+            "Point prior " + std::to_string(point_symbol.index());
+        (*widgets_map)[point_prior_id] = VIO::make_unique<cv::viz::WCube>(
+            min_point, max_point, false, cv::viz::Color::red());
+        widget_ids_to_remove_in_next_iter_.push_back(point_prior_id);
       }
     }
 
@@ -642,6 +659,32 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       const auto& lcf =
           boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(factor);
       if (lcf) {
+        for (const gtsam::Key& key : lcf->keys()) {
+          // Color-code all poses that are under the LinearContainerFactor
+          gtsam::Symbol symbol(key);
+          if (symbol.chr() == kPoseSymbolChar) {
+            gtsam::Pose3 imu_pose;
+            CHECK(getEstimateOfKey(state, key, &imu_pose));
+            std::string left_cam_id =
+                "Left CAM pose " + std::to_string(symbol.index());
+            (*widgets_map)[left_cam_id] =
+                VIO::make_unique<cv::viz::WCameraPosition>(
+                    K_,
+                    cam_with_prior_frustum_scale_,
+                    cam_with_prior_frustum_color_);
+            const gtsam::Pose3& world_pose_camLrect =
+                imu_pose.compose(body_pose_camLrect);
+            const cv::Affine3d& left_cam_with_prior_pose =
+                UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect);
+            (*widgets_map)[left_cam_id]->setPose(
+                UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect));
+            widget_id_to_pose_map_[left_cam_id] = left_cam_with_prior_pose;
+            // PERHAPS COLOR AGAIN THE LMK TO POSE RAYS IN RED, as in
+            // the factor that connects all together!
+          } else if (symbol.chr() == kLandmarkSymbolChar) {
+            // TODO(Toni): color landmark with prior as such.
+          }
+        }
       }
     }
 
@@ -650,21 +693,60 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Vector3>>(
               factor);
       if (velocity_prior) {
+        CHECK_EQ(velocity_prior->keys().size(), 1u);
+        gtsam::Key key = velocity_prior->keys().at(0u);
+        gtsam::Symbol symbol(key);
+        if (symbol.chr() == kVelocitySymbolChar) {
+          gtsam::Pose3 imu_pose;
+          CHECK(getEstimateOfKey(state,
+                                 gtsam::Symbol(kPoseSymbolChar, symbol.index()),
+                                 &imu_pose));
+          gtsam::Vector3 velocity;
+          CHECK(getEstimateOfKey(state, key, &velocity));
+          std::string info =
+              gtsam::equal(velocity, gtsam::Vector3::Zero()) ? " 0-vel " : " ";
+          std::string velocity_prior_id =
+              "Velocity Prior!" + info + std::to_string(symbol.index());
+          static double increase = 0.1;
+          const cv::Point3d text_position(
+              imu_pose.x(),
+              imu_pose.y(),
+              imu_pose.z() + std::fmod(increase, 2));
+          increase += 0.1;
+          (*widgets_map)[velocity_prior_id] =
+              VIO::make_unique<cv::viz::WText3D>(
+                  velocity_prior_id, text_position, 0.07, true);
+          // widget_ids_to_remove_in_next_iter_.push_back(velocity_prior_id);
+        } else {
+          LOG(WARNING) << "Prior on gtsam::Vector3 unrecognized...";
+        }
       }
     }
 
-    if (draw_no_motion_priors) {
-      const auto& no_motion_prior =
+    if (draw_pose_priors) {
+      const auto& pose_prior =
+          boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Pose3>>(factor);
+      if (pose_prior) {
+        CHECK_EQ(pose_prior->keys().size(), 1u);
+        LOG(ERROR) << "A POSE PRIOR!";
+      }
+    }
+
+    if (draw_between_factors) {
+      const auto& btw_factor =
           boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
               factor);
-      if (no_motion_prior) {
+      if (btw_factor) {
+        if (btw_factor->measured().equals(gtsam::Pose3::identity())) {
+          LOG(ERROR) << "NO Motion prior";
+        }
       }
     }
 
     if (draw_imu_constant_bias_factors) {
-      const auto& no_motion_prior = boost::dynamic_pointer_cast<
+      const auto& imu_constant_bias_prior = boost::dynamic_pointer_cast<
           gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(factor);
-      if (no_motion_prior) {
+      if (imu_constant_bias_prior) {
       }
     }
 
