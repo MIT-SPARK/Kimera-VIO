@@ -497,7 +497,7 @@ class TestTracker : public ::testing::Test {
       const StereoCamera stereoCam,
       const StereoPoint2 stereoPoint,
       const Matrix3 stereoPtCov) {
-    Vector3 meanVector = stereoCam.backproject2(stereoPoint).vector();
+    Vector3 meanVector = stereoCam.backproject2(stereoPoint);
     Vector3 sampleMean = Vector3::Zero();
 
     default_random_engine generator;
@@ -516,7 +516,7 @@ class TestTracker : public ::testing::Test {
                                         stereoPoint.uR() + noiseUR,
                                         stereoPoint.v() + noiseV);
 
-      Vector3 sample_i = stereoCam.backproject2(perturbedStereoPoint).vector();
+      Vector3 sample_i = stereoCam.backproject2(perturbedStereoPoint);
       sampleMean += sample_i;
       sampleCovariance +=
           (sample_i - meanVector) * (sample_i - meanVector).transpose();
@@ -1013,7 +1013,7 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   StereoPoint2 stereoPoint(xL, xR, v);
 
   // create a 3D point in front of the camera
-  Vector3 point3 = stereoCam.backproject2(stereoPoint).vector();
+  Vector3 point3 = stereoCam.backproject2(stereoPoint);
   int pointId = 0;  // only point
 
   Matrix3 stereoPtCov = Matrix3::Identity();

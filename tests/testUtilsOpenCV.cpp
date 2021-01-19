@@ -539,8 +539,8 @@ TEST_F(UtilsOpenCVFixture, computeRTErrors_upToScale) {
 
   {
     // translation of new pose is the same of the expected, but with unit norm
-    double normT = pose_gtsam_.translation().vector().norm();
-    Point3 T_new = Point3(pose_gtsam_.translation().vector() / normT);
+    double normT = pose_gtsam_.translation().norm();
+    Point3 T_new = Point3(pose_gtsam_.translation() / normT);
 
     double rot_error_expected = 0.37416573867;
     double tran_error_expected = 0.0;
@@ -558,8 +558,8 @@ TEST_F(UtilsOpenCVFixture, computeRTErrors_upToScale) {
   {
     // translation of new pose is the same of the expected, but with some other
     // norm
-    double normT = pose_gtsam_.translation().vector().norm();
-    Point3 T_new = 10 * Point3(pose_gtsam_.translation().vector() / normT);
+    double normT = pose_gtsam_.translation().norm();
+    Point3 T_new = 10 * Point3(pose_gtsam_.translation() / normT);
 
     double rot_error_expected = 0.37416573867;
     double tran_error_expected = 0.0;
