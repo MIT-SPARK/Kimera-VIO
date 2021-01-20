@@ -427,13 +427,8 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     const FrameId& frame_id = obs.first;
     const gtsam::Symbol& pose_symbol = gtsam::Symbol(kPoseSymbolChar, frame_id);
-    if (smoother_->getFactors().exists(pose_symbol)) {
-      const StereoPoint2& measurement = obs.second;
-      new_factor->add(measurement, pose_symbol, stereo_cal_);
-    } else {
-      VLOG(10) << "Factor with lmk id " << lmk_id
-               << " is linking to a marginalized state!";
-    }
+    const StereoPoint2& measurement = obs.second;
+    new_factor->add(measurement, pose_symbol, stereo_cal_);
 
     if (VLOG_IS_ON(10)) std::cout << " " << obs.first;
   }
