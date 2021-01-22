@@ -134,7 +134,7 @@ TEST(testFrame, UndistortKeypointAndGetVersor) {
     gtsam::Point2 uncalibrated_px_expected = gtsam::Point2(iter->x, iter->y);
     gtsam::Point2 px_mismatch =
         uncalibrated_px_actual - uncalibrated_px_expected;
-    ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
+    ASSERT_TRUE(px_mismatch.norm() < 0.5);
   }
 }
 
@@ -176,7 +176,7 @@ TEST(testFrame, DISABLED_UndistortKeypointAndGetVersor) {
         gtsam_calib.uncalibrate(Point2(versor(0), versor(1)));
     Point2 uncalibrated_px_expected = Point2(iter->x, iter->y);
     Point2 px_mismatch = uncalibrated_px_actual - uncalibrated_px_expected;
-    ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
+    ASSERT_TRUE(px_mismatch.norm() < 0.5);
   }
 }
 

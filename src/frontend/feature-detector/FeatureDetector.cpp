@@ -49,7 +49,6 @@ FeatureDetector::FeatureDetector(
       static constexpr cv::ORB::ScoreType score_type =
           cv::ORB::ScoreType::HARRIS_SCORE;
 #endif
-      // Needs to be larger than 2
       static constexpr int patch_size = 2;  // We don't use descriptors (yet).
       feature_detector_ =
           cv::ORB::create(feature_detector_params_.max_features_per_frame_,

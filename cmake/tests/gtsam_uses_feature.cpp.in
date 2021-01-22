@@ -1,0 +1,7 @@
+#include <@GTSAM_CONFIG_FILE@>
+
+#ifndef @GTSAM_CONFIG_SYMBOL@
+#error "@GTSAM_CONFIG_SYMBOL@ not detected"
+#endif
+
+int main() { return 0; } // required for a valid c program

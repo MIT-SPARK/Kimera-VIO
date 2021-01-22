@@ -141,6 +141,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
         //! Send ouput of visualizer to the display_input_queue_
         &display_input_queue_,
         parallel_run_,
+        FLAGS_use_lcd,
         // Use given visualizer if any
         visualizer ? std::move(visualizer)
                    : VisualizerFactory::createVisualizer(

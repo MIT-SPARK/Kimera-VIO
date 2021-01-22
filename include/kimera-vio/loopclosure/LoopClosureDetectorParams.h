@@ -38,13 +38,13 @@ class LoopClosureDetectorParams : public PipelineParams {
       bool use_nss = true,
       float alpha = 0.1,
       int min_temporal_matches = 3,
-      int dist_local = 20,
+      int recent_frames_window = 20,
       int max_db_results = 50,
       float min_nss_factor = 0.005,
-      int min_matches_per_group = 1,
-      int max_intragroup_gap = 3,
-      int max_distance_between_groups = 3,
-      int max_distance_between_queries = 2,
+      int min_matches_per_island = 1,
+      int max_intraisland_gap = 3,
+      int max_nrFrames_between_islands = 3,
+      int max_nrFrames_between_queries = 2,
 
       GeomVerifOption geom_check = GeomVerifOption::NISTER,
       int min_correspondences = 12,
@@ -61,7 +61,7 @@ class LoopClosureDetectorParams : public PipelineParams {
       bool ransac_randomize_stereo = false,
       double ransac_inlier_threshold_stereo = 0.5,
       bool use_mono_rot = true,
-
+      bool refine_pose = true,
       double lowe_ratio = 0.7,
 #if CV_VERSION_MAJOR == 3
       int matcher_type = cv::DescriptorMatcher::BRUTEFORCE_HAMMING,
@@ -83,6 +83,9 @@ class LoopClosureDetectorParams : public PipelineParams {
 #endif
       int patch_sze = 31,
       int fast_threshold = 20,
+
+      double betweenRotationPrecision = 1/ (0.01 * 0.01),
+      double betweenTranslationPrecision = 1 / (0.1 * 0.1),
 
       double pgo_rot_threshold = 0.01,
       double pgo_trans_threshold = 0.1);
@@ -107,13 +110,13 @@ class LoopClosureDetectorParams : public PipelineParams {
       use_nss_ == rhs.use_nss_ &&
       alpha_== rhs.alpha_ &&
       min_temporal_matches_== rhs.min_temporal_matches_ &&
-      dist_local_== rhs.dist_local_ &&
+      recent_frames_window_== rhs.recent_frames_window_ &&
       max_db_results_== rhs.max_db_results_ &&
       min_nss_factor_== rhs.min_nss_factor_ &&
-      min_matches_per_group_== rhs.min_matches_per_group_ &&
-      max_intragroup_gap_== rhs.max_intragroup_gap_ &&
-      max_distance_between_groups_== rhs.max_distance_between_groups_ &&
-      max_distance_between_queries_== rhs.max_distance_between_queries_ &&
+      min_matches_per_island_== rhs.min_matches_per_island_ &&
+      max_intraisland_gap_== rhs.max_intraisland_gap_ &&
+      max_nrFrames_between_islands_== rhs.max_nrFrames_between_islands_ &&
+      max_nrFrames_between_queries_== rhs.max_nrFrames_between_queries_ &&
 
       geom_check_== rhs.geom_check_ &&
       min_correspondences_== rhs.min_correspondences_ &&
@@ -130,7 +133,7 @@ class LoopClosureDetectorParams : public PipelineParams {
       ransac_randomize_stereo_== rhs.ransac_randomize_stereo_ &&
       ransac_inlier_threshold_stereo_== rhs.ransac_inlier_threshold_stereo_ &&
       use_mono_rot_== rhs.use_mono_rot_ &&
-
+      refine_pose_ == rhs.refine_pose_ &&
       lowe_ratio_== rhs.lowe_ratio_ &&
       matcher_type_== rhs.matcher_type_ &&
 
@@ -143,6 +146,9 @@ class LoopClosureDetectorParams : public PipelineParams {
       score_type_== rhs.score_type_ &&
       patch_sze_== rhs.patch_sze_ &&
       fast_threshold_== rhs.fast_threshold_ &&
+
+      betweenRotationPrecision_ == rhs.betweenRotationPrecision_ &&
+      betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
 
       pgo_rot_threshold_== rhs.pgo_rot_threshold_ &&
       pgo_trans_threshold_== rhs.pgo_trans_threshold_;
@@ -157,16 +163,16 @@ class LoopClosureDetectorParams : public PipelineParams {
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////// Loop Detection Params ///////////////////////////
-  bool use_nss_;              // Use normalized similarity score?
-  float alpha_;               // Alpha threshold for matches
-  int min_temporal_matches_;  // Min consistent matches to pass temporal check
-  int dist_local_;            // Distance between entries to be consider a match
+  bool use_nss_;              // If true, normalize score wrt score achieved across consecutive queries
+  float alpha_;               // Alpha similarity threshold for matches
+  int min_temporal_matches_;  // Min consistent matches to pass temporal check; if set to 1, no temporal check
+  int recent_frames_window_;  // Number of recent frames we don't consider for loop closures
   int max_db_results_;    // Max number of results from db queries to consider
-  float min_nss_factor_;  // Min raw score between entries to consider a match
-  int min_matches_per_group_;  // Min number of close matches in a group
-  int max_intragroup_gap_;     // Max separation btwn matches of the same group
-  int max_distance_between_groups_;   // Max separation between groups
-  int max_distance_between_queries_;  // Max separation between two queries
+  float min_nss_factor_;  // Min acceptable value of normalization factor
+  int min_matches_per_island_;  // Min number of close matches in an island
+  int max_intraisland_gap_;     // Max separation between matches of the same island
+  int max_nrFrames_between_islands_;   // Max separation between groups
+  int max_nrFrames_between_queries_;  // Max separation between two queries s.t. they count towards min_temporal_matches_
   //////////////////////////////////////////////////////////////////////////////
 
   /////////////////////// Geometrical Verification Params //////////////////////
@@ -187,7 +193,11 @@ class LoopClosureDetectorParams : public PipelineParams {
   bool ransac_randomize_stereo_;
   double ransac_inlier_threshold_stereo_;
   bool use_mono_rot_;
+  bool refine_pose_;
   //////////////////////////////////////////////////////////////////////////////
+
+  double betweenRotationPrecision_;
+  double betweenTranslationPrecision_;
 
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_;

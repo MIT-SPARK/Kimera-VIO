@@ -212,9 +212,8 @@ StatusMonoMeasurementsPtr MonoVisionFrontEnd::processFrame(
     const Frame& cur_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
     cv::Mat* feature_tracks) {
-  LOG(INFO) << "processing frame";
-  VLOG(2) << "===================================================\n"
-          << "Frame number: " << frame_count_ << " at time "
+  VLOG(1) << "===================================================\n"
+          << "processing frame: " << cur_frame.id_ << " at time "
           << cur_frame.timestamp_ << " empirical framerate (sec): "
           << UtilsNumerical::NsecToSec(cur_frame.timestamp_ -
                                        mono_frame_km1_->timestamp_)

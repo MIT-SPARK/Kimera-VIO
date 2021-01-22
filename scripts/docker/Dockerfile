@@ -83,12 +83,29 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-# [Optional] Install spark_vio_evaluation from PyPI
-RUN apt-get update && apt-get install -y python-pip python-dev python-tk
+## [Optional] Install Kimera-VIO-Evaluation from PyPI
+RUN apt-get update && \
+    apt-get install software-properties-common -y
+# Get python3
+RUN apt-get update && \
+    add-apt-repository ppa:deadsnakes/ppa
+RUN apt-get update && \
+    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
+RUN python3.5 -m pip install PyQt5==5.14
+
+# Install evo-1 for evaluation
+# Hack to avoid Docker's cache when evo-1 master branch is updated.
+ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
+RUN git clone https://github.com/ToniRV/evo-1.git
+RUN cd evo-1 && python3.5 $(which pip3) install .
+
+# Install spark_vio_evaluation
+RUN python3.5 $(which pip3) install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-RUN cd spark_vio_evaluation && pip install .
+ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+# We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
+RUN cd Kimera-VIO-Evaluation && python3.5 $(which pip3) install -e .
 
 # Add credentials on build
 ARG SSH_PRIVATE_KEY
