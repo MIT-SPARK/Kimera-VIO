@@ -303,8 +303,19 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
     const gtsam::NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
     size_t nr_factors_in_smoother = 0u;
     for (const auto& f : nlfg) {  // count the number of nonempty factors
-      if (f) nr_factors_in_smoother++;
+      if (f) {
+        nr_factors_in_smoother++;
+        boost::shared_ptr<SmartStereoFactor> gsf =
+            boost::dynamic_pointer_cast<SmartStereoFactor>(f);
+        if (gsf) {
+          EXPECT_EQ(gsf->keys().size(), k);  // each landmark is seen in every frame
+          for (size_t j = 1; j <= gsf->keys().size(); j++) {
+            EXPECT_EQ(gtsam::Symbol(gsf->keys().at(j-1)), gtsam::Symbol('x', j));
+          }
+        }
+      }
     }
+
     VLOG(1) << "Frame: " << k << ", # of factors: " << nr_factors_in_smoother;
     if (imu_params_.imu_preintegration_type_ ==
         ImuPreintegrationType::kPreintegratedCombinedMeasurements) {
