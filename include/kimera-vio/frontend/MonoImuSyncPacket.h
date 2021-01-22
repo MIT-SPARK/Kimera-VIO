@@ -25,7 +25,7 @@ class MonoImuSyncPacket : public FrontendInputPacketBase {
   KIMERA_POINTER_TYPEDEFS(MonoImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MonoImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  // MonoImuSyncPacket() = delete;  // TODO(marcus): reenable
+  MonoImuSyncPacket() = delete;
   MonoImuSyncPacket(Frame::UniquePtr frame,
                     const ImuStampS& imu_stamps,
                     const ImuAccGyrS& imu_accgyrs);

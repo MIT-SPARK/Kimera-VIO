@@ -141,13 +141,4 @@ inline std::unique_ptr<Derived> safeCast(std::unique_ptr<Base>&& base_ptr) {
   return derived_ptr;
 }
 
-// TODO(marcus): document and decide on whether we should use it
-template <typename Base, typename Derived>
-inline std::unique_ptr<Derived> unsafeCast(std::unique_ptr<Base>&& base_ptr) {
-  std::unique_ptr<Derived> derived_ptr;
-  Derived* tmp = static_cast<Derived*>(base_ptr.release());
-  derived_ptr.reset(tmp);
-  return derived_ptr;
-}
-
 }  // namespace VIO
