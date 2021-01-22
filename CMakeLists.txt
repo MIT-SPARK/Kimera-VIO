@@ -43,6 +43,12 @@ if(NOT TARGET DBoW2::DBoW2)
 endif()
 find_package(KimeraRPGO REQUIRED)
 
+include(VerifyGtsamConfig)
+option(KIMERA_VERIFY_GTSAM_CONFIG "Check that GTSAM was compiled with the right options" ON)
+if (KIMERA_VERIFY_GTSAM_CONFIG)
+    verify_gtsam_config()
+endif()
+
 ### External Dependencies
 include(ExternalProject)
 

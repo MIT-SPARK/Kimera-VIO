@@ -388,7 +388,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
 
   Matrix3 Jac_point3_sp2;  // jacobian of the back projection
   Vector3 point3_i_gtsam =
-      stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2).vector();
+      stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2);
   Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
   // TODO(Toni): Adapt value of this threshold for different calibration
   // models!
