@@ -419,8 +419,8 @@ TEST_F(LCDFixture, recoverPoseArun) {
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       match2_T_query2_, bodyMatch2_T_bodyQuery2_stereo, false);
 
-  EXPECT_LT(error.first, rot_tol_stereo);
-  EXPECT_LT(error.second, tran_tol_stereo);
+  EXPECT_LT(error.first, rot_tol_stereo * 1.5);
+  EXPECT_LT(error.second, tran_tol_stereo * 1.5);
 }
 
 TEST_F(LCDFixture, recoverPoseGivenRot) {
