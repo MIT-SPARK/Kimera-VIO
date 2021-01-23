@@ -14,19 +14,22 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
+
 #include <atomic>
 #include <memory>
 
-#include <gflags/gflags.h>
-
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
-#include "kimera-vio/pipeline/PipelineModule.h"
 
 DECLARE_bool(visualize_feature_tracks);
 DECLARE_bool(visualize_frontend_images);
@@ -37,7 +40,6 @@ DECLARE_bool(log_stereo_matching_images);
 
 namespace VIO {
 
-template<class InputT, class OutputT>
 class VisionFrontEnd {
  public:
   KIMERA_POINTER_TYPEDEFS(VisionFrontEnd);
@@ -48,36 +50,13 @@ class VisionFrontEnd {
   VisionFrontEnd(const ImuParams& imu_params,
                  const ImuBias& imu_initial_bias,
                  DisplayQueue* display_queue,
-                 bool log_output)
-      : frontend_state_(FrontendState::Bootstrap),
-        frame_count_(0),
-        keyframe_count_(0),
-        last_keyframe_timestamp_(0),
-        imu_frontend_(nullptr),
-        tracker_(nullptr),
-        tracker_status_summary_(),
-        display_queue_(display_queue),
-        logger_(nullptr) {
-    imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
-    if (log_output) logger_ = VIO::make_unique<FrontendLogger>();
-  }
+                 bool log_output);
 
-  virtual ~VisionFrontEnd() {
-    LOG(INFO) << "VisionFrontEnd destructor called.";
-  }
+  virtual ~VisionFrontEnd();
 
  public:
-  std::unique_ptr<OutputT> spinOnce(const InputT& input) {
-    switch(frontend_state_) {
-      case FrontendState::Bootstrap: {
-        return bootstrapSpin(input);
-      } break;
-      case FrontendState::Nominal: {
-        return nominalSpin(input);
-      } break;
-      default: { LOG(FATAL) << "Unrecognized frontend state."; } break;
-    }
-  }
+  FrontendOutputPacketBase::UniquePtr spinOnce(
+      FrontendInputPacketBase::UniquePtr&& input);
 
   /* ------------------------------------------------------------------------ */
   // Update Imu Bias. This is thread-safe as imu_frontend_->updateBias is
@@ -112,16 +91,13 @@ class VisionFrontEnd {
 
   /* ------------------------------------------------------------------------ */
   // Get IMU Params for IMU Frontend.
-  gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
+  inline gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
     return imu_frontend_->getGtsamImuParams();
   }
 
   /* ------------------------------------------------------------------------ */
   static void printTrackingStatus(const TrackingStatus& status,
-                                  const std::string& type) {
-    LOG(INFO) << "Status " << type << ": "
-              << TrackerStatusSummary::asString(status);
-  }
+                                  const std::string& type);
 
   /* ------------------------------------------------------------------------ */
   // Get tracker info.
@@ -130,15 +106,17 @@ class VisionFrontEnd {
   }
 
  protected:
-  virtual std::unique_ptr<OutputT> bootstrapSpin(const InputT& input) = 0;
+  virtual FrontendOutputPacketBase::UniquePtr
+      bootstrapSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
 
-  virtual std::unique_ptr<OutputT> nominalSpin(const InputT& input) = 0;
+  virtual FrontendOutputPacketBase::UniquePtr
+      nominalSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
 
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
   // This is thread-safe as imu_frontend_->resetPreintegrationGravity is
   // thread-safe.
-  void resetGravity(const gtsam::Vector3& reset_value) const {
+  inline void resetGravity(const gtsam::Vector3& reset_value) const {
     imu_frontend_->resetPreintegrationGravity(reset_value);
   }
 
@@ -154,20 +132,7 @@ class VisionFrontEnd {
       const gtsam::Rot3& keyframe_R_cur_frame,
       Frame* frame_lkf,
       Frame* frame_k,
-      TrackingStatusPose* status_pose_mono) {
-    CHECK_NOTNULL(status_pose_mono);
-    if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-        !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
-      // 2-point RANSAC.
-      // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
-      *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(
-          frame_lkf, frame_k, keyframe_R_cur_frame);
-    } else {
-      // 5-point RANSAC.
-      *status_pose_mono =
-          tracker_->geometricOutlierRejectionMono(frame_lkf, frame_k);
-    }
-  }
+      TrackingStatusPose* status_pose_mono);
 
  protected:
   enum class FrontendState {

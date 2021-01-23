@@ -42,8 +42,7 @@ namespace VIO {
 
 using StereoFrontEndInputPayload = StereoImuSyncPacket;
 
-class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
-                                                   StereoFrontendOutput> {
+class StereoVisionFrontEnd : public VisionFrontEnd {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEnd);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
@@ -86,8 +85,14 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
    * @param input
    * @return
    */
-  StereoFrontendOutput::UniquePtr bootstrapSpin(
-      const StereoFrontEndInputPayload& input);
+  inline FrontendOutputPacketBase::UniquePtr bootstrapSpin(
+      FrontendInputPacketBase::UniquePtr&& input) override {
+    CHECK(frontend_state_ == FrontendState::Bootstrap);
+    CHECK(input);
+    return bootstrapSpinStereo(
+        VIO::safeCast<FrontendInputPacketBase, StereoFrontEndInputPayload>(
+            std::move(input)));
+  }
 
   /**
    * @brief nominalSpin SpinOnce used when in nominal mode after initialization
@@ -95,8 +100,26 @@ class StereoVisionFrontEnd : public VisionFrontEnd<StereoFrontEndInputPayload,
    * @param input
    * @return
    */
-  StereoFrontendOutput::UniquePtr nominalSpin(
-      const StereoFrontEndInputPayload& input);
+  inline FrontendOutputPacketBase::UniquePtr nominalSpin(
+      FrontendInputPacketBase::UniquePtr&& input) override {
+    CHECK(frontend_state_ == FrontendState::Nominal);
+    CHECK(input);
+    return nominalSpinStereo(
+        VIO::safeCast<FrontendInputPacketBase, StereoFrontEndInputPayload>(
+            std::move(input)));
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Used when initializing the frontend, operates on Stereo Frontend-specific
+  // structures.
+  StereoFrontendOutput::UniquePtr bootstrapSpinStereo(
+      StereoFrontEndInputPayload::UniquePtr&& input);
+
+  /* ------------------------------------------------------------------------ */
+  // Used when in nominal mode after init, operates on Stereo Frontend-specific
+  // structures.
+  StereoFrontendOutput::UniquePtr nominalSpinStereo(
+      StereoFrontEndInputPayload::UniquePtr&& input);
 
   /* ------------------------------------------------------------------------ */
   // Frontend main function.

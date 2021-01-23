@@ -52,18 +52,19 @@ MonoVisionFrontEnd::~MonoVisionFrontEnd() {
   LOG(INFO) << "MonoVisionFrontEnd destructor called.";
 }
 
-MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
-    const MonoFrontEndInputPayload& input) {
-  CHECK(frontend_state_ == FrontendState::Bootstrap);
+MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpinMono(
+    MonoFrontEndInputPayload::UniquePtr&& input) {
+  CHECK(input);
 
   // Initialize members of the frontend
-  processFirstFrame(input.getFrame());
+  processFirstFrame(input->getFrame());
 
   // Initialization done, set state to nominal
   frontend_state_ = FrontendState::Nominal;
 
   // Create mostly invalid output
   CHECK(mono_frame_lkf_);
+  CHECK(mono_camera_);
   return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
                                               nullptr,
                                               TrackingStatus::DISABLED,
@@ -71,14 +72,13 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::bootstrapSpin(
                                               mono_camera_->getBodyPoseCam(),
                                               *mono_frame_lkf_,
                                               nullptr,
-                                              input.getImuAccGyrs(),
+                                              input->getImuAccGyrs(),
                                               cv::Mat(),
                                               getTrackerInfo());
 }
 
-MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
-    const MonoFrontEndInputPayload& input) {
-  CHECK(frontend_state_ == FrontendState::Nominal);
+MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpinMono(
+    MonoFrontEndInputPayload::UniquePtr&& input) {
   // For timing
   utils::StatsCollector timing_stats_frame_rate(
       "VioFrontEnd Frame Rate [ms]");
@@ -86,16 +86,16 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
       "VioFrontEnd Keyframe Rate [ms]");
   auto start_time = utils::Timer::tic();
 
-  const Frame& mono_frame_k = input.getFrame();
+  const Frame& mono_frame_k = input->getFrame();
   const auto& k = mono_frame_k.id_;
   VLOG(1) << "------------------- Processing frame k = " << k
           << "--------------------";
 
-  if (VLOG_IS_ON(10)) input.print();
+  if (VLOG_IS_ON(10)) input->print();
 
   auto tic_full_preint = utils::Timer::tic();
   const ImuFrontEnd::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
-      input.getImuStamps(), input.getImuAccGyrs());
+      input->getImuStamps(), input->getImuAccGyrs());
   CHECK(pim);
   const gtsam::Rot3 body_R_cam = 
       mono_camera_->getBodyPoseCam().rotation();
@@ -160,7 +160,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
-        input.getImuAccGyrs(),
+        input->getImuAccGyrs(),
         feature_tracks,
         getTrackerInfo());
   } else {
@@ -176,7 +176,7 @@ MonoFrontendOutput::UniquePtr MonoVisionFrontEnd::nominalSpin(
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
-        input.getImuAccGyrs(),
+        input->getImuAccGyrs(),
         feature_tracks,
         getTrackerInfo());
   }

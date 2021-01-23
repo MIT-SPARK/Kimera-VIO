@@ -26,10 +26,7 @@ StereoDataProviderModule::StereoDataProviderModule(
     const std::string& name_id,
     const bool& parallel_run,
     const StereoMatchingParams& stereo_matching_params)
-    : DataProviderModule<StereoImuSyncPacket, StereoImuSyncPacket>(
-          output_queue,
-          name_id,
-          parallel_run),
+    : MonoDataProviderModule(output_queue, name_id, parallel_run),
       right_frame_queue_("data_provider_right_frame_queue"),
       stereo_matching_params_(stereo_matching_params) {}
 
@@ -90,7 +87,7 @@ StereoDataProviderModule::getInputPacket() {
 
 void StereoDataProviderModule::shutdownQueues() {
   right_frame_queue_.shutdown();
-  DataProviderModule::shutdownQueues();
+  MonoDataProviderModule::shutdownQueues();
 }
 
 }  // namespace VIO

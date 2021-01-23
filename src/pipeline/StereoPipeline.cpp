@@ -37,8 +37,7 @@ StereoPipeline::StereoPipeline(const VioParams& params,
                                Visualizer3D::UniquePtr&& visualizer,
                                DisplayBase::UniquePtr&& displayer)
     : Pipeline(params),
-      stereo_camera_(nullptr),
-      data_provider_module_(nullptr) {
+      stereo_camera_(nullptr) {
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u) << "Need two cameras for StereoPipeline.";
   stereo_camera_ = std::make_shared<StereoCamera>(
@@ -57,7 +56,7 @@ StereoPipeline::StereoPipeline(const VioParams& params,
       std::bind(&StereoPipeline::spinOnce, this, std::placeholders::_1));
 
   //! Create frontend
-  vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
+  vio_frontend_module_ = VIO::make_unique<VisionFrontEndModule>(
       &frontend_input_queue_,
       parallel_run_,
       VisionFrontEndFactory::createFrontend(
@@ -70,17 +69,19 @@ StereoPipeline::StereoPipeline(const VioParams& params,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const StereoFrontendOutput::Ptr& output) {
-    CHECK(output);
-    if (output->is_keyframe_) {
+      const FrontendOutputPacketBase::Ptr& output) {
+    StereoFrontendOutput::Ptr converted_output = 
+        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+
+    if (converted_output->is_keyframe_) {
       //! Only push to backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
-          output->stereo_frame_lkf_.timestamp_,
-          output->status_stereo_measurements_,
-          output->tracker_status_,
-          output->pim_,
-          output->imu_acc_gyrs_,
-          output->relative_pose_body_stereo_));
+          converted_output->stereo_frame_lkf_.timestamp_,
+          converted_output->status_stereo_measurements_,
+          converted_output->tracker_status_,
+          converted_output->pim_,
+          converted_output->imu_acc_gyrs_,
+          converted_output->relative_pose_body_stereo_));
     } else {
       VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
     }
@@ -111,7 +112,7 @@ StereoPipeline::StereoPipeline(const VioParams& params,
   vio_backend_module_->registerOnFailureCallback(
       std::bind(&StereoPipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
-      std::bind(&StereoVisionFrontEndModule::updateImuBias,
+      std::bind(&VisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
@@ -129,10 +130,15 @@ StereoPipeline::StereoPipeline(const VioParams& params,
         std::bind(&MesherModule::fillBackendQueue,
                   std::ref(*CHECK_NOTNULL(mesher_module_.get())),
                   std::placeholders::_1));
+
+    auto& mesher_module = mesher_module_;
     vio_frontend_module_->registerOutputCallback(
-        std::bind(&MesherModule::fillFrontendQueue,
-                  std::ref(*CHECK_NOTNULL(mesher_module_.get())),
-                  std::placeholders::_1));
+        [&mesher_module](const FrontendOutputPacketBase::Ptr& output) {
+          StereoFrontendOutput::Ptr converted_output = 
+              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+          CHECK_NOTNULL(mesher_module.get())
+              ->fillFrontendQueue(converted_output);
+        });
   }
 
   if (FLAGS_visualize) {
@@ -154,10 +160,16 @@ StereoPipeline::StereoPipeline(const VioParams& params,
         std::bind(&VisualizerModule::fillBackendQueue,
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
+
+    auto& visualizer_module = visualizer_module_;
     vio_frontend_module_->registerOutputCallback(
-        std::bind(&VisualizerModule::fillFrontendQueue,
-                  std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-                  std::placeholders::_1));
+        [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
+          StereoFrontendOutput::Ptr converted_output = 
+              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+          CHECK_NOTNULL(visualizer_module.get())
+              ->fillFrontendQueue(converted_output);
+        });
+
     if (mesher_module_) {
       mesher_module_->registerOutputCallback(
           std::bind(&VisualizerModule::fillMesherQueue,
@@ -191,93 +203,19 @@ StereoPipeline::StereoPipeline(const VioParams& params,
         std::bind(&LcdModule::fillBackendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
+
+    auto& lcd_module = lcd_module_;
     vio_frontend_module_->registerOutputCallback(
-        std::bind(&LcdModule::fillFrontendQueue,
-                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-                  std::placeholders::_1));
+        [&lcd_module](const FrontendOutputPacketBase::Ptr& output) {
+          StereoFrontendOutput::Ptr converted_output = 
+              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+          CHECK_NOTNULL(lcd_module.get())->fillFrontendQueue(converted_output);
+        });
   }
 
   // All modules are ready, launch threads! If the parallel_run flag is set to
   // false this will not do anything.
   launchThreads();
-}
-
-/* -------------------------------------------------------------------------- */
-StereoPipeline::~StereoPipeline() {
-  if (!shutdown_) {
-    shutdown();
-  } else {
-    LOG(INFO) << "Manual shutdown was requested.";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-bool StereoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
-                                          const bool& print_stats) {
-  LOG_IF(INFO, parallel_run_)
-      << "Shutting down VIO pipeline once processing has finished.";
-
-  CHECK(data_provider_module_);
-  CHECK(vio_frontend_module_);
-  CHECK(vio_backend_module_);
-
-  while (!hasFinished()) {
-    // Note that the values in the log below might be different than the
-    // evaluation above since they are separately evaluated at different times.
-    VLOG(5) << printStatus();
-
-    // Print all statistics
-    LOG_IF(INFO, print_stats) << utils::Statistics::Print();
-
-    // Time to sleep between queries to the queues [in milliseconds].
-    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-
-    if (!parallel_run_) {
-      // Don't break, otw we will shutdown the pipeline.
-      return false;
-    }
-  }
-  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
-               "idle.";
-  VLOG(5) << printStatus();
-  if (!shutdown_) shutdown();
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void StereoPipeline::shutdown() {
-  Pipeline<StereoImuSyncPacket, StereoFrontendOutput>::shutdown();
-  // Second: stop data provider
-  CHECK(data_provider_module_);
-  data_provider_module_->shutdown();
-
-  // Third: stop VIO's threads
-  stopThreads();
-  if (parallel_run_) {
-    joinThreads();
-  }
-  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
-            << "VIO Pipeline successful shutdown.";
-}
-
-void StereoPipeline::spinSequential() {
-  // Spin once each pipeline module.
-  CHECK(data_provider_module_);
-  data_provider_module_->spin();
-
-  CHECK(vio_frontend_module_);
-  vio_frontend_module_->spin();
-
-  CHECK(vio_backend_module_);
-  vio_backend_module_->spin();
-
-  if (mesher_module_) mesher_module_->spin();
-
-  if (lcd_module_) lcd_module_->spin();
-
-  if (visualizer_module_) visualizer_module_->spin();
-
-  if (display_module_) display_module_->spin();
 }
 
 }  // namespace VIO

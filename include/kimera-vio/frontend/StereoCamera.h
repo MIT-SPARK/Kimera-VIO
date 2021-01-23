@@ -88,7 +88,7 @@ class StereoCamera {
    * @param lmk 3D landmark resulting from the backProjection of the 2D keypoint
    */
   void backProjectDisparity(const KeypointCV& kp,
-                            const double& disparity,
+                            const Depth& disparity,
                             LandmarkCV* lmk) const;
 
   /**
@@ -100,7 +100,7 @@ class StereoCamera {
    * @param lmk 3D landmark resulting from the backProjection of the 2D keypoint
    */
   void backProjectDepth(const KeypointCV& kp,
-                        const double& depth,
+                        const Depth& depth,
                         LandmarkCV* lmk) const;
 
   /** // NOT TESTED and probably wrong!

@@ -485,9 +485,13 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   fake_imu_stamps.setZero(1, 3);
   ImuAccGyrS fake_imu_acc_gyr;
   fake_imu_acc_gyr.setRandom(6, 3);
-  StereoImuSyncPacket input(
-      first_stereo_frame, fake_imu_stamps, fake_imu_acc_gyr);
-  StereoFrontendOutput::UniquePtr output = st.spinOnce(input);
+  VIO::FrontendInputPacketBase::UniquePtr input =
+      VIO::make_unique<StereoImuSyncPacket>(
+          first_stereo_frame, fake_imu_stamps, fake_imu_acc_gyr);
+  VIO::FrontendOutputPacketBase::UniquePtr output_base = st.spinOnce(std::move(input));
+  VIO::StereoFrontendOutput::UniquePtr output =
+      VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
+          std::move(output_base));
   EXPECT_TRUE(st.isInitialized());
   ASSERT_TRUE(output);
   const StereoFrame& sf = output->stereo_frame_lkf_;

@@ -23,8 +23,7 @@
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
@@ -75,7 +74,7 @@ struct VisualizerInput : public PipelinePayload {
   VisualizerInput(const Timestamp& timestamp,
                   const MesherOutput::Ptr& mesher_output,
                   const BackendOutput::Ptr& backend_output,
-                  const StereoFrontendOutput::Ptr& frontend_output,
+                  const FrontendOutputPacketBase::Ptr& frontend_output,
                   const LcdOutput::Ptr& lcd_output)
       : PipelinePayload(timestamp),
         mesher_output_(mesher_output),
@@ -93,7 +92,7 @@ struct VisualizerInput : public PipelinePayload {
   // Copy the pointers so that we do not need to copy the data.
   const MesherOutput::ConstPtr mesher_output_;
   const BackendOutput::ConstPtr backend_output_;
-  const StereoFrontendOutput::ConstPtr frontend_output_;
+  const FrontendOutputPacketBase::Ptr frontend_output_;  // not ConstPtr because polymorphic
   const LcdOutput::ConstPtr lcd_output_;
 };
 
