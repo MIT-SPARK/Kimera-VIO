@@ -130,25 +130,15 @@ int main(int argc, char* argv[]) {
                               &VIO::DataProviderInterface::spin,
                               dataset_parser);
     auto handle_pipeline =
-        vio_params.frontend_type_ == VIO::FrontendType::kMonoImu
-            ? std::async(std::launch::async,
-                         &VIO::MonoPipeline::spin,
-                         std::ref(*CHECK_NOTNULL(vio_pipeline.get())))
-            : std::async(std::launch::async,
-                         &VIO::StereoPipeline::spin,
-                         std::ref(*CHECK_NOTNULL(vio_pipeline.get())));
+        std::async(std::launch::async,
+                   &VIO::Pipeline::spin,
+                   std::ref(*CHECK_NOTNULL(vio_pipeline.get())));
     auto handle_shutdown =
-        vio_params.frontend_type_ == VIO::FrontendType::kMonoImu
-            ? std::async(std::launch::async,
-                         &VIO::MonoPipeline::shutdownWhenFinished,
-                         std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
-                         500,
-                         true)
-            : std::async(std::launch::async,
-                         &VIO::StereoPipeline::shutdownWhenFinished,
-                         std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
-                         500,
-                         true);
+        std::async(std::launch::async,
+                   &VIO::Pipeline::shutdownWhenFinished,
+                   std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
+                   500,
+                   true);
     vio_pipeline->spinViz();
     is_pipeline_successful = !handle.get();
     handle_shutdown.get();
