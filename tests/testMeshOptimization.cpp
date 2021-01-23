@@ -66,7 +66,7 @@ TEST_F(MeshOptimizationFixture, DISABLED_testCollectTriangleDataPointsFast) {
   expected_kpts.push_back(KeypointCV(1, 0));
   expected_kpts.push_back(KeypointCV(0, 1));
   expected_kpts.push_back(KeypointCV(1, 1));
-  Camera::Depths depths = {
+  VIO::Depths depths = {
       0.5, std::numeric_limits<double>::max(), 0.5, 0.0003};
   LandmarksCV expected_lmks;
   mono_camera->backProject(expected_kpts, depths, &expected_lmks);

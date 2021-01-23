@@ -19,12 +19,8 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
-#include "kimera-vio/mesh/Mesh.h"
-#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -80,7 +76,7 @@ struct ReinitPacket {
   }
 };
 
-class StereoImuSyncPacket : public PipelinePayload {
+class StereoImuSyncPacket : public FrontendInputPacketBase {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoImuSyncPacket);
@@ -105,8 +101,6 @@ class StereoImuSyncPacket : public PipelinePayload {
 
  private:
   const StereoFrame stereo_frame_;
-  const ImuStampS imu_stamps_;
-  const ImuAccGyrS imu_accgyrs_;
   const ReinitPacket reinit_packet_;
 };
 

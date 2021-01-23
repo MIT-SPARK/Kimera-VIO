@@ -12,19 +12,22 @@
  * @author Marcus Abate
  */
 
-#include <string>
+#include "kimera-vio/pipeline/MonoPipeline.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <string>
+
 #include "kimera-vio/backend/VioBackEndFactory.h"
-#include "kimera-vio/frontend/VisionFrontEndFactory.h"
 #include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/VisionFrontEndFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/pipeline/Pipeline.h"
-#include "kimera-vio/pipeline/MonoPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/visualizer/DisplayFactory.h"
+#include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 namespace VIO {
 
@@ -47,10 +50,10 @@ MonoPipeline::MonoPipeline(const VioParams& params,
 
   LOG_IF(FATAL, params.frontend_params_.useStereoTracking_) 
       << "useStereoTracking is set to true, but this is a mono pipeline!";
-  vio_frontend_module_ = VIO::make_unique<MonoVisionFrontEndModule>(
+  vio_frontend_module_ = VIO::make_unique<VisionFrontEndModule>(
       &frontend_input_queue_,
       parallel_run_,
-      VisionFrontEndFactory::createMonoFrontend(
+      VisionFrontEndFactory::createFrontend(
         params.frontend_type_,
         params.imu_params_,
         gtsam::imuBias::ConstantBias(),
@@ -61,16 +64,18 @@ MonoPipeline::MonoPipeline(const VioParams& params,
 
   auto& backend_input_queue = backend_input_queue_;
   vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const MonoFrontendOutput::Ptr& output) {
-    CHECK(output);
-    if (output->is_keyframe_) {
+      const FrontendOutputPacketBase::Ptr& output) {
+    MonoFrontendOutput::Ptr converted_output = 
+        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
+
+    if (converted_output->is_keyframe_) {
       //! Only push to backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
-          output->frame_lkf_.timestamp_,
-          output->status_mono_measurements_,
-          output->tracker_status_,
-          output->pim_,
-          output->imu_acc_gyrs_,
+          converted_output->frame_lkf_.timestamp_,
+          converted_output->status_mono_measurements_,
+          converted_output->tracker_status_,
+          converted_output->pim_,
+          converted_output->imu_acc_gyrs_,
           boost::none));  // don't pass stereo pose to backend!
     } else {
       VLOG(5) << "Frontend did not output a keyframe, skipping backend input.";
@@ -109,7 +114,7 @@ MonoPipeline::MonoPipeline(const VioParams& params,
       std::bind(&MonoPipeline::signalBackendFailure, this));
 
   vio_backend_module_->registerImuBiasUpdateCallback(
-      std::bind(&MonoVisionFrontEndModule::updateImuBias,
+      std::bind(&VisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
@@ -147,22 +152,27 @@ MonoPipeline::MonoPipeline(const VioParams& params,
                          VisualizerType::OpenCV,
                          // TODO(Toni): bundle these three params in
                          // VisualizerParams...
-                         static_cast<VisualizationType>(FLAGS_viz_type),
+                         // NOTE: use kNone for now because mesher isn't enabled
+                         // TODO(marcus): handle in params instead!
+                         static_cast<VisualizationType>(VisualizationType::kNone),
                          static_cast<BackendType>(params.backend_type_)));
 
     //! Register input callbacks
-    // CHECK(vio_backend_module_);
-    // vio_backend_module_->registerOutputCallback(
-    //     std::bind(&VisualizerModule::fillBackendQueue,
-    //               std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-    //               std::placeholders::_1));
+    CHECK(vio_backend_module_);
+    vio_backend_module_->registerOutputCallback(
+        std::bind(&VisualizerModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                  std::placeholders::_1));
 
-    // TODO(marcus): either make all frontend outputs the same or make visualizer
-    // accept mono outputs
-    // vio_frontend_module_->registerOutputCallback(
-    //     std::bind(&VisualizerModule::fillFrontendQueue,
-    //               std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-    //               std::placeholders::_1));
+    auto& visualizer_module = visualizer_module_;
+    vio_frontend_module_->registerOutputCallback(
+        [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
+          MonoFrontendOutput::Ptr converted_output =
+              VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                  output);
+          CHECK_NOTNULL(visualizer_module.get())
+              ->fillFrontendQueue(converted_output);
+    });
 
     // if (mesher_module_) {
     //   mesher_module_->registerOutputCallback(
@@ -206,84 +216,6 @@ MonoPipeline::MonoPipeline(const VioParams& params,
   // }
 
   launchThreads();
-}
-
-/* -------------------------------------------------------------------------- */
-MonoPipeline::~MonoPipeline() {
-  if (!shutdown_) {
-    shutdown();
-  } else {
-    LOG(INFO) << "Manual shutdown was requested.";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-bool MonoPipeline::shutdownWhenFinished(const int& sleep_time_ms,
-                                        const bool& print_stats) {
-  LOG_IF(INFO, parallel_run_)
-      << "Shutting down VIO pipeline once processing has finished.";
-
-  CHECK(data_provider_module_);
-  CHECK(vio_frontend_module_);
-  CHECK(vio_backend_module_);
-
-  while (!hasFinished()) {
-    // Note that the values in the log below might be different than the
-    // evaluation above since they are separately evaluated at different times.
-    VLOG(5) << printStatus();
-
-    // Print all statistics
-    LOG_IF(INFO, print_stats) << utils::Statistics::Print();
-
-    // Time to sleep between queries to the queues [in milliseconds].
-    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-
-    if (!parallel_run_) {
-      // Don't break, otw we will shutdown the pipeline.
-      return false;
-    }
-  }
-  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
-               "idle.";
-  VLOG(5) << printStatus();
-  if (!shutdown_) shutdown();
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void MonoPipeline::shutdown() {
-  Pipeline<MonoImuSyncPacket, MonoFrontendOutput>::shutdown();
-  // Second: stop data provider
-  CHECK(data_provider_module_);
-  data_provider_module_->shutdown();
-
-  // Third: stop VIO's threads
-  stopThreads();
-  if (parallel_run_) {
-    joinThreads();
-  }
-  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
-            << "VIO Pipeline successful shutdown.";
-}
-
-void MonoPipeline::spinSequential() {
-  // Spin once each pipeline module.
-  CHECK(data_provider_module_);
-  data_provider_module_->spin();
-
-  CHECK(vio_frontend_module_);
-  vio_frontend_module_->spin();
-
-  CHECK(vio_backend_module_);
-  vio_backend_module_->spin();
-
-  if (mesher_module_) mesher_module_->spin();
-
-  if (lcd_module_) lcd_module_->spin();
-
-  if (visualizer_module_) visualizer_module_->spin();
-
-  if (display_module_) display_module_->spin();
 }
 
 }  // namespace VIO

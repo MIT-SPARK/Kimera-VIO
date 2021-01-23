@@ -60,12 +60,10 @@ StereoVisionFrontEnd::~StereoVisionFrontEnd() {
   LOG(INFO) << "StereoVisionFrontEnd destructor called.";
 }
 
-StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
-    const StereoFrontEndInputPayload& input) {
-  CHECK(frontend_state_ == FrontendState::Bootstrap);
-
+StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpinStereo(
+    StereoFrontEndInputPayload::UniquePtr&& input) {
   // Initialize members of the frontend
-  processFirstStereoFrame(input.getStereoFrame());
+  processFirstStereoFrame(input->getStereoFrame());
 
   // Initialization done, set state to nominal
   frontend_state_ = FrontendState::Nominal;
@@ -80,14 +78,13 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::bootstrapSpin(
       stereo_camera_->getBodyPoseLeftCamRect(),
       *stereoFrame_lkf_,
       nullptr,
-      input.getImuAccGyrs(),
+      input->getImuAccGyrs(),
       cv::Mat(),
       getTrackerInfo());
 }
 
-StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
-    const StereoFrontEndInputPayload& input) {
-  CHECK(frontend_state_ == FrontendState::Nominal);
+StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpinStereo(
+    StereoFrontEndInputPayload::UniquePtr&& input) {
   // For timing
   utils::StatsCollector timing_stats_frame_rate("VioFrontEnd Frame Rate [ms]");
   utils::StatsCollector timing_stats_keyframe_rate(
@@ -95,7 +92,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
   auto start_time = utils::Timer::tic();
 
   // Get stereo info
-  const StereoFrame& stereoFrame_k = input.getStereoFrame();
+  const StereoFrame& stereoFrame_k = input->getStereoFrame();
   const auto& k = stereoFrame_k.id_;
   VLOG(1) << "------------------- Processing frame k = " << k
           << "--------------------";
@@ -103,7 +100,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
   ////////////////////////////// PROCESS IMU DATA //////////////////////////////
 
   // Print IMU data.
-  if (VLOG_IS_ON(10)) input.print();
+  if (VLOG_IS_ON(10)) input->print();
 
   // For k > 1
   // The preintegration btw frames is needed for RANSAC.
@@ -114,7 +111,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
   // into account!!!).
   auto tic_full_preint = utils::Timer::tic();
   const ImuFrontEnd::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
-      input.getImuStamps(), input.getImuAccGyrs());
+      input->getImuStamps(), input->getImuAccGyrs());
   CHECK(pim);
 
   auto full_preint_duration =
@@ -203,7 +200,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
         stereo_camera_->getBodyPoseLeftCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
         pim,
-        input.getImuAccGyrs(),
+        input->getImuAccGyrs(),
         feature_tracks,
         getTrackerInfo());
   } else {
@@ -222,7 +219,7 @@ StereoFrontendOutput::UniquePtr StereoVisionFrontEnd::nominalSpin(
         stereo_camera_->getBodyPoseLeftCamRect(),
         *stereoFrame_lkf_,
         pim,
-        input.getImuAccGyrs(),
+        input->getImuAccGyrs(),
         feature_tracks,
         getTrackerInfo());
   }

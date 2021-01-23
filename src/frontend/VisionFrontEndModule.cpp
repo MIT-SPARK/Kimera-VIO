@@ -15,5 +15,20 @@
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
 
 namespace VIO {
-  // NOTE: template classes are fully implemented in header files.
+
+VisionFrontEndModule::VisionFrontEndModule(
+    InputQueue* input_queue,
+    bool parallel_run,
+    VisionFrontEnd::UniquePtr vio_frontend)
+    : SIMO(input_queue, "VioFrontEnd", parallel_run),
+      vio_frontend_(std::move(vio_frontend)) {
+  CHECK(vio_frontend_);
+}
+
+FrontendOutputPacketBase::UniquePtr VisionFrontEndModule::spinOnce(
+    FrontendInputPacketBase::UniquePtr input) {
+  CHECK(input);
+  return vio_frontend_->spinOnce(std::move(input));
+}
+
 }  // namespace VIO

@@ -38,9 +38,6 @@ class Camera {
   KIMERA_DELETE_COPY_CONSTRUCTORS(Camera);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using Depth = double;
-  using Depths = std::vector<Depth>;
-
   /**
    * @brief Camera
    * @param cam_params
