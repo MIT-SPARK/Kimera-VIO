@@ -117,9 +117,6 @@ int main(int argc, char* argv[]) {
         std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
                   stereo_pipeline,
                   std::placeholders::_1));
-
-    vio_pipeline = VIO::safeCast<VIO::StereoPipeline, VIO::Pipeline>(
-        stereo_pipeline);
   }
 
   // Spin dataset.
