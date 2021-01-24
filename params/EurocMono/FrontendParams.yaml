@@ -1,0 +1,67 @@
+%YAML:1.0
+#TRACKER PARAMETERS
+klt_win_size: 24
+klt_max_iter: 30
+klt_max_level: 4
+klt_eps: 0.1
+maxFeatureAge: 25
+
+# Detector Params
+# 0: FAST
+# 1: ORB
+# 2: AGAST
+# 3: GFTT, aka Good Features To Track
+feature_detector_type: 3
+maxFeaturesPerFrame: 300
+
+# Good Features To Track specific parameters
+quality_level: 0.001
+min_distance: 20
+block_size: 3
+use_harris_detector: 0
+k: 0.04
+
+# FAST detector specific parameters [10, 20]
+fast_thresh: 10
+
+equalizeImage: 0
+nominalBaseline: 0.11
+toleranceTemplateMatching: 0.15
+templ_cols: 101 #must be odd
+templ_rows: 11
+stripe_extra_rows: 0
+minPointDist: 0.5
+maxPointDist: 10
+bidirectionalMatching: 0
+
+# Non-maximum suppression params
+enable_non_max_suppression: 1
+non_max_suppression_type: 4
+
+# Subpixel corner refinement for the monocular case
+enable_subpixel_corner_finder: 1
+max_iters: 40
+epsilon_error: 0.001
+window_size: 10
+zero_zone: -1
+
+subpixelRefinementStereo: 0
+useSuccessProbabilities: 1
+useRANSAC: 1
+minNrMonoInliers: 10
+minNrStereoInliers: 5
+ransac_threshold_mono: 1e-06
+ransac_threshold_stereo: 1
+ransac_use_1point_stereo: 1
+ransac_use_2point_mono: 1
+ransac_max_iterations: 100
+ransac_probability: 0.995
+ransac_randomize: 0
+intra_keyframe_time: 0.2
+minNumberFeatures: 0
+useStereoTracking: 0
+disparityThreshold: 0.5
+# Type of optical flow predictor to aid feature tracking:
+# 0: Static - assumes no optical flow between images (aka static camera).
+# 1: Rotational - use IMU gyro to estimate optical flow.
+optical_flow_predictor_type: 1

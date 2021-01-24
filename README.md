@@ -128,6 +128,8 @@ bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 > Alternatively, one may directly use the executable in the build folder:
 `./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section below.
 
+Kimera can also run in monocular mode. For Euroc, this means only processing the left image. To use this simply use the parameters in `params/EurocMono`. In the bash script there is a `PARAMS_PATH` variable that can be set to point to these parameters instead.
+
 ## ii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
 We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.

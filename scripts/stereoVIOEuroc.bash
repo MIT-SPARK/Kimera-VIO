@@ -25,6 +25,7 @@ BUILD_PATH="../build"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params/Euroc"
+# PARAMS_PATH="../params/EurocMono"  # use this for monocular-mode (left cam only)
 
 # Vocabulary path: specify where the vocabulary for loop closure is.
 VOCABULARY_PATH="../vocabulary"
@@ -88,7 +89,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --dataset_type="$DATASET_TYPE" \
   --dataset_path="$DATASET_PATH" \
   --initial_k=50 \
-  --final_k=2000 \
+  --final_k=10000 \
   --params_folder_path="$PARAMS_PATH" \
   --use_lcd="$USE_LCD" \
   --vocabulary_path="$VOCABULARY_PATH/ORBvoc.yml" \
