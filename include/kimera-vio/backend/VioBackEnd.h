@@ -411,7 +411,8 @@ class VioBackEnd {
     return backend_params_;
   }
 
-  // The methods below return copies, since these are used in the backend thread
+  // Not Thread Safe. The methods below return copies but they are not
+  // mutex protected, and these are used in the backend thread
   inline Timestamp getTimestampLkf() const { return timestamp_lkf_; }
   inline ImuBias getLatestImuBias() const { return imu_bias_lkf_; }
   inline ImuBias getImuBiasPrevKf() const { return imu_bias_prev_kf_; }
