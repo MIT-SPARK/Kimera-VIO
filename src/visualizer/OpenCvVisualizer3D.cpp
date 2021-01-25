@@ -462,7 +462,9 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
             "Left CAM pose " + std::to_string(variable_index);
         (*widgets_map)[left_cam_id] =
             VIO::make_unique<cv::viz::WCameraPosition>(
-                K_, left_cam_active_frustum_scale_, cv::viz::Color::green());
+                K_,
+                left_cam_active_frustum_scale_,
+                left_cam_active_frustum_color_);
         const cv::Affine3d& left_cam_pose =
             UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect);
         (*widgets_map)[left_cam_id]->setPose(left_cam_pose);
@@ -649,8 +651,8 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
             (*widgets_map)[left_cam_id] =
                 VIO::make_unique<cv::viz::WCameraPosition>(
                     K_,
-                    cam_with_prior_frustum_scale_,
-                    cam_with_prior_frustum_color_);
+                    cam_with_linear_prior_frustum_scale_,
+                    cam_with_linear_prior_frustum_color_);
             const gtsam::Pose3& world_pose_camLrect =
                 imu_pose.compose(body_pose_camLrect);
             const cv::Affine3d& left_cam_with_prior_pose =
@@ -662,6 +664,8 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
             // the factor that connects all together!
           } else if (symbol.chr() == kLandmarkSymbolChar) {
             // TODO(Toni): color landmark with prior as such.
+            LOG(WARNING) << "Detected Linear Factor on Landmark, but display is"
+                            " not implemented...";
           }
         }
         continue;
@@ -732,7 +736,26 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Pose3>>(factor);
       if (pose_prior) {
         CHECK_EQ(pose_prior->keys().size(), 1u);
-        LOG(ERROR) << "A POSE PRIOR!";
+        gtsam::Key pose_key = pose_prior->key();
+        gtsam::Symbol pose_symbol(pose_key);
+        CHECK_EQ(pose_symbol.chr(), kPoseSymbolChar);
+        gtsam::Pose3 imu_pose;
+        CHECK(getEstimateOfKey(state, pose_key, &imu_pose));
+        std::string left_cam_id =
+            "Left CAM pose prior " + std::to_string(pose_symbol.index());
+        (*widgets_map)[left_cam_id] =
+            VIO::make_unique<cv::viz::WCameraPosition>(
+                K_,
+                cam_with_pose_prior_frustum_scale_,
+                cam_with_pose_prior_frustum_color_);
+        const gtsam::Pose3& world_pose_camLrect =
+            imu_pose.compose(body_pose_camLrect);
+        (*widgets_map)[left_cam_id]->setPose(
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect));
+        // Let's keep the prior in the visualization window for now
+        // const cv::Affine3d& left_cam_with_prior_pose =
+        //     UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect);
+        // widget_id_to_pose_map_[left_cam_id] = left_cam_with_prior_pose;
         continue;
       }
     }

@@ -351,10 +351,13 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
   cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
   float left_cam_active_frustum_scale_ = 0.11;
+  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
   float right_cam_active_frustum_scale_ = 0.11;
   float inactive_frustum_scale_ = 0.06;
-  float cam_with_prior_frustum_scale_ = 0.08;
-  cv::viz::Color cam_with_prior_frustum_color_ = cv::viz::Color::pink();
+  float cam_with_linear_prior_frustum_scale_ = 0.08;
+  cv::viz::Color cam_with_linear_prior_frustum_color_ = cv::viz::Color::pink();
+  float cam_with_pose_prior_frustum_scale_ = 0.20;
+  cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
