@@ -351,18 +351,19 @@ TEST_F(StereoCameraFixture, undistortRectifyLeftKeypoints) {
   // Compensate for the fact that opencv works on the inverse of rotations
   gtsam::Rot3 camL_Rot_camLrect =
       UtilsOpenCV::cvMatToGtsamRot3(stereo_camera_->getR1()).inverse();
-  gtsam::Pose3 camL_Pose_camLrect = gtsam::Pose3(camL_Rot_camLrect, Point3());
+  gtsam::Pose3 camL_Pose_camLrect =
+      gtsam::Pose3(camL_Rot_camLrect, gtsam::Point3::Zero());
 
   // B_Pose_camLrect
   gtsam::Pose3 B_Pose_camLrect_expect =
-      (left_camera_params.body_Pose_cam_).compose(camL_Pose_camLrect);
+      left_camera_params.body_Pose_cam_.compose(camL_Pose_camLrect);
   EXPECT_TRUE(
       stereo_camera_->getBodyPoseLeftCamRect().equals(B_Pose_camLrect_expect));
 
   // Right camera pose after rectification
   gtsam::Rot3 camR_Rot_camRrect =
       UtilsOpenCV::cvMatToGtsamRot3(stereo_camera_->getR2()).inverse();
-  gtsam::Pose3 camR_Pose_camRrect = gtsam::Pose3(camR_Rot_camRrect, Point3());
+  gtsam::Pose3 camR_Pose_camRrect = gtsam::Pose3(camR_Rot_camRrect, gtsam::Point3::Zero());
 
   // B_Pose_camRrect
   gtsam::Pose3 B_Pose_camRrect =
