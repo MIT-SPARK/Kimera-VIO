@@ -419,13 +419,8 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     const FrameId& frame_id = obs.first;
     const gtsam::Symbol& pose_symbol = gtsam::Symbol('x', frame_id);
-    // if (smoother_->getFactors().exists(pose_symbol)) {
-      const StereoPoint2& measurement = obs.second;
-      new_factor->add(measurement, pose_symbol, stereo_cal_);
-    // } else {
-      // VLOG(10) << "Factor with lmk id " << lmk_id
-              //  << " is linking to a marginalized state!";
-    // }
+    const StereoPoint2& measurement = obs.second;
+    new_factor->add(measurement, pose_symbol, stereo_cal_);
 
     if (VLOG_IS_ON(10)) std::cout << " " << obs.first;
   }
@@ -452,14 +447,9 @@ void VioBackEnd::updateLandmarkInGraph(
   // Clone old factor to keep all previous measurements, now append one.
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(*old_factor);
-  gtsam::Symbol pose_symbol('x', new_measurement.first);
-  // if (smoother_->getFactors().exists(pose_symbol)) {
-    const StereoPoint2& measurement = new_measurement.second;
-    new_factor->add(measurement, pose_symbol, stereo_cal_);
-  // } else {
-    // VLOG(10) << "Factor with lmk id " << lmk_id
-            //  << " is linking to a marginalized state!";
-  // }
+  const gtsam::Symbol pose_symbol('x', new_measurement.first);
+  const StereoPoint2& measurement = new_measurement.second;
+  new_factor->add(measurement, pose_symbol, stereo_cal_);
 
   // Update the factor
   Slot slot = old_smart_factors_it->second.second;
