@@ -65,7 +65,7 @@ public:
       // computations.
       H_plane_retract << plane_normal.basis(), Vector3::Zero(), 0, 0, 1;
       Vector4 p;
-      p << point.vector(), -1;
+      p << point, -1;
       *H_plane =  p.transpose() * H_plane_retract;
     }
 
