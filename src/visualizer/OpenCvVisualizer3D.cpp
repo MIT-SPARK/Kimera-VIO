@@ -534,13 +534,12 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   }
 
   // Step 2: visualize Factors
-  static constexpr bool draw_smart_stereo_factors = true;
-  static constexpr bool draw_point_priors = true;
-  static constexpr bool draw_velocity_priors = true;
+  static constexpr bool draw_smart_stereo_factors = false;
+  //! typically zero velocity prior
+  static constexpr bool draw_vector3_priors = true;
   static constexpr bool draw_pose_priors = true;
-  static constexpr bool draw_no_motion_priors = true;
-  static constexpr bool draw_plane_priors = true;
-  static constexpr bool draw_point_plane_factors = true;
+  static constexpr bool draw_plane_priors = false;
+  static constexpr bool draw_point_plane_factors = false;
   static constexpr bool draw_linear_container_factors = true;
   static constexpr bool draw_imu_constant_bias_factors = true;
   static constexpr bool draw_between_factors = true;
@@ -614,6 +613,8 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
         } else {
           LOG(FATAL) << "Did someone add a new state to triangulation result?";
         }
+
+        continue;
       }
     }
 
@@ -621,6 +622,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       const auto& ppf =
           boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(factor);
       if (ppf) {
+        continue;
       }
     }
 
@@ -628,32 +630,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       const auto& ppp = boost::dynamic_pointer_cast<
           gtsam::PriorFactor<gtsam::OrientedPlane3>>(factor);
       if (ppp) {
-      }
-    }
-
-    if (draw_point_priors) {
-      const auto& point_prior_factor =
-          boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(
-              factor);
-      if (point_prior_factor) {
-        LOG(ERROR) << "A POINT Prior!";
-        CHECK_EQ(point_prior_factor->keys().size(), 1u);
-        const gtsam::Key& point_key = point_prior_factor->key();
-        gtsam::Symbol point_symbol(point_key);
-        gtsam::Point3 point;
-        getEstimateOfKey(state, point_key, &point);
-        static constexpr double half_cube_side = 0.05;
-        cv::Point3d min_point(point.x() - half_cube_side,
-                              point.y() - half_cube_side,
-                              point.z() - half_cube_side);
-        cv::Point3d max_point(point.x() + half_cube_side,
-                              point.y() + half_cube_side,
-                              point.z() + half_cube_side);
-        std::string point_prior_id =
-            "Point prior " + std::to_string(point_symbol.index());
-        (*widgets_map)[point_prior_id] = VIO::make_unique<cv::viz::WCube>(
-            min_point, max_point, true, cv::viz::Color::red());
-        widget_ids_to_remove_in_next_iter_.push_back(point_prior_id);
+        continue;
       }
     }
 
@@ -687,41 +664,66 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
             // TODO(Toni): color landmark with prior as such.
           }
         }
+        continue;
       }
     }
 
-    if (draw_velocity_priors) {
+    if (draw_vector3_priors) {
+      // This is the same as a gtsam::Point3 prior!
       const auto& velocity_prior =
           boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Vector3>>(
               factor);
       if (velocity_prior) {
         CHECK_EQ(velocity_prior->keys().size(), 1u);
-        gtsam::Key key = velocity_prior->keys().at(0u);
-        gtsam::Symbol symbol(key);
-        if (symbol.chr() == kVelocitySymbolChar) {
+        gtsam::Key velocity_key = velocity_prior->key();
+        LOG(ERROR) << "VELOCITY PRIOR with key: " << velocity_key;
+        gtsam::Symbol velocity_symbol(velocity_key);
+        if (velocity_symbol.chr() == kVelocitySymbolChar) {
           gtsam::Pose3 imu_pose;
-          CHECK(getEstimateOfKey(state,
-                                 gtsam::Symbol(kPoseSymbolChar, symbol.index()),
-                                 &imu_pose));
+          CHECK(getEstimateOfKey(
+              state,
+              gtsam::Symbol(kPoseSymbolChar, velocity_symbol.index()),
+              &imu_pose));
           gtsam::Vector3 velocity;
-          CHECK(getEstimateOfKey(state, key, &velocity));
-          std::string info =
-              gtsam::equal(velocity, gtsam::Vector3::Zero()) ? " 0-vel " : " ";
-          std::string velocity_prior_id =
-              "Velocity Prior!" + info + std::to_string(symbol.index());
+          CHECK(getEstimateOfKey(state, velocity_key, &velocity));
+
+          // Print text saying that we got a velocity prior.
           static double increase = 0.1;
           const cv::Point3d text_position(
               imu_pose.x(),
               imu_pose.y(),
               imu_pose.z() + std::fmod(increase, 2));
           increase += 0.1;
-          (*widgets_map)[velocity_prior_id] =
+          std::string info =
+              gtsam::equal(velocity, gtsam::Vector3::Zero()) ? " 0-vel " : " ";
+          std::string velocity_prior_text_id =
+              "Velocity Prior!" + info +
+              std::to_string(velocity_symbol.index());
+          (*widgets_map)[velocity_prior_text_id] =
               VIO::make_unique<cv::viz::WText3D>(
-                  velocity_prior_id, text_position, 0.07, true);
+                  velocity_prior_text_id, text_position, 0.07, true);
+
+          // Print a red cube around the IMU pose with the velocity prior.
+          static constexpr double half_cube_side = 0.05;
+          cv::Point3d min_point(imu_pose.x() - half_cube_side,
+                                imu_pose.y() - half_cube_side,
+                                imu_pose.z() - half_cube_side);
+          cv::Point3d max_point(imu_pose.x() + half_cube_side,
+                                imu_pose.y() + half_cube_side,
+                                imu_pose.z() + half_cube_side);
+          std::string velocity_prior_cube_id =
+              "Point prior " + std::to_string(velocity_symbol.index());
+          (*widgets_map)[velocity_prior_cube_id] =
+              VIO::make_unique<cv::viz::WCube>(
+                  min_point, max_point, true, cv::viz::Color::red());
+
+          // Potentially remove this info on each iteration.
           // widget_ids_to_remove_in_next_iter_.push_back(velocity_prior_id);
         } else {
-          LOG(WARNING) << "Prior on gtsam::Vector3 unrecognized...";
+          LOG(WARNING)
+              << "Prior on gtsam::Vector3 or gtsam::Point3 unrecognized...";
         }
+        continue;
       }
     }
 
@@ -731,6 +733,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       if (pose_prior) {
         CHECK_EQ(pose_prior->keys().size(), 1u);
         LOG(ERROR) << "A POSE PRIOR!";
+        continue;
       }
     }
 
@@ -741,6 +744,30 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       if (btw_factor) {
         if (btw_factor->measured().equals(gtsam::Pose3::identity())) {
           LOG(ERROR) << "NO Motion prior";
+          CHECK_EQ(btw_factor->keys().size(), 2u);
+          const gtsam::Key& pose_key_1 = btw_factor->keys().at(0);
+          const gtsam::Key& pose_key_2 = btw_factor->keys().at(1);
+          gtsam::Symbol pose_symbol_1(pose_key_1);
+          gtsam::Symbol pose_symbol_2(pose_key_2);
+          gtsam::Pose3 pose_1;
+          gtsam::Pose3 pose_2;
+          CHECK(getEstimateOfKey(state, pose_key_1, &pose_1));
+          CHECK(getEstimateOfKey(state, pose_key_2, &pose_2));
+          cv::Point3d start_point(pose_1.x(), pose_1.y(), pose_1.z());
+          cv::Point3d end_point(pose_2.x(), pose_2.y(), pose_2.z());
+          std::string no_motion_prior_id =
+              "No Motion prior: " + std::to_string(pose_symbol_1.index());
+          (*widgets_map)[no_motion_prior_id] = VIO::make_unique<cv::viz::WLine>(
+              start_point, end_point, cv::viz::Color::red());
+          static constexpr int kCylinderRadius = 0.01;
+          (*widgets_map)[no_motion_prior_id] =
+              VIO::make_unique<cv::viz::WCylinder>(start_point,
+                                                   end_point,
+                                                   kCylinderRadius,
+                                                   20,
+                                                   cv::viz::Color::red());
+          widget_ids_to_remove_in_next_iter_.push_back(no_motion_prior_id);
+          continue;
         }
       }
     }
@@ -749,17 +776,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       const auto& imu_constant_bias_prior = boost::dynamic_pointer_cast<
           gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(factor);
       if (imu_constant_bias_prior) {
-      }
-    }
-
-    // Combined IMU?
-
-    // Stereo Between Factors?
-    if (draw_between_factors) {
-      const auto& btw_factor =
-          boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
-              factor);
-      if (btw_factor) {
+        continue;
       }
     }
   }
