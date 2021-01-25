@@ -16,7 +16,6 @@
 
 #include <memory>
 #include <string>
-#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -75,11 +74,13 @@ struct VisualizerInput : public PipelinePayload {
   VisualizerInput(const Timestamp& timestamp,
                   const MesherOutput::Ptr& mesher_output,
                   const BackendOutput::Ptr& backend_output,
-                  const FrontendOutputPacketBase::Ptr& frontend_output)
+                  const FrontendOutputPacketBase::Ptr& frontend_output,
+                  const LcdOutput::Ptr& lcd_output)
       : PipelinePayload(timestamp),
         mesher_output_(mesher_output),
         backend_output_(backend_output),
-        frontend_output_(frontend_output) {
+        frontend_output_(frontend_output),
+        lcd_output_(lcd_output) {
     CHECK(backend_output);
     CHECK(frontend_output);
     if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
@@ -92,6 +93,7 @@ struct VisualizerInput : public PipelinePayload {
   const MesherOutput::ConstPtr mesher_output_;
   const BackendOutput::ConstPtr backend_output_;
   const FrontendOutputPacketBase::Ptr frontend_output_;  // not ConstPtr because polymorphic
+  const LcdOutput::ConstPtr lcd_output_;
 };
 
 struct VisualizerOutput : public DisplayInputBase {

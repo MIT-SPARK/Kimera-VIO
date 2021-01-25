@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
   }
   CHECK(dataset_parser);
 
-  VIO::Pipeline::UniquePtr vio_pipeline;
+  VIO::Pipeline::Ptr vio_pipeline;
 
   switch (vio_params.frontend_type_) {
     case VIO::FrontendType::kMonoImu: {
@@ -99,27 +99,24 @@ int main(int argc, char* argv[]) {
   // Register callback to vio pipeline.
   dataset_parser->registerImuSingleCallback(
       std::bind(&VIO::Pipeline::fillSingleImuQueue,
-                std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
+                vio_pipeline,
                 std::placeholders::_1));
   // We use blocking variants to avoid overgrowing the input queues (use
   // the non-blocking versions with real sensor streams)
   dataset_parser->registerLeftFrameCallback(
       std::bind(&VIO::Pipeline::fillLeftFrameQueue,
-                std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
+                vio_pipeline,
                 std::placeholders::_1));
 
   if (vio_params.frontend_type_ == VIO::FrontendType::kStereoImu) {
-    VIO::StereoPipeline::UniquePtr stereo_pipeline =
+    VIO::StereoPipeline::Ptr stereo_pipeline =
         VIO::safeCast<VIO::Pipeline, VIO::StereoPipeline>(
-            std::move(vio_pipeline));
+            vio_pipeline);
 
     dataset_parser->registerRightFrameCallback(
         std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
-                  std::ref(*CHECK_NOTNULL(stereo_pipeline.get())),
+                  stereo_pipeline,
                   std::placeholders::_1));
-
-    vio_pipeline = VIO::safeCast<VIO::StereoPipeline, VIO::Pipeline>(
-        std::move(stereo_pipeline));
   }
 
   // Spin dataset.
@@ -132,13 +129,13 @@ int main(int argc, char* argv[]) {
     auto handle_pipeline =
         std::async(std::launch::async,
                    &VIO::Pipeline::spin,
-                   std::ref(*CHECK_NOTNULL(vio_pipeline.get())));
+                   vio_pipeline);
     auto handle_shutdown =
         std::async(std::launch::async,
-                    &VIO::Pipeline::shutdownWhenFinished,
-                    std::ref(*CHECK_NOTNULL(vio_pipeline.get())),
-                    500,
-                    true);
+                   &VIO::Pipeline::shutdownWhenFinished,
+                   vio_pipeline,
+                   500,
+                   true);
     vio_pipeline->spinViz();
     is_pipeline_successful = !handle.get();
     handle_shutdown.get();

@@ -49,13 +49,13 @@ class BackendFixture : public ::testing::Test {
     vio_params_.horizon_ = 100;
 
     // Update IMU params
-    imu_params_.gyro_noise_ = 0.00016968;
-    imu_params_.acc_noise_ = 0.002;
-    imu_params_.gyro_walk_ = 1.9393e-05;
-    imu_params_.acc_walk_ = 0.003;
+    imu_params_.gyro_noise_density_ = 0.00016968;
+    imu_params_.acc_noise_density_ = 0.002;
+    imu_params_.gyro_random_walk_ = 1.9393e-05;
+    imu_params_.acc_random_walk_ = 0.003;
     imu_params_.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
     imu_params_.imu_integration_sigma_ = 1.0;
-    imu_params_.nominal_rate_ = 200.0;
+    imu_params_.nominal_sampling_time_s_ = 200.0;
     // TODO(Toni): test with Combined, I think it actually fails now...
     imu_params_.imu_preintegration_type_ =
         ImuPreintegrationType::kPreintegratedImuMeasurements;

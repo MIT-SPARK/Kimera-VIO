@@ -25,13 +25,13 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     bool use_nss,
     float alpha,
     int min_temporal_matches,
-    int dist_local,
+    int recent_frames_window,
     int max_db_results,
     float min_nss_factor,
-    int min_matches_per_group,
-    int max_intragroup_gap,
-    int max_distance_between_groups,
-    int max_distance_between_queries,
+    int min_matches_per_island,
+    int max_intraisland_gap,
+    int max_nrFrames_between_islands,
+    int max_nrFrames_between_queries,
 
     GeomVerifOption geom_check,
     int min_correspondences,
@@ -48,7 +48,7 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     bool ransac_randomize_stereo,
     double ransac_inlier_threshold_stereo,
     bool use_mono_rot,
-
+    bool refine_pose,
     double lowe_ratio,
 #if CV_VERSION_MAJOR == 3
     int matcher_type,
@@ -70,6 +70,9 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     int patch_sze,
     int fast_threshold,
 
+    double betweenRotationPrecision,
+    double betweenTranslationPrecision,
+
     double pgo_rot_threshold,
     double pgo_trans_threshold)
     : PipelineParams("Loop Closure Parameters"),
@@ -81,13 +84,13 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       use_nss_(use_nss),
       alpha_(alpha),
       min_temporal_matches_(min_temporal_matches),
-      dist_local_(dist_local),
+      recent_frames_window_(recent_frames_window),
       max_db_results_(max_db_results),
       min_nss_factor_(min_nss_factor),
-      min_matches_per_group_(min_matches_per_group),
-      max_intragroup_gap_(max_intragroup_gap),
-      max_distance_between_groups_(max_distance_between_groups),
-      max_distance_between_queries_(max_distance_between_queries),
+      min_matches_per_island_(min_matches_per_island),
+      max_intraisland_gap_(max_intraisland_gap),
+      max_nrFrames_between_islands_(max_nrFrames_between_islands),
+      max_nrFrames_between_queries_(max_nrFrames_between_queries),
 
       geom_check_(geom_check),
       min_correspondences_(min_correspondences),
@@ -104,6 +107,7 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       ransac_randomize_stereo_(ransac_randomize_stereo),
       ransac_inlier_threshold_stereo_(ransac_inlier_threshold_stereo),
       use_mono_rot_(use_mono_rot),
+      refine_pose_(refine_pose),
 
       lowe_ratio_(lowe_ratio),
       matcher_type_(matcher_type),
@@ -118,6 +122,9 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       patch_sze_(patch_sze),
       fast_threshold_(fast_threshold),
 
+      betweenRotationPrecision_(betweenRotationPrecision),
+      betweenTranslationPrecision_(betweenTranslationPrecision),
+
       pgo_rot_threshold_(pgo_rot_threshold),
       pgo_trans_threshold_(pgo_trans_threshold) {
   // Trivial sanity checks:
@@ -131,15 +138,15 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("use_nss", &use_nss_);
   yaml_parser.getYamlParam("alpha", &alpha_);
   yaml_parser.getYamlParam("min_temporal_matches", &min_temporal_matches_);
-  yaml_parser.getYamlParam("dist_local", &dist_local_);
+  yaml_parser.getYamlParam("recent_frames_window", &recent_frames_window_);
   yaml_parser.getYamlParam("max_db_results", &max_db_results_);
   yaml_parser.getYamlParam("min_nss_factor", &min_nss_factor_);
-  yaml_parser.getYamlParam("min_matches_per_group", &min_matches_per_group_);
-  yaml_parser.getYamlParam("max_intragroup_gap", &max_intragroup_gap_);
-  yaml_parser.getYamlParam("max_distance_between_groups",
-                           &max_distance_between_groups_);
-  yaml_parser.getYamlParam("max_distance_between_queries",
-                           &max_distance_between_queries_);
+  yaml_parser.getYamlParam("min_matches_per_island", &min_matches_per_island_);
+  yaml_parser.getYamlParam("max_intraisland_gap", &max_intraisland_gap_);
+  yaml_parser.getYamlParam("max_nrFrames_between_islands",
+                           &max_nrFrames_between_islands_);
+  yaml_parser.getYamlParam("max_nrFrames_between_queries",
+                           &max_nrFrames_between_queries_);
 
   int geom_check_id;
   yaml_parser.getYamlParam("geom_check_id", &geom_check_id);
@@ -189,6 +196,7 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("ransac_inlier_threshold_stereo",
                            &ransac_inlier_threshold_stereo_);
   yaml_parser.getYamlParam("use_mono_rot", &use_mono_rot_);
+  yaml_parser.getYamlParam("refine_pose", &refine_pose_);
   yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
   yaml_parser.getYamlParam("matcher_type", &matcher_type_);
   yaml_parser.getYamlParam("nfeatures", &nfeatures_);
@@ -215,6 +223,8 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   }
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
+  yaml_parser.getYamlParam("betweenRotationPrecision", &betweenRotationPrecision_);
+  yaml_parser.getYamlParam("betweenTranslationPrecision", &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
 
@@ -240,23 +250,23 @@ void LoopClosureDetectorParams::print() const {
                         alpha_,
                         "min_temporal_matches_: ",
                         min_temporal_matches_,
-                        "dist_local_: ",
-                        dist_local_,
+                        "recent_frames_window_: ",
+                        recent_frames_window_,
                         "max_db_results_: ",
                         max_db_results_,
                         "max_db_results_: ",
                         max_db_results_,
                         "min_nss_factor_: ",
                         min_nss_factor_,
-                        "min_matches_per_group_: ",
-                        min_matches_per_group_,
-                        "max_intragroup_gap_: ",
-                        max_intragroup_gap_,
-                        "max_distance_between_groups_: ",
-                        max_distance_between_groups_,
+                        "min_matches_per_island_: ",
+                        min_matches_per_island_,
+                        "max_intraisland_gap_: ",
+                        max_intraisland_gap_,
+                        "max_nrFrames_between_islands_: ",
+                        max_nrFrames_between_islands_,
 
-                        "max_distance_between_queries_: ",
-                        max_distance_between_queries_,
+                        "max_nrFrames_between_queries_: ",
+                        max_nrFrames_between_queries_,
 
                         "geom_check_: ",
                         static_cast<unsigned int>(geom_check_),
@@ -289,7 +299,8 @@ void LoopClosureDetectorParams::print() const {
                         ransac_inlier_threshold_stereo_,
                         "use_mono_rot_:",
                         use_mono_rot_,
-
+                        "refine_pose_:",
+                        refine_pose_,
                         "lowe_ratio_: ",
                         lowe_ratio_,
                         "matcher_type_:",
@@ -313,6 +324,11 @@ void LoopClosureDetectorParams::print() const {
                         patch_sze_,
                         "fast_threshold_: ",
                         fast_threshold_,
+
+                        "betweenRotationPrecision_: ",
+                        betweenRotationPrecision_,
+                        "betweenTranslationPrecision_: ",
+                        betweenTranslationPrecision_,
 
                         "pgo_rot_threshold_: ",
                         pgo_rot_threshold_,

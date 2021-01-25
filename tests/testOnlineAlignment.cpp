@@ -135,10 +135,10 @@ class OnlineAlignmentFixture : public ::testing::Test {
 
   void initializeImuParams(ImuParams* imu_params) const {
     CHECK_NOTNULL(imu_params);
-    imu_params->acc_walk_ = 1.0;
-    imu_params->acc_noise_ = 1.0;
-    imu_params->gyro_walk_ = 1.0;
-    imu_params->gyro_noise_ = 1.0;
+    imu_params->acc_random_walk_ = 1.0;
+    imu_params->acc_noise_density_ = 1.0;
+    imu_params->gyro_random_walk_ = 1.0;
+    imu_params->gyro_noise_density_ = 1.0;
 
     // This is needed for online alignment
     imu_params->n_gravity_ << 0.0, 0.0, 0.0;

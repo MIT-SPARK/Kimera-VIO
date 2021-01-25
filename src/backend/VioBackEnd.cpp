@@ -753,6 +753,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
               gtsam::Symbol('b', from_id),
               gtsam::Symbol('b', to_id),
               safeCastToPreintegratedCombinedImuMeasurements(pim)));
+
       break;
     }
     case ImuPreintegrationType::kPreintegratedImuMeasurements: {
@@ -765,21 +766,23 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
               gtsam::Symbol('b', from_id),
               safeCastToPreintegratedImuMeasurements(pim)));
 
-      static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
-                                                          Vector3(0, 0, 0));
+      static const gtsam::imuBias::ConstantBias zero_bias(
+          gtsam::Vector3(0.0, 0.0, 0.0), gtsam::Vector3(0.0, 0.0, 0.0));
 
       // Factor to discretize and move normalize by the interval between
       // measurements:
-      CHECK_NE(imu_params_.nominal_rate_, 0.0)
-          << "Nominal IMU rate param cannot be 0.";
-      // 1/sqrt(nominalImuRate_) to discretize, then
-      // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-      const double d = std::sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
-      Vector6 biasSigmas;
-      biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
-      biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
+      CHECK_NE(imu_params_.nominal_sampling_time_s_, 0.0)
+          << "Nominal IMU sampling time cannot be 0 s.";
+      // See Trawny05 http://mars.cs.umn.edu/tr/reports/Trawny05b.pdf
+      // Eq. 130
+      const double& sqrt_delta_t_ij = std::sqrt(pim.deltaTij());
+      gtsam::Vector6 bias_sigmas;
+      bias_sigmas.head<3>().setConstant(sqrt_delta_t_ij *
+                                        imu_params_.acc_random_walk_);
+      bias_sigmas.tail<3>().setConstant(sqrt_delta_t_ij *
+                                        imu_params_.gyro_random_walk_);
       const gtsam::SharedNoiseModel& bias_noise_model =
-          gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
+          gtsam::noiseModel::Diagonal::Sigmas(bias_sigmas);
 
       new_imu_prior_and_other_factors_.push_back(
           boost::make_shared<
@@ -829,7 +832,7 @@ void VioBackEnd::addNoMotionFactor(const FrameId& from_id,
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol('x', from_id),
           gtsam::Symbol('x', to_id),
-          Pose3(),
+          gtsam::Pose3::identity(),
           no_motion_prior_noise_));
 
   debug_info_.numAddedNoMotionF_++;
@@ -1536,8 +1539,6 @@ void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
 }
 
-/* -------------------------------------------------------------------------- */
-// Set parameters for all the factors.
 void VioBackEnd::setFactorsParams(
     const BackendParams& vio_params,
     gtsam::SharedNoiseModel* smart_noise,
@@ -1550,65 +1551,67 @@ void VioBackEnd::setFactorsParams(
   CHECK_NOTNULL(no_motion_prior_noise);
   CHECK_NOTNULL(zero_velocity_prior_noise);
   CHECK_NOTNULL(constant_velocity_prior_noise);
+  setSmartStereoFactorsNoiseModel(vio_params.smartNoiseSigma_, smart_noise);
+  setSmartStereoFactorsParams(vio_params.rankTolerance_,
+                              vio_params.landmarkDistanceThreshold_,
+                              vio_params.retriangulationThreshold_,
+                              vio_params.outlierRejection_,
+                              smart_factors_params);
 
-  //////////////////////// SMART PROJECTION FACTORS SETTINGS
-  //////////////////////
-  setSmartFactorsParams(smart_noise,
-                        smart_factors_params,
-                        vio_params.smartNoiseSigma_,
-                        vio_params.rankTolerance_,
-                        vio_params.landmarkDistanceThreshold_,
-                        vio_params.retriangulationThreshold_,
-                        vio_params.outlierRejection_);
+  setNoMotionFactorsParams(vio_params.noMotionPositionSigma_,
+                           vio_params.noMotionRotationSigma_,
+                           no_motion_prior_noise);
 
-  //////////////////////// NO MOTION FACTORS SETTINGS
-  /////////////////////////////
-  Vector6 sigmas;
-  sigmas.head<3>().setConstant(vio_params.noMotionRotationSigma_);
-  sigmas.tail<3>().setConstant(vio_params.noMotionPositionSigma_);
-  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
-
-  //////////////////////// ZERO VELOCITY FACTORS SETTINGS
-  /////////////////////////
+  // Zero velocity factors settings
   *zero_velocity_prior_noise =
-      gtsam::noiseModel::Isotropic::Sigma(3, vio_params.zeroVelocitySigma_);
+      gtsam::noiseModel::Isotropic::Sigma(3u, vio_params.zeroVelocitySigma_);
 
-  //////////////////////// CONSTANT VELOCITY FACTORS SETTINGS
-  /////////////////////
+  // Constant velocity factors settings
   *constant_velocity_prior_noise =
-      gtsam::noiseModel::Isotropic::Sigma(3, vio_params.constantVelSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(3u, vio_params.constantVelSigma_);
 }
 
-/* -------------------------------------------------------------------------- */
-// Set parameters for smart factors.
-void VioBackEnd::setSmartFactorsParams(
-    gtsam::SharedNoiseModel* smart_noise,
-    gtsam::SmartStereoProjectionParams* smart_factors_params,
+void VioBackEnd::setSmartStereoFactorsNoiseModel(
     const double& smart_noise_sigma,
-    const double& rank_tolerance,
-    const double& landmark_distance_threshold,
-    const double& retriangulation_threshold,
-    const double& outlier_rejection) {
+    gtsam::SharedNoiseModel* smart_noise) {
   CHECK_NOTNULL(smart_noise);
-  CHECK_NOTNULL(smart_factors_params);
-  gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
-      3,
-      smart_noise_sigma);  // vio_smart_reprojection_err_thresh
-                           // / cam_->fx());
   // smart_noise_ = gtsam::noiseModel::Robust::Create(
   //                  gtsam::noiseModel::mEstimator::Huber::Create(1.345),
   //                  model);
-  *smart_noise = model;
-  *smart_factors_params =
-      SmartFactorParams(gtsam::HESSIAN,             // JACOBIAN_SVD
-                        gtsam::ZERO_ON_DEGENERACY,  // IGNORE_DEGENERACY
-                        false,                      // ThrowCherality = false
-                        true);                      // verboseCherality = true
+  // vio_smart_reprojection_err_thresh / cam_->fx());
+  *smart_noise = gtsam::noiseModel::Isotropic::Sigma(3, smart_noise_sigma);
+}
+
+void VioBackEnd::setSmartStereoFactorsParams(
+    const double& rank_tolerance,
+    const double& landmark_distance_threshold,
+    const double& retriangulation_threshold,
+    const double& outlier_rejection,
+    gtsam::SmartStereoProjectionParams* smart_factors_params) {
+  CHECK_NOTNULL(smart_factors_params);
+  *smart_factors_params = gtsam::SmartStereoProjectionParams();
   smart_factors_params->setRankTolerance(rank_tolerance);
   smart_factors_params->setLandmarkDistanceThreshold(
       landmark_distance_threshold);
   smart_factors_params->setRetriangulationThreshold(retriangulation_threshold);
   smart_factors_params->setDynamicOutlierRejectionThreshold(outlier_rejection);
+  //! EPI: If set to true, will refine triangulation using LM.
+  smart_factors_params->setEnableEPI(false);
+  smart_factors_params->setLinearizationMode(gtsam::HESSIAN);
+  smart_factors_params->setDegeneracyMode(gtsam::ZERO_ON_DEGENERACY);
+  smart_factors_params->throwCheirality = false;
+  smart_factors_params->verboseCheirality = false;
+}
+
+void VioBackEnd::setNoMotionFactorsParams(
+    const double& position_sigma,
+    const double& rotation_sigma,
+    gtsam::SharedNoiseModel* no_motion_prior_noise) {
+  CHECK_NOTNULL(no_motion_prior_noise);
+  gtsam::Vector6 sigmas;
+  sigmas.head<3>().setConstant(rotation_sigma);
+  sigmas.tail<3>().setConstant(position_sigma);
+  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
 }
 
 /* --------------------------- PRINTERS ------------------------------------- */

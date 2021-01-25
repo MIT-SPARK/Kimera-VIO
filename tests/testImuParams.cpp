@@ -55,7 +55,7 @@ TEST_F(ImuParamsFixture, defaultEquality) {
 
   // Modify default
   ImuParams modified_imu_params;
-  modified_imu_params.gyro_noise_ = 123.4;
+  modified_imu_params.gyro_noise_density_ = 123.4;
   // Compare
   EXPECT_NE(modified_imu_params, default_imu_params);
 

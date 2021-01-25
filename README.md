@@ -13,7 +13,7 @@
 # Kimera-VIO: Open-Source Visual Inertial Odometry
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/badge/icon)](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/)
-For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/VIO_20Euroc_20Performance_20Report/plots.html#V1_01_easy).
+For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/VIO_20Euroc_20Performance_20Report).
 
 **Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
 
@@ -128,6 +128,8 @@ bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 > Alternatively, one may directly use the executable in the build folder:
 `./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section below.
 
+Kimera can also run in monocular mode. For Euroc, this means only processing the left image. To use this simply use the parameters in `params/EurocMono`. In the bash script there is a `PARAMS_PATH` variable that can be set to point to these parameters instead.
+
 ## ii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
 We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
@@ -148,6 +150,8 @@ cd build
 ```
 
 A useful flag is `./testKimeraVIO --gtest_filter=foo` to only run the test you are interested in (regex is also valid).
+
+Alternatively, you can run `rosrun kimera_vio run_gtest.py` from anywhere on your system if you've built Kimera-VIO through ROS and sourced the workspace containing Kimera-VIO. This script passes all arguments to `testKimeraVIO`, so you should feel free to use whatever flags you would normally use.
 
 # 3. Parameters
 Kimera-VIO accepts two independent sources of parameters:

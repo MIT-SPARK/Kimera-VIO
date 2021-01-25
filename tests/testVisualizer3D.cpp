@@ -134,8 +134,9 @@ TEST_F(VisualizerFixture, spinOnce) {
       ImuAccGyrS(),
       cv::Mat(),
       DebugTrackerInfo());
+  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp);
   VisualizerInput visualizer_input(
-      timestamp, mesher_output, backend_output, frontend_output);
+      timestamp, mesher_output, backend_output, frontend_output, lcd_output);
   // Visualize mesh.
   EXPECT_NO_THROW(visualizer_->spinOnce(visualizer_input));
 }

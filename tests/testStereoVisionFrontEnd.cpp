@@ -110,10 +110,10 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
                   img_name_cur_right, tp.stereo_matching_params_.equalize_image_)));
 
     // Imu Params
-    imu_params_.acc_walk_ = 1;
-    imu_params_.gyro_walk_ = 1;
-    imu_params_.acc_noise_ = 1;
-    imu_params_.gyro_noise_ = 1;
+    imu_params_.acc_random_walk_ = 1;
+    imu_params_.gyro_random_walk_ = 1;
+    imu_params_.acc_noise_density_ = 1;
+    imu_params_.gyro_noise_density_ = 1;
     imu_params_.imu_integration_sigma_ = 1;
 
     // Set randomness!
@@ -222,9 +222,11 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   }
 
   int findPointInVector(const gtsam::Point2& pt_query,
-                        const std::vector<gtsam::Point2>& pt_set) {
+                        const std::vector<gtsam::Point2>& pt_set,
+                        double tolerance = 3.0) {
     for (size_t i = 0u; i < pt_set.size(); i++) {
-      if (pt_set[i].equals(pt_query, 3)) {
+      // check inf norm to make sure all elements are within tolerance
+      if ((pt_set[i] - pt_query).lpNorm<Eigen::Infinity>() < tolerance) {
         return i;
       }
     }
@@ -616,4 +618,4 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   }
 }
 
-} // namespace VIO
+}  // namespace VIO

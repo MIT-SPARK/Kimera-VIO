@@ -45,6 +45,12 @@ find_package(KimeraRPGO REQUIRED)
 # Pangolin is optional
 find_package(Pangolin QUIET)
 
+include(VerifyGtsamConfig)
+option(KIMERA_VERIFY_GTSAM_CONFIG "Check that GTSAM was compiled with the right options" ON)
+if (KIMERA_VERIFY_GTSAM_CONFIG)
+    verify_gtsam_config()
+endif()
+
 ### External Dependencies
 include(ExternalProject)
 
