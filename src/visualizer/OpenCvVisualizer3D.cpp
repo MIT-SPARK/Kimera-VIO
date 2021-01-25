@@ -428,7 +428,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
     static constexpr bool draw_imu_pose = true;
     static constexpr bool draw_left_cam = true;
     static constexpr bool draw_right_cam = false;
-    static constexpr bool draw_imu_to_left_cam_arrow = false;
+    static constexpr bool draw_imu_to_left_cam_arrow = true;
     static constexpr bool draw_velocity = false;
     if (variable_type == kLandmarkSymbolChar) {
       // const LandmarkId& lmk_id = variable_index;  // THIS IS NOT LMK_ID!
@@ -700,12 +700,14 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           increase += 0.1;
           std::string info =
               gtsam::equal(velocity, gtsam::Vector3::Zero()) ? " 0-vel " : " ";
+          LOG(ERROR) << "VELOCITY IS NON_ZERO????" << velocity;
           std::string velocity_prior_text_id =
               "Velocity Prior!" + info +
               std::to_string(velocity_symbol.index());
-          (*widgets_map)[velocity_prior_text_id] =
+          // By keeping id the same, we overwrite the text, otw too much clutter
+          (*widgets_map)["Velocity Prior"] =
               VIO::make_unique<cv::viz::WText3D>(
-                  velocity_prior_text_id, text_position, 0.07, true);
+                  velocity_prior_text_id, text_position, 0.04, false);
 
           // Print a red cube around the IMU pose with the velocity prior.
           static constexpr double half_cube_side = 0.05;
