@@ -349,6 +349,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
   //! Colors
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
   cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
+  cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
+  cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
   cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
   float left_cam_active_frustum_scale_ = 0.11;
   cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();

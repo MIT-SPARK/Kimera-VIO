@@ -693,17 +693,20 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
               imu_pose.x(), imu_pose.y(), imu_pose.z());
           std::string info =
               gtsam::equal(velocity_prior->prior(), gtsam::Vector3::Zero())
-                  ? " 0-vel "
-                  : " ";
+                  ? "Zero Velocity Prior"
+                  : "Generic Velocity Prior";
           std::string velocity_prior_text_id =
-              "Velocity Prior!" + info +
-              std::to_string(velocity_symbol.index());
+              info + ", id: " + std::to_string(velocity_symbol.index());
           // By keeping id the same, we overwrite the text, otw too much clutter
-          (*widgets_map)["Velocity Prior"] = VIO::make_unique<cv::viz::WText3D>(
-              velocity_prior_text_id, text_position, 0.04, false);
+          (*widgets_map)["Velocity Prior"] =
+              VIO::make_unique<cv::viz::WText3D>(velocity_prior_text_id,
+                                                 text_position,
+                                                 0.04,
+                                                 false,
+                                                 velocity_prior_color_);
 
           // Print a red cube around the IMU pose with the velocity prior.
-          static constexpr double half_cube_side = 0.05;
+          static constexpr double half_cube_side = 0.02;
           cv::Point3d min_point(imu_pose.x() - half_cube_side,
                                 imu_pose.y() - half_cube_side,
                                 imu_pose.z() - half_cube_side);
@@ -714,7 +717,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
               "Point prior " + std::to_string(velocity_symbol.index());
           (*widgets_map)[velocity_prior_cube_id] =
               VIO::make_unique<cv::viz::WCube>(
-                  min_point, max_point, true, cv::viz::Color::red());
+                  min_point, max_point, true, velocity_prior_color_);
 
           // Potentially remove this info on each iteration.
           // widget_ids_to_remove_in_next_iter_.push_back(velocity_prior_id);
@@ -761,31 +764,53 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
               factor);
       if (btw_factor) {
         if (btw_factor->measured().equals(gtsam::Pose3::identity())) {
-          LOG(ERROR) << "NO Motion prior";
           CHECK_EQ(btw_factor->keys().size(), 2u);
           const gtsam::Key& pose_key_1 = btw_factor->keys().at(0);
           const gtsam::Key& pose_key_2 = btw_factor->keys().at(1);
           gtsam::Symbol pose_symbol_1(pose_key_1);
-          gtsam::Symbol pose_symbol_2(pose_key_2);
+
           gtsam::Pose3 pose_1;
-          gtsam::Pose3 pose_2;
           CHECK(getEstimateOfKey(state, pose_key_1, &pose_1));
+          gtsam::Pose3 pose_2;
           CHECK(getEstimateOfKey(state, pose_key_2, &pose_2));
+
           cv::Point3d start_point(pose_1.x(), pose_1.y(), pose_1.z());
           cv::Point3d end_point(pose_2.x(), pose_2.y(), pose_2.z());
+
+          // Connect involved poses with a cylinder
           std::string no_motion_prior_id =
               "No Motion prior: " + std::to_string(pose_symbol_1.index());
-          (*widgets_map)[no_motion_prior_id] = VIO::make_unique<cv::viz::WLine>(
-              start_point, end_point, cv::viz::Color::red());
-          static constexpr int kCylinderRadius = 0.01;
+          static constexpr double kCylinderRadius = 0.1;
           (*widgets_map)[no_motion_prior_id] =
               VIO::make_unique<cv::viz::WCylinder>(start_point,
                                                    end_point,
                                                    kCylinderRadius,
                                                    20,
-                                                   cv::viz::Color::red());
-          widget_ids_to_remove_in_next_iter_.push_back(no_motion_prior_id);
+                                                   no_motion_prior_color_);
+
+          // Add two spheres, since the cylinder is likely difficult to viz
+          cv::Point3d mid_point((pose_2.x() + pose_1.x()) / 2.0,
+                                (pose_2.y() + pose_1.y()) / 2.0,
+                                (pose_2.z() + pose_1.z()) / 2.0);
+          static constexpr double kSphereRadius = 0.01;
+          (*widgets_map)[no_motion_prior_id] =
+              VIO::make_unique<cv::viz::WSphere>(
+                  mid_point, kSphereRadius, 10, no_motion_prior_color_);
+
+          // Add text, since the cylinder is likely difficult to visualize
+          std::string no_motion_prior_text_id =
+              "No Motion Prior, id: " + std::to_string(pose_symbol_1.index());
+          // By keeping id the same, we overwrite the text, otw too much clutter
+          mid_point.z += 0.3; //! move text upwards, otw clutters vel prior text
+          (*widgets_map)["No Motion Prior Text"] =
+              VIO::make_unique<cv::viz::WText3D>(no_motion_prior_text_id,
+                                                 mid_point,
+                                                 0.04,
+                                                 false,
+                                                 no_motion_prior_color_);
           continue;
+        } else {
+          LOG(ERROR) << "Unrecognized btw factor.";
         }
       }
     }
