@@ -642,15 +642,17 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
         gtsam::Symbol point_symbol(point_key);
         gtsam::Point3 point;
         getEstimateOfKey(state, point_key, &point);
-        static constexpr float delta = 0.1;
-        cv::Point3d min_point(
-            point.x() - delta, point.y() - delta, point.z() - delta);
-        cv::Point3d max_point(
-            point.x() + delta, point.y() + delta, point.z() + delta);
+        static constexpr double half_cube_side = 0.05;
+        cv::Point3d min_point(point.x() - half_cube_side,
+                              point.y() - half_cube_side,
+                              point.z() - half_cube_side);
+        cv::Point3d max_point(point.x() + half_cube_side,
+                              point.y() + half_cube_side,
+                              point.z() + half_cube_side);
         std::string point_prior_id =
             "Point prior " + std::to_string(point_symbol.index());
         (*widgets_map)[point_prior_id] = VIO::make_unique<cv::viz::WCube>(
-            min_point, max_point, false, cv::viz::Color::red());
+            min_point, max_point, true, cv::viz::Color::red());
         widget_ids_to_remove_in_next_iter_.push_back(point_prior_id);
       }
     }
