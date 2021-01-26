@@ -498,8 +498,11 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
                               left_cam_position.z());
         std::string imu_to_left_cam_id =
             "IMU to Left CAM " + std::to_string(variable_index);
-        (*widgets_map)[imu_to_left_cam_id] = VIO::make_unique<cv::viz::WArrow>(
-            arrow_start, arrow_end, 0.01, imu_to_left_cam_vector_color_);
+        (*widgets_map)[imu_to_left_cam_id] =
+            VIO::make_unique<cv::viz::WArrow>(arrow_start,
+                                              arrow_end,
+                                              imu_to_left_cam_vector_scale_,
+                                              imu_to_left_cam_vector_color_);
       }
     }
 
@@ -763,37 +766,39 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
               factor);
       if (btw_factor) {
+        CHECK_EQ(btw_factor->keys().size(), 2u);
+        const gtsam::Key& pose_key_1 = btw_factor->keys().at(0);
+        const gtsam::Key& pose_key_2 = btw_factor->keys().at(1);
+        gtsam::Symbol pose_symbol_1(pose_key_1);
+        gtsam::Symbol pose_symbol_2(pose_key_2);
+
+        gtsam::Pose3 imu_pose_1;
+        CHECK(getEstimateOfKey(state, pose_key_1, &imu_pose_1));
+        gtsam::Pose3 pose_2;
+        CHECK(getEstimateOfKey(state, pose_key_2, &pose_2));
+
+        cv::Point3d start_point(imu_pose_1.x(), imu_pose_1.y(), imu_pose_1.z());
+        cv::Point3d end_point(pose_2.x(), pose_2.y(), pose_2.z());
+        cv::Point3d mid_point((pose_2.x() + imu_pose_1.x()) / 2.0,
+                              (pose_2.y() + imu_pose_1.y()) / 2.0,
+                              (pose_2.z() + imu_pose_1.z()) / 2.0);
+
+        static constexpr double kCylinderRadius = 0.005;
+        static constexpr double kSphereRadius = 0.02;
+        // Do we have a no-motion prior?
         if (btw_factor->measured().equals(gtsam::Pose3::identity())) {
-          CHECK_EQ(btw_factor->keys().size(), 2u);
-          const gtsam::Key& pose_key_1 = btw_factor->keys().at(0);
-          const gtsam::Key& pose_key_2 = btw_factor->keys().at(1);
-          gtsam::Symbol pose_symbol_1(pose_key_1);
-
-          gtsam::Pose3 pose_1;
-          CHECK(getEstimateOfKey(state, pose_key_1, &pose_1));
-          gtsam::Pose3 pose_2;
-          CHECK(getEstimateOfKey(state, pose_key_2, &pose_2));
-
-          cv::Point3d start_point(pose_1.x(), pose_1.y(), pose_1.z());
-          cv::Point3d end_point(pose_2.x(), pose_2.y(), pose_2.z());
-
           // Connect involved poses with a cylinder
           std::string no_motion_prior_id =
               "No Motion prior: " + std::to_string(pose_symbol_1.index());
-          static constexpr double kCylinderRadius = 0.1;
-          (*widgets_map)[no_motion_prior_id] =
+          (*widgets_map)[no_motion_prior_id + " (edge)"] =
               VIO::make_unique<cv::viz::WCylinder>(start_point,
                                                    end_point,
                                                    kCylinderRadius,
                                                    20,
                                                    no_motion_prior_color_);
 
-          // Add two spheres, since the cylinder is likely difficult to viz
-          cv::Point3d mid_point((pose_2.x() + pose_1.x()) / 2.0,
-                                (pose_2.y() + pose_1.y()) / 2.0,
-                                (pose_2.z() + pose_1.z()) / 2.0);
-          static constexpr double kSphereRadius = 0.01;
-          (*widgets_map)[no_motion_prior_id] =
+          // Add a sphere
+          (*widgets_map)[no_motion_prior_id + " (factor)"] =
               VIO::make_unique<cv::viz::WSphere>(
                   mid_point, kSphereRadius, 10, no_motion_prior_color_);
 
@@ -801,7 +806,8 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           std::string no_motion_prior_text_id =
               "No Motion Prior, id: " + std::to_string(pose_symbol_1.index());
           // By keeping id the same, we overwrite the text, otw too much clutter
-          mid_point.z += 0.3; //! move text upwards, otw clutters vel prior text
+          mid_point.z +=
+              0.3;  //! move text upwards, otw clutters vel prior text
           (*widgets_map)["No Motion Prior Text"] =
               VIO::make_unique<cv::viz::WText3D>(no_motion_prior_text_id,
                                                  mid_point,
@@ -810,7 +816,60 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
                                                  no_motion_prior_color_);
           continue;
         } else {
-          LOG(ERROR) << "Unrecognized btw factor.";
+          // We have a regular btw factor
+          std::string btw_factor_id =
+              "Btw Factor: from " + std::to_string(pose_symbol_1.index()) +
+              " to " + std::to_string(pose_symbol_2.index());
+
+          // Add Edge
+          std::string btw_factor_edge_id = btw_factor_id + " (edge)";
+          (*widgets_map)[btw_factor_edge_id] =
+              VIO::make_unique<cv::viz::WCylinder>(start_point,
+                                                   end_point,
+                                                   kCylinderRadius,
+                                                   20,
+                                                   btw_factor_color_);
+          widget_ids_to_remove_in_next_iter_.push_back(btw_factor_edge_id);
+
+          // Add Sphere
+          std::string btw_factor_sphere_id = btw_factor_id + " (factor)";
+          (*widgets_map)[btw_factor_sphere_id] =
+              VIO::make_unique<cv::viz::WSphere>(
+                  mid_point, kSphereRadius, 10, btw_factor_color_);
+          widget_ids_to_remove_in_next_iter_.push_back(btw_factor_sphere_id);
+
+          // TODO(Toni): try to color edge according to level of error
+          // btw_factor->error(state);
+
+          // Visualize initial guess
+          std::string btw_factor_imu_pose_guess_id =
+              "Btw factor pose guess" + std::to_string(pose_symbol_2.index());
+          (*widgets_map)[btw_factor_imu_pose_guess_id] =
+              VIO::make_unique<cv::viz::WCameraPosition>(
+                  K_,
+                  btw_factor_imu_pose_guess_active_frustum_scale_,
+                  btw_factor_imu_pose_guess_active_frustum_color_);
+          const gtsam::Pose3& btw_factor_meas_world_pose_body =
+              imu_pose_1.compose(btw_factor->measured());
+          const cv::Affine3d& left_cam_pose =
+              UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                  btw_factor_meas_world_pose_body.compose(body_pose_camLrect));
+          (*widgets_map)[btw_factor_imu_pose_guess_id]->setPose(left_cam_pose);
+          widget_ids_to_remove_in_next_iter_.push_back(
+              btw_factor_imu_pose_guess_id);
+          // widget_id_to_pose_map_[btw_factor_imu_pose_guess_id] =
+          // left_cam_pose;
+
+          // Draw arrow to associate factor with initial guess
+          std::string btw_factor_arrow_id =
+              btw_factor_imu_pose_guess_id + " (arrow)";
+          (*widgets_map)[btw_factor_arrow_id] =
+              VIO::make_unique<cv::viz::WArrow>(
+                  mid_point,
+                  cv::Point3d(left_cam_pose.translation()),
+                  btw_factor_to_guess_pose_vector_scale_,
+                  btw_factor_to_guess_pose_vector_color_);
+          widget_ids_to_remove_in_next_iter_.push_back(btw_factor_arrow_id);
         }
       }
     }

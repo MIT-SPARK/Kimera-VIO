@@ -80,6 +80,11 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
 
+    // Remove requested widgets, do this first, to not remove new things.
+    for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
+      removeWidget(widget_id);
+    }
+
     // Add requested widgets
     const WidgetsMap& widgets = viz_output->widgets_;
     for (auto it = widgets.begin(); it != widgets.end(); ++it) {
@@ -89,11 +94,6 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       it->second->updatePose(cv::Affine3d());
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());
-    }
-
-    // Remove requested widgets
-    for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
-      removeWidget(widget_id);
     }
 
     if (params_.hold_display_) {

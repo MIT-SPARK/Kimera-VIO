@@ -327,7 +327,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   const BackendType backend_type_;
 
   //! Intrinsics of the camera frustum used for visualization.
-  const cv::Matx33d K_ = {458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0};
+  const cv::Matx33d K_ = {458.0, 0.0, 360.0, 0.0, 458.0, 240.0, 0.0, 0.0, 1.0};
 
   //! Callbacks.
   //! Mesh 3d visualization properties setter callback.
@@ -346,20 +346,34 @@ class OpenCvVisualizer3D : public Visualizer3D {
   WidgetIds widget_ids_to_remove_;
   WidgetIds widget_ids_to_remove_in_next_iter_;
 
-  //! Colors
+  //! Colors & Scales
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
+
   cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
   cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
   cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
+
   cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
-  float left_cam_active_frustum_scale_ = 0.11;
+  double imu_to_left_cam_vector_scale_ = 0.01;
+
+  double left_cam_active_frustum_scale_ = 0.11;
+  double right_cam_active_frustum_scale_ = 0.11;
   cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
-  float right_cam_active_frustum_scale_ = 0.11;
-  float inactive_frustum_scale_ = 0.06;
-  float cam_with_linear_prior_frustum_scale_ = 0.08;
+
+  double inactive_frustum_scale_ = 0.06;
+
+  double cam_with_linear_prior_frustum_scale_ = 0.08;
   cv::viz::Color cam_with_linear_prior_frustum_color_ = cv::viz::Color::pink();
-  float cam_with_pose_prior_frustum_scale_ = 0.20;
+  double cam_with_pose_prior_frustum_scale_ = 0.20;
   cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
+
+  cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
+  double btw_factor_imu_pose_guess_active_frustum_scale_ = 0.11;
+  cv::viz::Color btw_factor_imu_pose_guess_active_frustum_color_ =
+      cv::viz::Color::amethyst();
+  double btw_factor_to_guess_pose_vector_scale_ = 0.01;
+  cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
+      cv::viz::Color::amethyst();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
