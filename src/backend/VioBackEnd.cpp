@@ -870,9 +870,7 @@ bool VioBackEnd::optimize(
   const auto& total_start_time = utils::Timer::tic();
   // Store start time to calculate per module total time.
   auto start_time = total_start_time;
-  // Reset all timing info.
-  debug_info_.resetTimes();
-
+  // Reset all timing infupdateSmoother
   /////////////////////// BOOKKEEPING ////////////////////////////////////
   size_t new_smart_factors_size = new_smart_factors_.size();
   // We need to remove all previous smart factors in the factor graph
@@ -1912,7 +1910,7 @@ void VioBackEnd::computeSmartFactorStatistics() {
 
         // Check SF status
         const gtsam::TriangulationResult& result = gsf->point();
-        if (result.is_initialized()) {
+        if (result) {
           if (result.degenerate()) debug_info_.numDegenerate_ += 1;
           if (result.farPoint()) debug_info_.numFarPoints_ += 1;
           if (result.outlier()) debug_info_.numOutliers_ += 1;
