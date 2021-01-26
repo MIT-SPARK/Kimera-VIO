@@ -149,6 +149,8 @@ cd build
 
 A useful flag is `./testKimeraVIO --gtest_filter=foo` to only run the test you are interested in (regex is also valid).
 
+Alternatively, you can run `rosrun kimera_vio run_gtest.py` from anywhere on your system if you've built Kimera-VIO through ROS and sourced the workspace containing Kimera-VIO. This script passes all arguments to `testKimeraVIO`, so you should feel free to use whatever flags you would normally use.
+
 # 3. Parameters
 Kimera-VIO accepts two independent sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.

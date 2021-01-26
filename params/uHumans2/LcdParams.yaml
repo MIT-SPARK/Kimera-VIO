@@ -30,6 +30,7 @@ refine_pose: 1
 
 lowe_ratio: 0.3
 matcher_type: 3
+refine_pose: 1
 
 nfeatures: 500
 scale_factor: 1.2
