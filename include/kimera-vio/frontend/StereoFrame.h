@@ -133,7 +133,8 @@ class StereoFrame {
   static void computeRectificationParameters(
       CameraParams* left_cam_params,  // left_frame_.cam_param_
       CameraParams* right_cam_params,
-      gtsam::Pose3* B_Pose_camLrect);
+      gtsam::Pose3* B_Pose_camLrect,
+      gtsam::Pose3* B_Pose_camRrect);
 
   // TODO the functions below are just public for testing... fix that.
   /* ------------------------------------------------------------------------ */
@@ -199,6 +200,10 @@ class StereoFrame {
     CHECK(is_rectified_);
     return B_Pose_camLrect_;
   }
+  inline gtsam::Pose3 getBPoseCamRRect() const {
+    CHECK(is_rectified_);
+    return B_Pose_camRrect_;
+  }
   inline double getBaseline() const { return baseline_; }
   inline StereoMatchingParams getSparseStereoParams() const {
     return sparse_stereo_params_;
@@ -251,8 +256,9 @@ class StereoFrame {
   // and that's why these are stored here!
   gtsam::Cal3_S2 left_undistRectCameraMatrix_;
   gtsam::Cal3_S2 right_undistRectCameraMatrix_;
-  //! Pose of the left camera wrt the body frame after rectification!
+  //! Pose of the cameras wrt the body frame after rectification!
   gtsam::Pose3 B_Pose_camLrect_;
+  gtsam::Pose3 B_Pose_camRrect_;
   double baseline_;
 
  private:
