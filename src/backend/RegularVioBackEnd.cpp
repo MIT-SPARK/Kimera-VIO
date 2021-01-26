@@ -476,13 +476,8 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     VLOG(20) << "SmartFactor: adding observation of lmk with id: " << lmk_id
              << " from frame with id: " << obs.first;
-    gtsam::Symbol pose_symbol ('x', obs.first);
-    if (smoother_->getFactors().exists(pose_symbol)) {
-      new_factor->add(obs.second, pose_symbol, stereo_cal_);
-    } else {
-      VLOG(10) << "Factor with lmk id " << lmk_id
-               << " is linking to a marginalized state!";
-    }
+    gtsam::Symbol pose_symbol('x', obs.first);
+    new_factor->add(obs.second, pose_symbol, stereo_cal_);
   }
 
   /////////////////////// BOOK KEEPING /////////////////////////////////////////
