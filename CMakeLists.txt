@@ -241,7 +241,7 @@ if(BUILD_TESTS)
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )
-  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
+  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio DBoW2::DBoW2)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
     enable_testing()

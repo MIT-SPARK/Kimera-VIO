@@ -210,12 +210,18 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     loop_result.relative_pose_,
                                     w_Pose_map,
                                     pgo_states,
-                                    pgo_nfg);
+                                    pgo_nfg,
+                                    db_frames_.back().keypoints_3d_,
+                                    latest_bowvec_,
+                                    db_frames_.back().descriptors_mat_);
   } else {
     output_payload = VIO::make_unique<LcdOutput>(input.timestamp_kf_);
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
+    output_payload->keypoints_3d_ = db_frames_.back().keypoints_3d_;
+    output_payload->bow_vec_ = latest_bowvec_;
+    output_payload->descriptors_mat_ = db_frames_.back().descriptors_mat_;
   }
   CHECK(output_payload) << "Missing LCD output payload.";
 
@@ -390,12 +396,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   }
 
   // Update latest bowvec for normalized similarity scoring (NSS).
-  if (static_cast<int>(frame_id + 1) > lcd_params_.recent_frames_window_) {
-    latest_bowvec_ = bow_vec;
-  } else {
-    VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
-  }
-
+  latest_bowvec_ = bow_vec;
   return result->isLoop();
 }
 

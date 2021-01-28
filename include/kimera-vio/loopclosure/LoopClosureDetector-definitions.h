@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <DBoW2/DBoW2.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -258,6 +259,33 @@ struct LcdOutput : PipelinePayload {
             const gtsam::Pose3& relative_pose,
             const gtsam::Pose3& W_Pose_Map,
             const gtsam::Values& states,
+            const gtsam::NonlinearFactorGraph& nfg,
+            const std::vector<gtsam::Vector3>& keypoints_3d,
+            const DBoW2::BowVector& bow_vec,
+            const OrbDescriptor& descriptors_mat)
+      : PipelinePayload(timestamp_kf),
+        is_loop_closure_(is_loop_closure),
+        timestamp_query_(timestamp_query),
+        timestamp_match_(timestamp_match),
+        id_match_(id_match),
+        id_recent_(id_recent),
+        relative_pose_(relative_pose),
+        W_Pose_Map_(W_Pose_Map),
+        states_(states),
+        nfg_(nfg),
+        keypoints_3d_(keypoints_3d),
+        bow_vec_(bow_vec),
+        descriptors_mat_(descriptors_mat) {}
+
+  LcdOutput(bool is_loop_closure,
+            const Timestamp& timestamp_kf,
+            const Timestamp& timestamp_query,
+            const Timestamp& timestamp_match,
+            const FrameId& id_match,
+            const FrameId& id_recent,
+            const gtsam::Pose3& relative_pose,
+            const gtsam::Pose3& W_Pose_Map,
+            const gtsam::Values& states,
             const gtsam::NonlinearFactorGraph& nfg)
       : PipelinePayload(timestamp_kf),
         is_loop_closure_(is_loop_closure),
@@ -292,6 +320,9 @@ struct LcdOutput : PipelinePayload {
   gtsam::Pose3 W_Pose_Map_;
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
+  std::vector<gtsam::Vector3> keypoints_3d_;
+  DBoW2::BowVector bow_vec_;
+  OrbDescriptor descriptors_mat_;
 };
 
 }  // namespace VIO
