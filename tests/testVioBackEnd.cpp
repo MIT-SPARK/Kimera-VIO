@@ -349,7 +349,11 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
   }
 }
 
-TEST_F(BackendFixture, marginals) {
+/** This test is just to make sure the marginals & covariance
+ * functionality in gtsam doesn't break (which was the case at
+ * some point in time).
+ */
+TEST_F(BackendFixture, Marginals) {
   gtsam::ISAM2Params isam_param;
   BackendParams::setIsam2Params(backend_params_, &isam_param);
 
@@ -380,6 +384,7 @@ TEST_F(BackendFixture, marginals) {
   smoother.update(new_factors, new_values);
 
   gtsam::Values state = smoother.calculateEstimate();
+  // At some point this function was breaking in gtsam...
   gtsam::Marginals marginals(
       smoother.getFactors(), state, gtsam::Marginals::Factorization::CHOLESKY);
 
