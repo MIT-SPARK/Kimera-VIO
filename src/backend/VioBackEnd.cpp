@@ -1496,55 +1496,6 @@ void VioBackEnd::updateNewSmartFactorsSlots(
   }
 }
 
-/* -------------------------------------------------------------------------- */
-// Set parameters for ISAM 2 incremental smoother.
-void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
-                                gtsam::ISAM2Params* isam_param) {
-  CHECK_NOTNULL(isam_param);
-  // iSAM2 SETTINGS
-  if (vio_params.useDogLeg_) {
-    gtsam::ISAM2DoglegParams dogleg_params;
-    dogleg_params.wildfireThreshold = vio_params.wildfire_threshold_;
-    // dogleg_params.adaptationMode;
-    // dogleg_params.initialDelta;
-    // dogleg_params.setVerbose(false); // only for debugging.
-    isam_param->optimizationParams = dogleg_params;
-  } else {
-    gtsam::ISAM2GaussNewtonParams gauss_newton_params;
-    gauss_newton_params.wildfireThreshold = vio_params.wildfire_threshold_;
-    isam_param->optimizationParams = gauss_newton_params;
-  }
-
-  // TODO Luca: Here there was commented code about setRelinearizeThreshold.
-  // was it important?
-  // gtsam::FastMap<char,gtsam::Vector> thresholds;
-  // gtsam::Vector xThresh(6); // = {0.05, 0.05, 0.05, 0.1, 0.1, 0.1};
-  // gtsam::Vector vThresh(3); //= {1.0, 1.0, 1.0};
-  // gtsam::Vector bThresh(6); // = {1.0, 1.0, 1.0};
-  // xThresh << relinearizeThresholdRot_, relinearizeThresholdRot_,
-  // relinearizeThresholdRot_, relinearizeThresholdPos_,
-  // relinearizeThresholdPos_, relinearizeThresholdPos_; vThresh <<
-  // relinearizeThresholdVel_, relinearizeThresholdVel_,
-  // relinearizeThresholdVel_; bThresh << relinearizeThresholdIMU_,
-  // relinearizeThresholdIMU_, relinearizeThresholdIMU_,
-  // relinearizeThresholdIMU_, relinearizeThresholdIMU_,
-  // relinearizeThresholdIMU_; thresholds[kPoseSymbolChar] = xThresh;
-  // thresholds[kVelocitySymbolChar] =
-  // vThresh; thresholds[kImuBiasSymbolChar] = bThresh;
-  // isam_param.setRelinearizeThreshold(thresholds);
-
-  // TODO (Toni): remove hardcoded
-  // Cache Linearized Factors seems to improve performance.
-  isam_param->setCacheLinearizedFactors(true);
-  isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
-  isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
-  isam_param->findUnusedFactorSlots = true;
-  // isam_param->enablePartialRelinearizationCheck = true;
-  isam_param->setEvaluateNonlinearError(false);  // only for debugging
-  isam_param->enableDetailedResults = false;     // only for debugging.
-  isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-}
-
 void VioBackEnd::setFactorsParams(
     const BackendParams& vio_params,
     gtsam::SharedNoiseModel* smart_noise,

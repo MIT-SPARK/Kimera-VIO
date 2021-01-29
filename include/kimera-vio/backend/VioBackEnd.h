@@ -325,11 +325,6 @@ class VioBackEnd {
       const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors_tmp,
       SmartFactorMap* old_smart_factors);
 
-  /// Private setters.
-  // Set parameters for ISAM 2 incremental smoother.
-  void setIsam2Params(const BackendParams& vio_params,
-                      gtsam::ISAM2Params* isam_param);
-
   // Set parameters for all types of factors.
   void setFactorsParams(
       const BackendParams& vio_params,
