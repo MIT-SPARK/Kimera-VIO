@@ -363,8 +363,8 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
     gtsam::Rot3 camLrect_R_camL_cut =
         UtilsOpenCV::cvMatToGtsamRot3(cur_frame->cam_param_.R_rectify_);
     camLrectlkf_P_camLrectkf =
-        gtsam::Pose3(camLrect_R_camL_ref, Point3()) * camLlkf_P_camLkf *
-        gtsam::Pose3(camLrect_R_camL_cut.inverse(), Point3());
+        gtsam::Pose3(camLrect_R_camL_ref, gtsam::Point3::Zero()) * camLlkf_P_camLkf *
+        gtsam::Pose3(camLrect_R_camL_cut.inverse(), gtsam::Point3::Zero());
   }
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
@@ -388,7 +388,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
 
   Matrix3 Jac_point3_sp2;  // jacobian of the back projection
   Vector3 point3_i_gtsam =
-      stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2).vector();
+      stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2);
   Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
   // TODO(Toni): Adapt value of this threshold for different calibration
   // models!

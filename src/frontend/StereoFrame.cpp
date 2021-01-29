@@ -85,8 +85,10 @@ void StereoFrame::initialize(const CameraParams& cam_param_left,
             .x();
   } else {
     // TODO(Toni): the undistRect maps should be computed once and cached!!
-    computeRectificationParameters(
-        &left_frame_.cam_param_, &right_frame_.cam_param_, &B_Pose_camLrect_);
+    computeRectificationParameters(&left_frame_.cam_param_,
+                                   &right_frame_.cam_param_,
+                                   &B_Pose_camLrect_,
+                                   &B_Pose_camRrect_);
     // TODO REMOVE ASSUMPTION ON x aligned stereo camera, can't we just take the
     // norm?
     baseline_ = left_frame_.cam_param_.body_Pose_cam_
@@ -583,6 +585,7 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
   left_frame_.cam_param_.R_rectify_ = sf.left_frame_.cam_param_.R_rectify_;
   right_frame_.cam_param_.R_rectify_ = sf.right_frame_.cam_param_.R_rectify_;
   B_Pose_camLrect_ = sf.B_Pose_camLrect_;
+  B_Pose_camRrect_ = sf.B_Pose_camRrect_;
   baseline_ = sf.baseline_;
   left_frame_.cam_param_.undistort_rectify_map_x_ =
       sf.left_frame_.cam_param_.undistort_rectify_map_x_.clone();
@@ -606,10 +609,12 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 void StereoFrame::computeRectificationParameters(
     CameraParams* left_cam_params,
     CameraParams* right_cam_params,
-    gtsam::Pose3* B_Pose_camLrect) {
+    gtsam::Pose3* B_Pose_camLrect,
+    gtsam::Pose3* B_Pose_camRrect) {
   CHECK_NOTNULL(left_cam_params);
   CHECK_NOTNULL(right_cam_params);
   CHECK_NOTNULL(B_Pose_camLrect);
+  CHECK_NOTNULL(B_Pose_camRrect);
 
   // Get extrinsics in open CV format.
   cv::Mat L_Rot_R, L_Tran_R;
@@ -680,39 +685,39 @@ void StereoFrame::computeRectificationParameters(
   // Left camera pose after rectification
   const gtsam::Rot3& camL_Rot_camLrect =
       UtilsOpenCV::cvMatToGtsamRot3(left_camera_info.R_rectify_).inverse();
-  //! Fix camL position to camLrect.
-  //! aka use gtsam::Point3()
+  //! Fix camL position to camLrect: aka translation is zero.
   gtsam::Pose3 camL_Pose_camLrect(camL_Rot_camLrect, gtsam::Point3::Zero());
   *B_Pose_camLrect =
       left_camera_info.body_Pose_cam_.compose(camL_Pose_camLrect);
 
-  // right camera pose after rectification
+  // Right camera pose after rectification
   const gtsam::Rot3& camR_Rot_camRrect =
       UtilsOpenCV::cvMatToGtsamRot3(right_camera_info.R_rectify_).inverse();
-  gtsam::Pose3 camR_Pose_camRrect(camR_Rot_camRrect, gtsam::Point3());
-  gtsam::Pose3 B_Pose_camRrect =
-      (right_camera_info.body_Pose_cam_).compose(camR_Pose_camRrect);
+  gtsam::Pose3 camR_Pose_camRrect(camR_Rot_camRrect, gtsam::Point3::Zero());
+  *B_Pose_camRrect =
+      right_camera_info.body_Pose_cam_.compose(camR_Pose_camRrect);
 
   // Relative pose after rectification
-  gtsam::Pose3 camLrect_Pose_calRrect =
-      B_Pose_camLrect->between(B_Pose_camRrect);
+  gtsam::Pose3 camLrect_Pose_camRrect =
+      B_Pose_camLrect->between(*B_Pose_camRrect);
 
   // Sanity check.
   LOG_IF(FATAL,
-         gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() > 1e-5)
+         gtsam::Rot3::Logmap(camLrect_Pose_camRrect.rotation()).norm() > 1e-5)
       << "camL_Pose_camR log: "
       << gtsam::Rot3::Logmap(camL_Pose_camR.rotation()).norm() << '\n'
-      << "camLrect_Pose_calRrect log: "
-      << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << '\n'
-      << "Vio constructor: camera poses do not seem to be rectified (rot)";
+      << "camLrect_Pose_camRrect log: "
+      << gtsam::Rot3::Logmap(camLrect_Pose_camRrect.rotation()).norm() << '\n'
+      << "Camera poses do not seem to be rectified (rot)"
+      << "camLrect_Pose_camRrect: " << camLrect_Pose_camRrect;
   LOG_IF(FATAL,
-         fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
-             fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3)
-      << "Vio constructor: camera poses do not seem to be rectified (tran) \n"
-      << "camLrect_Poe_calRrect: " << camLrect_Pose_calRrect;
+         fabs(camLrect_Pose_camRrect.translation().y()) > 1e-3 ||
+             fabs(camLrect_Pose_camRrect.translation().z()) > 1e-3)
+      << "Camera poses do not seem to be rectified (tran) \n"
+      << "camLrect_Pose_camRrect: " << camLrect_Pose_camRrect;
 
   //////////////////////////////////////////////////////////////////////////////
-  // TODO: Unit tests for this sections!!!!!
+  // TODO: Unit tests for these sections
 
   // Left camera
   if (right_camera_info.distortion_model_ == DistortionModel::RADTAN) {

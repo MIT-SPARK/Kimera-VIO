@@ -98,7 +98,7 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',

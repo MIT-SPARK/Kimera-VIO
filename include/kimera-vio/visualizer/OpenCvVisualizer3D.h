@@ -250,6 +250,12 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                  const gtsam::Point3& point,
                                  WidgetsMap* widgets);
 
+  void visualizeFactorGraph(const gtsam::Values& state,
+                            const gtsam::NonlinearFactorGraph& factor_graph,
+                            const gtsam::Pose3& body_pose_camLrect,
+                            const gtsam::Pose3& body_pose_camRrect,
+                            WidgetsMap* widgets);
+
   //! Remove line widgets from plane to lmks, for lines that are not pointing
   //! to any lmk_id in lmk_ids.
   void removeOldLines(const LandmarkIds& lmk_ids);
@@ -275,26 +281,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
 
   // Record video sequence at a hardcoded directory relative to executable.
   void recordVideo();
-
- private:
-  //! Flags for visualization behaviour.
-  const BackendType backend_type_;
-
-  //! Callbacks.
-  //! Mesh 3d visualization properties setter callback.
-  Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
-
-  std::deque<cv::Affine3d> trajectory_poses_3d_;
-
-  std::map<PlaneId, LineNr> plane_to_line_nr_map_;
-  PlaneIdMap plane_id_map_;
-  std::map<PlaneId, bool> is_plane_id_in_window_;
-
-  //! Colors
-  cv::viz::Color cloud_color_ = cv::viz::Color::white();
-
-  //! Logging instance.
-  std::unique_ptr<VisualizerLogger> logger_;
 
   //! Log mesh to ply file.
   void logMesh(const cv::Mat& map_points_3d,
@@ -335,6 +321,62 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                   const double& point_y,
                                   const double& point_z,
                                   WidgetsMap* widgets);
+
+ private:
+  //! Flags for visualization behaviour.
+  const BackendType backend_type_;
+
+  //! Intrinsics of the camera frustum used for visualization.
+  const cv::Matx33d K_ = {458.0, 0.0, 360.0, 0.0, 458.0, 240.0, 0.0, 0.0, 1.0};
+
+  //! Callbacks.
+  //! Mesh 3d visualization properties setter callback.
+  Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+
+  std::deque<cv::Affine3d> trajectory_poses_3d_;
+
+  std::map<PlaneId, LineNr> plane_to_line_nr_map_;
+  PlaneIdMap plane_id_map_;
+  std::map<PlaneId, bool> is_plane_id_in_window_;
+
+  // These are the widgets to recolor as white because they are out of the
+  // time-horizon of the optimization problem.
+  std::map<std::string, cv::Affine3d> widget_id_to_pose_map_;
+
+  WidgetIds widget_ids_to_remove_;
+  WidgetIds widget_ids_to_remove_in_next_iter_;
+
+  //! Colors & Scales
+  cv::viz::Color cloud_color_ = cv::viz::Color::white();
+
+  cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
+  cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
+  cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
+
+  cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
+  double imu_to_left_cam_vector_scale_ = 0.01;
+
+  double left_cam_active_frustum_scale_ = 0.11;
+  double right_cam_active_frustum_scale_ = 0.11;
+  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
+
+  double inactive_frustum_scale_ = 0.06;
+
+  double cam_with_linear_prior_frustum_scale_ = 0.08;
+  cv::viz::Color cam_with_linear_prior_frustum_color_ = cv::viz::Color::pink();
+  double cam_with_pose_prior_frustum_scale_ = 0.20;
+  cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
+
+  cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
+  double btw_factor_imu_pose_guess_active_frustum_scale_ = 0.11;
+  cv::viz::Color btw_factor_imu_pose_guess_active_frustum_color_ =
+      cv::viz::Color::amethyst();
+  double btw_factor_to_guess_pose_vector_scale_ = 0.01;
+  cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
+      cv::viz::Color::amethyst();
+
+  //! Logging instance.
+  std::unique_ptr<VisualizerLogger> logger_;
 };
 
 }  // namespace VIO
