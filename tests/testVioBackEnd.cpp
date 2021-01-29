@@ -289,18 +289,20 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
     // process data with VIO
-    vio->spinOnce(BackendInput(timestamp_k,
-                               all_measurements[k],
-                               tracker_status_valid.kfTrackingStatus_stereo_,
-                               pim,
-                               imu_accgyr));
+    BackendOutput::Ptr backend_output = vio->spinOnce(
+        BackendInput(timestamp_k,
+                     all_measurements[k],
+                     tracker_status_valid.kfTrackingStatus_stereo_,
+                     pim,
+                     imu_accgyr));
+    CHECK(backend_output);
 
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
 
     // Check the number of factors
-    const gtsam::NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
+    const gtsam::NonlinearFactorGraph& nlfg = backend_output->factor_graph_;
     size_t nr_factors_in_smoother = 0u;
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) nr_factors_in_smoother++;
