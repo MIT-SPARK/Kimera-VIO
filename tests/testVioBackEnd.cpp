@@ -337,7 +337,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
     // Check the results!
     const gtsam::Values& results = vio_backend->getState();
     for (FrameId f_id = 0u; f_id <= k; f_id++) {
-      Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
+      gtsam::Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
       gtsam::Vector3 W_Vel_Blkf =
           results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(gtsam::Symbol('b', f_id));
@@ -346,12 +346,6 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
       EXPECT_LT((W_Vel_Blkf - velocity_x_).norm(), tol);
       EXPECT_LT((imu_bias_lkf - imu_bias_).vector().norm(), tol);
     }
-
-    LOG(ERROR) << "Saving graph: ";
-    std::string file_path = "graph.txt";
-    vio_backend->saveGraph(file_path);
-
-    vio_backend->computeStateCovariance();
   }
 }
 
@@ -388,6 +382,12 @@ TEST_F(BackendFixture, marginals) {
   gtsam::Values state = smoother.calculateEstimate();
   gtsam::Marginals marginals(
       smoother.getFactors(), state, gtsam::Marginals::Factorization::CHOLESKY);
+
+  // Current state includes pose, velocity and imu biases.
+  gtsam::KeyVector keys;
+  keys.push_back(1);
+  keys.push_back(2);
+  marginals.jointMarginalCovariance(keys);
 }
 
 }  // namespace VIO
