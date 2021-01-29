@@ -89,7 +89,6 @@ class VioBackEnd {
   virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; }
 
  public:
-  /* ------------------------------------------------------------------------ */
   BackendOutput::UniquePtr spinOnce(const BackendInput& input);
 
   /**
@@ -100,7 +99,6 @@ class VioBackEnd {
     return backend_state_ != BackendState::Bootstrap;
   }
 
-  /* ------------------------------------------------------------------------ */
   // Register (and trigger!) callback that will be called as soon as the backend
   // comes up with a new IMU bias update.
   // The callback is also triggered in this function to update the imu bias for
@@ -108,28 +106,24 @@ class VioBackEnd {
   void registerImuBiasUpdateCallback(
       const ImuBiasCallback& imu_bias_update_callback);
 
-  /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
   void get3DPoints(std::vector<gtsam::Point3>* points_3d) const;
 
-  /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
   PointsWithIdMap getMapLmkIdsTo3dPointsInTimeHorizon(
+      const gtsam::NonlinearFactorGraph& graph,
       LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map = nullptr,
       const size_t& min_age = 2);
 
-  /* ------------------------------------------------------------------------ */
   inline gtsam::Matrix getCurrentStateCovariance() const {
     return state_covariance_lkf_;
   }
 
-  /* ------------------------------------------------------------------------ */
   // Update covariance matrix using getCurrentStateCovariance()
   // NOT TESTED
   void computeStateCovariance();
 
-  /* ------------------------------------------------------------------------ */
   // Set initial state at given pose, velocity and bias.
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
@@ -145,9 +139,7 @@ class VioBackEnd {
         initializeFromIMU(input);
         break;
       }
-      default: {
-        LOG(FATAL) << "Wrong initialization mode.";
-      }
+      default: { LOG(FATAL) << "Wrong initialization mode."; }
     }
     // Signal that the backend has been initialized.
     backend_state_ = BackendState::Nominal;
@@ -199,7 +191,6 @@ class VioBackEnd {
   };
   std::atomic<BackendState> backend_state_;
 
-  /* ------------------------------------------------------------------------ */
   // Store stereo frame info into landmarks table:
   // returns landmarks observed in current frame.
   void addStereoMeasurementsToFeatureTracks(
@@ -207,7 +198,6 @@ class VioBackEnd {
       const SmartStereoMeasurements& stereoMeasurements_kf,
       LandmarkIds* landmarks_kf);
 
-  /* ------------------------------------------------------------------------ */
   // Workhorse that stores data and optimizes at each keyframe.
   // [in] timestamp_kf_nsec, keyframe timestamp.
   // [in] status_smart_stereo_measurements_kf, vision data.
@@ -218,38 +208,30 @@ class VioBackEnd {
       const gtsam::PreintegrationType& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
-  /* ------------------------------------------------------------------------ */
   // Uses landmark table to add factors in graph.
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
 
-  /* ------------------------------------------------------------------------ */
   // Adds a landmark to the graph for the first time.
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
 
-  /* ------------------------------------------------------------------------ */
   void updateLandmarkInGraph(
       const LandmarkId& lmk_id,
       const std::pair<FrameId, StereoPoint2>& new_measurement);
 
-  /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
   void addImuValues(const FrameId& cur_id,
                     const gtsam::PreintegrationType& pim);
 
-  /* ------------------------------------------------------------------------ */
   // Add imu factors:
   void addImuFactor(const FrameId& from_id,
                     const FrameId& to_id,
                     const gtsam::PreintegrationType& pim);
 
-  /* ------------------------------------------------------------------------ */
   // Add no motion factors in case of low disparity.
   void addZeroVelocityPrior(const FrameId& frame_id);
 
-  /* ------------------------------------------------------------------------ */
   void addNoMotionFactor(const FrameId& from_id, const FrameId& to_id);
 
-  /* ------------------------------------------------------------------------ */
   void addBetweenFactor(const FrameId& from_id,
                         const FrameId& to_id,
                         const gtsam::Pose3& from_id_POSE_to_id);
@@ -268,32 +250,24 @@ class VioBackEnd {
                 const gtsam::FactorIndices& extra_factor_slots_to_delete =
                     gtsam::FactorIndices());
   /// Printers.
-  /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
 
-  /* ------------------------------------------------------------------------ */
   void cleanNullPtrsFromGraph(
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
 
-  /* ------------------------------------------------------------------------ */
   bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
 
  private:
-  /* ------------------------------------------------------------------------ */
   bool addVisualInertialStateAndOptimize(const BackendInput& input);
 
-  /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
   void addInitialPriorFactors(const FrameId& frame_id);
 
-  /* ------------------------------------------------------------------------ */
   void addConstantVelocityFactor(const FrameId& from_id, const FrameId& to_id);
 
-  /* ------------------------------------------------------------------------ */
   // Update states.
   void updateStates(const FrameId& cur_id);
 
-  /* ------------------------------------------------------------------------ */
   /**
    * @brief updateSmoother
    * @param result
@@ -312,7 +286,6 @@ class VioBackEnd {
           gtsam::FixedLagSmoother::KeyTimestampMap(),
       const gtsam::FactorIndices& delete_slots = gtsam::FactorIndices());
 
-  /* ------------------------------------------------------------------------ */
   void cleanCheiralityLmk(
       const gtsam::Symbol& lmk_symbol,
       gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
@@ -325,42 +298,38 @@ class VioBackEnd {
       const std::map<Key, double>& timestamps,
       const gtsam::FactorIndices& delete_slots);
 
-  /* ------------------------------------------------------------------------ */
   void deleteAllFactorsWithKeyFromFactorGraph(
       const gtsam::Key& key,
       const gtsam::NonlinearFactorGraph& new_factors_tmp,
       gtsam::NonlinearFactorGraph* factor_graph_output);
 
-  /* ------------------------------------------------------------------------ */
   // Returns if the key in timestamps could be removed or not.
   bool deleteKeyFromTimestamps(const gtsam::Key& key,
                                const std::map<Key, double>& timestamps,
                                std::map<Key, double>* timestamps_output);
 
-  /* ------------------------------------------------------------------------ */
   // Returns if the key in timestamps could be removed or not.
   bool deleteKeyFromValues(const gtsam::Key& key,
                            const gtsam::Values& values,
                            gtsam::Values* values_output);
 
-  /* ------------------------------------------------------------------------ */
   // Find all slots of factors that have the given key in the list of keys.
   void findSlotsOfFactorsWithKey(
       const gtsam::Key& key,
       const gtsam::NonlinearFactorGraph& graph,
       std::vector<size_t>* slots_of_factors_with_key);
 
-  /* ------------------------------------------------------------------------ */
   virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
 
-  /* ------------------------------------------------------------------------ */
   void updateNewSmartFactorsSlots(
       const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors_tmp,
       SmartFactorMap* old_smart_factors);
 
   /// Private setters.
+  // Set parameters for ISAM 2 incremental smoother.
+  void setIsam2Params(const BackendParams& vio_params,
+                      gtsam::ISAM2Params* isam_param);
 
-  /* ------------------------------------------------------------------------ */
   // Set parameters for all types of factors.
   void setFactorsParams(
       const BackendParams& vio_params,
@@ -370,47 +339,43 @@ class VioBackEnd {
       gtsam::SharedNoiseModel* zero_velocity_prior_noise,
       gtsam::SharedNoiseModel* constant_velocity_prior_noise);
 
-  /* ------------------------------------------------------------------------ */
+  void setSmartStereoFactorsNoiseModel(const double& smart_noise_sigma,
+                                       gtsam::SharedNoiseModel* smart_noise);
+
   // Set parameters for smart factors.
-  void setSmartFactorsParams(
-      gtsam::SharedNoiseModel* smart_noise,
-      gtsam::SmartStereoProjectionParams* smart_factors_params,
-      const double& smart_noise_sigma,
+  void setSmartStereoFactorsParams(
       const double& rank_tolerance,
       const double& landmark_distance_threshold,
       const double& retriangulation_threshold,
-      const double& outlier_rejection);
+      const double& outlier_rejection,
+      gtsam::SmartStereoProjectionParams* smart_factors_params);
+
+  void setNoMotionFactorsParams(const double& rotation_sigma,
+                                const double& position_sigma,
+                                gtsam::SharedNoiseModel* no_motion_prior_noise);
 
   /// Private printers.
-  /* ------------------------------------------------------------------------ */
   void print() const;
 
-  /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                          const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
-  /* ------------------------------------------------------------------------ */
   void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
 
-  /* ------------------------------------------------------------------------ */
   void printPointPlaneFactor(
       boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const;
 
-  /* ------------------------------------------------------------------------ */
   void printPlanePrior(
       boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const;
 
-  /* ------------------------------------------------------------------------ */
   void printPointPrior(
       boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const;
 
-  /* ------------------------------------------------------------------------ */
   void printLinearContainerFactor(
       boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const;
 
-  /* ------------------------------------------------------------------------ */
   // Provide a nonlinear factor, which will be casted to any of the selected
   // factors, and then printed.
   // Slot argument, is just to print the slot of the factor if you know it.
@@ -424,7 +389,6 @@ class VioBackEnd {
       const bool print_point_priors = true,
       const bool print_linear_container_factors = true) const;
 
-  /* ------------------------------------------------------------------------ */
   void printSelectedGraph(
       const gtsam::NonlinearFactorGraph& graph,
       const bool& print_smart_factors = true,
@@ -434,19 +398,15 @@ class VioBackEnd {
       const bool& print_linear_container_factors = true) const;
 
   /// Debuggers.
-  /* ------------------------------------------------------------------------ */
   void computeSmartFactorStatistics();
 
-  /* ------------------------------------------------------------------------ */
   void computeSparsityStatistics();
 
-  /* ------------------------------------------------------------------------ */
   // Debugging post optimization and estimate calculation.
   void postDebug(
       const std::chrono::high_resolution_clock::time_point& total_start_time,
       const std::chrono::high_resolution_clock::time_point& start_time);
 
-  /* ------------------------------------------------------------------------ */
   // Reset state of debug info.
   void resetDebugInfo(DebugVioInfo* debug_info);
 
@@ -457,7 +417,8 @@ class VioBackEnd {
     return backend_params_;
   }
 
-  // TODO NOT THREAD-SAFE! Should add critical sections.
+  // Not Thread Safe. The methods below return copies but they are not
+  // mutex protected, and these are used in the backend thread
   inline Timestamp getTimestampLkf() const { return timestamp_lkf_; }
   inline ImuBias getLatestImuBias() const { return imu_bias_lkf_; }
   inline ImuBias getImuBiasPrevKf() const { return imu_bias_prev_kf_; }
@@ -470,13 +431,6 @@ class VioBackEnd {
   inline gtsam::Values getState() const { return state_; }
   inline int getLandmarkCount() const { return landmark_count_; }
   inline DebugVioInfo getCurrentDebugVioInfo() const { return debug_info_; }
-
-  // TODO This call is unsafe, as we are sending a reference to something that
-  // will be modified by the backend thread.
-  // TODO send this via the output payload...
-  inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
-    return smoother_->getFactors();
-  }
 
  protected:
   // Raw, user-specified params.
@@ -522,8 +476,8 @@ class VioBackEnd {
   LandmarkIdSmartFactorMap new_smart_factors_;
   //!< landmarkId -> {SmartFactorPtr, SlotIndex}
   SmartFactorMap old_smart_factors_;
-  // if SlotIndex is -1, means that the factor has not been inserted yet in the
-  // graph
+  // if SlotIndex is -1, means that the factor has not been inserted yet in
+  // the graph
 
   // Data:
   // TODO grows unbounded currently, but it should be limited to time horizon.

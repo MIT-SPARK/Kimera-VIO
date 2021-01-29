@@ -52,13 +52,13 @@ class BackendFixture : public ::testing::Test {
     backend_params_.horizon_ = 100;
 
     // Update IMU params
-    imu_params_.gyro_noise_ = 0.00016968;
-    imu_params_.acc_noise_ = 0.002;
-    imu_params_.gyro_walk_ = 1.9393e-05;
-    imu_params_.acc_walk_ = 0.003;
+    imu_params_.gyro_noise_density_ = 0.00016968;
+    imu_params_.acc_noise_density_ = 0.002;
+    imu_params_.gyro_random_walk_ = 1.9393e-05;
+    imu_params_.acc_random_walk_ = 0.003;
     imu_params_.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
     imu_params_.imu_integration_sigma_ = 1.0;
-    imu_params_.nominal_rate_ = 200.0;
+    imu_params_.nominal_sampling_time_s_ = 200.0;
     // TODO(Toni): test with Combined, I think it actually fails now...
     imu_params_.imu_preintegration_type_ =
         ImuPreintegrationType::kPreintegratedImuMeasurements;
@@ -292,19 +292,20 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
     // process data with VIO
-    vio_backend->spinOnce(
+    BackendOutput::Ptr backend_output = vio_backend->spinOnce(
         BackendInput(timestamp_k,
                      all_measurements[k],
                      tracker_status_valid.kfTrackingStatus_stereo_,
                      pim,
                      imu_accgyr));
+    CHECK(backend_output);
 
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
 
     // Check the number of factors
-    const gtsam::NonlinearFactorGraph& nlfg = vio_backend->getFactorsUnsafe();
+    const gtsam::NonlinearFactorGraph& nlfg = backend_output->factor_graph_;
     size_t nr_factors_in_smoother = 0u;
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) nr_factors_in_smoother++;

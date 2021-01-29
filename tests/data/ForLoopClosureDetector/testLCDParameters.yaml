@@ -3,13 +3,13 @@
 use_nss: 0
 alpha: 0.0
 min_temporal_matches: 0
-dist_local: 0
+recent_frames_window: 0
 max_db_results: 50
 min_nss_factor: 0.0
-min_matches_per_group: 0
-max_intragroup_gap: 10
-max_distance_between_groups: 3
-max_distance_between_queries: 2
+min_matches_per_island: 0
+max_intraisland_gap: 10
+max_nrFrames_between_islands: 3
+max_nrFrames_between_queries: 2
 
 geom_check_id: 0
 min_correspondences: 5
@@ -22,10 +22,11 @@ ransac_inlier_threshold_mono: 0.0
 pose_recovery_option_id: 0
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.999
-ransac_threshold_stereo: 0.15
+ransac_threshold_stereo: 0.3
 ransac_randomize_stereo: 0
 ransac_inlier_threshold_stereo: 0.0
 use_mono_rot: 0
+refine_pose: 1
 
 lowe_ratio: 0.7
 matcher_type: 3
@@ -39,6 +40,9 @@ WTA_K: 2
 score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
+
+betweenRotationPrecision: 10000 # 1/(0.01*0.01)
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
 pgo_rot_threshold: 0.5
 pgo_trans_threshold: 0.5

@@ -49,10 +49,9 @@ ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.jso
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
-    git checkout master && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
     make -j$(nproc) install
 
 # Install Open_GV
@@ -98,9 +97,9 @@ ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/evo-1.git
 RUN cd evo-1 && python3.5 $(which pip3) install .
 
-# Install spark_vio_evaluation
+# Install Kimera VIO Evaluation
 RUN python3.5 $(which pip3) install ipython prompt_toolkit
-# Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
+# Hack to avoid Docker's cache when Kimera VIO Evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...

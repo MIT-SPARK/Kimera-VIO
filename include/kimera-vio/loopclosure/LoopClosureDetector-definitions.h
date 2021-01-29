@@ -59,7 +59,9 @@ struct LCDFrame {
            const std::vector<gtsam::Vector3>& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
-           const BearingVectors& versors)
+           const BearingVectors& versors,
+           const KeypointsCV& left_keypoints_rectified,
+           const KeypointsCV& right_keypoints_rectified)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -67,7 +69,9 @@ struct LCDFrame {
         keypoints_3d_(keypoints_3d),
         descriptors_vec_(descriptors_vec),
         descriptors_mat_(descriptors_mat),
-        versors_(versors) {}
+        versors_(versors),
+        left_keypoints_rectified_(left_keypoints_rectified),
+        right_keypoints_rectified_(right_keypoints_rectified) {}
 
   Timestamp timestamp_;
   FrameId id_;
@@ -77,6 +81,8 @@ struct LCDFrame {
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors versors_;
+  KeypointsCV left_keypoints_rectified_;
+  KeypointsCV right_keypoints_rectified_;
 };  // struct LCDFrame
 
 struct MatchIsland {
@@ -239,7 +245,7 @@ struct LcdInput {
   const gtsam::Pose3 W_Pose_Blkf_;
 };
 
-struct LcdOutput {
+struct LcdOutput : PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(LcdOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -253,8 +259,8 @@ struct LcdOutput {
             const gtsam::Pose3& W_Pose_Map,
             const gtsam::Values& states,
             const gtsam::NonlinearFactorGraph& nfg)
-      : is_loop_closure_(is_loop_closure),
-        timestamp_kf_(timestamp_kf),
+      : PipelinePayload(timestamp_kf),
+        is_loop_closure_(is_loop_closure),
         timestamp_query_(timestamp_query),
         timestamp_match_(timestamp_match),
         id_match_(id_match),
@@ -264,9 +270,9 @@ struct LcdOutput {
         states_(states),
         nfg_(nfg) {}
 
-  LcdOutput()
-      : is_loop_closure_(false),
-        timestamp_kf_(0),
+  LcdOutput(const Timestamp& timestamp_kf)
+      : PipelinePayload(timestamp_kf),
+        is_loop_closure_(false),
         timestamp_query_(0),
         timestamp_match_(0),
         id_match_(0),
@@ -278,7 +284,6 @@ struct LcdOutput {
 
   // TODO(marcus): inlude stats/score of match
   bool is_loop_closure_;
-  Timestamp timestamp_kf_;
   Timestamp timestamp_query_;
   Timestamp timestamp_match_;
   FrameId id_match_;

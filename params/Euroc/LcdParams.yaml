@@ -1,15 +1,15 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.001
-min_temporal_matches: 1
-dist_local: 1
+alpha: 0.5
+min_temporal_matches: 0
+recent_frames_window: 100
 max_db_results: 50
 min_nss_factor: 0.05
-min_matches_per_group: 1
-max_intragroup_gap: 3
-max_distance_between_groups: 3
-max_distance_between_queries: 2
+min_matches_per_island: 1
+max_intraisland_gap: 3
+max_nrFrames_between_islands: 3
+max_nrFrames_between_queries: 2
 
 geom_check_id: 0
 min_correspondences: 12
@@ -26,6 +26,7 @@ ransac_threshold_stereo: 0.3
 ransac_randomize_stereo: 1
 ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
+refine_pose: 1
 
 lowe_ratio: 0.2  # TODO(marcus): get rid, not used
 matcher_type: 3
@@ -40,8 +41,11 @@ score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
 
-pgo_rot_threshold: 0.005
-pgo_trans_threshold: 0.05
+betweenRotationPrecision: 10000 # 1/(0.01*0.01)
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
+
+pgo_rot_threshold: 0.001
+pgo_trans_threshold: 0.01
 
 # geom_check_id options:
 #   0: NISTER

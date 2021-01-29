@@ -48,10 +48,12 @@ using gtsam::StereoPoint2;
 using StereoCalibPtr = gtsam::Cal3_S2Stereo::shared_ptr;
 
 using SymbolChar = unsigned char;
+static constexpr SymbolChar kPoseSymbolChar = 'x';
+static constexpr SymbolChar kVelocitySymbolChar = 'v';
+static constexpr SymbolChar kImuBiasSymbolChar = 'b';
+static constexpr SymbolChar kLandmarkSymbolChar = 'l';
 
 #define INCREMENTAL_SMOOTHER
-//#define USE_COMBINED_IMU_FACTOR
-
 #ifdef INCREMENTAL_SMOOTHER
 typedef gtsam::IncrementalFixedLagSmoother Smoother;
 #else
@@ -259,10 +261,9 @@ struct BackendInput : public PipelinePayload {
     LOG(INFO) << "VioBackEnd Input Payload print:\n"
               << "Timestamp: " << timestamp_;
     if (status_stereo_measurements_kf_) {
-      LOG(INFO)
-        << "Status smart stereo measurements: "
-        << "\n\t Meas size: "
-        << status_stereo_measurements_kf_->second.size();
+      LOG(INFO) << "Status smart stereo measurements: "
+                << "\n\t Meas size: "
+                << status_stereo_measurements_kf_->second.size();
 
       LOG(INFO)
           << "Mono Tracking Status: "
@@ -270,10 +271,10 @@ struct BackendInput : public PipelinePayload {
                  status_stereo_measurements_kf_->first.kfTrackingStatus_mono_);
       status_stereo_measurements_kf_->first.lkf_T_k_mono_.print(
           "\n\t Tracker Pose (mono): ");
-      LOG(INFO)
-          << "Stereo Tracking Status: "
-          << TrackerStatusSummary::asString(
-                 status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_);
+      LOG(INFO) << "Stereo Tracking Status: "
+                << TrackerStatusSummary::asString(
+                       status_stereo_measurements_kf_->first
+                           .kfTrackingStatus_stereo_);
       status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
           "\n\t Tracker Pose (stereo): ");
 
@@ -293,6 +294,7 @@ struct BackendOutput : public PipelinePayload {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   BackendOutput(const Timestamp& timestamp_kf,
                 const gtsam::Values& state,
+                const gtsam::NonlinearFactorGraph& factor_graph,
                 const gtsam::Pose3& W_Pose_Blkf,
                 const Vector3& W_Vel_Blkf,
                 const ImuBias& imu_bias_lkf,
@@ -306,15 +308,16 @@ struct BackendOutput : public PipelinePayload {
         W_State_Blkf_(timestamp_kf, W_Pose_Blkf, W_Vel_Blkf, imu_bias_lkf),
         state_(state),
         state_covariance_lkf_(state_covariance_lkf),
+        factor_graph_(factor_graph),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
         debug_info_(debug_info),
         landmarks_with_id_map_(landmarks_with_id_map),
-        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
-        graph_() {}
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map) {}
 
   BackendOutput(const VioNavStateTimestamped& vio_navstate_timestamped,
                 const gtsam::Values& state,
+                const gtsam::NonlinearFactorGraph& factor_graph,
                 const gtsam::Matrix& state_covariance_lkf,
                 const FrameId& cur_kf_id,
                 const int& landmark_count,
@@ -325,22 +328,22 @@ struct BackendOutput : public PipelinePayload {
         W_State_Blkf_(vio_navstate_timestamped),
         state_(state),
         state_covariance_lkf_(state_covariance_lkf),
+        factor_graph_(factor_graph),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
         debug_info_(debug_info),
         landmarks_with_id_map_(landmarks_with_id_map),
-        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
-        graph_() {}
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map) {}
 
   const VioNavStateTimestamped W_State_Blkf_;
   const gtsam::Values state_;
   const gtsam::Matrix state_covariance_lkf_;
+  const gtsam::NonlinearFactorGraph factor_graph_;
   const FrameId cur_kf_id_;
   const int landmark_count_;
   const DebugVioInfo debug_info_;
   const PointsWithIdMap landmarks_with_id_map_;
   const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
-  const gtsam::NonlinearFactorGraph graph_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

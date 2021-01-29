@@ -9,13 +9,15 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <depend>dbow2</depend>
+  <depend>dbow2_catkin</depend>
   <depend>gtsam</depend>
   <depend>kimera_rpgo</depend>
   <depend>libgflags-dev</depend>
   <depend>libgoogle-glog-dev</depend>
-  <depend>libopencv-dev</depend>
-  <depend>opengv</depend>
+  <!-- KimeraVIO needs opencv >= 3.3.1, yet ROS uses 3.2.0.
+       Hacky way of avoiding error in KimeraVIO by linking to 3.4.2-->
+  <depend>opencv3_catkin</depend>
+  <depend>opengv_catkin</depend>
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>

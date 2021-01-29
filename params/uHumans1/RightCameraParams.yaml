@@ -15,6 +15,6 @@ T_BS:
 rate_hz: 20
 resolution: [720, 480]
 camera_model: pinhole
-intrinsics: [415.69219381653056, 415.69219381653056, 360, 240] # fu, fv, cu, cv
+intrinsics: [415.69219381653056, 415.69219381653056, 360.0, 240.0]
 distortion_model: radial-tangential
 distortion_coefficients: [0.0, 0.0, 0.0, 0.0]

@@ -3,13 +3,13 @@
 use_nss: 1
 alpha: 0.5
 min_temporal_matches: 3
-dist_local: 20
+recent_frames_window: 20
 max_db_results: 50
 min_nss_factor: 0.005
-min_matches_per_group: 1
-max_intragroup_gap: 3
-max_distance_between_groups: 3
-max_distance_between_queries: 2
+min_matches_per_island: 1
+max_intraisland_gap: 3
+max_nrFrames_between_islands: 3
+max_nrFrames_between_queries: 2
 
 geom_check_id: 0
 min_correspondences: 12
@@ -29,6 +29,7 @@ use_mono_rot: 1
 
 lowe_ratio: 0.7
 matcher_type: 3
+refine_pose: 1
 
 nfeatures: 500
 scale_factor: 1.2
@@ -39,6 +40,9 @@ WTA_K: 2
 score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
+
+betweenRotationPrecision: 10000 # 1/(0.01*0.01)
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
 pgo_rot_threshold: 0.01
 pgo_trans_threshold: 0.1
