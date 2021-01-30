@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <gtsam/base/Vector.h>
+#include <gtsam/nonlinear/ISAM2Params.h>
 #include <gtsam/slam/SmartFactorParams.h>
 
 #include <glog/logging.h>
@@ -75,6 +76,10 @@ class BackendParams : public PipelineParams {
   virtual bool equals(const BackendParams& vp2, double tol = 1e-8) const;
   void print() const override;
   bool parseYAML(const std::string& filepath) override;
+
+  // Set parameters for ISAM 2 incremental smoother.
+  static void setIsam2Params(const BackendParams& vio_params,
+                             gtsam::ISAM2Params* isam_param);
 
  protected:
   bool equals(const PipelineParams& obj) const override {
