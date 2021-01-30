@@ -43,7 +43,7 @@ outlierRejection: 3
 retriangulationThreshold: 0.001
 
 ## Noise models ##
-smartNoiseSigma: 1.0
+smartNoiseSigma: 3.0
 monoNoiseSigma: 1.8
 monoNormType: 2
 monoNormParam: 4.6851
@@ -66,7 +66,7 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 20
+numOptimize: 1
 horizon: 6 # In seconds.
 # ISAM2GaussNewtonParams: continue updating the linear delta only when
 # changes are above this threshold (default: 0.001)
