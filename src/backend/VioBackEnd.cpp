@@ -77,8 +77,8 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
       backend_state_(BackendState::Bootstrap),
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
-      W_Vel_B_lkf_(Vector3::Zero()),
-      W_Pose_B_lkf_(Pose3()),
+      W_Vel_B_lkf_(gtsam::Vector3::Zero()),
+      W_Pose_B_lkf_(gtsam::Pose3::identity()),
       imu_bias_prev_kf_(ImuBias()),
       B_Pose_leftCam_(B_Pose_leftCam),
       stereo_cal_(stereo_calibration),
@@ -756,7 +756,6 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
               gtsam::Symbol(kImuBiasSymbolChar, from_id),
               gtsam::Symbol(kImuBiasSymbolChar, to_id),
               safeCastToPreintegratedCombinedImuMeasurements(pim)));
-
       break;
     }
     case ImuPreintegrationType::kPreintegratedImuMeasurements: {

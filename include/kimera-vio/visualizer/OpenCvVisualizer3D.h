@@ -24,6 +24,7 @@
 
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
+#include <gtsam/nonlinear/LinearContainerFactor.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz/types.hpp>
@@ -322,6 +323,50 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                   const double& point_z,
                                   WidgetsMap* widgets);
 
+  // Functions to draw the factor graph
+  void drawImuPose(const gtsam::Pose3& imu_pose,
+                   const gtsam::Key& variable_index,
+                   WidgetsMap* widgets_map);
+  void drawLeftCam(const gtsam::Pose3& world_pose_camLrect,
+                   const gtsam::Key& variable_index,
+                   WidgetsMap* widgets_map);
+  void drawRightCam(const gtsam::Pose3& world_pose_camRrect,
+                    const gtsam::Key& variable_index,
+                    WidgetsMap* widgets_map);
+  void drawImuToLeftCamArrow(const gtsam::Pose3& imu_pose,
+                             const gtsam::Pose3& world_pose_camLrect,
+                             const gtsam::Key& variable_index,
+                             WidgetsMap* widgets_map);
+  void drawVelocityArrow(const gtsam::Vector3& imu_velocity,
+                         const gtsam::Values& state,
+                         const gtsam::Key& variable_index,
+                         WidgetsMap* widgets_map);
+
+  void drawSmartStereoFactor(const SmartStereoFactor& smart_stereo_factor,
+                             const gtsam::Values& state,
+                             const gtsam::Pose3& body_pose_camLrect,
+                             WidgetsMap* widgets_map);
+  void drawLinearContainerFactor(const gtsam::LinearContainerFactor& lcf,
+                                 const gtsam::Values& state,
+                                 const gtsam::Pose3& body_pose_camLrect,
+                                 WidgetsMap* widgets_map);
+  void drawVelocityPrior(
+      const gtsam::PriorFactor<gtsam::Vector3>& velocity_prior,
+      const gtsam::Values& state,
+      WidgetsMap* widgets_map);
+  void drawPosePrior(const gtsam::PriorFactor<gtsam::Pose3>& pose_prior,
+                     const gtsam::Values& state,
+                     const gtsam::Pose3& body_pose_camLrect,
+                     WidgetsMap* widgets_map);
+  void drawBtwFactor(const gtsam::BetweenFactor<gtsam::Pose3>& btw_factor,
+                     const gtsam::Values& state,
+                     const gtsam::Pose3& body_pose_camLrect,
+                     WidgetsMap* widgets_map);
+  void drawImuFactor(const gtsam::ImuFactor& imu_factor,
+                     const gtsam::Values& state,
+                     const gtsam::Pose3& body_pose_camLrect,
+                     WidgetsMap* widgets_map);
+
  private:
   //! Flags for visualization behaviour.
   const BackendType backend_type_;
@@ -359,6 +404,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   double left_cam_active_frustum_scale_ = 0.11;
   double right_cam_active_frustum_scale_ = 0.11;
   cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
+  cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::green();
 
   double inactive_frustum_scale_ = 0.06;
 
@@ -368,12 +414,16 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
 
   cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
-  double btw_factor_imu_pose_guess_active_frustum_scale_ = 0.11;
-  cv::viz::Color btw_factor_imu_pose_guess_active_frustum_color_ =
+  double btw_factor_pose_guess_active_frustum_scale_ = 0.08;
+  cv::viz::Color btw_factor_pose_guess_active_frustum_color_ =
       cv::viz::Color::amethyst();
   double btw_factor_to_guess_pose_vector_scale_ = 0.01;
   cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
       cv::viz::Color::amethyst();
+
+  double imu_factor_to_guess_pose_scale_ = 0.08;
+  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::cherry();
+  cv::viz::Color imu_factor_guess_velocity_color_ = cv::viz::Color::cherry();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;

@@ -64,8 +64,6 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);
-  CHECK_GE(initial_k_, 10)
-      << "initial_k should be >= 10 for IMU bias initialization";
 
   // Finish processing dataset at frame final_k.
   // Last frame to process (to avoid processing the entire dataset),
