@@ -64,6 +64,7 @@ namespace VIO {
 // Forward-declarations
 class VioNavState;
 
+
 class VioBackEnd {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEnd);
@@ -176,6 +177,11 @@ class VioBackEnd {
     // Initialize Backend using IMU data.
     return initStateAndSetPriors(
         VioNavStateTimestamped(input.timestamp_, initial_state_estimate));
+  }
+
+  inline void saveGraph(const std::string& filepath) const {
+    OfstreamWrapper ofstream_wrapper (filepath);
+    smoother_->getFactors().saveGraph(ofstream_wrapper.ofstream_);
   }
 
  protected:
@@ -318,11 +324,6 @@ class VioBackEnd {
   void updateNewSmartFactorsSlots(
       const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors_tmp,
       SmartFactorMap* old_smart_factors);
-
-  /// Private setters.
-  // Set parameters for ISAM 2 incremental smoother.
-  void setIsam2Params(const BackendParams& vio_params,
-                      gtsam::ISAM2Params* isam_param);
 
   // Set parameters for all types of factors.
   void setFactorsParams(
