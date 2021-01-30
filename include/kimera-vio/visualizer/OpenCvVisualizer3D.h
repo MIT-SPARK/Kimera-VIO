@@ -368,12 +368,17 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
 
   cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
-  double btw_factor_imu_pose_guess_active_frustum_scale_ = 0.11;
-  cv::viz::Color btw_factor_imu_pose_guess_active_frustum_color_ =
+  double btw_factor_pose_guess_active_frustum_scale_ = 0.08;
+  cv::viz::Color btw_factor_pose_guess_active_frustum_color_ =
       cv::viz::Color::amethyst();
   double btw_factor_to_guess_pose_vector_scale_ = 0.01;
   cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
       cv::viz::Color::amethyst();
+
+  double imu_factor_to_guess_pose_scale_ = 0.08;
+  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::cherry();
+  cv::viz::Color imu_factor_guess_velocity_color_ =
+      cv::viz::Color::cherry();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;

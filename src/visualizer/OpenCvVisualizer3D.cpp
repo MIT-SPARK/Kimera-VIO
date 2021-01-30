@@ -429,7 +429,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
     static constexpr bool draw_left_cam = true;
     static constexpr bool draw_right_cam = false;
     static constexpr bool draw_imu_to_left_cam_arrow = true;
-    static constexpr bool draw_velocity = false;
+    static constexpr bool draw_velocity = true;
     if (variable_type == kLandmarkSymbolChar) {
       // const LandmarkId& lmk_id = variable_index;  // THIS IS NOT LMK_ID!
       // const gtsam::Point3& lmk_position =
@@ -546,6 +546,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   static constexpr bool draw_plane_priors = false;
   static constexpr bool draw_point_plane_factors = false;
   static constexpr bool draw_linear_container_factors = true;
+  static constexpr bool draw_preintegrated_imu_factors = true;
   static constexpr bool draw_imu_constant_bias_factors = true;
   static constexpr bool draw_between_factors = true;
   for (const boost::shared_ptr<gtsam::NonlinearFactor>& factor : factor_graph) {
@@ -771,6 +772,8 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
         const gtsam::Key& pose_key_2 = btw_factor->keys().at(1);
         gtsam::Symbol pose_symbol_1(pose_key_1);
         gtsam::Symbol pose_symbol_2(pose_key_2);
+        CHECK_EQ(pose_symbol_1.chr(), kPoseSymbolChar);
+        CHECK_EQ(pose_symbol_2.chr(), kPoseSymbolChar);
 
         gtsam::Pose3 imu_pose_1;
         CHECK(getEstimateOfKey(state, pose_key_1, &imu_pose_1));
@@ -842,27 +845,27 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
           // btw_factor->error(state);
 
           // Visualize initial guess
-          std::string btw_factor_imu_pose_guess_id =
+          std::string btw_factor_pose_guess_id =
               "Btw factor pose guess" + std::to_string(pose_symbol_2.index());
-          (*widgets_map)[btw_factor_imu_pose_guess_id] =
+          (*widgets_map)[btw_factor_pose_guess_id] =
               VIO::make_unique<cv::viz::WCameraPosition>(
                   K_,
-                  btw_factor_imu_pose_guess_active_frustum_scale_,
-                  btw_factor_imu_pose_guess_active_frustum_color_);
+                  btw_factor_pose_guess_active_frustum_scale_,
+                  btw_factor_pose_guess_active_frustum_color_);
           const gtsam::Pose3& btw_factor_meas_world_pose_body =
               imu_pose_1.compose(btw_factor->measured());
           const cv::Affine3d& left_cam_pose =
               UtilsOpenCV::gtsamPose3ToCvAffine3d(
                   btw_factor_meas_world_pose_body.compose(body_pose_camLrect));
-          (*widgets_map)[btw_factor_imu_pose_guess_id]->setPose(left_cam_pose);
+          (*widgets_map)[btw_factor_pose_guess_id]->setPose(left_cam_pose);
           widget_ids_to_remove_in_next_iter_.push_back(
-              btw_factor_imu_pose_guess_id);
+              btw_factor_pose_guess_id);
           // widget_id_to_pose_map_[btw_factor_imu_pose_guess_id] =
           // left_cam_pose;
 
           // Draw arrow to associate factor with initial guess
           std::string btw_factor_arrow_id =
-              btw_factor_imu_pose_guess_id + " (arrow)";
+              btw_factor_pose_guess_id + " (arrow)";
           (*widgets_map)[btw_factor_arrow_id] =
               VIO::make_unique<cv::viz::WArrow>(
                   mid_point,
@@ -871,6 +874,64 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
                   btw_factor_to_guess_pose_vector_color_);
           widget_ids_to_remove_in_next_iter_.push_back(btw_factor_arrow_id);
         }
+      }
+    }
+
+    if (draw_preintegrated_imu_factors) {
+      const auto& preint_imu_factor =
+          boost::dynamic_pointer_cast<gtsam::ImuFactor>(factor);
+      if (preint_imu_factor) {
+        const gtsam::Symbol& pose_symbol_1(preint_imu_factor->key1());
+        const gtsam::Symbol& vel_symbol_1(preint_imu_factor->key2());
+        const gtsam::Symbol& pose_symbol_2(preint_imu_factor->key3());
+        const gtsam::Symbol& vel_symbol_2(preint_imu_factor->key4());
+        const gtsam::Symbol& imu_bias_symbol_1(preint_imu_factor->key5());
+        CHECK_EQ(pose_symbol_1.chr(), kPoseSymbolChar);
+        CHECK_EQ(vel_symbol_1.chr(), kVelocitySymbolChar);
+        CHECK_EQ(pose_symbol_2.chr(), kPoseSymbolChar);
+        CHECK_EQ(vel_symbol_2.chr(), kVelocitySymbolChar);
+        CHECK_EQ(imu_bias_symbol_1.chr(), kImuBiasSymbolChar);
+        gtsam::Pose3 pose_1;
+        gtsam::Vector3 vel_1;
+        gtsam::Pose3 pose_2;
+        gtsam::Vector3 vel_2;
+        ImuBias imu_bias_1;
+        CHECK(getEstimateOfKey(state, pose_symbol_1.key(), &pose_1));
+        CHECK(getEstimateOfKey(state, vel_symbol_1.key(), &vel_1));
+        CHECK(getEstimateOfKey(state, pose_symbol_2.key(), &pose_2));
+        CHECK(getEstimateOfKey(state, vel_symbol_2.key(), &vel_2));
+        CHECK(getEstimateOfKey(state, imu_bias_symbol_1.key(), &imu_bias_1));
+        gtsam::NavState navstate_1(pose_1, vel_1);
+        const gtsam::NavState& navstate_2 =
+            preint_imu_factor->preintegratedMeasurements().predict(navstate_1,
+                                                                   imu_bias_1);
+        const gtsam::Pose3& meas_pose_2 = navstate_2.pose();
+        const gtsam::Vector3& meas_vel_2 = navstate_2.velocity();
+        // Draw estimated IMU pose as a frustum for the left cam to be able to
+        // compare with the estimate from stereo RANSAC
+        std::string imu_factor_pose_guess_id =
+            "IMU factor pose guess" + std::to_string(pose_symbol_2.index());
+        (*widgets_map)[imu_factor_pose_guess_id] =
+            VIO::make_unique<cv::viz::WCameraPosition>(
+                K_,
+                imu_factor_to_guess_pose_scale_,
+                imu_factor_to_guess_pose_color_);
+        const cv::Affine3d& left_cam_pose_guess =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                meas_pose_2.compose(body_pose_camLrect));
+        (*widgets_map)[imu_factor_pose_guess_id]->setPose(left_cam_pose_guess);
+        widget_ids_to_remove_in_next_iter_.push_back(imu_factor_pose_guess_id);
+
+        // Draw estimated IMU velocity as an arrow
+        gtsam::Vector3 end = pose_2.translation() + meas_vel_2;
+        cv::Point3d arrow_start(pose_2.x(), pose_2.y(), pose_2.z());
+        cv::Point3d arrow_end(end.x(), end.y(), end.z());
+        (*widgets_map)["IMU vel guess " +
+                       std::to_string(vel_symbol_2.index())] =
+            VIO::make_unique<cv::viz::WArrow>(arrow_start,
+                                              arrow_end,
+                                              0.001,
+                                              imu_factor_guess_velocity_color_);
       }
     }
 
