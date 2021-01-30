@@ -59,7 +59,7 @@ class EurocDataProvider : public DataProviderInterface {
  public:
   /**
    * @brief spin Spins the dataset until it finishes. If set in sequential mode,
-   * it will return each tieme a frame is sent. In parallel mode, it will not
+   * it will return each time a frame is sent. In parallel mode, it will not
    * return until it finishes.
    * @return True if the dataset still has data, false otherwise.
    */
@@ -79,6 +79,11 @@ class EurocDataProvider : public DataProviderInterface {
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
     return getGroundTruthState(timestamp).pose_;
   }
+
+  inline std::string getDatasetPath() const {
+    return dataset_path_;
+  }
+  std::string getDatasetName();
 
  private:
 
@@ -118,7 +123,6 @@ class EurocDataProvider : public DataProviderInterface {
                        CameraImageLists* cam_list_i);
 
   //! Getters.
-  std::string getDatasetName();
   /**
    * @brief getLeftImgName returns the img filename given the frame number
    * @param[in] k frame number

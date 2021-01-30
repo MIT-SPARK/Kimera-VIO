@@ -299,12 +299,12 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
-  // int n_rows = 0;
-  // yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
-  // CHECK_EQ(n_rows, 4u);
-  // int n_cols = 0;
-  // yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
-  // CHECK_EQ(n_cols, 4u);
+  int n_rows = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  CHECK_EQ(n_rows, 4u);
+  int n_cols = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
