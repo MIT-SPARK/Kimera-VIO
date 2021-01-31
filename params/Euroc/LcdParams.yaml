@@ -1,9 +1,9 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.5
-min_temporal_matches: 0
-recent_frames_window: 100
+alpha: 0.1
+min_temporal_matches: 3
+recent_frames_window: 60
 max_db_results: 50
 min_nss_factor: 0.05
 min_matches_per_island: 1
@@ -28,7 +28,7 @@ ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
 refine_pose: 1
 
-lowe_ratio: 0.2  # TODO(marcus): get rid, not used
+lowe_ratio: 0.9  # TODO(marcus): get rid, not used
 matcher_type: 3
 
 nfeatures: 1000
@@ -45,7 +45,7 @@ betweenRotationPrecision: 10000 # 1/(0.01*0.01)
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
 pgo_rot_threshold: 0.001
-pgo_trans_threshold: 0.01
+pgo_trans_threshold: 0.001
 
 # geom_check_id options:
 #   0: NISTER
