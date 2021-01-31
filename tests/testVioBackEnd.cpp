@@ -18,6 +18,8 @@
 #include <iostream>
 #include <random>
 
+#include <boost/smart_ptr/make_shared.hpp>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -43,10 +45,11 @@ using StereoPoses = std::vector<std::pair<gtsam::Pose3, gtsam::Pose3>>;
 
 class BackendFixture : public ::testing::Test {
  public:
-  BackendFixture() : vio_params_(), imu_params_() {
+  BackendFixture() : backend_params_(), imu_params_() {
     // Update vio params
-    vio_params_.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
-    vio_params_.horizon_ = 100;
+    // we simulate points 20m away
+    backend_params_.landmarkDistanceThreshold_ = 30;
+    backend_params_.horizon_ = 100;
 
     // Update IMU params
     imu_params_.gyro_noise_density_ = 0.00016968;
@@ -163,7 +166,7 @@ class BackendFixture : public ::testing::Test {
   const size_t before_start_imu_msgs_ = 10u;
 
  public:
-  BackendParams vio_params_;
+  BackendParams backend_params_;
   ImuParams imu_params_;
 };
 
@@ -227,17 +230,17 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
   ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
 
   // Create backend.
-  vio_params_.initial_ground_truth_state_ =
+  backend_params_.initial_ground_truth_state_ =
       VioNavState(poses[0].first, velocity_x_, imu_bias_);
   gtsam::Pose3 B_pose_camLrect;
-  std::shared_ptr<VioBackEnd> vio =
+  std::shared_ptr<VioBackEnd> vio_backend =
       std::make_shared<VioBackEnd>(B_pose_camLrect,
                                    stereo_calibration,
-                                   vio_params_,
+                                   backend_params_,
                                    imu_params_,
                                    BackendOutputParams(false, 0, false),
                                    false);
-  vio->registerImuBiasUpdateCallback(std::bind(
+  vio_backend->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontEnd::updateBias, std::ref(imu_frontend), std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
@@ -289,18 +292,20 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
     // process data with VIO
-    vio->spinOnce(BackendInput(timestamp_k,
-                               all_measurements[k],
-                               tracker_status_valid.kfTrackingStatus_stereo_,
-                               pim,
-                               imu_accgyr));
+    BackendOutput::Ptr backend_output = vio_backend->spinOnce(
+        BackendInput(timestamp_k,
+                     all_measurements[k],
+                     tracker_status_valid.kfTrackingStatus_stereo_,
+                     pim,
+                     imu_accgyr));
+    CHECK(backend_output);
 
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
 
     // Check the number of factors
-    const gtsam::NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
+    const gtsam::NonlinearFactorGraph& nlfg = backend_output->factor_graph_;
     size_t nr_factors_in_smoother = 0u;
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) nr_factors_in_smoother++;
@@ -330,9 +335,9 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
     }
 
     // Check the results!
-    const gtsam::Values& results = vio->getState();
+    const gtsam::Values& results = vio_backend->getState();
     for (FrameId f_id = 0u; f_id <= k; f_id++) {
-      Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
+      gtsam::Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
       gtsam::Vector3 W_Vel_Blkf =
           results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(gtsam::Symbol('b', f_id));

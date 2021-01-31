@@ -69,6 +69,9 @@ class OpenCv3dDisplay : public DisplayBase {
   //! Sets a 3D Widget Pose, because Widget3D::setPose() doesn't work;
   void setFrustumPose(const cv::Affine3d& frustum_pose);
 
+  //! Remove widget. True if successful, false if not.
+  bool removeWidget(const std::string& widget_id);
+
   //! Keyboard callback.
   static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
 

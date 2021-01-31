@@ -64,8 +64,6 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);
-  CHECK_GE(initial_k_, 10)
-      << "initial_k should be >= 10 for IMU bias initialization";
 
   // Finish processing dataset at frame final_k.
   // Last frame to process (to avoid processing the entire dataset),
@@ -301,12 +299,12 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
-  // int n_rows = 0;
-  // yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
-  // CHECK_EQ(n_rows, 4u);
-  // int n_cols = 0;
-  // yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
-  // CHECK_EQ(n_cols, 4u);
+  int n_rows = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  CHECK_EQ(n_rows, 4u);
+  int n_cols = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);

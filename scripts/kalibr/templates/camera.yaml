@@ -1,0 +1,20 @@
+%YAML:1.0
+
+{{ metadata | make_header }}
+
+# General sensor definitions
+camera_id: {{ camera_id }}
+
+# Sensor extrinsics wrt. the body-frame
+T_BS:
+  cols: 4
+  rows: 4
+  data: {{ T_BS | numpy_display(false) | indent(9) }}
+
+# Camera specific definitions
+rate_hz: {{ rate_hz }}
+resolution: [{{ camera_width }}, {{ camera_height }}]  # [width, height]
+camera_model: {{ camera_model }}
+intrinsics: [{{ u_focal_length }}, {{ v_focal_length }}, {{ u_principal_point }}, {{ v_principal_point }}]  # [fu, fv, cu, cv]
+distortion_model: {{ distortion_model }}
+distortion_coefficients: {{ distortion_coefficients | numpy_display }}  # model dependent

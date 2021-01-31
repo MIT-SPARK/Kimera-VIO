@@ -162,7 +162,7 @@ TEST_F(StereoFrameFixture, rectification) {
   // Compensate for the fact that opencv works on the inverse of rotations
   gtsam::Rot3 camL_Rot_camLrect =
       UtilsOpenCV::cvMatToGtsamRot3(left_camera_info.R_rectify_).inverse();
-  gtsam::Pose3 camL_Pose_camLrect = gtsam::Pose3(camL_Rot_camLrect, Point3());
+  gtsam::Pose3 camL_Pose_camLrect = gtsam::Pose3(camL_Rot_camLrect, Point3::Zero());
 
   // B_Pose_camLrect
   gtsam::Pose3 B_Pose_camLrect_expect =
@@ -173,7 +173,7 @@ TEST_F(StereoFrameFixture, rectification) {
   // Right camera pose after rectification
   gtsam::Rot3 camR_Rot_camRrect =
       UtilsOpenCV::cvMatToGtsamRot3(right_camera_info.R_rectify_).inverse();
-  gtsam::Pose3 camR_Pose_camRrect = gtsam::Pose3(camR_Rot_camRrect, Point3());
+  gtsam::Pose3 camR_Pose_camRrect = gtsam::Pose3(camR_Rot_camRrect, Point3::Zero());
 
   // B_Pose_camRrect
   gtsam::Pose3 B_Pose_camRrect =

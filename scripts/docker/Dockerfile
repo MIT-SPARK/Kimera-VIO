@@ -23,10 +23,9 @@ ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.jso
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
-    git checkout master && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
     make -j$(nproc) install
 
 # Install OpenCV for Ubuntu 18.04
@@ -84,11 +83,28 @@ RUN cd Kimera-RPGO && \
       make -j$(nproc)
 
 ## [Optional] Install Kimera-VIO-Evaluation from PyPI
-RUN apt-get update && apt-get install -y python-pip python-dev python-tk
-## Hack to avoid Docker's cache when Kimera-VIO-Evaluation master branch is updated.
+RUN apt-get update && \
+    apt-get install software-properties-common -y
+# Get python3
+RUN apt-get update && \
+    add-apt-repository ppa:deadsnakes/ppa
+RUN apt-get update && \
+    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
+RUN python3.5 -m pip install PyQt5==5.14
+
+# Install evo-1 for evaluation
+# Hack to avoid Docker's cache when evo-1 master branch is updated.
+ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
+RUN git clone https://github.com/ToniRV/evo-1.git
+RUN cd evo-1 && python3.5 $(which pip3) install .
+
+# Install spark_vio_evaluation
+RUN python3.5 $(which pip3) install ipython prompt_toolkit
+# Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
-RUN cd Kimera-VIO-Evaluation && pip install .
+# We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
+RUN cd Kimera-VIO-Evaluation && python3.5 $(which pip3) install -e .
 
 # Add credentials on build
 ARG SSH_PRIVATE_KEY
