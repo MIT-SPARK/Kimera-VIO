@@ -36,7 +36,6 @@ using Matrixf = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>;
 using Matrices3f = std::vector<Matrix3f, Eigen::aligned_allocator<Matrix3f>>;
 using Vectors3f = std::vector<Vector3f, Eigen::aligned_allocator<Vector3f>>;
 
-// TODO(Toni): make a class enum.
 enum class KeypointStatus {
   VALID,
   NO_LEFT_RECT,
