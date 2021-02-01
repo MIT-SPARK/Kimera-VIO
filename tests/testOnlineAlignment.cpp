@@ -44,8 +44,8 @@ class OnlineAlignmentFixture : public ::testing::Test {
     initializeImuParams(&imu_params_);
 
     // Set IMU bias
-    bias_acc_ = gtsam::Vector3(0.0, 0.0, 0.0);
-    bias_gyr_ = gtsam::Vector3(0.0, 0.0, 0.0);
+    bias_acc_ = gtsam::Vector3::Zero();
+    bias_gyr_ = gtsam::Vector3::Zero();
     imu_bias_ = ImuBias(bias_acc_, bias_gyr_);
   }
 
@@ -103,7 +103,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
 
       // AHRS Pre-integration
       // Define covariance matrices
-      Vector3 biasHat(0, 0, 0);
+      gtsam::Vector3 biasHat = gtsam::Vector3::Zero();
       double accNoiseVar = 0.01;
       const Matrix3 kMeasuredAccCovariance =
           accNoiseVar * gtsam::Matrix3::Identity();
@@ -130,7 +130,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
       it++;
     }
     // Set initial pose to identity as we compute all relative to it
-    estimated_poses_[0] = gtsam::Pose3();
+    estimated_poses_[0] = gtsam::Pose3::identity();
   }
 
   void initializeImuParams(ImuParams* imu_params) const {
@@ -159,8 +159,8 @@ class OnlineAlignmentFixture : public ::testing::Test {
   std::vector<double> delta_t_poses_;
   ImuParams imu_params_;
   ImuBias imu_bias_;
-  Vector3 bias_acc_;
-  Vector3 bias_gyr_;
+  gtsam::Vector3 bias_acc_;
+  gtsam::Vector3 bias_gyr_;
   VioNavState init_navstate_;
 };
 
@@ -175,7 +175,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimation) {
   initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 
   // Construct online alignment class with dummy gravity vector
-  gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
+  gtsam::Vector3 n_gravity = gtsam::Vector3::Zero();
   OnlineGravityAlignment initial_alignment(
       estimated_poses_, delta_t_poses_, pims_, n_gravity);
 
@@ -202,7 +202,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimationAHRS) {
   initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 
   // Construct online alignment class with dummy gravity vector
-  gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
+  gtsam::Vector3 n_gravity = gtsam::Vector3::Zero();
   OnlineGravityAlignment initial_alignment(
       estimated_poses_, delta_t_poses_, pims_, n_gravity, ahrs_pim_);
 
@@ -276,7 +276,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_OnlineGravityAlignment) {
   gtsam::Vector3 real_body_grav(init_navstate_.pose_.rotation().transpose() *
                                 n_gravity);
   gtsam::Pose3 real_init_pose(init_navstate_.pose_.rotation(),
-                              gtsam::Vector3());
+                              gtsam::Vector3::Zero());
   LOG(INFO) << real_body_grav << " vs. " << g_iter;
   EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_OGA);
   EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_OGA);
@@ -322,7 +322,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GravityAlignmentRealData) {
     gtsam::Vector3 real_body_grav(init_navstate_.pose_.rotation().transpose() *
                                   n_gravity);
     gtsam::Pose3 real_init_pose(init_navstate_.pose_.rotation(),
-                                gtsam::Vector3());
+                                gtsam::Vector3::Zero());
 
     LOG(INFO) << real_body_grav << " vs. " << g_iter;
     EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_RD_gv);
