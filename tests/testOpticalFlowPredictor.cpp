@@ -328,7 +328,7 @@ TEST_F(OpticalFlowPredictorFixture, DefaultNoPredictionOpticalFlowPrediction) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Compare for equality
@@ -357,10 +357,10 @@ TEST_F(OpticalFlowPredictorFixture,
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       actual_kpts, inter_frame_rot, &actual_kpts);
 
   // Compare for equality
@@ -395,7 +395,7 @@ TEST_F(OpticalFlowPredictorFixture, DefaultRotationalOpticalFlowPrediction) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Compare for equality
@@ -420,10 +420,10 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionInvariance) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       actual_kpts, inter_frame_rot.inverse(), &actual_kpts);
 
   // Expect invariance.
@@ -447,7 +447,7 @@ TEST_F(OpticalFlowPredictorFixture,
   // Call predictor to get next_kps
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 2
@@ -474,7 +474,7 @@ TEST_F(OpticalFlowPredictorFixture,
   // Call predictor to get next_kps
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
@@ -489,7 +489,7 @@ TEST_F(OpticalFlowPredictorFixture,
   generateCam2(cam_1_P_cam_2);
 
   // Call predictor to get next_kps
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
@@ -521,7 +521,7 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionOutOfImage) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect not out of image kpts.
@@ -552,7 +552,7 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionBehindCam) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect not out of image kpts.
@@ -582,7 +582,7 @@ TEST_F(OpticalFlowPredictorFixture,
   // Call predictor to get next_kps
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 2
