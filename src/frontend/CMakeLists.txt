@@ -16,4 +16,6 @@ target_sources(kimera_vio
 )
 
 add_subdirectory(feature-detector)
+add_subdirectory(optical-flow)
+
 
