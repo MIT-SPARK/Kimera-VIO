@@ -25,7 +25,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "kimera-vio/frontend/OpticalFlowPredictor-definitions.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
