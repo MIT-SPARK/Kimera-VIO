@@ -592,22 +592,22 @@ TEST_F(OpticalFlowPredictorFixture,
   // irrelevant beyond having an insight on how much pixel error you can
   // expect...
   ASSERT_EQ(8, actual_kpts.size());
-  EXPECT_EQ(376.00003051757812, actual_kpts[0].x);
-  EXPECT_EQ(239.99998474121094, actual_kpts[0].y);
-  EXPECT_EQ(415.302001953125, actual_kpts[1].x);
-  EXPECT_EQ(347.7138671875, actual_kpts[1].y);
-  EXPECT_EQ(483.71389770507812, actual_kpts[2].x);
-  EXPECT_EQ(200.69801330566406, actual_kpts[2].y);
-  EXPECT_EQ(523.015869140625, actual_kpts[3].x);
-  EXPECT_EQ(308.41189575195312, actual_kpts[3].y);
-  EXPECT_EQ(376.00003051757812, actual_kpts[4].x);
-  EXPECT_EQ(239.99998474121094, actual_kpts[4].y);
-  EXPECT_EQ(407.44161987304688, actual_kpts[5].x);
-  EXPECT_EQ(326.17108154296875, actual_kpts[5].y);
-  EXPECT_EQ(462.17111206054688, actual_kpts[6].x);
-  EXPECT_EQ(208.55841064453125, actual_kpts[6].y);
-  EXPECT_EQ(493.61270141601562, actual_kpts[7].x);
-  EXPECT_EQ(294.7294921875, actual_kpts[7].y);
+  EXPECT_NEAR(376.00003051757812, actual_kpts[0].x, 1e-1);
+  EXPECT_NEAR(239.99998474121094, actual_kpts[0].y, 1e-1);
+  EXPECT_NEAR(415.302001953125,   actual_kpts[1].x, 1e-1);
+  EXPECT_NEAR(347.7138671875,     actual_kpts[1].y, 1e-1);
+  EXPECT_NEAR(483.71389770507812, actual_kpts[2].x, 1e-1);
+  EXPECT_NEAR(200.69801330566406, actual_kpts[2].y, 1e-1);
+  EXPECT_NEAR(523.015869140625,   actual_kpts[3].x, 1e-1);
+  EXPECT_NEAR(308.41189575195312, actual_kpts[3].y, 1e-1);
+  EXPECT_NEAR(376.00003051757812, actual_kpts[4].x, 1e-1);
+  EXPECT_NEAR(239.99998474121094, actual_kpts[4].y, 1e-1);
+  EXPECT_NEAR(407.44161987304688, actual_kpts[5].x, 1e-1);
+  EXPECT_NEAR(326.17108154296875, actual_kpts[5].y, 1e-1);
+  EXPECT_NEAR(462.17111206054688, actual_kpts[6].x, 1e-1);
+  EXPECT_NEAR(208.55841064453125, actual_kpts[6].y, 1e-1);
+  EXPECT_NEAR(493.61270141601562, actual_kpts[7].x, 1e-1);
+  EXPECT_NEAR(294.7294921875,     actual_kpts[7].y, 1e-1);
 
   visualizeScene("RotationAndTranslation", actual_kpts);
 }
