@@ -594,7 +594,7 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
     const StatusKeypointsCV& corners_with_status_1,
     const cv::Mat& img2,
     const StatusKeypointsCV& corners_with_status_2,
-    const std::vector<cv::DMatch>& matches,
+    const DMatchVec& matches,
     const bool& random_color) {
   KeypointsCV keypoints_1, keypoints_2;
   keypoints_1.reserve(corners_with_status_1.size());
@@ -619,7 +619,7 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
     const KeypointsCV& corners_1,
     const cv::Mat& img2,
     const KeypointsCV& corners_2,
-    const std::vector<cv::DMatch>& matches,
+    const DMatchVec& matches,
     const bool& random_color) {
   cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
   KeypointCV pt_offset(img1.cols, 0);
@@ -729,7 +729,7 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
     const std::vector<cv::Point2f>& corners1,
     const cv::Mat img2,
     const std::vector<cv::Point2f>& corners2,
-    const std::vector<cv::DMatch>& matches) {
+    const DMatchVec& matches) {
   cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
 

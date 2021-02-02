@@ -23,8 +23,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
@@ -44,15 +44,6 @@ class VisualizerFixture : public ::testing::Test {
         viz_type_(VisualizationType::kMesh2dTo3dSparse),
         backend_type_(BackendType::kStereoImu),
         visualizer_(nullptr) {
-    // camera_params_.R_rectify_ = (cv::Mat_<double>(3, 3) << pose_vector_[0],
-    //                              pose_vector_[1],
-    //                              pose_vector_[2],
-    //                              pose_vector_[4],
-    //                              pose_vector_[5],
-    //                              pose_vector_[6],
-    //                              pose_vector_[8],
-    //                              pose_vector_[9],
-    //                              pose_vector_[10]);
     img_name_ = std::string(FLAGS_test_data_path) + "/chessboard_small.png";
     img_ = UtilsOpenCV::ReadAndConvertToGrayScale(img_name_);
     // Construct a frame from image name, and extract keypoints/landmarks.
@@ -130,7 +121,7 @@ TEST_F(VisualizerFixture, spinOnce) {
                   timestamp,
                   Frame(FrameId(), timestamp, camera_params_, cv::Mat()),
                   Frame(FrameId(), timestamp, camera_params_, cv::Mat())),
-      ImuFrontEnd::PimPtr(),
+      ImuFrontend::PimPtr(),
       ImuAccGyrS(),
       cv::Mat(),
       DebugTrackerInfo());

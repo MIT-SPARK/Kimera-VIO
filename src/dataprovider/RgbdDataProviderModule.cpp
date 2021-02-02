@@ -61,7 +61,7 @@ RgbdDataProviderModule::getInputPacket() {
         mono_imu_sync_packet->imu_accgyrs_));
   }
 
-  // Push the synced messages to the frontend's input queue
+  // Push the synced messages to the Frontend's input queue
   // TODO(Toni): should be a return like that, so that we pass the info to the
   // queue... Right now we use a callback bcs otw I need to fix all
   // initialization which is a lot to be fixed.

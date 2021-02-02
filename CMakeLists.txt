@@ -89,10 +89,10 @@ add_subdirectory(src/dataprovider)
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/playground)
 add_subdirectory(src/playground)
-### Add source code for frontend.
+### Add source code for Frontend.
 add_subdirectory(include/kimera-vio/frontend)
 add_subdirectory(src/frontend)
-### Add source code for backend.
+### Add source code for Backend.
 add_subdirectory(include/kimera-vio/backend)
 add_subdirectory(src/backend)
 ### Add source code for factors
@@ -119,7 +119,7 @@ add_subdirectory(src/loopclosure)
 ### Add source code for logging
 add_subdirectory(include/kimera-vio/logging)
 add_subdirectory(src/logging)
-### Add source code for imu frontend
+### Add source code for imu Frontend
 add_subdirectory(include/kimera-vio/imu-frontend)
 add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
@@ -224,7 +224,7 @@ if(BUILD_TESTS)
   include(CTest)
   add_executable(testKimeraVIO
     tests/testKimeraVIO.cpp
-    tests/testStereoPipeline.cpp
+    tests/testStereoImuPipeline.cpp
     tests/testVioParams.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE
@@ -236,7 +236,7 @@ if(BUILD_TESTS)
     tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
-    tests/testImuFrontEnd.cpp
+    tests/testImuFrontend.cpp
     tests/testImuParams.cpp
     # tests/testKittiDataProvider.cpp # TODO
     tests/testLoopClosureDetector.cpp
@@ -248,10 +248,12 @@ if(BUILD_TESTS)
     tests/testParallelPlaneRegularBasicFactor.cpp
     tests/testParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testPointPlaneFactor.cpp
-    #tests/testRegularVioBackEnd.cpp # rotten
-    tests/testRegularVioBackEndParams.cpp
+    #tests/testRegularVioBackend.cpp # rotten
+    tests/testRegularVioBackendParams.cpp
     tests/testStereoFrame.cpp # NEEDS UPDATE
-    tests/testStereoVisionFrontEnd.cpp # NEEDS UPDATE
+    tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
+    tests/testStereoMatcher.cpp
+    tests/testUndistortRectifier.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp
@@ -260,9 +262,10 @@ if(BUILD_TESTS)
     tests/testUtilsOpenCV.cpp
     tests/testUtilsNumerical.cpp
     tests/testInitializationFromImu.cpp
-    tests/testVioBackEnd.cpp
-    tests/testVioBackEndParams.cpp
-    tests/testVisionFrontEndParams.cpp
+    tests/testVioBackend.cpp
+    tests/testVioBackendParams.cpp
+    tests/testVioParams.cpp
+    tests/testVisionImuFrontendParams.cpp
     tests/testFeatureDetectorParams.cpp
     tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp

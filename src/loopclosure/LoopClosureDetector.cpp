@@ -139,7 +139,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   CHECK_EQ(set_intrinsics_, true);
   CHECK_GE(input.cur_kf_id_, 0);
 
-  // Update the PGO with the backend VIO estimate.
+  // Update the PGO with the Backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
   timestamp_map_[input.cur_kf_id_] = input.timestamp_kf_;
@@ -704,8 +704,8 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
     const FrameId& query_id,
     const FrameId& match_id,
     bool cut_matches) const {
-  std::vector<std::vector<cv::DMatch>> matches;
-  std::vector<cv::DMatch> good_matches;
+  std::vector<DMatchVec> matches;
+  DMatchVec good_matches;
 
   // Use the Lowe's Ratio Test only if asked.
   double lowe_ratio = 1.0;
@@ -717,7 +717,7 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
                                  matches,
                                  2u);
 
-  for (const std::vector<cv::DMatch>& match : matches) {
+  for (const DMatchVec& match : matches) {
     if (match.at(0).distance < lowe_ratio * match.at(1).distance) {
       good_matches.push_back(match[0]);
     }

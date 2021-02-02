@@ -13,21 +13,23 @@
  * @author Marcus Abate
  */
 
+#include <string>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
 
 DECLARE_string(test_data_path);
 
-static const string stereo_FLAGS_test_data_path(FLAGS_test_data_path +
-                                                string("/ForStereoFrame/"));
-static const string left_image_name = "left_img_0.png";
+static const std::string stereo_FLAGS_test_data_path(
+    FLAGS_test_data_path + std::string("/ForStereoFrame/"));
+static const std::string left_image_name = "left_img_0.png";
 
 class UndistortRectifierFixture : public ::testing::Test {
  public:
@@ -120,7 +122,7 @@ TEST_F(UndistortRectifierFixture, undistortRectifyKeypoints) {
 
   VIO::KeypointsCV keypoints_unrectified_actual;
   undistorter_rectifier->distortUnrectifyKeypoints(
-      keypoints_rectified,
+      status_keypoints_rectified,
       &keypoints_unrectified_actual);
 
   // Comparision
@@ -173,13 +175,13 @@ TEST_F(UndistortRectifierFixture, distortUnrectifyKeypoints) {
       if ((r + c) % 2 == 0) {  // set some of them to NO_RIGHT_RECT
         st = VIO::KeypointStatus::NO_RIGHT_RECT;
       }
-      keypoints_rectified.push_back(make_pair(st, cv::Point2f(x, y)));
+      keypoints_rectified.push_back(std::make_pair(st, cv::Point2f(x, y)));
     }
   }
 
   VIO::KeypointsCV keypoints_unrectified;
-  undistorter_rectifier->distortUnrectifyPoints(
-          keypoints_rectified, &keypoints_unrectified);
+  undistorter_rectifier->distortUnrectifyKeypoints(keypoints_rectified,
+                                                   &keypoints_unrectified);
 
   // Manually compute the expected distorted/unrectified keypoints!
   EXPECT_EQ(keypoints_rectified.size(), keypoints_unrectified.size());
@@ -213,12 +215,12 @@ TEST_F(UndistortRectifierFixture, distortUnrectifyKeypoints) {
         VIO::Point2(keypoints_unrectified[i].x, keypoints_unrectified[i].y);
 
     // Comparison!
-    EXPECT_TRUE(assert_equal(pt_expected, pt_actual, 1e-3));
+    EXPECT_TRUE(gtsam::assert_equal(pt_expected, pt_actual, 1e-3));
   }
 }
 
 // Test undistortion of fisheye / pinhole equidistant model
-TEST(UndistortRectifierFixture, undistortFisheye) {
+TEST_F(UndistortRectifierFixture, undistortFisheye) {
   // Parse camera params
   static VIO::CameraParams cam_params_left_fisheye, cam_params_right_fisheye;
   cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
@@ -238,7 +240,7 @@ TEST(UndistortRectifierFixture, undistortFisheye) {
         + "left_fisheye_img_0.png", false);
 
   // Declare empty variables
-  cv::Mat left_fisheye_image_undist, map_x_fisheye_undist, map_y_fisheye_undist;
+  cv::Mat left_fisheye_image_undist;
 
   // Undistort image using pinhole equidistant (fisheye) model
   if (cam_params_left_fisheye.distortion_model_ ==
@@ -246,7 +248,7 @@ TEST(UndistortRectifierFixture, undistortFisheye) {
     fisheye_undistorter_left.undistortRectifyImage(left_fisheye_image_dist,
                                                    &left_fisheye_image_undist);
   } else {
-    LOG(ERROR) << "Distortion model is not pinhole equidistant.";
+    LOG(FATAL) << "Distortion model is not pinhole equidistant.";
   }
 
   // Parse reference image
@@ -262,10 +264,10 @@ TEST(UndistortRectifierFixture, undistortFisheye) {
 // TODO: reenable and fix
 // TEST_F(UndistortRectifierFixture, DISABLED_undistortFisheyeStereoFrame) {
 //   // Parse camera params for left and right cameras
-//   static CameraParams cam_params_left_fisheye;
+//   static VIO::CameraParams cam_params_left_fisheye;
 //   cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
 //                                     "/left_sensor_fisheye.yaml");
-//   static CameraParams cam_params_right_fisheye;
+//   static VIO::CameraParams cam_params_right_fisheye;
 //   cam_params_right_fisheye.parseYAML(stereo_FLAGS_test_data_path +
 //                                      "/right_sensor_fisheye.yaml");
 
@@ -275,7 +277,7 @@ TEST(UndistortRectifierFixture, undistortFisheye) {
 //   cv::Mat right_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
 //       stereo_FLAGS_test_data_path + "right_fisheye_img_0.png", false);
 
-//   sf = std::make_shared<StereoFrame>(0,
+//   sf = std::make_shared<VIO::StereoFrame>(0,
 //                                      0,  // Default, not used here
 //                                      // Left frame
 //                                      left_fisheye_image_dist,

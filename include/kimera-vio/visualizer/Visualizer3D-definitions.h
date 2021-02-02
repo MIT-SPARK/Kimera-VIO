@@ -21,7 +21,7 @@
 
 #include <opencv2/viz/widgets.hpp>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"

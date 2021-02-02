@@ -24,11 +24,11 @@
 #include <thread>
 #include <vector>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/backend/VioBackEndModule.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/backend/VioBackendModule.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/MonoDataProviderModule.h"
-#include "kimera-vio/frontend/VisionFrontEndModule.h"
+#include "kimera-vio/frontend/VisionImuFrontendModule.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
@@ -117,7 +117,7 @@ class Pipeline {
 
   /**
    * @brief shutdownWhenFinished
-   * Shutdown the pipeline once all data has been consumed, or if the backend
+   * Shutdown the pipeline once all data has been consumed, or if the Backend
    * has died unexpectedly.
    * @param sleep_time_ms period of time between checks of vio status.
    * @return true if shutdown succesful, false otherwise (only returns
@@ -174,20 +174,20 @@ class Pipeline {
             vio_backend_module_->isInitialized();
   }
 
-  //! Shutdown for in case backend fails (this is done for a graceful shutdown).
+  //! Shutdown for in case Backend fails (this is done for a graceful shutdown).
   virtual void signalBackendFailure() {
     VLOG(1) << "Backend failure signal received.";
     is_backend_ok_ = false;
   }
 
   inline void registerBackendOutputCallback(
-      const VioBackEndModule::OutputCallback& callback) {
+      const VioBackendModule::OutputCallback& callback) {
     CHECK(vio_backend_module_);
     vio_backend_module_->registerOutputCallback(callback);
   }
 
   inline void registerFrontendOutputCallback(
-      const typename VisionFrontEndModule::OutputCallback& callback) {
+      const typename VisionImuFrontendModule::OutputCallback& callback) {
     CHECK(vio_frontend_module_);
     vio_frontend_module_->registerOutputCallback(callback);
   }
@@ -227,7 +227,7 @@ class Pipeline {
 
  protected:
   // VIO parameters
-  //! Mind that the backend params is shared with the dataprovider which might
+  //! Mind that the Backend params is shared with the dataprovider which might
   //! modify them to add the ground truth initial 3d pose
   BackendParams::ConstPtr backend_params_;
   FrontendParams frontend_params_;
@@ -243,16 +243,16 @@ class Pipeline {
   MonoDataProviderModule::UniquePtr data_provider_module_;
 
   // Vision Frontend
-  VisionFrontEndModule::UniquePtr vio_frontend_module_;
+  VisionImuFrontendModule::UniquePtr vio_frontend_module_;
 
-  //! Vision frontend payloads.
-  VisionFrontEndModule::InputQueue frontend_input_queue_;
+  //! Vision Frontend payloads.
+  VisionImuFrontendModule::InputQueue frontend_input_queue_;
 
   //! Backend
-  VioBackEndModule::UniquePtr vio_backend_module_;
+  VioBackendModule::UniquePtr vio_backend_module_;
 
-  //! Thread-safe queue for the backend.
-  VioBackEndModule::InputQueue backend_input_queue_;
+  //! Thread-safe queue for the Backend.
+  VioBackendModule::InputQueue backend_input_queue_;
 
   //! Mesher
   MesherModule::UniquePtr mesher_module_;

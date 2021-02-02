@@ -16,7 +16,7 @@ The following are the gflags accepted by SparkVIO, this has been generated using
     * output_path (Path where to store VIO's log output.) type: string
       default: "./"
 
-  * Flags from RegularVioBackEnd.cpp:
+  * Flags from RegularVioBackend.cpp:
 
     * convert_extra_smart_factors_to_proj_factors (Whether to convert all smart
       factors in time horizon to projection factors, instead of just the ones in current frame.) type: bool default: true
@@ -47,9 +47,9 @@ The following are the gflags accepted by SparkVIO, this has been generated using
     * images_rectified (Input image data already rectified.) type: bool
       default: false
 
-  * Flags from VioBackEnd.cpp:
+  * Flags from VioBackend.cpp:
     * compute_state_covariance (Flag to compute state covariance from
-      optimization backend) type: bool default: false
+      optimization Backend) type: bool default: false
     * debug_graph_before_opt (Store factor graph before optimization for later
       printing if the optimization fails.) type: bool default: false
     * max_number_of_cheirality_exceptions (Sets the maximum number of times we
@@ -100,9 +100,9 @@ The following are the gflags accepted by SparkVIO, this has been generated using
       labels.) type: bool default: false
 
   * Flags from DataSource.cpp:
-    * backend_type (Type of vioBackEnd to use:
-      0: VioBackEnd
-      1: RegularVioBackEnd) type: int32 default: 0
+    * backend_type (Type of vioBackend to use:
+      0: VioBackend
+      1: RegularVioBackend) type: int32 default: 0
     * dataset_path (Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).)
       type: string default: "/Users/Luca/data/MH_01_easy"
     * final_k (Final frame to finish processing dataset, subsequent frames will
@@ -148,8 +148,8 @@ The following are the gflags accepted by SparkVIO, this has been generated using
     * distance_tolerance_polygon_plane_association (Tolerance for a polygon
       vertices to be considered close to a plane.) type: double
       default: 0.10000000000000001
-    * do_double_association (Do double plane association of backend plane with
-      multiple segmented planes. Otherwise search for another possible backend
+    * do_double_association (Do double plane association of Backend plane with
+      multiple segmented planes. Otherwise search for another possible Backend
       plane for the segmented plane.) type: bool default: true
     * hist_2d_distance_bins (.) type: int32 default: 40
     * hist_2d_distance_range_max (.) type: double default: 6
@@ -242,10 +242,10 @@ The following are the gflags accepted by SparkVIO, this has been generated using
       adjustment in initialization.) type: double default: 30
     * record_video_for_viz_3d (Record a video as a sequence of screenshots of
       the 3d viz window) type: bool default: false
-    * regular_vio_backend_modality (Modality for regular Vio backend, currently
+    * regular_vio_backend_modality (Modality for regular Vio Backend, currently
       supported:
       0: Structureless (equivalent to normal VIO)
-      1: Projection (as if it was a typical VIO backend with projectionfactors)
+      1: Projection (as if it was a typical VIO Backend with projectionfactors)
       2: Structureless and Projection, sets to projection factors the
       structureless factors that are supposed to be in a regularity.
       3: Projection and Regularity, sets all structureless factors toprojection

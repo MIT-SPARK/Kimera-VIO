@@ -5,9 +5,9 @@
 # 1: StereoImu
 frontend_type: 1
 
-# Type of vioBackEnd to use:
-# 0: VioBackEnd
-# 1: RegularVioBackEnd
+# Type of vioBackend to use:
+# 0: VioBackend
+# 1: RegularVioBackend
 backend_type: 1
 
 # Type of displayer

@@ -18,8 +18,8 @@
 #include <math.h>
 
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
@@ -97,7 +97,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
       //     timestamp_frame_k,
       //     &imu_meas.timestamps_,
       //     &imu_meas.acc_gyr_);
-      ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
+      ImuFrontend imu_frontend(imu_params_, imu_bias_);
       const auto& pim = imu_frontend.preintegrateImuMeasurements(
           imu_meas.timestamps_, imu_meas.acc_gyr_);
 

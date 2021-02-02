@@ -31,7 +31,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/YamlParser.h"
 

@@ -108,10 +108,10 @@ class StereoFrame {
    */
   static cv::Mat drawCornersMatches(const StereoFrame& stereo_frame_1,
                                     const StereoFrame& stereo_frame_2,
-                                    const std::vector<cv::DMatch>& matches,
+                                    const DMatchVec& matches,
                                     const bool& random_color);
 
-  cv::Mat drawLeftRightCornersMatches(const std::vector<cv::DMatch>& matches,
+  cv::Mat drawLeftRightCornersMatches(const DMatchVec& matches,
                                       const bool& random_color) const;
 
  private:
@@ -164,7 +164,7 @@ class StereoFrame {
 
   //! Depths of keypoints
   // TODO(marcus): we got rid of this for a reason, find out what to replace it with...
-  std::vector<double> keypoints_depth_;
+  VIO::Depths keypoints_depth_;
 
   //! 3D positions of the stereo points as given by reprojection using stereo
   //! disparity; in the rectified left frame.

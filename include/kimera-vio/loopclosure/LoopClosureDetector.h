@@ -290,7 +290,7 @@ class LoopClosureDetector {
   /* ------------------------------------------------------------------------ */
   /** @brief Adds an odometry factor to the PGO and optimizes the trajectory.
    *  No actual optimization is performed on the RPGO side for odometry.
-   * @param[in] factor An OdometryFactor representing the backend's guess for
+   * @param[in] factor An OdometryFactor representing the Backend's guess for
    *  odometry between two consecutive keyframes.
    */
   void addOdometryFactorAndOptimize(const OdometryFactor& factor);
@@ -304,7 +304,7 @@ class LoopClosureDetector {
 
   /* ------------------------------------------------------------------------ */
   /** @brief Initializes the RobustSolver member with an initial prior factor,
-   *  which can be the first OdometryFactor given by the backend.
+   *  which can be the first OdometryFactor given by the Backend.
    * @param[in] factor An OdometryFactor representing the pose between the
    *  initial state of the vehicle and the first keyframe.
    */
@@ -416,7 +416,6 @@ class LoopClosureDetector {
 
  private:
   // Lcd typedefs
-  using DMatchVec = std::vector<cv::DMatch>;
   using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
   using SacProblemMono =
       opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
@@ -503,9 +502,9 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     CHECK(backend_payload);
     const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
 
-    // Look for the synchronized packet in frontend payload queue
+    // Look for the synchronized packet in Frontend payload queue
     // This should always work, because it should not be possible to have
-    // a backend payload without having a frontend one first!
+    // a Backend payload without having a Frontend one first!
     LcdFrontendInput frontend_payload = nullptr;
     PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
     CHECK(frontend_payload);
@@ -531,7 +530,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
   //! Checks if the module has work to do (should check input queues are empty)
   bool hasWork() const override {
-    // We don't check frontend queue because it runs faster than backend queue.
+    // We don't check Frontend queue because it runs faster than Backend queue.
     return !backend_queue_.empty();
   }
 

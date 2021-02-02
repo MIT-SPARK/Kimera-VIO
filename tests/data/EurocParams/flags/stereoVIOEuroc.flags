@@ -19,7 +19,7 @@
 --min_num_obs_for_mesher_points=3
 --extract_planes_from_the_scene=false
 
-# For displaying/saving frontend images:
+# For displaying/saving Frontend images:
 --visualize_frontend_images=false
 --save_frontend_images=false
 --log_feature_tracks=true

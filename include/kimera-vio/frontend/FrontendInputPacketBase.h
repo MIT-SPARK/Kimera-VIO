@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
 

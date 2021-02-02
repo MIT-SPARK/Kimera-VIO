@@ -268,7 +268,7 @@ class UtilsOpenCV {
                                     const KeypointsCV& corners1,
                                     const cv::Mat& img2,
                                     const KeypointsCV& corners2,
-                                    const std::vector<cv::DMatch>& matches,
+                                    const DMatchVec& matches,
                                     const bool& randomColor = false);
 
   /* ------------------------------------------------------------------------ */
@@ -277,7 +277,7 @@ class UtilsOpenCV {
                                     const StatusKeypointsCV& corners1,
                                     const cv::Mat& img2,
                                     const StatusKeypointsCV& corners2,
-                                    const std::vector<cv::DMatch>& matches,
+                                    const DMatchVec& matches,
                                     const bool& randomColor = false);
 
   /* ------------------------------------------------------------------------ */
@@ -322,7 +322,7 @@ class UtilsOpenCV {
       const std::vector<cv::Point2f>& corners1,
       const cv::Mat img2,
       const std::vector<cv::Point2f>& corners2,
-      const std::vector<cv::DMatch>& matches);
+      const DMatchVec& matches);
 
   /* ------------------------------------------------------------------------ */
   //  find max absolute value of matrix entry

@@ -8,7 +8,7 @@
 
 /**
  * @file   FrontendOutputPacketBase.h
- * @brief  Class describing the minimum output of the frontend.
+ * @brief  Class describing the minimum output of the Frontend.
  * @author Marcus Abate
  */
 
@@ -16,8 +16,8 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VisionFrontEnd-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -32,7 +32,7 @@ class FrontendOutputPacketBase : public PipelinePayload {
   FrontendOutputPacketBase(const Timestamp& timestamp,
                            const bool is_keyframe,
                            const FrontendType frontend_type,
-                           const ImuFrontEnd::PimPtr& pim,
+                           const ImuFrontend::PimPtr& pim,
                            const ImuAccGyrS& imu_acc_gyrs,
                            const DebugTrackerInfo& debug_tracker_info)
       : PipelinePayload(timestamp),
@@ -47,7 +47,7 @@ class FrontendOutputPacketBase : public PipelinePayload {
  public:
   const bool is_keyframe_;
   const FrontendType frontend_type_;
-  const ImuFrontEnd::PimPtr pim_;
+  const ImuFrontend::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
 

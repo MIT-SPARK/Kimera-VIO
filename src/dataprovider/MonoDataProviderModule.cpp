@@ -40,12 +40,6 @@ MonoDataProviderModule::getInputPacket() {
     return nullptr;
   }
   return nullptr;
-  // Push the synced messages to the frontend's input queue
-  // TODO(Toni): should be a return like that, so that we pass the info to the
-  // queue... Right now we use a callback bcs otw I need to fix all
-  // initialization which is a lot to be fixed.
-  // Actually, right now we don't even use a callback since mono VIO is not
-  // implemented...
 }
 
 MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {

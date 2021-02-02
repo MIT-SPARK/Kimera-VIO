@@ -203,7 +203,7 @@ bool Pipeline::hasFinished() const {
   // query if the queues are empty.
   return !(                 // Negate everything (too lazy to negate everything)
       !shutdown_ &&         // Loop while not explicitly shutdown.
-      is_backend_ok_ &&     // Loop while backend is fine.
+      is_backend_ok_ &&     // Loop while Backend is fine.
       (!isInitialized() ||  // Pipeline is not initialized and
                             // data is not yet consumed.
        !(!data_provider_module_->isWorking() &&
@@ -248,17 +248,17 @@ void Pipeline::shutdown() {
 }
 
 void Pipeline::resume() {
-  LOG(INFO) << "Restarting frontend workers and queues...";
+  LOG(INFO) << "Restarting Frontend workers and queues...";
   frontend_input_queue_.resume();
 
-  LOG(INFO) << "Restarting backend workers and queues...";
+  LOG(INFO) << "Restarting Backend workers and queues...";
   backend_input_queue_.resume();
 }
 
 void Pipeline::spinOnce(FrontendInputPacketBase::UniquePtr input) {
   CHECK(input);
   if (!shutdown_) {
-    // Push to frontend input queue.
+    // Push to Frontend input queue.
     VLOG(2) << "Push input payload to Frontend.";
     frontend_input_queue_.pushBlockingIfFull(std::move(input), 5u);
 
@@ -274,10 +274,10 @@ void Pipeline::spinOnce(FrontendInputPacketBase::UniquePtr input) {
 void Pipeline::launchThreads() {
   if (parallel_run_) {
     frontend_thread_ = VIO::make_unique<std::thread>(
-        &VisionFrontEndModule::spin, CHECK_NOTNULL(vio_frontend_module_.get()));
+        &VisionImuFrontendModule::spin, CHECK_NOTNULL(vio_frontend_module_.get()));
 
     backend_thread_ = VIO::make_unique<std::thread>(
-        &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
+        &VioBackendModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
     if (mesher_module_) {
       mesher_thread_ = VIO::make_unique<std::thread>(
@@ -329,8 +329,8 @@ void Pipeline::joinThreads() {
       << "should not happen.";
   VLOG(1) << "Joining threads...";
 
-  joinThread("backend", backend_thread_.get());
-  joinThread("frontend", frontend_thread_.get());
+  joinThread("Backend", backend_thread_.get());
+  joinThread("Frontend", frontend_thread_.get());
   joinThread("mesher", mesher_thread_.get());
   joinThread("lcd", lcd_thread_.get());
   joinThread("visualizer", visualizer_thread_.get());
