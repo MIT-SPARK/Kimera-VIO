@@ -151,7 +151,7 @@ struct MesherOutput : public PipelinePayload {
   cv::Mat vertices_mesh_;
   cv::Mat polygons_mesh_;
 
-  //! Planes from Regular VIO backend
+  //! Planes from Regular VIO Backend
   std::vector<Plane> planes_;
 };
 

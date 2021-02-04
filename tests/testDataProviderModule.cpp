@@ -23,8 +23,8 @@
 
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
-#include "kimera-vio/frontend/VisionFrontEndModule.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend.h"
+#include "kimera-vio/frontend/VisionImuFrontendModule.h"
 #include "kimera-vio/dataprovider/StereoDataProviderModule.h"
 
 static constexpr int default_timeout = 100000;
@@ -45,11 +45,11 @@ class TestStereoDataProviderModule : public ::testing::Test {
 
     // Create the output queue
     output_queue_ =
-        VIO::make_unique<VIO::VisionFrontEndModule::InputQueue>("output");
+        VIO::make_unique<VIO::VisionImuFrontendModule::InputQueue>("output");
 
     // Create the StereoDataProviderModule
     dummy_queue_ =
-        VIO::make_unique<VIO::VisionFrontEndModule::InputQueue>("unused");
+        VIO::make_unique<VIO::VisionImuFrontendModule::InputQueue>("unused");
     VIO::StereoMatchingParams dummy_params;
     bool parallel = false;
     stereo_data_provider_module_ = VIO::make_unique<VIO::StereoDataProviderModule>(
@@ -65,8 +65,8 @@ class TestStereoDataProviderModule : public ::testing::Test {
   }
 
  protected:
-  VIO::VisionFrontEndModule::InputQueue::UniquePtr output_queue_;
-  VIO::VisionFrontEndModule::InputQueue::UniquePtr dummy_queue_;
+  VIO::VisionImuFrontendModule::InputQueue::UniquePtr output_queue_;
+  VIO::VisionImuFrontendModule::InputQueue::UniquePtr dummy_queue_;
   VIO::StereoDataProviderModule::UniquePtr stereo_data_provider_module_;
   static constexpr size_t kImuTestBundleSize = 6;
 

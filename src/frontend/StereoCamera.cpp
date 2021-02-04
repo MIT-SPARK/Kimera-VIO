@@ -132,13 +132,13 @@ void StereoCamera::project(const LandmarkCV& lmk,
 }
 
 void StereoCamera::backProjectDepth(const KeypointCV& kp,
-                                    const double& depth,
+                                    const Depth& depth,
                                     LandmarkCV* lmk) const {
   CHECK_NOTNULL(lmk);
   CHECK(stereo_calibration_ != nullptr);
   CHECK_GT(depth, 0.0) << "Requested back projection of a keypoint :" << kp
                        << "\n with negative depth: " << depth;
-  double disparity =
+  auto disparity =
       stereo_calibration_->fy() * stereo_calibration_->baseline() / depth;
   backProjectDisparity(kp, disparity, lmk);
 }
@@ -172,7 +172,7 @@ void StereoCamera::backProject(const KeypointsCV& kps,
     // and disparity is int16_t...
     double disparity = static_cast<double>(disparity_img.at<int16_t>(kp));
     // TODO(TONI): check disparity is valid!!
-    CHECK_GE(disparity, 0);
+    CHECK_GE(disparity, 0.0);
     LandmarkCV lmk;
     backProjectDisparity(kp, disparity, &lmk);
     lmks->push_back(lmk);

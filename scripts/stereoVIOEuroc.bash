@@ -4,7 +4,7 @@
 
 # Specify path of the EuRoC dataset.
 # The path can be absolute, or relative to this file location.
-DATASET_PATH="/path/to/euroc/dataset"
+DATASET_PATH="/home/marcus/datasets/Euroc/MH_01_easy"
 
 # Specify: 0 to run on EuRoC data, 1 to run on Kitti (not supported)
 DATASET_TYPE=0
@@ -21,7 +21,7 @@ LOG_OUTPUT=0
 # All paths can be absolute or relative to this file location.
 
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../build"
+BUILD_PATH="../../../build/kimera_vio"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params/Euroc"
@@ -112,5 +112,5 @@ $BUILD_PATH/stereoVIOEuroc \
 # If in debug mode, you can run gdb to trace problems.
 #export PARAMS_PATH=../params/Euroc
 #export DATASET_PATH=/home/tonirv/datasets/EuRoC/V1_01_easy
-#gdb --args ../build/stereoVIOEuroc --flagfile="$PARAMS_PATH/flags/stereoVIOEuroc.flags" --flagfile="$PARAMS_PATH/flags/Mesher.flags" --flagfile="$PARAMS_PATH/flags/VioBackEnd.flags" --flagfile="$PARAMS_PATH/flags/RegularVioBackEnd.flags" --flagfile="$PARAMS_PATH/flags/Visualizer3D.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --params_folder_path="$PARAMS_PATH" --initial_k=50 --final_k=2000 --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackEnd=0 --dataset_type="0" --log_output="0" --output_path="../output_logs/"
+#gdb --args ../build/stereoVIOEuroc --flagfile="$PARAMS_PATH/flags/stereoVIOEuroc.flags" --flagfile="$PARAMS_PATH/flags/Mesher.flags" --flagfile="$PARAMS_PATH/flags/VioBackend.flags" --flagfile="$PARAMS_PATH/flags/RegularVioBackend.flags" --flagfile="$PARAMS_PATH/flags/Visualizer3D.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --params_folder_path="$PARAMS_PATH" --initial_k=50 --final_k=2000 --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackend=0 --dataset_type="0" --log_output="0" --output_path="../output_logs/"
 

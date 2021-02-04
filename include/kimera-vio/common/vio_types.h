@@ -47,6 +47,8 @@ enum class KeypointStatus {
 using Depth = double;
 using Depths = std::vector<Depth>;
 
+using DMatchVec = std::vector<cv::DMatch>;
+
 // Definitions relevant to frame types
 using FrameId = std::uint64_t;  // Frame id is used as the index of gtsam symbol
                                 // (not as a gtsam key).
@@ -90,10 +92,11 @@ constexpr typename std::underlying_type<E>::type to_underlying(E e) noexcept {
   return static_cast<typename std::underlying_type<E>::type>(e);
 }
 
+// Safely downcast and deal with errors. This works on raw types (not pointers)
+// NOTE: this will create a copy
 template <class Base, class Derived>
 inline Derived safeCast(const Base& base) {
   try {
-    // NOTE: This will create a copy
     return dynamic_cast<const Derived&>(base);
   } catch (const std::bad_cast& e) {
     LOG(ERROR) << "Seems that you are casting an object that is not "
@@ -104,6 +107,8 @@ inline Derived safeCast(const Base& base) {
   }
 }
 
+// Safely downcast shared pointers. Will not create copies of underlying data,
+// but returns a new pointer. 
 template <typename Base, typename Derived>
 inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
   CHECK(base_ptr);
@@ -118,6 +123,7 @@ inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
   }
 }
 
+// Safely downcast unique pointers.
 // NOTE: pass by rvalue because this prevents the copy of the pointer and 
 // is faster. All others don't transfer ownership (aren't using move types)
 // and so don't need to pass by rvalue.

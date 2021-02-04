@@ -160,7 +160,7 @@ void StereoFrame::print() const {
 cv::Mat StereoFrame::drawCornersMatches(
     const StereoFrame& stereo_frame_1,
     const StereoFrame& stereo_frame_2,
-    const std::vector<cv::DMatch>& matches,
+    const DMatchVec& matches,
     const bool& random_color) {
   return UtilsOpenCV::DrawCornersMatches(
       stereo_frame_1.left_img_rectified_,
@@ -172,7 +172,7 @@ cv::Mat StereoFrame::drawCornersMatches(
 }
 
 cv::Mat StereoFrame::drawLeftRightCornersMatches(
-    const std::vector<cv::DMatch>& matches,
+    const DMatchVec& matches,
     const bool& random_color) const {
   return UtilsOpenCV::DrawCornersMatches(left_img_rectified_,
                                          left_keypoints_rectified_,
@@ -254,7 +254,7 @@ void StereoFrame::showLeftRightMatches() const {
 
   // Draw the matchings: assumes that keypoints in the left and right keyframe
   // are ordered in the same way
-  std::vector<cv::DMatch> matches;
+  DMatchVec matches;
   for (size_t i = 0; i < left_frame_.keypoints_.size(); i++) {
     matches.push_back(cv::DMatch(i, i, 0));
   }

@@ -25,6 +25,7 @@ class StereoMatcher {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoMatcher);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoMatcher);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /**
    * @brief StereoMatcher definition of what a Stereo Matcher is. Computes
@@ -77,16 +78,6 @@ class StereoMatcher {
       const StatusKeypointsCV& left_keypoints_rectified,
       StatusKeypointsCV* right_keypoints_rectified);
 
- protected:
-  /**
-   * @brief getRightKeypointsRectified
-   * @param left_img_rectified
-   * @param right_img_rectified
-   * @param left_keypoints_rectified
-   * @param fx
-   * @param baseline
-   * @param right_keypoints_rectified
-   */
   void getRightKeypointsRectified(
       const cv::Mat& left_img_rectified,
       const cv::Mat& right_img_rectified,
@@ -98,19 +89,9 @@ class StereoMatcher {
   void getDepthFromRectifiedMatches(
       StatusKeypointsCV& left_keypoints_rectified,
       StatusKeypointsCV& right_keypoints_rectified,
-      std::vector<double>* keypoints_depth) const;
+      Depths* keypoints_depth) const;
 
-  /**
-   * @brief searchRightKeypointEpipolar
-   * @param left_img_rectified
-   * @param left_keypoint_rectified
-   * @param right_rectified
-   * @param stripe_cols
-   * @param stripe_rows
-   * @param stereo_matching_params
-   * @param right_keypoint_rectified
-   * @param score
-   */
+ protected:
   void searchRightKeypointEpipolar(
       const cv::Mat& left_img_rectified,
       const KeypointCV& left_keypoint_rectified,

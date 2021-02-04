@@ -27,9 +27,9 @@
 // To convert from/to eigen
 #include <opencv2/core/eigen.hpp>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/frontend/MonoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -243,7 +243,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
                     input.backend_output_->state_,
                     ppf_plane_key,
                     &current_plane_estimate));
-                // WARNING assumes the backend updates normal and distance
+                // WARNING assumes the Backend updates normal and distance
                 // of plane and that no one modifies it afterwards...
                 visualizePlaneConstraints(
                     plane.getPlaneSymbol().key(),
@@ -301,7 +301,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
           }
         }
 
-        // Also remove planes that were deleted by the backend...
+        // Also remove planes that were deleted by the Backend...
         for (const Plane& plane : planes_prev) {
           const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
           const std::uint64_t& plane_index = plane_symbol.index();

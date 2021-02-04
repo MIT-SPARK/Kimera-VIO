@@ -30,7 +30,7 @@
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 

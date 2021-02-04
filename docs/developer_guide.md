@@ -120,7 +120,7 @@ Here some guidelines:
 1) Keep all your implementation strictly in .cpp files so that ideally all your includes are in the .cpp file so you don't add dependencies to people including your header file.
 2) Most likely your .h also have dependencies, but these can be kept at a minimum by:
 
-i) Stick to **PIMPL approach**: Pointer to Implementation, which suggests that, having your class members, if complex, might be instead changed for pointers! This is extensively used in the VIO pipeline with the std::unique_ptr (smart pointers that cannot be copied) for things such as the frontend, the mesher, the backend etc...
+i) Stick to **PIMPL approach**: Pointer to Implementation, which suggests that, having your class members, if complex, might be instead changed for pointers! This is extensively used in the VIO pipeline with the std::unique_ptr (smart pointers that cannot be copied) for things such as the Frontend, the mesher, the Backend etc...
 
 ii) Only ever include files for members inside the class. Those you cannot avoid, because the compiler needs to know the size of your classes in your .h!
 Following these guidelines and common sense ones like not adding random includes and remembering to remove those that are no longer needed should remove 80% of the includes we have.

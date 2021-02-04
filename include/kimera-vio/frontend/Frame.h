@@ -87,13 +87,13 @@ class Frame : public PipelinePayload {
  public:
   /* ------------------------------------------------------------------------ */
   void checkFrame() const { 
-    const size_t nrKpts = keypoints_.size();
-    CHECK_EQ(keypoints_undistorted_.size(), nrKpts);
-    CHECK_EQ(scores_.size(), nrKpts);
-    CHECK_EQ(landmarks_.size(), nrKpts);
-    CHECK_EQ(landmarks_age_.size(), nrKpts);
-    CHECK_EQ(versors_.size(), nrKpts);
-    // CHECK_EQ(descriptors_.size(), nrKpts);
+    const size_t nr_kpts = keypoints_.size();
+    CHECK_EQ(keypoints_undistorted_.size(), nr_kpts);
+    CHECK_EQ(scores_.size(), nr_kpts);
+    CHECK_EQ(landmarks_.size(), nr_kpts);
+    CHECK_EQ(landmarks_age_.size(), nr_kpts);
+    CHECK_EQ(versors_.size(), nr_kpts);
+    // CHECK_EQ(descriptors_.size(), nr_kpts);
   }
   size_t getNrValidKeypoints() const {
     // TODO: can we cache this value?

@@ -96,9 +96,9 @@ DEFINE_double(distance_tolerance_plane_plane_association,
               "plane.");
 DEFINE_bool(do_double_association,
             true,
-            "Do double plane association of backend plane with multiple "
+            "Do double plane association of Backend plane with multiple "
             "segmented planes. Otherwise search for another possible "
-            "backend plane for the segmented plane.");
+            "Backend plane for the segmented plane.");
 DEFINE_bool(only_associate_a_polygon_to_a_single_plane,
             true,
             "Limit association of a particular polygon to a single plane. "
@@ -1246,9 +1246,9 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
   if (planes.size() == 0) {
     // There are no previous planes, data association unnecessary, just copy
     // segmented planes to output planes.
-    VLOG(0) << "No planes in backend, just copy the " << segmented_planes.size()
+    VLOG(0) << "No planes in Backend, just copy the " << segmented_planes.size()
             << " segmented planes to the set of "
-            << "backend planes, skipping data association.";
+            << "Backend planes, skipping data association.";
     *non_associated_planes = segmented_planes;
   } else {
     // Planes tmp will contain the new segmented planes.
@@ -1281,7 +1281,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
                         backend_plane_index) == associated_plane_ids.end()) {
             // It is the first time we associate this plane.
             // Update lmk ids in plane.
-            VLOG(10) << "Plane from backend with id "
+            VLOG(10) << "Plane from Backend with id "
                      << gtsam::DefaultKeyFormatter(
                             plane_backend.getPlaneSymbol().key())
                      << " has been associated with segmented plane: "
@@ -1304,8 +1304,8 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             break;
           } else {
             // Continue, to see if we can associate the current segmented plane
-            // to another backend plane.
-            LOG(ERROR) << "Double plane association of backend plane: "
+            // to another Backend plane.
+            LOG(ERROR) << "Double plane association of Backend plane: "
                        << gtsam::DefaultKeyFormatter(
                               plane_backend.getPlaneSymbol().key())
                        << " with another segmented plane: "
@@ -1313,13 +1313,13 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
                               segmented_plane.getPlaneSymbol().key())
                        << "\n.";
             if (FLAGS_do_double_association) {
-              LOG(ERROR) << "Doing double plane association of backend plane.";
+              LOG(ERROR) << "Doing double plane association of Backend plane.";
               is_segmented_plane_associated = true;
               break;
             } else {
               LOG(ERROR)
-                  << "Avoiding double plane association of backend plane. "
-                  << "Searching instead for another possible backend plane for "
+                  << "Avoiding double plane association of Backend plane. "
+                  << "Searching instead for another possible Backend plane for "
                      "this"
                      " segmented plane.";
               continue;
@@ -1328,7 +1328,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
         } else {
           VLOG(0) << "Plane " << gtsam::DefaultKeyFormatter(
                                      plane_backend.getPlaneSymbol().key())
-                  << " from backend not associated to new segmented plane "
+                  << " from Backend not associated to new segmented plane "
                   << gtsam::DefaultKeyFormatter(
                          segmented_plane.getPlaneSymbol())
                   << "\n\tSegmented normal: " << segmented_plane.normal_
@@ -1340,11 +1340,11 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 
       if (!is_segmented_plane_associated) {
         // The segmented plane could not be associated to any existing plane
-        // in the backend...
+        // in the Backend...
         // Add it as a new plane.
         VLOG(0) << "Add plane with id "
                 << gtsam::DefaultKeyFormatter(segmented_plane.getPlaneSymbol())
-                << " as a new plane for the backend.";
+                << " as a new plane for the Backend.";
         // WARNING by pushing we are also associating segmented planes between
         // them, do we want this? Maybe yes because we have some repeated
         // segmented planes that are very similar, but then what's up with the
@@ -1356,7 +1356,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
     // Update planes.
     // Cleans planes that have not been updated
     // Which is not necessarily good, because the segmenter might differ from
-    // backend and we will not do expectation maximization anymore... plus
+    // Backend and we will not do expectation maximization anymore... plus
     // it makes the visualizer not work...
     //*planes = planes_tmp;
   }
@@ -1549,7 +1549,7 @@ void Mesher::appendLmkIdsOfPolygon(
     if (it == lmk_ids->end()) {
       // The lmk id is not present in the lmk_ids vector, add it.
       if (FLAGS_add_extra_lmks_from_stereo) {
-        // Only add lmks that are used in the backend (time-horizon).
+        // Only add lmks that are used in the Backend (time-horizon).
         // This is just needed when adding extra lmks from stereo...
         // We are assuming lmk_ids has already only points in time-horizon,
         // so no need to check them as well.

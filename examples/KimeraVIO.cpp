@@ -25,8 +25,8 @@
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
-#include "kimera-vio/pipeline/MonoPipeline.h"
-#include "kimera-vio/pipeline/StereoPipeline.h"
+#include "kimera-vio/pipeline/MonoImuPipeline.h"
+#include "kimera-vio/pipeline/StereoImuPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
           dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
         } break;
         default: {
-          LOG(FATAL) << "Unrecognized frontend type: "
+          LOG(FATAL) << "Unrecognized Frontend type: "
                      << VIO::to_underlying(vio_params.frontend_type_)
                      << ". 0: Mono, 1: Stereo.";
         }
@@ -79,13 +79,13 @@ int main(int argc, char* argv[]) {
 
   switch (vio_params.frontend_type_) {
     case VIO::FrontendType::kMonoImu: {
-      vio_pipeline = VIO::make_unique<VIO::MonoPipeline>(vio_params);
+      vio_pipeline = VIO::make_unique<VIO::MonoImuPipeline>(vio_params);
     } break;
     case VIO::FrontendType::kStereoImu: {
-      vio_pipeline = VIO::make_unique<VIO::StereoPipeline>(vio_params);
+      vio_pipeline = VIO::make_unique<VIO::StereoImuPipeline>(vio_params);
     } break;
     default: {
-      LOG(FATAL) << "Unrecognized frontend type: "
+      LOG(FATAL) << "Unrecognized Frontend type: "
                  << VIO::to_underlying(vio_params.frontend_type_)
                  << ". 0: Mono, 1: Stereo.";
     } break;
@@ -109,12 +109,12 @@ int main(int argc, char* argv[]) {
                 std::placeholders::_1));
 
   if (vio_params.frontend_type_ == VIO::FrontendType::kStereoImu) {
-    VIO::StereoPipeline::Ptr stereo_pipeline =
-        VIO::safeCast<VIO::Pipeline, VIO::StereoPipeline>(
+    VIO::StereoImuPipeline::Ptr stereo_pipeline =
+        VIO::safeCast<VIO::Pipeline, VIO::StereoImuPipeline>(
             vio_pipeline);
 
     dataset_parser->registerRightFrameCallback(
-        std::bind(&VIO::StereoPipeline::fillRightFrameQueue,
+        std::bind(&VIO::StereoImuPipeline::fillRightFrameQueue,
                   stereo_pipeline,
                   std::placeholders::_1));
   }
@@ -124,8 +124,8 @@ int main(int argc, char* argv[]) {
   bool is_pipeline_successful = false;
   if (vio_params.parallel_run_) {
     auto handle = std::async(std::launch::async,
-                              &VIO::DataProviderInterface::spin,
-                              dataset_parser);
+                             &VIO::DataProviderInterface::spin,
+                             dataset_parser);
     auto handle_pipeline =
         std::async(std::launch::async,
                    &VIO::Pipeline::spin,

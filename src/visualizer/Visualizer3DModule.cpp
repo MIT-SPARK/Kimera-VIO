@@ -81,9 +81,9 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   CHECK(backend_payload);
   const Timestamp& timestamp = backend_payload->timestamp_;
 
-  // Look for the synchronized packet in frontend payload queue
+  // Look for the synchronized packet in Frontend payload queue
   // This should always work, because it should not be possible to have
-  // a backend payload without having a frontend one first!
+  // a Backend payload without having a Frontend one first!
   VizFrontendInput frontend_payload = nullptr;
   PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
   CHECK(frontend_payload);
@@ -133,9 +133,9 @@ bool VisualizerModule::hasWork() const {
   LOG_IF(WARNING,
          (mesher_queue_ ? mesher_queue_->empty() : false) &&
              (!backend_queue_.empty() || !frontend_queue_.empty()))
-      << "Mesher queue is empty, yet backend or frontend queue is not!"
+      << "Mesher queue is empty, yet Backend or Frontend queue is not!"
          "This should not happen since Mesher runs at Backend pace!";
-  // We don't check frontend queue because it runs faster than the other two
+  // We don't check Frontend queue because it runs faster than the other two
   // queues.
   return mesher_queue_ ? !mesher_queue_->empty() : !backend_queue_.empty();
 }

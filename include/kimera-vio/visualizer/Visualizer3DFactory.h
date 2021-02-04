@@ -16,7 +16,7 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"

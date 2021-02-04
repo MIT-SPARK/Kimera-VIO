@@ -28,7 +28,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz/types.hpp>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Macros.h"
@@ -51,7 +51,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   /**
    * @brief Visualizer3D constructor
    * @param viz_type: type of 3D visualization
-   * @param backend_type backend used so that we display the right info
+   * @param backend_type Backend used so that we display the right info
    */
   OpenCvVisualizer3D(const VisualizationType& viz_type,
                      const BackendType& backend_type);

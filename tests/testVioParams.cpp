@@ -61,7 +61,7 @@ class VioParamsFixture : public ::testing::Test {
   CameraParams left_cam_params_;
   CameraParams right_cam_params_;
   BackendParams backend_params_;
-  RegularVioBackEndParams regular_backend_params_;
+  RegularVioBackendParams regular_backend_params_;
   FrontendParams frontend_params_;
   LoopClosureDetectorParams lcd_params_;
 };

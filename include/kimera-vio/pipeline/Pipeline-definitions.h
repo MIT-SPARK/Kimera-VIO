@@ -14,14 +14,14 @@
 
 #pragma once
 
-#include "kimera-vio/backend/RegularVioBackEndParams.h"
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/backend/VioBackEndParams.h"
+#include "kimera-vio/backend/RegularVioBackendParams.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
-#include "kimera-vio/frontend/VisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
-#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
+#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/VisionImuFrontendParams.h"
+#include "kimera-vio/imu-frontend/ImuFrontendParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 #include "kimera-vio/visualizer/DisplayParams.h"
 
