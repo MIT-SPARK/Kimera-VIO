@@ -40,7 +40,7 @@ public:
 	{
 		_m_begin = std::chrono::system_clock::now();
 		imu_cam_buffer = NULL;
-    
+
 		// TODO: read Kimera flag file path from runner and find a better way of passing it to gflag
 		kimera_pipeline.registerBackendOutputCallback(
 		std::bind(
@@ -69,11 +69,13 @@ public:
 		sb->schedule<imu_cam_type>(id, "imu_cam", [&](const imu_cam_type *datum) {
 			this->feed_imu_cam(datum);
 		});
+
 	}
 
 
 	std::size_t iteration_no = 0;
 	void feed_imu_cam(const imu_cam_type *datum) {
+
 		// Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == NULL) {
 			assert(previous_timestamp == 0);
@@ -122,7 +124,11 @@ public:
 																	datum->dataset_time,
 																	right_cam_info, img1));
 
+		// Ok this needs to be filed in a later task to dig up what sets errno in Kimera
+		assert(errno == 0);
 		kimera_pipeline.spin();
+		errno = 0;
+
 #ifndef NDEBUG
     	std::cout << "SPIN FULL\n";
 #endif
