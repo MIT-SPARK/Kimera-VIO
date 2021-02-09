@@ -232,10 +232,6 @@ class LCDFixture : public ::testing::Test {
     CHECK(query2_stereo_frame_);
     query2_stereo_frame_->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(query2_stereo_frame_.get());
-
-    // Set intrinsics for essential matrix calculation:
-    CHECK(lcd_detector_);
-    lcd_detector_->setIntrinsics(*match1_stereo_frame_);
   }
 
   // Standard gtest methods, unnecessary for now
@@ -581,16 +577,67 @@ TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
   CHECK(lcd_detector_);
   CHECK(match1_stereo_frame_);
-  LcdOutput::Ptr output_0 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_match1_, FrameId(0), *match1_stereo_frame_, gtsam::Pose3()));
+  StereoFrontendOutput::Ptr stereo_frontend_output =
+      std::make_shared<StereoFrontendOutput>(match1_stereo_frame_->isKeyframe(),
+                                             StatusStereoMeasurementsPtr(),
+                                             TrackingStatus(),
+                                             gtsam::Pose3::identity(),
+                                             gtsam::Pose3::identity(),
+                                             *match1_stereo_frame_,
+                                             ImuFrontend::PimPtr(),
+                                             ImuAccGyrS(),
+                                             cv::Mat(),
+                                             DebugTrackerInfo());
+  FrontendOutputPacketBase::Ptr frontend_output_match1 =
+      VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
+          stereo_frontend_output);
+  LcdOutput::Ptr output_0 =
+      lcd_detector_->spinOnce(LcdInput(timestamp_match1_,
+                                       frontend_output_match1,
+                                       FrameId(0),
+                                       gtsam::Pose3()));
 
   CHECK(match2_stereo_frame_);
-  LcdOutput::Ptr output_1 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_match2_, FrameId(1), *match2_stereo_frame_, gtsam::Pose3()));
+  stereo_frontend_output =
+      std::make_shared<StereoFrontendOutput>(match2_stereo_frame_->isKeyframe(),
+                                             StatusStereoMeasurementsPtr(),
+                                             TrackingStatus(),
+                                             gtsam::Pose3::identity(),
+                                             gtsam::Pose3::identity(),
+                                             *match2_stereo_frame_,
+                                             ImuFrontend::PimPtr(),
+                                             ImuAccGyrS(),
+                                             cv::Mat(),
+                                             DebugTrackerInfo());
+  FrontendOutputPacketBase::Ptr frontend_output_match2 =
+      VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
+          stereo_frontend_output);
+  LcdOutput::Ptr output_1 =
+      lcd_detector_->spinOnce(LcdInput(timestamp_match2_,
+                                       frontend_output_match2,
+                                       FrameId(1),
+                                       gtsam::Pose3()));
 
   CHECK(query1_stereo_frame_);
-  LcdOutput::Ptr output_2 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_query1_, FrameId(2), *query1_stereo_frame_, gtsam::Pose3()));
+  stereo_frontend_output =
+      std::make_shared<StereoFrontendOutput>(query1_stereo_frame_->isKeyframe(),
+                                             StatusStereoMeasurementsPtr(),
+                                             TrackingStatus(),
+                                             gtsam::Pose3::identity(),
+                                             gtsam::Pose3::identity(),
+                                             *query1_stereo_frame_,
+                                             ImuFrontend::PimPtr(),
+                                             ImuAccGyrS(),
+                                             cv::Mat(),
+                                             DebugTrackerInfo());
+  FrontendOutputPacketBase::Ptr frontend_output_query1 =
+      VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
+          stereo_frontend_output);
+  LcdOutput::Ptr output_2 =
+      lcd_detector_->spinOnce(LcdInput(timestamp_query1_,
+                                       frontend_output_query1,
+                                       FrameId(2),
+                                       gtsam::Pose3()));
 
   EXPECT_EQ(output_0->is_loop_closure_, false);
   EXPECT_EQ(output_0->timestamp_, timestamp_match1_);

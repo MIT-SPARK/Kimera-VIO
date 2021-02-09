@@ -57,7 +57,6 @@ LoopClosureDetector::LoopClosureDetector(
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
       log_output_(log_output),
-      set_intrinsics_(false),
       orb_feature_detector_(),
       orb_feature_matcher_(),
       db_BoW_(nullptr),
@@ -77,6 +76,16 @@ LoopClosureDetector::LoopClosureDetector(
   precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
   shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
+
+  // Set camera intrinsics for LCD
+  CameraParams cam_param = stereo_camera->getLeftCamParams();
+  lcd_params_.image_width_ = cam_param.image_size_.width;
+  lcd_params_.image_height_ = cam_param.image_size_.height;
+  lcd_params_.focal_length_ = cam_param.intrinsics_[0];
+  lcd_params_.principle_point_ =
+      cv::Point2d(cam_param.intrinsics_[2], cam_param.intrinsics_[3]);
+
+  B_Pose_camLrect_ = stereo_camera_->getBodyPoseLeftCamRect();
 
   // Sparse stereo reconstruction members
   stereo_matcher_ = 
@@ -132,17 +141,12 @@ LoopClosureDetector::~LoopClosureDetector() {
 
 /* ------------------------------------------------------------------------ */
 LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
-  // One time initialization from camera parameters.
-  if (!set_intrinsics_) {
-    setIntrinsics(input.stereo_frame_);
-  }
-  CHECK_EQ(set_intrinsics_, true);
   CHECK_GE(input.cur_kf_id_, 0);
 
   // Update the PGO with the Backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
-  timestamp_map_[input.cur_kf_id_] = input.timestamp_kf_;
+  timestamp_map_[input.cur_kf_id_] = input.timestamp_;
   // TODO: W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
@@ -167,35 +171,42 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
   // Process the StereoFrame and check for a loop closure with previous ones.
   LoopResult loop_result;
-  // Try to find a loop and update the PGO with the result if available.
-  if (detectLoop(input.stereo_frame_, &loop_result)) {
-    LoopClosureFactor lc_factor(loop_result.match_id_,
-                                loop_result.query_id_,
-                                loop_result.relative_pose_,
-                                shared_noise_model_);
+  if (input.frontend_output_->frontend_type_ == FrontendType::kStereoImu) {
+    StereoFrontendOutput::Ptr stereo_frontend_output =
+        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+            input.frontend_output_);
+    // Try to find a loop and update the PGO with the result if available.
+    if (detectLoop(stereo_frontend_output->stereo_frame_lkf_, &loop_result)) {
+      LoopClosureFactor lc_factor(loop_result.match_id_,
+                                  loop_result.query_id_,
+                                  loop_result.relative_pose_,
+                                  shared_noise_model_);
 
-    utils::StatsCollector stat_pgo_timing(
-        "PGO Update/Optimization Timing [ms]");
-    auto tic = utils::Timer::tic();
+      utils::StatsCollector stat_pgo_timing(
+          "PGO Update/Optimization Timing [ms]");
+      auto tic = utils::Timer::tic();
 
-    addLoopClosureFactorAndOptimize(lc_factor);
+      addLoopClosureFactorAndOptimize(lc_factor);
 
-    auto update_duration = utils::Timer::toc(tic).count();
-    stat_pgo_timing.AddSample(update_duration);
+      auto update_duration = utils::Timer::toc(tic).count();
+      stat_pgo_timing.AddSample(update_duration);
 
-    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
-            << loop_result.match_id_ << " to keyframe "
-            << loop_result.query_id_;
+      VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
+              << loop_result.match_id_ << " to keyframe "
+              << loop_result.query_id_;
+    } else {
+      VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
+              << LoopResult::asString(loop_result.status_);
+    }
+
+    // Timestamps for PGO and for LCD should match now.
+    CHECK_EQ(db_frames_.back().timestamp_,
+             timestamp_map_.at(db_frames_.back().id_));
+    CHECK_EQ(timestamp_map_.size(), db_frames_.size());
+    CHECK_EQ(timestamp_map_.size(), W_Pose_Blkf_estimates_.size());
   } else {
-    VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
-            << LoopResult::asString(loop_result.status_);
+    LOG(ERROR) << "LoopClosureDetector: Not using StereoFrontend! Change frontend.";
   }
-
-  // Timestamps for PGO and for LCD should match now.
-  CHECK_EQ(db_frames_.back().timestamp_,
-           timestamp_map_.at(db_frames_.back().id_));
-  CHECK_EQ(timestamp_map_.size(), db_frames_.size());
-  CHECK_EQ(timestamp_map_.size(), W_Pose_Blkf_estimates_.size());
 
   // Construct output payload.
   CHECK(pgo_);
@@ -207,7 +218,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   if (loop_result.isLoop()) {
     output_payload =
         VIO::make_unique<LcdOutput>(true,
-                                    input.timestamp_kf_,
+                                    input.timestamp_,
                                     timestamp_map_.at(loop_result.query_id_),
                                     timestamp_map_.at(loop_result.match_id_),
                                     loop_result.match_id_,
@@ -217,7 +228,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     pgo_states,
                                     pgo_nfg);
   } else {
-    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_kf_);
+    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_);
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
@@ -613,21 +624,6 @@ const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
 const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
   CHECK(pgo_);
   return pgo_->getFactorsUnsafe();
-}
-
-/* ------------------------------------------------------------------------ */
-// TODO(marcus): this should be parsed from CameraParams directly
-void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
-  const CameraParams& cam_param = stereo_frame.left_frame_.cam_param_;
-  const CameraParams::Intrinsics& intrinsics = cam_param.intrinsics_;
-
-  lcd_params_.image_width_ = cam_param.image_size_.width;
-  lcd_params_.image_height_ = cam_param.image_size_.height;
-  lcd_params_.focal_length_ = intrinsics[0];
-  lcd_params_.principle_point_ = cv::Point2d(intrinsics[2], intrinsics[3]);
-
-  B_Pose_camLrect_ = stereo_camera_->getBodyPoseLeftCamRect();
-  set_intrinsics_ = true;
 }
 
 /* ------------------------------------------------------------------------ */
