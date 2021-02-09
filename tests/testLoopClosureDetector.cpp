@@ -542,7 +542,7 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   /* Test the addition of odometry factors to the PGO */
   CHECK(lcd_detector_);
   lcd_detector_->initializePGO(OdometryFactor(
-      0, gtsam::Pose3(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+      0, gtsam::Pose3::identity(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   OdometryFactor odom_factor(
       1, world_T_match1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
@@ -582,15 +582,15 @@ TEST_F(LCDFixture, spinOnce) {
   CHECK(lcd_detector_);
   CHECK(match1_stereo_frame_);
   LcdOutput::Ptr output_0 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_match1_, FrameId(0), *match1_stereo_frame_, gtsam::Pose3()));
+      timestamp_match1_, FrameId(0), *match1_stereo_frame_, gtsam::Pose3::identity()));
 
   CHECK(match2_stereo_frame_);
   LcdOutput::Ptr output_1 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_match2_, FrameId(1), *match2_stereo_frame_, gtsam::Pose3()));
+      timestamp_match2_, FrameId(1), *match2_stereo_frame_, gtsam::Pose3::identity()));
 
   CHECK(query1_stereo_frame_);
   LcdOutput::Ptr output_2 = lcd_detector_->spinOnce(LcdInput(
-      timestamp_query1_, FrameId(2), *query1_stereo_frame_, gtsam::Pose3()));
+      timestamp_query1_, FrameId(2), *query1_stereo_frame_, gtsam::Pose3::identity()));
 
   EXPECT_EQ(output_0->is_loop_closure_, false);
   EXPECT_EQ(output_0->timestamp_, timestamp_match1_);

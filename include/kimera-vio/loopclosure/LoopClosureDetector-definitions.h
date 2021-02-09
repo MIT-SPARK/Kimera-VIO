@@ -277,8 +277,8 @@ struct LcdOutput : PipelinePayload {
         timestamp_match_(0),
         id_match_(0),
         id_recent_(0),
-        relative_pose_(gtsam::Pose3()),
-        W_Pose_Map_(gtsam::Pose3()),
+        relative_pose_(gtsam::Pose3::identity()),
+        W_Pose_Map_(gtsam::Pose3::identity()),
         states_(gtsam::Values()),
         nfg_(gtsam::NonlinearFactorGraph()) {}
 

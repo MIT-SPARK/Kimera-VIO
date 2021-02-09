@@ -154,7 +154,7 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
   // Initial clear values.
   new_values_.clear();
   // Initialize to trivial pose for initial bundle adjustment
-  W_Pose_B_lkf_ = gtsam::Pose3();
+  W_Pose_B_lkf_ = gtsam::Pose3::identity();
 
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
@@ -199,7 +199,7 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
   for (int j = 0; j < estimated_poses.size(); j++) {
     if (j == 0) {
       initial_pose = estimated_poses.at(0);
-      estimated_poses.at(0) = gtsam::Pose3();
+      estimated_poses.at(0) = gtsam::Pose3::identity();
     } else {
       estimated_poses.at(j) = initial_pose.between(estimated_poses.at(j));
     }
