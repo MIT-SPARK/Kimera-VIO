@@ -111,6 +111,7 @@ class VioBackend {
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
   PointsWithIdMap getMapLmkIdsTo3dPointsInTimeHorizon(
+      const gtsam::NonlinearFactorGraph& graph,
       LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map = nullptr,
       const size_t& min_age = 2);
 
@@ -137,9 +138,7 @@ class VioBackend {
         initializeFromIMU(input);
         break;
       }
-      default: {
-        LOG(FATAL) << "Wrong initialization mode.";
-      }
+      default: { LOG(FATAL) << "Wrong initialization mode."; }
     }
     // Signal that the Backend has been initialized.
     backend_state_ = BackendState::Nominal;
@@ -177,6 +176,11 @@ class VioBackend {
     // Initialize Backend using IMU data.
     return initStateAndSetPriors(
         VioNavStateTimestamped(input.timestamp_, initial_state_estimate));
+  }
+
+  inline void saveGraph(const std::string& filepath) const {
+    OfstreamWrapper ofstream_wrapper (filepath);
+    smoother_->getFactors().saveGraph(ofstream_wrapper.ofstream_);
   }
 
  protected:
@@ -320,11 +324,6 @@ class VioBackend {
       const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors_tmp,
       SmartFactorMap* old_smart_factors);
 
-  /// Private setters.
-  // Set parameters for ISAM 2 incremental smoother.
-  void setIsam2Params(const BackendParams& vio_params,
-                      gtsam::ISAM2Params* isam_param);
-
   // Set parameters for all types of factors.
   void setFactorsParams(
       const BackendParams& vio_params,
@@ -412,7 +411,8 @@ class VioBackend {
     return backend_params_;
   }
 
-  // TODO NOT THREAD-SAFE! Should add critical sections.
+  // Not Thread Safe. The methods below return copies but they are not
+  // mutex protected, and these are used in the backend thread
   inline Timestamp getTimestampLkf() const { return timestamp_lkf_; }
   inline ImuBias getLatestImuBias() const { return imu_bias_lkf_; }
   inline ImuBias getImuBiasPrevKf() const { return imu_bias_prev_kf_; }
@@ -425,13 +425,6 @@ class VioBackend {
   inline gtsam::Values getState() const { return state_; }
   inline int getLandmarkCount() const { return landmark_count_; }
   inline DebugVioInfo getCurrentDebugVioInfo() const { return debug_info_; }
-
-  // TODO This call is unsafe, as we are sending a reference to something that
-  // will be modified by the Backend thread.
-  // TODO send this via the output payload...
-  inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
-    return smoother_->getFactors();
-  }
 
  protected:
   // Raw, user-specified params.

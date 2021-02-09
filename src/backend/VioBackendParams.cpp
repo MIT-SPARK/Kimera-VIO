@@ -24,6 +24,35 @@ BackendParams::BackendParams() : PipelineParams("Backend Parameters") {
   CHECK_GE(numOptimize_, 0);
 }
 
+void BackendParams::setIsam2Params(const BackendParams& vio_params,
+                                   gtsam::ISAM2Params* isam_param) {
+  CHECK_NOTNULL(isam_param);
+  // iSAM2 SETTINGS
+  if (vio_params.useDogLeg_) {
+    gtsam::ISAM2DoglegParams dogleg_params;
+    dogleg_params.wildfireThreshold = vio_params.wildfire_threshold_;
+    // dogleg_params.adaptationMode;
+    // dogleg_params.initialDelta;
+    // dogleg_params.setVerbose(false); // only for debugging.
+    isam_param->optimizationParams = dogleg_params;
+  } else {
+    gtsam::ISAM2GaussNewtonParams gauss_newton_params;
+    gauss_newton_params.wildfireThreshold = vio_params.wildfire_threshold_;
+    isam_param->optimizationParams = gauss_newton_params;
+  }
+
+  // TODO (Toni): remove hardcoded
+  // Cache Linearized Factors seems to improve performance.
+  isam_param->setCacheLinearizedFactors(true);
+  isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
+  isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
+  isam_param->findUnusedFactorSlots = true;
+  // isam_param->enablePartialRelinearizationCheck = true;
+  isam_param->setEvaluateNonlinearError(false);  // only for debugging
+  isam_param->enableDetailedResults = false;     // only for debugging.
+  isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
+}
+
 bool BackendParams::equals(const BackendParams& vp2, double tol) const {
   return equalsVioBackendParams(vp2, tol);
 }

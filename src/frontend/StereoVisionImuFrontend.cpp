@@ -76,6 +76,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
       TrackingStatus::DISABLED,
       getRelativePoseBodyStereo(),
       stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_->getBodyPoseRightCamRect(),
       *stereoFrame_lkf_,
       nullptr,
       input->getImuAccGyrs(),
@@ -198,6 +199,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
             ? getRelativePoseBodyStereo()
             : gtsam::Pose3(),
         stereo_camera_->getBodyPoseLeftCamRect(),
+        stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input->getImuAccGyrs(),
@@ -217,6 +219,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
             ? getRelativePoseBodyStereo()
             : gtsam::Pose3(),
         stereo_camera_->getBodyPoseLeftCamRect(),
+        stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,
         pim,
         input->getImuAccGyrs(),

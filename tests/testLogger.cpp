@@ -139,6 +139,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   logger_->logBackendOutput(BackendOutput(timestamp,
                                           state_values,
+                                          gtsam::NonlinearFactorGraph(),
                                           W_Pose_Blkf,
                                           W_Vel_Blkf,
                                           imu_bias,

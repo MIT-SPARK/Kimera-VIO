@@ -135,14 +135,8 @@ TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
       // Move pcl to world coordinates
       output->visualization_type_ = VisualizationType::kPointcloud;
       CHECK(euroc_playground.visualizer_3d_);
-      CHECK(euroc_playground.visualizer_3d_->visualizeMesh3D(
-          pcl,
-          colors,
-          connect,
-          &output->widgets_,
-          cv::Mat(),
-          cv::Mat(),
-          std::to_string(count++)));
+      euroc_playground.visualizer_3d_->visualizeMesh3D(
+          pcl, colors, connect, &output->widgets_, cv::Mat(), cv::Mat());
       gtsam::Pose3 world_pose_body = it->second.world_pose_body_;
       CHECK_GT(output->widgets_.size(), 0u);
       output->widgets_.rbegin()->second->setPose(

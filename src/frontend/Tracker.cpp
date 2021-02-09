@@ -22,7 +22,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "kimera-vio/frontend/UndistorterRectifier.h"
-#include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
@@ -106,7 +106,7 @@ void Tracker::featureTracking(Frame* ref_frame,
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
 
   KeypointsCV px_cur;
-  CHECK(optical_flow_predictor_->predictFlow(px_ref, ref_R_cur, &px_cur));
+  CHECK(optical_flow_predictor_->predictSparseFlow(px_ref, ref_R_cur, &px_cur));
   KeypointsCV px_predicted = px_cur;
 
   // Do the actual tracking, so px_cur becomes the new pixel locations.
