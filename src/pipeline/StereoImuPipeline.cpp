@@ -141,6 +141,27 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
         });
   }
 
+  if (FLAGS_use_lcd) {
+    lcd_module_ = VIO::make_unique<LcdModule>(
+        parallel_run_,
+        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
+                              params.lcd_params_,
+                              stereo_camera_,
+                              params.frontend_params_.stereo_matching_params_,
+                              FLAGS_log_output));
+    //! Register input callbacks
+    vio_backend_module_->registerOutputCallback(
+        std::bind(&LcdModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+
+    auto& lcd_module = lcd_module_;
+    vio_frontend_module_->registerOutputCallback(
+        std::bind(&LcdModule::fillFrontendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+  }
+
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
         //! Send ouput of visualizer to the display_input_queue_
@@ -176,6 +197,14 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                     std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                     std::placeholders::_1));
     }
+
+    if (lcd_module_) {
+      lcd_module_->registerOutputCallback(
+          std::bind(&VisualizerModule::fillLcdQueue,
+                    std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                    std::placeholders::_1));
+    }
+
     //! Actual displaying of visual data is done in the main thread.
     CHECK(params.display_params_);
     display_module_ = VIO::make_unique<DisplayModule>(
@@ -188,29 +217,6 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                         params.display_params_->display_type_,
                         params.display_params_,
                         std::bind(&StereoImuPipeline::shutdown, this)));
-  }
-
-  if (FLAGS_use_lcd) {
-    lcd_module_ = VIO::make_unique<LcdModule>(
-        parallel_run_,
-        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
-                              params.lcd_params_,
-                              stereo_camera_,
-                              params.frontend_params_.stereo_matching_params_,
-                              FLAGS_log_output));
-    //! Register input callbacks
-    vio_backend_module_->registerOutputCallback(
-        std::bind(&LcdModule::fillBackendQueue,
-                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-                  std::placeholders::_1));
-
-    auto& lcd_module = lcd_module_;
-    vio_frontend_module_->registerOutputCallback(
-        [&lcd_module](const FrontendOutputPacketBase::Ptr& output) {
-          StereoFrontendOutput::Ptr converted_output = 
-              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
-          CHECK_NOTNULL(lcd_module.get())->fillFrontendQueue(converted_output);
-        });
   }
 
   // All modules are ready, launch threads! If the parallel_run flag is set to

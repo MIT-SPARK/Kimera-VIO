@@ -177,14 +177,6 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Returns the "intrinsics flag", which is true if the pipeline has
-   *  recieved the dimensions, principle point, and focal length of the images
-   *  in the frames, as well as the transformation from body to camera.
-   * @return True if the intrinsics have been recieved, false otherwise.
-   */
-  inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Returns the pose between the inertial world-reference frame and the
    *  "map" frame, which is the error between the VIO and the PGO trajectories.
    * @return The pose of the map frame relative to the world frame.
@@ -204,16 +196,6 @@ class LoopClosureDetector {
    *  the PGO.
    */
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Set the bool set_intrinsics as well as the parameter members
-   *  representing the principle point, image dimensions, focal length and
-   *  camera-to-body pose.
-   * @param[in] stereo_frame A StereoFrame with the calibration and parameters
-   *  needed to set the intrinsics.
-   */
-  // TODO(marcus): this should be private. But that makes testing harder.
-  void setIntrinsics(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Set the OrbDatabase internal member.
@@ -383,7 +365,6 @@ class LoopClosureDetector {
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = false;
-  bool set_intrinsics_ = false;
 
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;
@@ -463,7 +444,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(LcdModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdModule);
-  using LcdFrontendInput = StereoFrontendOutput::Ptr;
+  using LcdFrontendInput = FrontendOutputPacketBase::Ptr;
   using LcdBackendInput = BackendOutput::Ptr;
 
   LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
@@ -509,12 +490,12 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
     CHECK(frontend_payload);
     CHECK(frontend_payload->is_keyframe_);
+    CHECK_EQ(timestamp, frontend_payload->timestamp_);
 
     // Push the synced messages to the lcd's input queue
-    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
     return VIO::make_unique<LcdInput>(
-        timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
+        timestamp, frontend_payload, backend_payload->cur_kf_id_, body_pose);
   }
 
   OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {

@@ -26,7 +26,7 @@
 #include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -226,22 +226,24 @@ struct LoopClosureFactor {
   const gtsam::SharedNoiseModel noise_;
 };  // struct LoopClosureFactor
 
-struct LcdInput {
+struct LcdInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(LcdInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LcdInput(const Timestamp& timestamp_kf,
+  LcdInput(const Timestamp& timestamp,
+           const FrontendOutputPacketBase::Ptr& frontend_output,
            const FrameId& cur_kf_id,
-           const StereoFrame& stereo_frame,
            const gtsam::Pose3& W_Pose_Blkf)
-      : timestamp_kf_(timestamp_kf),
+      : PipelinePayload(timestamp),
+        frontend_output_(frontend_output),
         cur_kf_id_(cur_kf_id),
-        stereo_frame_(stereo_frame),
-        W_Pose_Blkf_(W_Pose_Blkf) {}
+        W_Pose_Blkf_(W_Pose_Blkf) {
+    CHECK(frontend_output);
+    CHECK_EQ(timestamp, frontend_output->timestamp_);
+  }
 
-  const Timestamp timestamp_kf_;
+  const FrontendOutputPacketBase::Ptr frontend_output_;
   const FrameId cur_kf_id_;
-  const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
 };
 

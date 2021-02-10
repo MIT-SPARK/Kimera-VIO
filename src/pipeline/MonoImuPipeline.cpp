@@ -94,8 +94,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   // TODO(marcus): get rid of fake stereocam
   LOG_IF(FATAL, params.backend_params_->addBetweenStereoFactors_)
       << "addBetweenStereoFactors is set to true, but this is a mono pipeline!";
-  VIO::StereoCamera stereo_cam(params.camera_params_.at(0),
-                               params.camera_params_.at(1));
+  VIO::StereoCamera::Ptr stereo_cam = std::make_shared<VIO::StereoCamera>(
+      params.camera_params_.at(0), params.camera_params_.at(1));
   CHECK(backend_params_);
   vio_backend_module_ = VIO::make_unique<VioBackendModule>(
       &backend_input_queue_,
@@ -104,7 +104,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           static_cast<BackendType>(params.backend_type_),
           // These two should be given by parameters.
           camera_->getBodyPoseCam(),
-          stereo_cam.getStereoCalib(),
+          stereo_cam->getStereoCalib(),
           *backend_params_,
           imu_params_,
           backend_output_params,
@@ -140,6 +140,25 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   //                 std::ref(*CHECK_NOTNULL(mesher_module_.get())),
   //                 std::placeholders::_1));
   // }
+
+  if (FLAGS_use_lcd) {
+    lcd_module_ = VIO::make_unique<LcdModule>(
+        parallel_run_,
+        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
+                              params.lcd_params_,
+                              stereo_cam,
+                              params.frontend_params_.stereo_matching_params_,
+                              FLAGS_log_output));
+    //! Register input callbacks
+    vio_backend_module_->registerOutputCallback(
+        std::bind(&LcdModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+    vio_frontend_module_->registerOutputCallback(
+        std::bind(&LcdModule::fillFrontendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+  }
 
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
@@ -183,6 +202,13 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
     //                 std::placeholders::_1));
     // }
 
+    if (lcd_module_) {
+      lcd_module_->registerOutputCallback(
+          std::bind(&VisualizerModule::fillLcdQueue,
+                    std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                    std::placeholders::_1));
+    }
+
     //! Actual displaying of visual data is done in the main thread.
     CHECK(params.display_params_);
     display_module_ = VIO::make_unique<DisplayModule>(
@@ -196,26 +222,6 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
                         params.display_params_,
                         std::bind(&MonoImuPipeline::shutdown, this)));
   }
-
-  // TODO(marcus): enable use of lcd with mono pipeline
-  // if (FLAGS_use_lcd) {
-  //   lcd_module_ = VIO::make_unique<LcdModule>(
-  //       parallel_run_,
-  //       LcdFactory::createLcd(LoopClosureDetectorType::BoW,
-  //                             params.lcd_params_,
-  //                             camera_,
-  //                             params.frontend_params_.stereo_matching_params_,
-  //                             FLAGS_log_output));
-  //   //! Register input callbacks
-  //   vio_backend_module_->registerOutputCallback(
-  //       std::bind(&LcdModule::fillBackendQueue,
-  //                 std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-  //                 std::placeholders::_1));
-  //   vio_frontend_module_->registerOutputCallback(
-  //       std::bind(&LcdModule::fillFrontendQueue,
-  //                 std::ref(*CHECK_NOTNULL(lcd_module_.get())),
-  //                 std::placeholders::_1));
-  // }
 
   launchThreads();
 }
