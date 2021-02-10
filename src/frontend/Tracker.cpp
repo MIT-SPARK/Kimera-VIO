@@ -22,7 +22,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "kimera-vio/frontend/UndistorterRectifier.h"
-#include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
@@ -106,7 +106,7 @@ void Tracker::featureTracking(Frame* ref_frame,
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
 
   KeypointsCV px_cur;
-  CHECK(optical_flow_predictor_->predictFlow(px_ref, ref_R_cur, &px_cur));
+  CHECK(optical_flow_predictor_->predictSparseFlow(px_ref, ref_R_cur, &px_cur));
   KeypointsCV px_predicted = px_cur;
 
   // Do the actual tracking, so px_cur becomes the new pixel locations.
@@ -225,7 +225,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   // Solve.
   if (!mono_ransac_.computeModel(0)) {
     VLOG(5) << "failure: 5pt RANSAC could not find a solution.";
-    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
   }
 
   VLOG(5) << "geometricOutlierRejectionMono: RANSAC complete.";
@@ -315,7 +315,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   // Solve.
   if (!mono_ransac_given_rot_.computeModel(0)) {
     LOG(WARNING) << "2-point RANSAC could not find a solution!";
-    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
   }
   VLOG(5) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
 
@@ -427,7 +427,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   Matrix3 stereoPtCov = Matrix3::Identity();  // 3 px std in each direction
 
   // Create stereo camera in the ref frame of the left camera.
-  gtsam::StereoCamera stereoCam(gtsam::Pose3(),
+  gtsam::StereoCamera stereoCam(gtsam::Pose3::identity(),
                                 stereo_camera->getStereoCalib());
 
   double timeMatchingAndAllocation_p =
@@ -573,7 +573,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   if (maxCoherentSetSize < 2) {
     LOG(WARNING) << "1-point RANSAC (voting) could not find a solution.";
     return std::make_pair(
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3()),
+        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity()),
         gtsam::Matrix3::Zero());
   }
 
@@ -676,7 +676,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                  << "\n  size of matches_ref_cur: " << matches_ref_cur.size()
                  << "\n  size of f_ref: " << f_ref.size()
                  << "\n  size of f_cur: " << f_cur.size();
-    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
   }
 
   VLOG(5) << "geometricOutlierRejectionStereo: voting complete.";

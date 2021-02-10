@@ -27,7 +27,7 @@
 #include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/OpticalFlowPredictor.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"

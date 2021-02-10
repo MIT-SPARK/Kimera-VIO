@@ -102,6 +102,7 @@ TEST_F(VisualizerFixture, spinOnce) {
   BackendOutput::Ptr backend_output =
       std::make_shared<BackendOutput>(timestamp,
                                       gtsam::Values(),
+                                      gtsam::NonlinearFactorGraph(),
                                       gtsam::Pose3::identity(),
                                       Vector3::Zero(),
                                       ImuBias(),
@@ -115,6 +116,7 @@ TEST_F(VisualizerFixture, spinOnce) {
       true,
       StatusStereoMeasurementsPtr(),
       TrackingStatus(),
+      gtsam::Pose3::identity(),
       gtsam::Pose3::identity(),
       gtsam::Pose3::identity(),
       StereoFrame(FrameId(),

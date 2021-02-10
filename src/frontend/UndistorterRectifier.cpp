@@ -81,7 +81,7 @@ gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
       boost::none);
 
   // Transform to unit vector.
-  Vector3 versor(
+  gtsam::Vector3 versor(
       undistorted_keypoint.at(0).x, undistorted_keypoint.at(0).y, 1.0);
 
   // sanity check, try to distort point using gtsam and make sure you get

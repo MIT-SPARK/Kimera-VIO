@@ -37,6 +37,7 @@ struct InitializationInputPayload : public StereoFrontendOutput {
       const TrackingStatus& tracker_status,
       const gtsam::Pose3& relative_pose_body_stereo,
       const gtsam::Pose3& b_Pose_camL_rect,
+      const gtsam::Pose3& b_Pose_camR_rect,
       const StereoFrame& stereo_frame_lkf,
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS imu_acc_gyrs,
@@ -44,15 +45,16 @@ struct InitializationInputPayload : public StereoFrontendOutput {
       const gtsam::AHRSFactor::PreintegratedMeasurements& ahrs_pim =
           gtsam::AHRSFactor::PreintegratedMeasurements())
       : StereoFrontendOutput(is_keyframe,
-                       status_stereo_measurements,
-                       tracker_status,
-                       relative_pose_body_stereo,
-                       b_Pose_camL_rect,
-                       stereo_frame_lkf,
-                       pim,
-                       imu_acc_gyrs,
-                       cv::Mat(),
-                       debug_tracker_info),
+                             status_stereo_measurements,
+                             tracker_status,
+                             relative_pose_body_stereo,
+                             b_Pose_camL_rect,
+                             b_Pose_camR_rect,
+                             stereo_frame_lkf,
+                             pim,
+                             imu_acc_gyrs,
+                             cv::Mat(),
+                             debug_tracker_info),
         ahrs_pim_(ahrs_pim) {}
 
   const gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim_;

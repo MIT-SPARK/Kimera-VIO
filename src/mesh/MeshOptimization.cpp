@@ -313,10 +313,6 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
         UtilsOpenCV::gtsamPose3ToCvAffine3d(body_pose_cam_),
         colors_pcl);
     // draw2dMeshOnImg(img_, mesh_2d);
-    visualizer_->drawScene(body_pose_cam_,
-                           mono_camera_->getCalibration(),
-                           img_,
-                           &output->widgets_);
     // spinDisplay();
   }
 
@@ -387,18 +383,6 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
       cv::Point3f cv_bearing_vector_body_frame;
       getBearingVectorFrom2DPixel(vtx_pixel, &cv_bearing_vector_body_frame);
 
-      if (visualizer_) {
-        std::string arrow_id = "r" + std::to_string(tri_idx * 3 + col);
-        visualizer_->drawArrow(arrow_id,
-                               cv::Point3f(UtilsOpenCV::gtsamVector3ToCvMat(
-                                   body_pose_cam_.translation())),
-                               cv_bearing_vector_body_frame,
-                               &output->widgets_,
-                               false,
-                               0.001,
-                               0.001,
-                               cv::viz::Color::red());
-      }
       Mesh2D::VertexId vtx_id;
       CHECK(mesh_2d.getVtxIdForLmkId(vtx.getLmkId(), &vtx_id));
       triangle_bearing_vectors[0][col] = cv_bearing_vector_body_frame;
@@ -618,24 +602,6 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
 
           //! Plot confidence intervals on pixel rays.
           const double& std_deviation = std::sqrt(variance_of_depth);
-          const Vertex3D& lmk_max =
-              (depth + std_deviation) * cv_bearing_vector_body_frame;
-          const Vertex3D& lmk_min =
-              (depth - std_deviation) * cv_bearing_vector_body_frame;
-          //! Display cylinder oriented with ray (the width is irrelevant)
-          //! only the distance along the ray is meaningful!
-          //! TODO(Toni): this is in world coordinates!! Not in cam coords!
-          //! But right-now everything is the same...
-          if (visualizer_) {
-            visualizer_->drawCylinder(
-                "Variance for Lmk: " + std::to_string(lmk_id),
-                lmk_max,
-                lmk_min,
-                0.01,
-                &output->widgets_,
-                30,
-                cv::viz::Color::azure());
-          }
 
           //! Add new vertex to polygon
           //! Color with covariance bgr:

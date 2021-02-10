@@ -238,13 +238,6 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
             planes_.clear();
             break;
           }
-          case RegularBackendModality::STRUCTURELESS_AND_PROJECTION: {
-            // Transforms to projection factors only the ones that should
-            // have regularities, but do not use the planes anymore.
-            extractLmkIdsFromPlanes(planes_, &lmk_ids_with_regularity);
-            planes_.clear();
-            break;
-          }
           case RegularBackendModality::PROJECTION: {
             // Transform all smart factors to projection factors,
             // and clear all planes.
@@ -256,6 +249,13 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
             // Keep the planes, but change all smart factors to projection
             // factors.
             lmk_ids_with_regularity = lmks_kf;
+            break;
+          }
+          case RegularBackendModality::STRUCTURELESS_AND_PROJECTION: {
+            // Transforms to projection factors only the ones that should
+            // have regularities, but do not use the planes anymore.
+            extractLmkIdsFromPlanes(planes_, &lmk_ids_with_regularity);
+            planes_.clear();
             break;
           }
           case RegularBackendModality::
@@ -476,7 +476,7 @@ void RegularVioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     VLOG(20) << "SmartFactor: adding observation of lmk with id: " << lmk_id
              << " from frame with id: " << obs.first;
-    const gtsam::Symbol pose_symbol ('x', obs.first);
+    gtsam::Symbol pose_symbol('x', obs.first);
     new_factor->add(obs.second, pose_symbol, stereo_cal_);
   }
 
@@ -950,12 +950,17 @@ bool RegularVioBackend::isSmartFactor3dPointGood(
     SmartStereoFactor::shared_ptr factor,
     const size_t& min_num_of_observations) {
   CHECK(factor);
-  if (!factor->point().valid()) {
+  if (!(factor->point().valid())) {
     // The point is not valid.
     VLOG(20) << "Smart factor is NOT valid.";
     return false;
   } else {
     CHECK(factor->point().is_initialized());
+    CHECK(factor->point());
+    CHECK(!factor->isDegenerate());
+    CHECK(!factor->isFarPoint());
+    CHECK(!factor->isOutlier());
+    CHECK(!factor->isPointBehindCamera());
     // If the smart factor has less than x number of observations,
     // then do not consider the landmark as valid.
     // This param is different from the one counting the track length

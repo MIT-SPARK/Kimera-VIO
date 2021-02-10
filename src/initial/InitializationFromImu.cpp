@@ -64,7 +64,7 @@ gtsam::Pose3 InitializationFromImu::guessPoseFromImuMeasurements(
   gtsam::Rot3 attitude_wrt_gravity =
       UtilsOpenCV::AlignGravityVectors(measured_gravity, global_gravity, round);
   // Absolute translation is unobservable, so return [0, 0, 0].
-  return gtsam::Pose3(attitude_wrt_gravity, gtsam::Point3());
+  return gtsam::Pose3(attitude_wrt_gravity, gtsam::Point3::Zero());
 }
 
 ImuBias InitializationFromImu::guessImuBias(

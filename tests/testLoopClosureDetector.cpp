@@ -538,7 +538,7 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   /* Test the addition of odometry factors to the PGO */
   CHECK(lcd_detector_);
   lcd_detector_->initializePGO(OdometryFactor(
-      0, gtsam::Pose3(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+      0, gtsam::Pose3::identity(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   OdometryFactor odom_factor(
       1, world_T_match1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));

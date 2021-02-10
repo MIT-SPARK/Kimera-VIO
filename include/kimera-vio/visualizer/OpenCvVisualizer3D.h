@@ -24,6 +24,7 @@
 
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
+#include <gtsam/nonlinear/LinearContainerFactor.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz/types.hpp>
@@ -113,20 +114,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                        const size_t& n_last_frustums = 10u);
 
   /**
-   * @brief drawScene Draws a 3D Scene with a world frame of references, a
-   * camera frame of reference and the frustum of the camera with an image
-   * displayed inside the frustum
-   * @param extrinsics Camera 3D extrinsics wrt World frame.
-   * @param intrinsics Camera intrinsics
-   * @param frustum_img Image to be displayed inside the camera frustum
-   * @param widgets_map
-   */
-  void drawScene(const gtsam::Pose3& extrinsics,
-                 const gtsam::Cal3_S2& intrinsics,
-                 const cv::Mat& frustum_img,
-                 WidgetsMap* widgets_map);
-
-  /**
  * @brief visualizePoseWithImgInFrustum
  * Visualize a single camera pose with an image inside its frustum.
    * Adds an image to the frustum of the last pose if cv::Mat is not empty.
@@ -183,31 +170,12 @@ class OpenCvVisualizer3D : public Visualizer3D {
    * in the same visualization window
    * @return false if nothing to draw
    */
-  bool visualizeMesh3D(const cv::Mat& map_points_3d,
+  void visualizeMesh3D(const cv::Mat& map_points_3d,
                        const cv::Mat& colors,
-                       const cv::Mat& polygons,
+                       const cv::Mat& polygons_mesh,
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
-                       const cv::Mat& texture = cv::Mat(),
-                       const std::string& id = "");
-
-  /**
-   * @brief drawCylinder
-   * @param[in] cylinder_id Unique identifier (otw it overwrites viz).
-   * @param[in] axis_point1 A point1 on the axis of the cylinder.
-   * @param[in] axis_point2 A point2 on the axis of the cylinder.
-   * @param[in] radius Radius of the cylinder.
-   * @param[out] widgets
-   * @param numsides Resolution of the cylinder.
-   * @param color Color of the cylinder.
-   */
-  void drawCylinder(const std::string& id,
-                    const cv::Point3d& axis_point1,
-                    const cv::Point3d& axis_point2,
-                    const double& radius,
-                    WidgetsMap* widgets,
-                    const int& numsides = 30,
-                    const cv::viz::Color& color = cv::viz::Color::red());
+                       const cv::Mat& texture = cv::Mat());
 
   //! Draw a line in opencv.
   void drawLine(const std::string& line_id,
@@ -224,15 +192,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
                 const cv::Point3d& pt1,
                 const cv::Point3d& pt2,
                 WidgetsMap* widgets);
-
-  void drawArrow(const std::string& arrow_id,
-                 const cv::Point3f& from,
-                 const cv::Point3f& to,
-                 WidgetsMap* widgets,
-                 const bool& with_text = false,
-                 const double& arrow_thickness = 1.0,
-                 const double& text_thickness = 1.0,
-                 const cv::viz::Color& color = cv::viz::Color::red());
 
  private:
   //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
@@ -312,6 +271,12 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                  const gtsam::Point3& point,
                                  WidgetsMap* widgets);
 
+  void visualizeFactorGraph(const gtsam::Values& state,
+                            const gtsam::NonlinearFactorGraph& factor_graph,
+                            const gtsam::Pose3& body_pose_camLrect,
+                            const gtsam::Pose3& body_pose_camRrect,
+                            WidgetsMap* widgets);
+
   //! Remove line widgets from plane to lmks, for lines that are not pointing
   //! to any lmk_id in lmk_ids.
   void removeOldLines(const LandmarkIds& lmk_ids);
@@ -337,26 +302,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
 
   // Record video sequence at a hardcoded directory relative to executable.
   void recordVideo();
-
- private:
-  //! Flags for visualization behaviour.
-  const BackendType backend_type_;
-
-  //! Callbacks.
-  //! Mesh 3d visualization properties setter callback.
-  Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
-
-  std::deque<cv::Affine3d> trajectory_poses_3d_;
-
-  std::map<PlaneId, LineNr> plane_to_line_nr_map_;
-  PlaneIdMap plane_id_map_;
-  std::map<PlaneId, bool> is_plane_id_in_window_;
-
-  //! Colors
-  cv::viz::Color cloud_color_ = cv::viz::Color::white();
-
-  //! Logging instance.
-  std::unique_ptr<VisualizerLogger> logger_;
 
   //! Log mesh to ply file.
   void logMesh(const cv::Mat& map_points_3d,
@@ -397,6 +342,111 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                   const double& point_y,
                                   const double& point_z,
                                   WidgetsMap* widgets);
+
+  // Functions to draw the factor graph
+  void drawImuPose(const gtsam::Pose3& imu_pose,
+                   const gtsam::Key& variable_index,
+                   WidgetsMap* widgets_map);
+  void drawLeftCam(const gtsam::Pose3& world_pose_camLrect,
+                   const gtsam::Key& variable_index,
+                   WidgetsMap* widgets_map);
+  void drawRightCam(const gtsam::Pose3& world_pose_camRrect,
+                    const gtsam::Key& variable_index,
+                    WidgetsMap* widgets_map);
+  void drawImuToLeftCamArrow(const gtsam::Pose3& imu_pose,
+                             const gtsam::Pose3& world_pose_camLrect,
+                             const gtsam::Key& variable_index,
+                             WidgetsMap* widgets_map);
+  void drawVelocityArrow(const gtsam::Vector3& imu_velocity,
+                         const gtsam::Values& state,
+                         const gtsam::Key& variable_index,
+                         WidgetsMap* widgets_map);
+
+  void drawSmartStereoFactor(const SmartStereoFactor& smart_stereo_factor,
+                             const gtsam::Values& state,
+                             const gtsam::Pose3& body_pose_camLrect,
+                             WidgetsMap* widgets_map);
+  void drawLinearContainerFactor(const gtsam::LinearContainerFactor& lcf,
+                                 const gtsam::Values& state,
+                                 const gtsam::Pose3& body_pose_camLrect,
+                                 WidgetsMap* widgets_map);
+  void drawVelocityPrior(
+      const gtsam::PriorFactor<gtsam::Vector3>& velocity_prior,
+      const gtsam::Values& state,
+      WidgetsMap* widgets_map);
+  void drawPosePrior(const gtsam::PriorFactor<gtsam::Pose3>& pose_prior,
+                     const gtsam::Values& state,
+                     const gtsam::Pose3& body_pose_camLrect,
+                     WidgetsMap* widgets_map);
+  void drawBtwFactor(const gtsam::BetweenFactor<gtsam::Pose3>& btw_factor,
+                     const gtsam::Values& state,
+                     const gtsam::Pose3& body_pose_camLrect,
+                     WidgetsMap* widgets_map);
+  void drawImuFactor(const gtsam::ImuFactor& imu_factor,
+                     const gtsam::Values& state,
+                     const gtsam::Pose3& body_pose_camLrect,
+                     WidgetsMap* widgets_map);
+
+ private:
+  //! Flags for visualization behaviour.
+  const BackendType backend_type_;
+
+  //! Intrinsics of the camera frustum used for visualization.
+  const cv::Matx33d K_ = {458.0, 0.0, 360.0, 0.0, 458.0, 240.0, 0.0, 0.0, 1.0};
+
+  //! Callbacks.
+  //! Mesh 3d visualization properties setter callback.
+  Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+
+  std::deque<cv::Affine3d> trajectory_poses_3d_;
+
+  std::map<PlaneId, LineNr> plane_to_line_nr_map_;
+  PlaneIdMap plane_id_map_;
+  std::map<PlaneId, bool> is_plane_id_in_window_;
+
+  // These are the widgets to recolor as white because they are out of the
+  // time-horizon of the optimization problem.
+  std::map<std::string, cv::Affine3d> widget_id_to_pose_map_;
+
+  WidgetIds widget_ids_to_remove_;
+  WidgetIds widget_ids_to_remove_in_next_iter_;
+
+  //! Colors & Scales
+  cv::viz::Color cloud_color_ = cv::viz::Color::white();
+
+  cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
+  cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
+  cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
+
+  cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
+  double imu_to_left_cam_vector_scale_ = 0.01;
+
+  double left_cam_active_frustum_scale_ = 0.11;
+  double right_cam_active_frustum_scale_ = 0.11;
+  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
+  cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::green();
+
+  double inactive_frustum_scale_ = 0.06;
+
+  double cam_with_linear_prior_frustum_scale_ = 0.08;
+  cv::viz::Color cam_with_linear_prior_frustum_color_ = cv::viz::Color::pink();
+  double cam_with_pose_prior_frustum_scale_ = 0.20;
+  cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
+
+  cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
+  double btw_factor_pose_guess_active_frustum_scale_ = 0.08;
+  cv::viz::Color btw_factor_pose_guess_active_frustum_color_ =
+      cv::viz::Color::amethyst();
+  double btw_factor_to_guess_pose_vector_scale_ = 0.01;
+  cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
+      cv::viz::Color::amethyst();
+
+  double imu_factor_to_guess_pose_scale_ = 0.08;
+  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::cherry();
+  cv::viz::Color imu_factor_guess_velocity_color_ = cv::viz::Color::cherry();
+
+  //! Logging instance.
+  std::unique_ptr<VisualizerLogger> logger_;
 };
 
 }  // namespace VIO

@@ -252,7 +252,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       Point3 point3d_unrect = actual_camL_R_camLrect.rotate(
           point3d);  // compensate for the rotation induced by rectification
       Cal3DS2 KdistUnrect = gtsam_calib;
-      PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3(), KdistUnrect);
+      PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3::identity(), KdistUnrect);
       Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unrect);
       EXPECT_TRUE(gtsam::assert_equal(
           Point2(kp_i_distUnrect.x, kp_i_distUnrect.y), p2_distUnrect, 1));
@@ -272,7 +272,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // Note: camera pose is the identity (instead of
       // sfnew->getBPoseCamLRect()) since the 3D point is in the left camera
       // frame
-      gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3(), K);
+      gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3::identity(), K);
       StereoPoint2 sp2 = stereoCam.project(point3d);
       EXPECT_NEAR(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).second.x, 1);
       EXPECT_NEAR(sp2.v(), sfnew->left_keypoints_rectified_.at(i).second.y, 1);

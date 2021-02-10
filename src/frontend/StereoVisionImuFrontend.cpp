@@ -76,6 +76,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
       TrackingStatus::DISABLED,
       getRelativePoseBodyStereo(),
       stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_->getBodyPoseRightCamRect(),
       *stereoFrame_lkf_,
       nullptr,
       input->getImuAccGyrs(),
@@ -196,8 +197,9 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
         tracker_status_summary_.kfTrackingStatus_stereo_,
         tracker_->tracker_params_.useStereoTracking_
             ? getRelativePoseBodyStereo()
-            : gtsam::Pose3(),
+            : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
+        stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
         pim,
         input->getImuAccGyrs(),
@@ -215,8 +217,9 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
         TrackingStatus::INVALID,
         tracker_->tracker_params_.useStereoTracking_
             ? getRelativePoseBodyStereo()
-            : gtsam::Pose3(),
+            : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
+        stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,
         pim,
         input->getImuAccGyrs(),
@@ -365,7 +368,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         }
       } else {
         status_pose_stereo.first = TrackingStatus::INVALID;
-        status_pose_stereo.second = gtsam::Pose3();
+        status_pose_stereo.second = gtsam::Pose3::identity();
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             TrackingStatus::INVALID;
       }

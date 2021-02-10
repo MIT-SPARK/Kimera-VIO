@@ -225,7 +225,6 @@ if(BUILD_TESTS)
   add_executable(testKimeraVIO
     tests/testKimeraVIO.cpp
     tests/testStereoImuPipeline.cpp
-    tests/testVioParams.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE
     tests/testStereoCamera.cpp # NEEDS UPDATE

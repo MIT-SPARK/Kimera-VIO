@@ -17,8 +17,8 @@
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/frontend/OpticalFlowPredictor.h"
-#include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
 DECLARE_string(test_data_path);
@@ -43,7 +43,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
         camera_params_(VioParams(FLAGS_test_data_path + "/EurocParams")
                            .camera_params_.at(0)),
         optical_flow_predictor_(nullptr),
-        window_() {
+        window_(nullptr) {
     // Generate 3D points (landmarks) of the scene.
     // We scale it by 2.5 to make some keypoints re-project out of the img
     // for large rotations of cam2 wrt cam1
@@ -177,82 +177,92 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
                     const double& text_thickness = 0.2,
                     const cv::viz::Color& color = cv::viz::Color::blue(),
                     const bool& display_text = false) {
+    CHECK(window_);
     // Display 3D rays from cam origin to lmks.
     if (display_text) {
-      window_.showWidget(
+      window_->showWidget(
           "Ray Label " + id,
           cv::viz::WText3D(id, lmk, text_thickness, true, color));
     }
-    window_.showWidget("Ray " + id,
+    window_->showWidget("Ray " + id,
                        cv::viz::WLine(cam_world_origin, lmk, color));
   }
 
   void visualizePointCloud(const std::string& id, const cv::Mat& pointcloud) {
+    CHECK(window_);
     cv::viz::WCloud cloud(pointcloud, cv::viz::Color::red());
     cloud.setRenderingProperty(cv::viz::POINT_SIZE, 6);
-    window_.showWidget(id, cloud);
+    window_->showWidget(id, cloud);
   }
 
   void visualizeScene(const std::string& test_name,
                       const KeypointsCV& predicted_kpts) {
-    window_ = cv::viz::Viz3d(test_name);
-    window_.setBackgroundColor(cv::viz::Color::white());
+    if (FLAGS_display) {
+      window_ = VIO::make_unique<cv::viz::Viz3d>(test_name);
+      window_->setBackgroundColor(cv::viz::Color::white());
 
-    cv::Matx33d K = UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K());
-    cv::Mat cam_1_img = cv::Mat(
-        camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 255u, 255u, 40u));
-    cv::Mat cam_2_img = cv::Mat(
-        camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 0u, 0u, 125u));
+      cv::Matx33d K = UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K());
+      cv::Mat cam_1_img = cv::Mat(
+          camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 255u, 255u, 40u));
+      cv::Mat cam_2_img = cv::Mat(
+          camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 0u, 0u, 125u));
 
-    // Visualize world coords.
-    window_.showWidget("World Coordinates", cv::viz::WCoordinateSystem(0.5));
+      // Visualize world coords.
+      window_->showWidget("World Coordinates", cv::viz::WCoordinateSystem(0.5));
 
-    // Visualize left/right cameras
-    const auto& cam_1_cv_pose =
+      // Visualize left/right cameras
+      const auto& cam_1_cv_pose =
         UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_1_pose_);
-    const auto& cam_2_cv_pose =
+      const auto& cam_2_cv_pose =
         UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_2_pose_);
-    // Camera Coordinate axes
-    cv::viz::WCameraPosition cpw1(0.2);
-    cv::viz::WCameraPosition cpw2(0.4);
-    window_.showWidget("Cam 1 Coordinates", cpw1, cam_1_cv_pose);
-    window_.showWidget("Cam 2 Coordinates", cpw2, cam_2_cv_pose);
+      // Camera Coordinate axes
+      cv::viz::WCameraPosition cpw1(0.2);
+      cv::viz::WCameraPosition cpw2(0.4);
+      window_->showWidget("Cam 1 Coordinates", cpw1, cam_1_cv_pose);
+      window_->showWidget("Cam 2 Coordinates", cpw2, cam_2_cv_pose);
 
-    // Visualize landmarks
-    cv::Mat pointcloud = cv::Mat(0, 3, CV_64FC1);
-    cv::Point3f cam_1_position =
+      // Visualize landmarks
+      cv::Mat pointcloud = cv::Mat(0, 3, CV_64FC1);
+      cv::Point3f cam_1_position =
         UtilsOpenCV::gtsamVector3ToCvPoint3(cam_1_pose_.translation());
-    cv::Point3f cam_2_position =
+      cv::Point3f cam_2_position =
         UtilsOpenCV::gtsamVector3ToCvPoint3(cam_2_pose_.translation());
-    for (size_t i = 0u; i < lmks_.size(); i++) {
-      cv::Point3f lmk_cv = UtilsOpenCV::gtsamVector3ToCvPoint3(lmks_[i]);
-      visualizeRay(lmk_cv, "lmk-cam1" + std::to_string(i), cam_1_position);
-      visualizeRay(lmk_cv,
-                   "lmk-cam2" + std::to_string(i),
-                   cam_2_position,
-                   0.2,
-                   cv::viz::Color::red());
-      pointcloud.push_back(cv::Mat(lmk_cv).reshape(1).t());
+      for (size_t i = 0u; i < lmks_.size(); i++) {
+        cv::Point3f lmk_cv = UtilsOpenCV::gtsamVector3ToCvPoint3(lmks_[i]);
+        visualizeRay(lmk_cv, "lmk-cam1" + std::to_string(i), cam_1_position);
+        visualizeRay(lmk_cv,
+            "lmk-cam2" + std::to_string(i),
+            cam_2_position,
+            0.2,
+            cv::viz::Color::red());
+        pointcloud.push_back(cv::Mat(lmk_cv).reshape(1).t());
+      }
+      pointcloud = pointcloud.reshape(3, lmks_.size());
+      visualizePointCloud("Scene Landmarks", pointcloud);
+
+      // Color image 2 with pixel reprojections (the ground-truth)
+      drawPixelsOnImg(cam_2_kpts_, cam_2_img, cv::viz::Color::green(), 3u, 125u);
+
+      // Color image 2 with pixel prediction if no prediction is done
+      // Expected result if using NoPredictionOpticalFlow
+      drawPixelsOnImg(cam_1_kpts_, cam_2_img, cv::viz::Color::brown(), 6u, 125u);
+
+      // Show the estimated kpt positions in red and smaller
+      drawPixelsOnImg(predicted_kpts, cam_2_img, cv::viz::Color::red(), 1u, 125u);
+
+      // Camera frustums
+      // cv::viz::WCameraPosition cpw_1_frustum(K, cam_1_img, 2.0);
+      cv::viz::WCameraPosition cpw_1_frustum(K, 2.0);  // No img
+      cv::viz::WCameraPosition cpw_2_frustum(K, cam_2_img, 2.0);
+      window_->showWidget("Cam 1 Frustum", cpw_1_frustum, cam_1_cv_pose);
+      window_->showWidget("Cam 2 Frustum", cpw_2_frustum, cam_2_cv_pose);
+
+      // Finally, spin
+      spinDisplay();
+    } else {
+      LOG(WARNING) << "Requested scene visualization but display gflag is "
+                   << "set to false.";
     }
-    pointcloud = pointcloud.reshape(3, lmks_.size());
-    visualizePointCloud("Scene Landmarks", pointcloud);
-
-    // Color image 2 with pixel reprojections (the ground-truth)
-    drawPixelsOnImg(cam_2_kpts_, cam_2_img, cv::viz::Color::green(), 3u, 125u);
-
-    // Color image 2 with pixel prediction if no prediction is done
-    // Expected result if using NoPredictionOpticalFlow
-    drawPixelsOnImg(cam_1_kpts_, cam_2_img, cv::viz::Color::brown(), 6u, 125u);
-
-    // Show the estimated kpt positions in red and smaller
-    drawPixelsOnImg(predicted_kpts, cam_2_img, cv::viz::Color::red(), 1u, 125u);
-
-    // Camera frustums
-    // cv::viz::WCameraPosition cpw_1_frustum(K, cam_1_img, 2.0);
-    cv::viz::WCameraPosition cpw_1_frustum(K, 2.0);  // No img
-    cv::viz::WCameraPosition cpw_2_frustum(K, cam_2_img, 2.0);
-    window_.showWidget("Cam 1 Frustum", cpw_1_frustum, cam_1_cv_pose);
-    window_.showWidget("Cam 2 Frustum", cpw_2_frustum, cam_2_cv_pose);
   }
 
   void chessboardImgCreator() {
@@ -272,11 +282,10 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
     cv::imshow("Chess board", chessboard);
   }
 
+  // Display 3D window
   void spinDisplay() {
-    // Display 3D window
-    if (FLAGS_display) {
-      window_.spin();
-    }
+    CHECK(window_);
+    window_->spin();
   }
 
  protected:
@@ -294,7 +303,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
   OpticalFlowPredictor::UniquePtr optical_flow_predictor_;
 
  private:
-  cv::viz::Viz3d window_;
+  std::unique_ptr<cv::viz::Viz3d> window_;
 };
 
 // Checks that the math has not been changed by accident.
@@ -316,14 +325,13 @@ TEST_F(OpticalFlowPredictorFixture, DefaultNoPredictionOpticalFlowPrediction) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Compare for equality
-  compareKeypoints(expected_kpts, actual_kpts, 1e-3);
+  compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 
   visualizeScene("NoPrediction", actual_kpts);
-  spinDisplay();
 }
 
 // Checks that the prediction forward and then backwards preserves kpts location
@@ -346,14 +354,14 @@ TEST_F(OpticalFlowPredictorFixture,
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       actual_kpts, inter_frame_rot, &actual_kpts);
 
   // Compare for equality
-  compareKeypoints(expected_kpts, actual_kpts, 1e-3);
+  compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 }
 
 // Checks that the math has not been changed by accident.
@@ -384,11 +392,11 @@ TEST_F(OpticalFlowPredictorFixture, DefaultRotationalOpticalFlowPrediction) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Compare for equality
-  compareKeypoints(expected_kpts, actual_kpts, 1e-3);
+  compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 }
 
 // Checks that the prediction forward and then backwards preserves kpts location
@@ -409,10 +417,10 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionInvariance) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       actual_kpts, inter_frame_rot.inverse(), &actual_kpts);
 
   // Expect invariance.
@@ -436,14 +444,13 @@ TEST_F(OpticalFlowPredictorFixture,
   // Call predictor to get next_kps
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 2
-  compareKeypoints(cam_2_kpts_, actual_kpts, 1e-2);
+  compareKeypoints(cam_2_kpts_, actual_kpts, 1e-1);
 
   visualizeScene("RotationOnly", actual_kpts);
-  spinDisplay();
 }
 
 // Checks that small rotations are handled as if it there was no prediction.
@@ -464,12 +471,12 @@ TEST_F(OpticalFlowPredictorFixture,
   // Call predictor to get next_kps
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
   // because we have a small rotation.
-  compareKeypoints(cam_1_kpts_, actual_kpts, 1e-2);
+  compareKeypoints(cam_1_kpts_, actual_kpts, 1e-1);
 
   // Create Right Camera with small rotation with respect to cam1
   //! Cam2 is at 5 degree rotation wrt z axis wrt Cam1.
@@ -479,15 +486,14 @@ TEST_F(OpticalFlowPredictorFixture,
   generateCam2(cam_1_P_cam_2);
 
   // Call predictor to get next_kps
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 1 instead of 2!
   // because we have a small rotation.
-  compareKeypoints(cam_1_kpts_, actual_kpts, 1e-2);
+  compareKeypoints(cam_1_kpts_, actual_kpts, 1e-1);
 
   visualizeScene("SmallRotationOnly", actual_kpts);
-  spinDisplay();
 }
 
 // Checks that the prediction forward does not go outside the image!
@@ -512,14 +518,13 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionOutOfImage) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect not out of image kpts.
   compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 
   visualizeScene("OutOfImage", actual_kpts);
-  spinDisplay();
 }
 
 // Checks that the prediction forward does not get wrong prediction when
@@ -544,14 +549,13 @@ TEST_F(OpticalFlowPredictorFixture, RotationalOpticalFlowPredictionBehindCam) {
   // Calculate actual kpts
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_2_pose_.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect not out of image kpts.
   compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 
   visualizeScene("BehindCamera", actual_kpts);
-  spinDisplay();
 }
 
 TEST_F(OpticalFlowPredictorFixture,
@@ -575,35 +579,34 @@ TEST_F(OpticalFlowPredictorFixture,
   // Call predictor to get next_kps
   KeypointsCV actual_kpts;
   const gtsam::Rot3& inter_frame_rot = cam_1_P_cam_2.rotation();
-  optical_flow_predictor_->predictFlow(
+  optical_flow_predictor_->predictSparseFlow(
       cam_1_kpts_, inter_frame_rot, &actual_kpts);
 
   // Expect equal wrt the projection of X landmarks on cam 2
-  // compareKeypoints(expected_kpts, actual_kpts, 1e-3);
+  // compareKeypoints(expected_kpts, actual_kpts, 1e-1);
 
   // This is copy-pasted from the actual calculations, so this test is a bit
   // irrelevant beyond having an insight on how much pixel error you can
   // expect...
   ASSERT_EQ(8, actual_kpts.size());
-  EXPECT_EQ(376.00003051757812, actual_kpts[0].x);
-  EXPECT_EQ(239.99998474121094, actual_kpts[0].y);
-  EXPECT_EQ(415.302001953125, actual_kpts[1].x);
-  EXPECT_EQ(347.7138671875, actual_kpts[1].y);
-  EXPECT_EQ(483.71389770507812, actual_kpts[2].x);
-  EXPECT_EQ(200.69801330566406, actual_kpts[2].y);
-  EXPECT_EQ(523.015869140625, actual_kpts[3].x);
-  EXPECT_EQ(308.41189575195312, actual_kpts[3].y);
-  EXPECT_EQ(376.00003051757812, actual_kpts[4].x);
-  EXPECT_EQ(239.99998474121094, actual_kpts[4].y);
-  EXPECT_EQ(407.44161987304688, actual_kpts[5].x);
-  EXPECT_EQ(326.17108154296875, actual_kpts[5].y);
-  EXPECT_EQ(462.17111206054688, actual_kpts[6].x);
-  EXPECT_EQ(208.55841064453125, actual_kpts[6].y);
-  EXPECT_EQ(493.61270141601562, actual_kpts[7].x);
-  EXPECT_EQ(294.7294921875, actual_kpts[7].y);
+  EXPECT_NEAR(376.00003051757812, actual_kpts[0].x, 1e-1);
+  EXPECT_NEAR(239.99998474121094, actual_kpts[0].y, 1e-1);
+  EXPECT_NEAR(415.302001953125,   actual_kpts[1].x, 1e-1);
+  EXPECT_NEAR(347.7138671875,     actual_kpts[1].y, 1e-1);
+  EXPECT_NEAR(483.71389770507812, actual_kpts[2].x, 1e-1);
+  EXPECT_NEAR(200.69801330566406, actual_kpts[2].y, 1e-1);
+  EXPECT_NEAR(523.015869140625,   actual_kpts[3].x, 1e-1);
+  EXPECT_NEAR(308.41189575195312, actual_kpts[3].y, 1e-1);
+  EXPECT_NEAR(376.00003051757812, actual_kpts[4].x, 1e-1);
+  EXPECT_NEAR(239.99998474121094, actual_kpts[4].y, 1e-1);
+  EXPECT_NEAR(407.44161987304688, actual_kpts[5].x, 1e-1);
+  EXPECT_NEAR(326.17108154296875, actual_kpts[5].y, 1e-1);
+  EXPECT_NEAR(462.17111206054688, actual_kpts[6].x, 1e-1);
+  EXPECT_NEAR(208.55841064453125, actual_kpts[6].y, 1e-1);
+  EXPECT_NEAR(493.61270141601562, actual_kpts[7].x, 1e-1);
+  EXPECT_NEAR(294.7294921875,     actual_kpts[7].y, 1e-1);
 
   visualizeScene("RotationAndTranslation", actual_kpts);
-  spinDisplay();
 }
 
 }  // namespace VIO
