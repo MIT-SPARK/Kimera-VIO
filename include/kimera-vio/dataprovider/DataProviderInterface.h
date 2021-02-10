@@ -35,7 +35,7 @@ class DataProviderInterface {
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
 
-  DataProviderInterface();
+  DataProviderInterface() = default;
   virtual ~DataProviderInterface();
 
   // The derived classes need to implement this function!

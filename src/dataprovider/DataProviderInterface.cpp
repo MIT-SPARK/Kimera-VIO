@@ -25,8 +25,6 @@
 
 namespace VIO {
 
-DataProviderInterface::DataProviderInterface() {}
-
 DataProviderInterface::~DataProviderInterface() {
   LOG(INFO) << "Data provider destructor called.";
 }

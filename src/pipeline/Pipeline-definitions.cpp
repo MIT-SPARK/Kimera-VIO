@@ -24,7 +24,6 @@
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 namespace VIO {
