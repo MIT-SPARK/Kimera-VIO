@@ -131,12 +131,12 @@ class StereoCamera {
   void backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
                                       cv::Mat* depth) const;
 
-  inline const Camera::ConstPtr& getLeftCamera() const {
-    return left_camera_;
+  inline const Camera::ConstPtr& getOriginalLeftCamera() const {
+    return original_left_camera_;
   }
 
-  inline const Camera::ConstPtr& getRightCamera() const {
-    return right_camera_;
+  inline const Camera::ConstPtr& getOriginalRightCamera() const {
+    return original_right_camera_;
   }
 
   inline gtsam::StereoCamera getUndistortedRectifiedStereoCamera() const {
@@ -182,9 +182,13 @@ class StereoCamera {
   inline cv::Rect getROI1() const { return ROI1_; }
   inline cv::Rect getROI2() const { return ROI2_; }
 
-  inline CameraParams getLeftCamParams() const { return left_camera_->getCamParams(); }
+  inline CameraParams getLeftCamParams() const {
+    return original_left_camera_->getCamParams();
+  }
 
-  inline CameraParams getRightCamParams() const { return right_camera_->getCamParams(); }
+  inline CameraParams getRightCamParams() const {
+    return original_right_camera_->getCamParams();
+  }
 
   inline cv::Mat getP1() const { return P1_; }
 
@@ -255,9 +259,10 @@ class StereoCamera {
       cv::Rect* ROI2);
 
  private:
-  //! Left and right Camera objects
-  VIO::Camera::ConstPtr left_camera_;
-  VIO::Camera::ConstPtr right_camera_;
+  //! Left and right camera objects.
+  //! These are neither undistorted nor rectified
+  VIO::Camera::ConstPtr original_left_camera_;
+  VIO::Camera::ConstPtr original_right_camera_;
 
   //! Stereo camera implementation
   gtsam::StereoCamera undistorted_rectified_stereo_camera_impl_;

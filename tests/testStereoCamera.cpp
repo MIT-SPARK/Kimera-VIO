@@ -169,6 +169,39 @@ class StereoCameraFixture : public ::testing::Test {
   cv::viz::Viz3d window_;
 };
 
+// Check that original left camera is distorted + unrectified
+TEST_F(StereoCameraFixture, getOriginalLeftCamera) {
+  CHECK(stereo_camera_);
+  // Left camera from stereo camera is identical to a camera
+  // constructed from params:
+  VIO::Camera raw_left_camera(vio_params_.camera_params_.at(0));
+  EXPECT_TRUE(raw_left_camera.getCalibration().equals(
+      stereo_camera_->getOriginalLeftCamera()->getCalibration()));
+
+  // Left camera is different from stereo camera calibration (undistorted
+  // rectified):
+  const VIO::Camera::ConstPtr left_camera =
+      stereo_camera_->getOriginalLeftCamera();
+  EXPECT_FALSE(left_camera->getCalibration().equals(
+      stereo_camera_->getStereoCalib()->calibration()));
+}
+
+// Check that original right camera is distorted + unrectified
+TEST_F(StereoCameraFixture, getOriginalRightCamera) {
+  CHECK(stereo_camera_);
+  // Right camera from stereo camera is identical to a camera
+  // constructed from params:
+  VIO::Camera raw_right_camera(vio_params_.camera_params_.at(1));
+  EXPECT_TRUE(raw_right_camera.getCalibration().equals(
+      stereo_camera_->getOriginalRightCamera()->getCalibration()));
+
+  // Right camera is different from stereo camera calibration (undistorted
+  // rectified):
+  const VIO::Camera::ConstPtr right_camera =
+      stereo_camera_->getOriginalRightCamera();
+  EXPECT_FALSE(right_camera->getCalibration().equals(
+      stereo_camera_->getStereoCalib()->calibration()));
+}
 
 TEST_F(StereoCameraFixture, project) {
   CHECK(stereo_camera_);

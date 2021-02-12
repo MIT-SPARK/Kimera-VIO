@@ -113,8 +113,6 @@ TEST_F(UndistortRectifierFixture, undistortRectifyKeypoints) {
       &keypoints_rectified);
 
   // Map back!
-  // TODO(marcus): not nice to use this, in a test, 
-  //  maybe we could have fake keypoints?
   VIO::StatusKeypointsCV status_keypoints_rectified;
   undistorter_rectifier->checkUndistortedRectifiedLeftKeypoints(
       keypoints_unrectified_gt,

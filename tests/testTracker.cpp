@@ -126,7 +126,7 @@ class TestTracker : public ::testing::Test {
         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
     stereo_matcher_ = VIO::make_unique<VIO::StereoMatcher>(
         stereo_camera_, tp.stereo_matching_params_);
-    tracker_ = VIO::make_unique<Tracker>(tracker_params_, stereo_camera_->getLeftCamera());
+    tracker_ = VIO::make_unique<Tracker>(tracker_params_, stereo_camera_->getOriginalLeftCamera());
 
     feature_detector_ = VIO::make_unique<VIO::FeatureDetector>(
         tp.feature_detector_params_);
@@ -636,7 +636,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
-      Tracker tracker(trackerParams, stereo_camera_->getLeftCamera());
+      Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -833,7 +833,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 
       FrontendParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
-      Tracker tracker(trackerParams, stereo_camera_->getLeftCamera());
+      Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =

@@ -51,7 +51,7 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
       frontend_params.feature_detector_params_);
 
   tracker_ =
-      VIO::make_unique<Tracker>(frontend_params_, stereo_camera_->getLeftCamera(), display_queue);
+      VIO::make_unique<Tracker>(frontend_params_, stereo_camera_->getOriginalLeftCamera(), display_queue);
 
   if (VLOG_IS_ON(1)) tracker_->tracker_params_.print();
 }

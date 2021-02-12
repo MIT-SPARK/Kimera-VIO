@@ -37,8 +37,8 @@ namespace VIO {
 
 StereoCamera::StereoCamera(const CameraParams& left_cam_params,
                            const CameraParams& right_cam_params)
-    : left_camera_(nullptr),
-      right_camera_(nullptr),
+    : original_left_camera_(nullptr),
+      original_right_camera_(nullptr),
       undistorted_rectified_stereo_camera_impl_(),
       stereo_calibration_(nullptr),
       stereo_baseline_(0.0),
@@ -53,8 +53,8 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
                                  &Q_,
                                  &ROI1_,
                                  &ROI2_);
-  left_camera_ = std::make_shared<VIO::Camera>(left_cam_params);
-  right_camera_ = std::make_shared<VIO::Camera>(right_cam_params);
+  original_left_camera_ = std::make_shared<VIO::Camera>(left_cam_params);
+  original_right_camera_ = std::make_shared<VIO::Camera>(right_cam_params);
 
   // Calc left camera pose after rectification
   // NOTE: OpenCV pose convention is the opposite, therefore the inverse.
@@ -313,7 +313,7 @@ void StereoCamera::computeRectificationParameters(
   // But that has an issue that it removes large part of the image, check:
   // https://github.com/opencv/opencv/issues/7240 for this issue with kAlpha
   // Setting to -1 to make it easy, but it should NOT be -1!
-  static constexpr int kAlpha = -1;
+  static constexpr int kAlpha = 0;
   switch (left_cam_params.distortion_model_) {
     case DistortionModel::RADTAN: {
       cv::stereoRectify(
