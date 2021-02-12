@@ -210,59 +210,57 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       gtsam::Vector3 versor_i = sfnew->left_frame_.versors_.at(i);
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
-      Point2 kp_i_distUnrect_gtsam =
-          gtsam_calib.uncalibrate(Point2(versor_i(0), versor_i(1)));
-      EXPECT_TRUE(
-          gtsam::assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
-                              kp_i_distUnrect_gtsam,
-                              1));
+      gtsam::Point2 kp_i_distUnrect_gtsam =
+          gtsam_calib.uncalibrate(gtsam::Point2(versor_i(0), versor_i(1)));
+      EXPECT_TRUE(gtsam::assert_equal(
+          gtsam::Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
+          kp_i_distUnrect_gtsam,
+          1));
 
       // TEST: uncalibrateUndistRect(versor) = original distorted unrectified
       // point (CHECK UNDIST RECT CALIBRATION WORKS)
-      VIO::Camera left_camera(cam_params_left);
       KeypointCV kp_i_undistRect = sfnew->left_keypoints_rectified_.at(i).second;
-      Cal3_S2 sfnew_left_undist_rect_cam_mat = left_camera.getCalibration();
-      Cal3_S2 KundistRect(sfnew_left_undist_rect_cam_mat.fx(),
-                          sfnew_left_undist_rect_cam_mat.fy(),
-                          sfnew_left_undist_rect_cam_mat.skew(),
-                          sfnew_left_undist_rect_cam_mat.px(),
-                          sfnew_left_undist_rect_cam_mat.py());
+
+      VIO::Camera left_camera(cam_params_left);
+      Cal3_S2 KundistRect = left_camera.getCalibration();
+
+      versor_i = sfnew->left_frame_.versors_.at(i);
       versor_i = actual_camL_R_camLrect.inverse().matrix() *
                  versor_i;  // compensate for rotation due to rectification
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
-      Point2 kp_i_undistRect_gtsam =
-          KundistRect.uncalibrate(Point2(versor_i(0), versor_i(1)));
-      EXPECT_TRUE(
-          gtsam::assert_equal(Point2(kp_i_undistRect.x, kp_i_undistRect.y),
-                              kp_i_undistRect_gtsam,
-                              1));
+      gtsam::Point2 kp_i_undistRect_gtsam =
+          KundistRect.uncalibrate(gtsam::Point2(versor_i(0), versor_i(1)));
+      EXPECT_TRUE(gtsam::assert_equal(
+          gtsam::Point2(kp_i_undistRect.x, kp_i_undistRect.y),
+          kp_i_undistRect_gtsam,
+          1));
 
       // TEST: projecting 3d point to left camera (undist and rectified) =
       // original undistorted rectified point (CHECK BACKPROJECTION WORKS)
-      Point3 point3d = sfnew->keypoints_3d_.at(i);
-      PinholeCamera<Cal3_S2> leftCam_undistRect(gtsam::Pose3::identity(),
-                                                KundistRect);
-      Point2 p2_undistRect = leftCam_undistRect.project(point3d);
+      gtsam::Point3 point3d = sfnew->keypoints_3d_.at(i);
+      gtsam::PinholeCamera<Cal3_S2> leftCam_undistRect(gtsam::Pose3::identity(),
+                                                       KundistRect);
+      gtsam::Point2 p2_undistRect = leftCam_undistRect.project(point3d);
       EXPECT_TRUE(gtsam::assert_equal(
-          Point2(kp_i_undistRect.x, kp_i_undistRect.y), p2_undistRect, 1));
+          gtsam::Point2(kp_i_undistRect.x, kp_i_undistRect.y), p2_undistRect, 1));
 
       // TEST: projecting 3d point to left camera (distorted and unrectified) =
       // original distorted unrectified point (CHECK BACKPROJECTION WORKS)
-      Point3 point3d_unrect = actual_camL_R_camLrect.rotate(
+      gtsam::Point3 point3d_unrect = actual_camL_R_camLrect.rotate(
           point3d);  // compensate for the rotation induced by rectification
-      Cal3DS2 KdistUnrect = gtsam_calib;
-      PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3::identity(), KdistUnrect);
-      Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unrect);
+      gtsam::Cal3DS2 KdistUnrect = gtsam_calib;
+      gtsam::PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3::identity(), KdistUnrect);
+      gtsam::Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unrect);
       EXPECT_TRUE(gtsam::assert_equal(
           Point2(kp_i_distUnrect.x, kp_i_distUnrect.y), p2_distUnrect, 1));
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
       // pixels
-      Cal3_S2 sfnew_left_undist_rect_cam_mat_2 = 
-          left_camera.getCalibration();
-      Cal3_S2Stereo::shared_ptr K(
+      gtsam::Cal3_S2 sfnew_left_undist_rect_cam_mat_2 =
+          stereo_camera->getOriginalLeftCamera()->getCalibration();
+      gtsam::Cal3_S2Stereo::shared_ptr K(
           new Cal3_S2Stereo(sfnew_left_undist_rect_cam_mat_2.fx(),
                             sfnew_left_undist_rect_cam_mat_2.fy(),
                             sfnew_left_undist_rect_cam_mat_2.skew(),
@@ -272,8 +270,8 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // Note: camera pose is the identity (instead of
       // sfnew->getBPoseCamLRect()) since the 3D point is in the left camera
       // frame
-      gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3::identity(), K);
-      StereoPoint2 sp2 = stereoCam.project(point3d);
+      gtsam::StereoCamera stereoCam(gtsam::Pose3::identity(), K);
+      gtsam::StereoPoint2 sp2 = stereoCam.project(point3d);
       EXPECT_NEAR(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).second.x, 1);
       EXPECT_NEAR(sp2.v(), sfnew->left_keypoints_rectified_.at(i).second.y, 1);
       EXPECT_NEAR(sp2.uR(), sfnew->right_keypoints_rectified_.at(i).second.x, 1);
