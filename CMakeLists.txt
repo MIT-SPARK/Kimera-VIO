@@ -165,8 +165,8 @@ target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
 
 ############################### TESTS ##########################################
 ### Add testing
-option(BUILD_TESTS "Build tests" ON)
-if(BUILD_TESTS)
+option(KIMERA_BUILD_TESTS "Build tests" ON)
+if(KIMERA_BUILD_TESTS)
   # Download and unpack googletest at configure time
   # TODO Consider doing the same for glog, gflags, although it might
   # make the command `cmake ..` a bit slow.
@@ -251,7 +251,7 @@ if(BUILD_TESTS)
     include(GoogleTest)
     gtest_discover_tests(testKimeraVIO)
   endif()
-endif(BUILD_TESTS)
+endif(KIMERA_BUILD_TESTS)
 
 ############################### INSTALL/EXPORT #################################
 ## We install the export that we defined above
