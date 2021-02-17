@@ -23,6 +23,7 @@
 #include <utility>  // for pair<>
 #include <vector>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
@@ -34,11 +35,11 @@ DEFINE_string(dataset_path,
               "/Users/Luca/data/MH_01_easy",
               "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
 DEFINE_int64(initial_k,
-             50,
+             0,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
 DEFINE_int64(final_k,
-             10000,
+             100000,
              "Final frame to finish processing dataset, "
              "subsequent frames will not be used.");
 DEFINE_bool(log_euroc_gt_data,
@@ -57,10 +58,13 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       current_k_(std::numeric_limits<FrameId>::max()),
       initial_k_(initial_k),
       final_k_(final_k),
-      pipeline_params_(vio_params),
+      vio_params_(vio_params),
       imu_measurements_(),
       logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
                                       : nullptr) {
+  CHECK(!dataset_path_.empty())
+      << "Dataset path for EurocDataProvider is empty.";
+
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);
@@ -70,9 +74,9 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
   // skip last frames.
   CHECK_GT(final_k_, 0);
 
-  CHECK(final_k_ > initial_k_) << "Value for final_k (" << final_k_
-                               << ") is smaller than value for"
-                               << " initial_k (" << initial_k_ << ").";
+  CHECK_GT(final_k_, initial_k_) << "Value for final_k (" << final_k_
+                                 << ") is smaller than value for"
+                                 << " initial_k (" << initial_k_ << ").";
   current_k_ = initial_k_;
 
   // Parse the actual dataset first, then run it.
@@ -107,13 +111,13 @@ bool EurocDataProvider::spin() {
     }
 
     // Spin.
-    CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
+    CHECK_EQ(vio_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
     // We log only the first one, because we may be running in sequential mode.
     LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
                          << " and frame " << final_k_;
     while (!shutdown_ && spinOnce()) {
-      if (!pipeline_params_.parallel_run_) {
+      if (!vio_params_.parallel_run_) {
         // Return, instead of blocking, when running in sequential mode.
         return true;
       }
@@ -133,10 +137,10 @@ bool EurocDataProvider::spinOnce() {
     return false;
   }
 
-  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
-  const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
+  const CameraParams& left_cam_info = vio_params_.camera_params_.at(0);
+  const CameraParams& right_cam_info = vio_params_.camera_params_.at(1);
   const bool& equalize_image =
-      pipeline_params_.frontend_params_.stereo_matching_params_.equalize_image_;
+      vio_params_.frontend_params_.stereo_matching_params_.equalize_image_;
 
   const Timestamp& timestamp_frame_k = timestampAtFrame(current_k_);
   VLOG(10) << "Sending left/right frames k= " << current_k_
@@ -192,7 +196,6 @@ void EurocDataProvider::sendImuData() const {
   }
 }
 
-
 /* -------------------------------------------------------------------------- */
 void EurocDataProvider::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
@@ -201,9 +204,9 @@ void EurocDataProvider::parse() {
   if (VLOG_IS_ON(1)) print();
 
   // Send first ground-truth pose to VIO for initialization if requested.
-  if (pipeline_params_.backend_params_->autoInitialize_ == 0) {
+  if (vio_params_.backend_params_->autoInitialize_ == 0) {
     // We want to initialize from ground-truth.
-    pipeline_params_.backend_params_->initial_ground_truth_state_ =
+    vio_params_.backend_params_->initial_ground_truth_state_ =
         getGroundTruthState(timestampAtFrame(initial_k_));
   }
 }
@@ -260,10 +263,11 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 
     if (previous_timestamp != -1) {
       sumOfDelta += (timestamp - previous_timestamp);
-      double deltaMismatch = std::fabs(
-          static_cast<double>(timestamp - previous_timestamp -
-                              pipeline_params_.imu_params_.nominal_sampling_time_s_) *
-          1e-9);
+      double deltaMismatch =
+          std::fabs(static_cast<double>(
+                        timestamp - previous_timestamp -
+                        vio_params_.imu_params_.nominal_sampling_time_s_) *
+                    1e-9);
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
       deltaCount += 1u;
@@ -468,9 +472,9 @@ bool EurocDataProvider::sanityCheckCameraData(
     const std::vector<std::string>& camera_names,
     std::map<std::string, CameraImageLists>* camera_image_lists) const {
   CHECK_NOTNULL(camera_image_lists);
-  CHECK_GT(pipeline_params_.camera_params_.size(), 0u);
-  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
-  const auto& left_cam_info = pipeline_params_.camera_params_.at(0);
+  CHECK_GT(vio_params_.camera_params_.size(), 0u);
+  CHECK_EQ(vio_params_.camera_params_.size(), 2u);
+  const auto& left_cam_info = vio_params_.camera_params_.at(0);
   auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists_;
   auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists_;
   return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
@@ -736,12 +740,12 @@ void EurocDataProvider::print() const {
   LOG(INFO) << "------------------ ETHDatasetParser::print ------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
   // For each of the 2 cameras.
-  CHECK_EQ(pipeline_params_.camera_params_.size(), camera_names_.size());
+  CHECK_EQ(vio_params_.camera_params_.size(), camera_names_.size());
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
               << (i == 0 ? "Left" : "Right")
               << " camera name: " << camera_names_[i] << ", with params:\n";
-    pipeline_params_.camera_params_.at(i).print();
+    vio_params_.camera_params_.at(i).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
   if (FLAGS_minloglevel < 1) {
