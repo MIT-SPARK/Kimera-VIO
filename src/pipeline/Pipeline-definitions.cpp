@@ -26,7 +26,6 @@
 #include "kimera-vio/visualizer/DisplayParams.h"
 #include "kimera-vio/visualizer/OpenCvDisplay.h" // for ocv display params...
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 namespace VIO {

@@ -4,7 +4,7 @@
 
 # Specify path of the EuRoC dataset.
 # The path can be absolute, or relative to this file location.
-DATASET_PATH="/home/marcus/datasets/Euroc/MH_01_easy"
+DATASET_PATH="/path/to/euroc/dataset"
 
 # Specify: 0 to run on EuRoC data, 1 to run on Kitti (not supported)
 DATASET_TYPE=0
@@ -21,7 +21,7 @@ LOG_OUTPUT=0
 # All paths can be absolute or relative to this file location.
 
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../../../build/kimera_vio"
+BUILD_PATH="../build"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params/Euroc"

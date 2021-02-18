@@ -1543,6 +1543,7 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
 
 bool OpenCvVisualizer3D::removeWidget(const std::string& widget_id) {
   widget_ids_to_remove_.push_back(widget_id);
+  return true;
 }
 
 void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,

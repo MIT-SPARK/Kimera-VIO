@@ -219,8 +219,6 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       KeypointCV kp_i_undistRect = sfnew->left_keypoints_rectified_.at(i).second;
       Cal3_S2 KundistRect = stereo_camera->getStereoCalib()->calibration();
       versor_i = sfnew->left_frame_.versors_.at(i);
-      // versor_i = actual_camL_R_camLrect.inverse().matrix() *
-      //            versor_i;  // compensate for rotation due to rectification
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
       gtsam::Point2 kp_i_undistRect_gtsam =
