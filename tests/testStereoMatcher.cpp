@@ -103,7 +103,8 @@ class StereoMatcherFixture : public ::testing::Test {
       sfnew->left_frame_.versors_.push_back(
           UndistorterRectifier::UndistortKeypointAndGetVersor(
               sfnew->left_frame_.keypoints_.at(i),
-              sfnew->left_frame_.cam_param_));
+              sfnew->left_frame_.cam_param_,
+              stereo_camera->getR1()));
       ++landmark_count_;
     }
 
@@ -162,11 +163,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
   EXPECT_NEAR(100, sfnew->right_keypoints_rectified_.size(), 1e-5);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
-  // check that 3d point is consistent with the left versor and the depth
-  // IMPORTANT: versors and keypoints3D are in different ref frames (former in
-  // camL, latter in camLrect) TEST: check rotation due to rectification
-  // (important when projecting points later on)
-  // sfnew->setIsRectified(true);  // Fake that the camera is rectified.
+  // Check that rectification rotation is consistent with class variables
   gtsam::Rot3 expected_camL_R_camLrect =
       sfnew->left_frame_.cam_param_.body_Pose_cam_.rotation().between(
           stereo_camera->getBodyPoseLeftCamRect().rotation());  // camL_R_camLrect
@@ -175,6 +172,9 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
   EXPECT_TRUE(gtsam::assert_equal(
       expected_camL_R_camLrect, actual_camL_R_camLrect, 1e-4));
 
+  // Check that 3d point is consistent with the left versor and the depth
+  // IMPORTANT: versors and keypoints3D are in same ref frames (camLrect)
+  // (important when projecting points later on)
   int nrValid = 0;
   for (size_t i = 0; i < sfnew->keypoints_3d_.size(); i++) {
     if (sfnew->right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
@@ -182,11 +182,6 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       double depth = sfnew->keypoints_depth_.at(i);
       gtsam::Vector3 versorActual = sfnew->keypoints_3d_.at(i) / depth *
                                     sfnew->left_frame_.versors_.at(i).z();
-      // gtsam::Vector3 versorExpected =
-      //     actual_camL_R_camLrect.inverse().matrix() *
-      //     sfnew->left_frame_.versors_.at(i);
-      // // versorExpected = versorExpected / sfnew->left_frame_.versors_.at(i).z();
-      // versorExpected = versorExpected / versorExpected[2];
       gtsam::Vector3 versorExpected = sfnew->left_frame_.versors_.at(i);
       EXPECT_TRUE(gtsam::assert_equal(versorExpected, versorActual, 1e-1));
     } else {
@@ -206,8 +201,10 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
     if (sfnew->right_keypoints_rectified_.at(i).first == KeypointStatus::VALID) {
       // TEST: uncalibrateDistUnrect(versor) = original distorted unrectified
       // point (CHECK DIST UNRECT CALIBRATION WORKS)
-      KeypointCV kp_i_distUnrect = sfnew->left_frame_.keypoints_.at(i);
-      gtsam::Vector3 versor_i = sfnew->left_frame_.versors_.at(i);
+      KeypointCV kp_i_distUnrect = sfnew->left_frame_.keypoints_.at(i);  // original distorted unrectified
+      gtsam::Vector3 versor_i = sfnew->left_frame_.versors_.at(i);  // in rectified frame
+      versor_i = actual_camL_R_camLrect.matrix() *
+                 versor_i;  // compensate for rotation due to rectification
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
       gtsam::Point2 kp_i_distUnrect_gtsam =
@@ -220,13 +217,10 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // TEST: uncalibrateUndistRect(versor) = original distorted unrectified
       // point (CHECK UNDIST RECT CALIBRATION WORKS)
       KeypointCV kp_i_undistRect = sfnew->left_keypoints_rectified_.at(i).second;
-
-      VIO::Camera left_camera(cam_params_left);
-      Cal3_S2 KundistRect = left_camera.getCalibration();
-
+      Cal3_S2 KundistRect = stereo_camera->getStereoCalib()->calibration();
       versor_i = sfnew->left_frame_.versors_.at(i);
-      versor_i = actual_camL_R_camLrect.inverse().matrix() *
-                 versor_i;  // compensate for rotation due to rectification
+      // versor_i = actual_camL_R_camLrect.inverse().matrix() *
+      //            versor_i;  // compensate for rotation due to rectification
       versor_i =
           versor_i / versor_i(2);  // set last element to 1, instead of norm 1
       gtsam::Point2 kp_i_undistRect_gtsam =
@@ -257,20 +251,11 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
-      // pixels
-      gtsam::Cal3_S2 sfnew_left_undist_rect_cam_mat_2 =
-          stereo_camera->getOriginalLeftCamera()->getCalibration();
-      gtsam::Cal3_S2Stereo::shared_ptr K(
-          new Cal3_S2Stereo(sfnew_left_undist_rect_cam_mat_2.fx(),
-                            sfnew_left_undist_rect_cam_mat_2.fy(),
-                            sfnew_left_undist_rect_cam_mat_2.skew(),
-                            sfnew_left_undist_rect_cam_mat_2.px(),
-                            sfnew_left_undist_rect_cam_mat_2.py(),
-                            stereo_camera->getBaseline()));
+      // pixels          
       // Note: camera pose is the identity (instead of
       // sfnew->getBPoseCamLRect()) since the 3D point is in the left camera
       // frame
-      gtsam::StereoCamera stereoCam(gtsam::Pose3::identity(), K);
+      gtsam::StereoCamera stereoCam(gtsam::Pose3::identity(), stereo_camera->getStereoCalib());
       gtsam::StereoPoint2 sp2 = stereoCam.project(point3d);
       EXPECT_NEAR(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).second.x, 1);
       EXPECT_NEAR(sp2.v(), sfnew->left_keypoints_rectified_.at(i).second.y, 1);
