@@ -1038,7 +1038,8 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   VIO::StereoCamera ref_stereo_camera(ref_stereo_frame->left_frame_.cam_param_,
                                       ref_stereo_frame->right_frame_.cam_param_);
   gtsam::StereoCamera stereoCam =
-      gtsam::StereoCamera(Pose3(), ref_stereo_camera.getStereoCalib());
+      gtsam::StereoCamera(gtsam::Pose3::identity(),
+                          ref_stereo_camera.getStereoCalib());
 
   // create a stereo point:
   double xL = 379.999 / 2;  // in the middle of the image
@@ -1070,8 +1071,8 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
       monteCarloSampleCovariance(stereoCam, stereoPoint, stereoPtCov);
 
   // check monte Carlo runs against our estimate
-  EXPECT_TRUE(assert_equal(f_ref_i_expected, f_ref_i_actual, 0.1));
-  EXPECT_TRUE(assert_equal(cov_ref_i_expected, cov_ref_i_actual, 0.1));
+  EXPECT_TRUE(assert_equal(f_ref_i_expected, f_ref_i_actual, 0.2));
+  EXPECT_TRUE(assert_equal(cov_ref_i_expected, cov_ref_i_actual, 0.2));
   // cout << "f_ref_i_expected \n" << f_ref_i_expected << endl;
   // cout << "f_ref_i_actual \n" << f_ref_i_actual << endl;
   // cout << "cov_ref_i_actual \n" << cov_ref_i_actual << endl;

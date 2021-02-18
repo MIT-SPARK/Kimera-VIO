@@ -36,7 +36,7 @@ class DataProviderInterface {
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
   typedef std::function<void(DepthFrame::UniquePtr)> DepthFrameInputCallback;
 
-  DataProviderInterface();
+  DataProviderInterface() = default;
   virtual ~DataProviderInterface();
 
   // The derived classes need to implement this function!

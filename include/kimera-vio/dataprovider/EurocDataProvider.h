@@ -202,7 +202,7 @@ class EurocDataProvider : public DataProviderInterface {
   void clipFinalFrame();
 
  protected:
-  VioParams pipeline_params_;
+  VioParams vio_params_;
 
   /// Images data.
   // TODO(Toni): remove camera_names_ and camera_image_lists_...

@@ -4,7 +4,7 @@
 
 # Specify path of the EuRoC dataset.
 # The path can be absolute, or relative to this file location.
-DATASET_PATH="/home/marcus/datasets/Euroc/MH_01_easy"
+DATASET_PATH="/path/to/euroc/dataset"
 
 # Specify: 0 to run on EuRoC data, 1 to run on Kitti (not supported)
 DATASET_TYPE=0
@@ -95,8 +95,8 @@ $BUILD_PATH/stereoVIOEuroc \
   --vocabulary_path="$VOCABULARY_PATH/ORBvoc.yml" \
   --flagfile="$PARAMS_PATH/flags/stereoVIOEuroc.flags" \
   --flagfile="$PARAMS_PATH/flags/Mesher.flags" \
-  --flagfile="$PARAMS_PATH/flags/VioBackEnd.flags" \
-  --flagfile="$PARAMS_PATH/flags/RegularVioBackEnd.flags" \
+  --flagfile="$PARAMS_PATH/flags/VioBackend.flags" \
+  --flagfile="$PARAMS_PATH/flags/RegularVioBackend.flags" \
   --flagfile="$PARAMS_PATH/flags/Visualizer3D.flags" \
   --logtostderr=1 \
   --colorlogtostderr=1 \
