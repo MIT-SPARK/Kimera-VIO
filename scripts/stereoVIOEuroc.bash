@@ -95,8 +95,8 @@ $BUILD_PATH/stereoVIOEuroc \
   --vocabulary_path="$VOCABULARY_PATH/ORBvoc.yml" \
   --flagfile="$PARAMS_PATH/flags/stereoVIOEuroc.flags" \
   --flagfile="$PARAMS_PATH/flags/Mesher.flags" \
-  --flagfile="$PARAMS_PATH/flags/VioBackEnd.flags" \
-  --flagfile="$PARAMS_PATH/flags/RegularVioBackEnd.flags" \
+  --flagfile="$PARAMS_PATH/flags/VioBackend.flags" \
+  --flagfile="$PARAMS_PATH/flags/RegularVioBackend.flags" \
   --flagfile="$PARAMS_PATH/flags/Visualizer3D.flags" \
   --logtostderr=1 \
   --colorlogtostderr=1 \

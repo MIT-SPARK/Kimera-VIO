@@ -1,7 +1,0 @@
-%YAML:1.0
-
-# OpenCV Display params.
-
-# Whether to hold the display for user input
-hold_2d_display: 0
-hold_3d_display: 0
