@@ -12,13 +12,13 @@ WORKDIR $DIRPATH
 
 #Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils && \
-    apt-get install -y git cmake && apt-get clean
+    apt-get install -y git cmake && rm -rf /var/lib/apt/lists/*
 
 # Install xvfb to provide a display to container for GUI related testing.
-RUN apt-get update && apt-get install -y xvfb && apt-get clean
+RUN apt-get update && apt-get install -y xvfb && rm -rf /var/lib/apt/lists/*
 
 # Install GTSAM
-RUN apt-get update && apt-get install -y libboost-all-dev && apt-get clean
+RUN apt-get update && apt-get install -y libboost-all-dev && rm -rf /var/lib/apt/lists/*
 ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
@@ -36,7 +36,7 @@ RUN apt-get update && apt-get install -y \
       libvtk6-dev \
       libgtk-3-dev \
       libatlas-base-dev gfortran && \
-      apt-get clean
+      rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/opencv/opencv.git
 RUN cd opencv && \
@@ -90,12 +90,12 @@ RUN cd Kimera-RPGO && \
 ## [Optional] Install Kimera-VIO-Evaluation from PyPI
 RUN apt-get update && \
     apt-get install software-properties-common -y && \
-    apt-get clean
+    rm -rf /var/lib/apt/lists/*
 # Get python3
 RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk && \
-    apt-get clean
+    rm -rf /var/lib/apt/lists/*
 RUN python3.5 -m pip install PyQt5==5.14
 
 # Install evo-1 for evaluation
@@ -124,14 +124,14 @@ RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev && \
-    apt-get clean
+    rm -rf /var/lib/apt/lists/*
 
 # Install Kimera-VIO
 RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
-RUN apt-get update && apt-get install -y wget && apt-get clean
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
 RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc && rm V1_01_easy.zip
 
