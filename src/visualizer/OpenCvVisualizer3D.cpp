@@ -102,8 +102,8 @@ OpenCvVisualizer3D::~OpenCvVisualizer3D() {
 
 VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
     const VisualizerInput& input) {
-  DCHECK(input.frontend_output_);
-  DCHECK(input.backend_output_);
+  CHECK(input.frontend_output_);
+  CHECK(input.backend_output_);
 
   VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
 
