@@ -82,11 +82,10 @@ struct VisualizerInput : public PipelinePayload {
         backend_output_(backend_output),
         frontend_output_(frontend_output),
         lcd_output_(lcd_output) {
-    CHECK(backend_output);
-    CHECK(frontend_output);
+    if (backend_output) CHECK_EQ(timestamp, backend_output->timestamp_);
+    if (frontend_output) CHECK_EQ(timestamp, frontend_output->timestamp_);
     if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
-    CHECK_EQ(timestamp, frontend_output->timestamp_);
-    CHECK_EQ(timestamp, backend_output->timestamp_);
+    if (lcd_output) CHECK_EQ(timestamp, lcd_output->timestamp_);
   }
   virtual ~VisualizerInput() = default;
 
