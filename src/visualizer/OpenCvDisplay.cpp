@@ -42,7 +42,7 @@ OpenCv3dDisplay::OpenCv3dDisplay(
   }
   window_data_.window_.registerKeyboardCallback(keyboardCallback,
                                                 &window_data_);
-  window_data_.window_.setBackgroundColor(window_data_.background_color_);
+  window_data_.window_.setBackgroundColor(params_.background_color_);
   window_data_.window_.showWidget("Coordinate Widget",
                                   cv::viz::WCoordinateSystem());
 
@@ -63,7 +63,7 @@ void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
   // Display 2D images.
   spin2dWindow(*display_input);
   // Display 3D window.
-  spin3dWindow(safeCast(std::move(display_input)));
+  spin3dWindow(safeDisplayInputCast(std::move(display_input)));
 }
 
 // Adds 3D widgets to the window, and displays it.
@@ -360,7 +360,7 @@ void OpenCv3dDisplay::setOffScreenRendering() {
   window_data_.window_.setOffScreenRendering();
 }
 
-VisualizerOutput::UniquePtr OpenCv3dDisplay::safeCast(
+VisualizerOutput::UniquePtr OpenCv3dDisplay::safeDisplayInputCast(
     DisplayInputBase::UniquePtr display_input_base) {
   if (!display_input_base) return nullptr;
   VisualizerOutput::UniquePtr viz_output;

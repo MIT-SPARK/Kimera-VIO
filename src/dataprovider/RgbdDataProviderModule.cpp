@@ -80,7 +80,7 @@ RgbdDataProviderModule::getInputPacket() {
 
 void RgbdDataProviderModule::shutdownQueues() {
   depth_frame_queue_.shutdown();
-  DataProviderModule::shutdownQueues();
+  MonoDataProviderModule::shutdownQueues();
 }
 
 }  // namespace VIO

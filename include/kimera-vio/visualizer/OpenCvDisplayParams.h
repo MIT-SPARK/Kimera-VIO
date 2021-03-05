@@ -26,6 +26,7 @@ namespace VIO {
 
 class OpenCv3dDisplayParams : public DisplayParams {
  public:
+  KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplayParams);
   OpenCv3dDisplayParams();
   ~OpenCv3dDisplayParams() override = default;
 
@@ -50,6 +51,7 @@ class OpenCv3dDisplayParams : public DisplayParams {
   //! the window.
   bool hold_3d_display_ = false;
   bool hold_2d_display_ = false;
+  cv::viz::Color background_color_ = cv::viz::Color::black();
 };
 
 }  // namespace VIO

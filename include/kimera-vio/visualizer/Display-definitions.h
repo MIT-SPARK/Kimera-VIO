@@ -34,9 +34,6 @@ struct WindowData {
   //! 3D visualization
   cv::viz::Viz3d window_;
 
-  //! Colors
-  cv::viz::Color background_color_;
-
   //! Stores the user set mesh representation.
   //! These objects are further modified by callbacks in the display module
   //! And are as well read by the visualizer module.

@@ -175,7 +175,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        const cv::Mat& polygons_mesh,
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
-                       const cv::Mat& texture = cv::Mat());
+                       const cv::Mat& texture = cv::Mat(),
+                       const std::string& mesh_id = "Mesh ID");
 
   //! Draw a line in opencv.
   void drawLine(const std::string& line_id,

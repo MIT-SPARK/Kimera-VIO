@@ -1242,7 +1242,8 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& polygons_mesh,
                                          WidgetsMap* widgets,
                                          const cv::Mat& tcoords,
-                                         const cv::Mat& texture) {
+                                         const cv::Mat& texture,
+                                         const std::string& mesh_id) {
   CHECK_NOTNULL(widgets);
   // Check data
   bool color_mesh = false;
@@ -1250,7 +1251,9 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     CHECK_EQ(map_points_3d.rows, colors.rows)
         << "Map points and Colors should have same number of rows. One"
            " color per map point.";
-    LOG(ERROR) << "Coloring mesh!";
+    LOG_IF(ERROR, !tcoords.empty())
+        << "Texture provided, but colors as well... Do not provide colors if "
+           "you want your mesh to be textured.";
     color_mesh = true;
   }
 
@@ -1274,7 +1277,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   cv_mesh.texture = texture;
 
   // Plot mesh.
-  (*widgets)["Mesh"] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
+  (*widgets)[mesh_id] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
 }
 
 void OpenCvVisualizer3D::visualizePlyMesh(const std::string& filename,

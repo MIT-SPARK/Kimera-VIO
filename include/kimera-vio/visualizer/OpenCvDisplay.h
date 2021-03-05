@@ -111,7 +111,7 @@ class OpenCv3dDisplay : public DisplayBase {
    * @param display_input_base
    * @return
    */
-  VisualizerOutput::UniquePtr safeCast(
+  VisualizerOutput::UniquePtr safeDisplayInputCast(
       DisplayInputBase::UniquePtr display_input_base);
 
  private:

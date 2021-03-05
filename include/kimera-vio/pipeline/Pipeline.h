@@ -214,7 +214,7 @@ class Pipeline {
 
   /// Launch threads for each pipeline module.
   virtual void launchThreads();
-  
+
   /// Shutdown processes and queues.
   virtual void stopThreads();
 
