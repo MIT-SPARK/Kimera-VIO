@@ -27,6 +27,7 @@ MonoImuSyncPacket::MonoImuSyncPacket(Frame::UniquePtr frame,
                               imu_stamps,
                               imu_accgyrs),
       frame_(std::move(frame)) {
+  CHECK_GT(imu_stamps_.cols(), 0u);
   CHECK_EQ(frame_->timestamp_, imu_stamps_(imu_stamps_.cols() - 1));
 }
 
