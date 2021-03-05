@@ -70,10 +70,10 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerOutputCallback([&backend_input_queue](
       const FrontendOutputPacketBase::Ptr& output) {
-    StereoFrontendOutput::Ptr converted_output = 
+    StereoFrontendOutput::Ptr converted_output =
         VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
 
-    if (converted_output->is_keyframe_) {
+    if (converted_output && converted_output->is_keyframe_) {
       //! Only push to Backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
           converted_output->stereo_frame_lkf_.timestamp_,
@@ -134,7 +134,7 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
     auto& mesher_module = mesher_module_;
     vio_frontend_module_->registerOutputCallback(
         [&mesher_module](const FrontendOutputPacketBase::Ptr& output) {
-          StereoFrontendOutput::Ptr converted_output = 
+          StereoFrontendOutput::Ptr converted_output =
               VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
           CHECK_NOTNULL(mesher_module.get())
               ->fillFrontendQueue(converted_output);
@@ -185,7 +185,7 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
     auto& visualizer_module = visualizer_module_;
     vio_frontend_module_->registerOutputCallback(
         [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
-          StereoFrontendOutput::Ptr converted_output = 
+          StereoFrontendOutput::Ptr converted_output =
               VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
