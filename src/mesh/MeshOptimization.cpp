@@ -216,16 +216,15 @@ void MeshOptimization::collectTriangleDataPoints(
   *CHECK_NOTNULL(number_of_valid_datapoints) = 0u;
   CHECK(mono_camera_);
 
-  for (size_t v = 0u; v < noisy_point_cloud.rows; ++v) {
-    for (size_t u = 0u; u < noisy_point_cloud.cols; ++u) {
+  for (size_t u = 0u; u < noisy_point_cloud.cols; ++u) {
+    for (size_t v = 0u; v < noisy_point_cloud.rows; ++v) {
       // 1. Project pointcloud to image (color img with projections)
       // aka get pixel coordinates for all points in pointcloud.
       // TODO(Toni): the projection of all points could be greatly optimized
       // by
       // appending all points into a big matrix and performing dense
       // multiplication.
-      KeypointCV pixel = cv::Point2f(u, v);
-      const cv::Point3f& lmk = noisy_point_cloud.at<cv::Point3f>(pixel);
+      const cv::Point3f& lmk = noisy_point_cloud.at<cv::Point3f>(v, u);
       if (isValidPoint(lmk, kMissingZ, kMinZ, kMaxZ)) {
         // Convert xyz to global coords (as they are given in camera coords).
         // transform from left cam frame of reference to body because the
@@ -249,8 +248,8 @@ void MeshOptimization::collectTriangleDataPoints(
 
         // 2. Generate correspondences btw points and triangles.
         // For each triangle in 2d Mesh
-        // TODO(Toni): this can be greatly optimized by going on a per triangle
-        // fashion and using halfplane checks on all points.
+        // TODO(Toni): this can be greatly optimized by going on a per
+        // triangle fashion and using halfplane checks on all points.
         Mesh2D::Polygon polygon;
         for (size_t k = 0; k < mesh_2d.getNumberOfPolygons(); k++) {
           CHECK(mesh_2d.getPolygon(k, &polygon));
@@ -296,8 +295,8 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
     if (noisy_pcl.rows != 1u || noisy_pcl.cols != 1u) {
       LOG(ERROR) << "Reshaping noisy_pcl!";
       cv::Mat_<cv::Point3f> flat_pcl = cv::Mat(1, 0, CV_32FC3);
-      for (int32_t v = 0u; v < noisy_pcl.rows; ++v) {
-        for (int32_t u = 0u; u < noisy_pcl.cols; ++u) {
+      for (int32_t v = 0u; v < noisy_pcl.rows; v++) {
+        for (int32_t u = 0u; u < noisy_pcl.cols; u++) {
           const cv::Point3f& lmk = noisy_pcl.at<cv::Point3f>(v, u);
           if (isValidPoint(lmk)) {
             flat_pcl.push_back(lmk);
@@ -509,18 +508,18 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
             gtsam::noiseModel::Diagonal::Sigmas(
                 gtsam::Vector1(kSpringNoiseSigma));
         // ASSUMEs that vtx ids are the indices of the adjacency matrix!
-        for (size_t i = 0u; i < adjacency_matrix.rows; i++) {
-          gtsam::Key i1(i);
-          for (size_t j = 0u; j < adjacency_matrix.cols; j++) {
-            if (j < i) {
-              if (adjacency_matrix.at<uint8_t>(i, j) == 1u) {
+        for (size_t v = 0u; v < adjacency_matrix.rows; v++) {
+          gtsam::Key i1(v);
+          for (size_t u = 0u; u < adjacency_matrix.cols; u++) {
+            if (u < v) {
+              if (adjacency_matrix.at<uint8_t>(v, u) == 1u) {
                 // Vertices are connected!
-                gtsam::Key i2(j);
+                gtsam::Key i2(u);
                 factor_graph += gtsam::JacobianFactor(
                     i1, A1, i2, A2, kSpringRestLength, kSpringNoiseModel);
               }
             } else {
-              CHECK_EQ(j, i);
+              CHECK_EQ(u, v);
               // The matrix is symmetric, avoid adding duplicated springs.
               break;
             }
