@@ -123,8 +123,8 @@ class RgbdCamera : public Camera {
     CHECK(depth_img.type() == CV_16UC1 || depth_img.type() == CV_32FC1);
     CHECK_EQ(depth_img.size(), intensity_img.size());
 
-    int img_height = intensity_img.rows;
-    int img_width = intensity_img.cols;
+    int img_rows = intensity_img.rows;
+    int img_cols = intensity_img.cols;
 
     // Use correct principal point from calibration
     float center_x = intrinsics.at(2u);
@@ -140,12 +140,12 @@ class RgbdCamera : public Camera {
     float bad_point = std::numeric_limits<float>::quiet_NaN();
 
     cv::Mat_<cv::Point3f> cloud_out =
-        cv::Mat(img_height, img_width, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));
+        cv::Mat(img_rows, img_cols, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));
     cv::Mat colors_out =
-        cv::Mat(img_height, img_width, CV_8UC3, cv::viz::Color::red());
+        cv::Mat(img_rows, img_cols, CV_8UC3, cv::viz::Color::red());
 
-    for (int v = 0u; v < img_height; ++v) {
-      for (int u = 0u; u < img_width; ++u) {
+    for (int v = 0u; v < img_rows; ++v) {
+      for (int u = 0u; u < img_cols; ++u) {
         T depth = depth_img.at<T>(v, u) * depth_factor;
         cv::Point3f& xyz = cloud_out.at<cv::Point3f>(v, u);
         cv::Vec3b& color = colors_out.at<cv::Vec3b>(v, u);
