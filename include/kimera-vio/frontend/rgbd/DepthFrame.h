@@ -29,7 +29,9 @@ class DepthFrame : public PipelinePayload {
   DepthFrame(const FrameId& id,
              const Timestamp& timestamp,
              const cv::Mat& depth_img)
-      : PipelinePayload(timestamp), id_(id), depth_img_(depth_img) {}
+      : PipelinePayload(timestamp), id_(id), depth_img_(depth_img) {
+    CHECK(depth_img_.type() == CV_32FC1 || depth_img_.type() == CV_16UC1);
+  }
 
  public:
   const FrameId id_;
