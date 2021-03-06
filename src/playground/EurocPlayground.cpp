@@ -206,13 +206,13 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         CHECK_EQ(left_frame->img_.type(), CV_8UC1);  // for color
         cv::Mat_<cv::Point3f> valid_depth = cv::Mat(1, 0, CV_32FC3);
         cv::Mat valid_colors = cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
-        for (int32_t u = 0; u < depth_map.rows; ++u) {
-          for (int32_t v = 0; v < depth_map.cols; ++v) {
-            const cv::Point3f& xyz = depth_map(u, v);
+        for (int32_t v = 0; v < depth_map.rows; ++v) {
+          for (int32_t u = 0; u < depth_map.cols; ++u) {
+            const cv::Point3f& xyz = depth_map(v, u);
             if (isValidPoint(xyz)) {
               valid_depth.push_back(xyz);
               const auto& grey_value =
-                  mesh_packet_.left_image_rect_.at<uint8_t>(u, v);
+                  mesh_packet_.left_image_rect_.at<uint8_t>(v, u);
               // We recolor the depth map for disambiguation of original
               // viewpoint
               valid_colors.push_back(
