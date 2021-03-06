@@ -333,7 +333,7 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
   if (!is_header_written || !log_accumulated_mesh) {
     output_mesh_stream << "ply\n"
                        << "format ascii 1.0\n"
-                       << "comment Mesh for SPARK VIO at timestamp "
+                       << "comment Mesh from KIMERA VIO at timestamp "
                        << timestamp << "\n"
                        << "element vertex " << vertex_count << "\n"
                        << "property float x\n"
