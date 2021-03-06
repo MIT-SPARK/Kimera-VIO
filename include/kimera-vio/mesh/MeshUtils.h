@@ -31,7 +31,7 @@ inline bool isValidPoint(const cv::Point3f& pt,
   // Check both for disparities explicitly marked as invalid (where OpenCV maps
   // pt.z to MISSING_Z)
   // and zero disparities (point mapped to infinity).
-  return pt.z != missing_z && !std::isinf(pt.z) && !std::isnan(pt.z) &&
+  return pt.z < missing_z && !std::isinf(pt.z) && !std::isnan(pt.z) &&
          pt.z < max_z && pt.z > min_z;
 }
 
