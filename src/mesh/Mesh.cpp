@@ -122,9 +122,14 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
   }
   CHECK_EQ(vtx_ids.size(), polygon_dimension_);
 
-  std::sort(vtx_ids.begin(), vtx_ids.end());
+
+  // DO NOT sort vtx_ids, or the normals will flip!
+  VertexIds sorted_vtx_ids = vtx_ids;
+  std::sort(sorted_vtx_ids.begin(), sorted_vtx_ids.end());
   const auto& face_hash =
-      UtilsNumerical::hashTriplet(vtx_ids[0], vtx_ids[1], vtx_ids[2]);
+      UtilsNumerical::hashTriplet(sorted_vtx_ids[0],
+                                  sorted_vtx_ids[1],
+                                  sorted_vtx_ids[2]);
   const auto& it = face_hashes_.find(face_hash);
 
   // Check the triangle is not already in the mesh
@@ -137,9 +142,9 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       // Triangle already exists!
       triangle_in_mesh = true;
       CHECK(it->second);
-      CHECK_EQ(adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[1]), 1u);
-      CHECK_EQ(adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]), 1u);
-      CHECK_EQ(adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[0]), 1u);
+      CHECK_EQ(adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[0], sorted_vtx_ids[1]), 1u);
+      CHECK_EQ(adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[1], sorted_vtx_ids[2]), 1u);
+      CHECK_EQ(adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[2], sorted_vtx_ids[0]), 1u);
     } else {
       triangle_in_mesh = false;
     }
@@ -165,9 +170,10 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       // TODO(Toni): this assumes that we never remove vertices!!
       // Add a new col/row for each new vtx
       // Check vtx_ids are ordered
-      std::sort(vtx_ids.begin(), vtx_ids.end());
-      for (const auto& vtx_id : vtx_ids) {
-        if (vtx_id >= adjacency_matrix_.rows) {
+      VertexIds sorted_vtx_ids = vtx_ids;
+      std::sort(sorted_vtx_ids.begin(), sorted_vtx_ids.end());
+      for (const auto& sorted_vtx_id : sorted_vtx_ids) {
+        if (sorted_vtx_id >= adjacency_matrix_.rows) {
           // Non-existing vertex! Add row/col. Careful! vtx_ids ordering
           // matters! First order them!
           CHECK(adjacency_matrix_.rows != 0 && adjacency_matrix_.cols != 0);
@@ -177,18 +183,18 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
           cv::Mat col = cv::Mat::zeros(adjacency_matrix_.rows, 1, CV_8UC1);
           cv::hconcat(adjacency_matrix_, col, adjacency_matrix_);
         }
-        CHECK_LT(vtx_id, adjacency_matrix_.rows);
+        CHECK_LT(sorted_vtx_id, adjacency_matrix_.rows);
       }
     }
     CHECK_EQ(adjacency_matrix_.rows, adjacency_matrix_.cols);
 
     // Update old vertices col/row
-    adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[1]) = 1u;
-    adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[0]) = 1u;
-    adjacency_matrix_.at<uint8_t>(vtx_ids[0], vtx_ids[2]) = 1u;
-    adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[0]) = 1u;
-    adjacency_matrix_.at<uint8_t>(vtx_ids[1], vtx_ids[2]) = 1u;
-    adjacency_matrix_.at<uint8_t>(vtx_ids[2], vtx_ids[1]) = 1u;
+    adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[0], sorted_vtx_ids[1]) = 1u;
+    adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[1], sorted_vtx_ids[0]) = 1u;
+    adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[0], sorted_vtx_ids[2]) = 1u;
+    adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[2], sorted_vtx_ids[0]) = 1u;
+    adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[1], sorted_vtx_ids[2]) = 1u;
+    adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[2], sorted_vtx_ids[1]) = 1u;
   } else {
     // No need to update connectivity, since the triangle is in the mesh already
     CHECK(it != face_hashes_.end());
@@ -264,21 +270,21 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
     return false;
   };
 
-  DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.size());
-  DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
+  bool has_normals = vertices_mesh_.rows == vertices_mesh_normal_.size();
+  CHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
   size_t idx_in_polygon_mesh = polygon_idx * (polygon_dimension_ + 1);
   polygon->resize(polygon_dimension_);
   for (size_t j = 0; j < polygon_dimension_; j++) {
     const int32_t& row_id_pt_j =
         polygons_mesh_.at<int32_t>(idx_in_polygon_mesh + j + 1);
-    DCHECK(vertex_to_lmk_id_map_.find(row_id_pt_j) !=
+    CHECK(vertex_to_lmk_id_map_.find(row_id_pt_j) !=
            vertex_to_lmk_id_map_.end());
-    DCHECK_LT(row_id_pt_j, vertices_mesh_.rows);
+    CHECK_LT(row_id_pt_j, vertices_mesh_.rows);
     polygon->at(j) = Vertex<VertexPositionType>(
         vertex_to_lmk_id_map_.at(row_id_pt_j),
         vertices_mesh_.at<VertexPositionType>(row_id_pt_j),
         vertices_mesh_color_.at<VertexColorRGB>(row_id_pt_j),
-        vertices_mesh_normal_.at(row_id_pt_j));
+        has_normals? vertices_mesh_normal_.at(row_id_pt_j) : VertexNormal());
   }
   return true;
 }
@@ -303,9 +309,9 @@ bool Mesh<VertexPosition>::getVertex(const LandmarkId& lmk_id,
   } else {
     // Construct and Return the vertex.
     const VertexId& vtx_id = vertex_it->second;
-    DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.size());
-    DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
-    DCHECK_LT(vtx_id, vertices_mesh_.rows);
+    CHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.size());
+    CHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
+    CHECK_LT(vtx_id, vertices_mesh_.rows);
     if (vertex_id != nullptr) *vertex_id = vtx_id;
     if (vertex != nullptr)
       *vertex = Vertex<VertexPosition>(
@@ -332,12 +338,13 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
   // per-face
   // normals.
   clearVertexNormals();
+  vertices_mesh_normal_.resize(n_vtx);
 
   // Walk through triangles and compute averaged vertex normals.
   Polygon polygon;
   for (size_t i = 0; i < getNumberOfPolygons(); i++) {
     CHECK(getPolygon(i, &polygon)) << "Could not retrieve polygon.";
-    DCHECK_EQ(polygon.size(), 3);
+    CHECK_EQ(polygon.size(), 3);
     // TODO(Toni): it would be better if we could do a polygon.getNormal();
     const VertexPositionType& p1 = polygon.at(0).getVertexPosition();
     const VertexPositionType& p2 = polygon.at(1).getVertexPosition();
@@ -346,18 +353,20 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
     // Outward-facing normal.
     VertexPositionType v21(p2 - p1);
     VertexPositionType v31(p3 - p1);
-    VertexNormal normal(v21.cross(v31));
+    VertexNormal normal(v31.cross(v21));
 
     // Normalize.
     double norm = cv::norm(normal);
-    DCHECK_GT(norm, 0.0);
+    CHECK_GT(norm, 0.0);
     normal /= norm;
 
     // TODO(Toni): Store normals at this point on a per-face basis.
 
     // Sanity check
     static constexpr double epsilon = 1e-3;  // 2.5 degrees aperture.
-    DCHECK_LE(std::fabs(v21.ddot(v31)), 1.0 - epsilon)
+    v21 /= cv::norm(v21);
+    v31 /= cv::norm(v31);
+    LOG_IF(WARNING, std::fabs(v21.ddot(v31)) >= 1.0 - epsilon)
         << "Cross product of aligned vectors.";
 
     // Compute per vertex averaged normals.
@@ -366,29 +375,29 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
     const VertexId& p2_idx = lmk_id_to_vertex_map_.at(polygon.at(1).getLmkId());
     const VertexId& p3_idx = lmk_id_to_vertex_map_.at(polygon.at(2).getLmkId());
     /// Sum of normals per vertex
-    vertices_mesh_normal_.at(p1_idx) += normal;
-    vertices_mesh_normal_.at(p2_idx) += normal;
-    vertices_mesh_normal_.at(p3_idx) += normal;
+    vertices_mesh_normal_.at(p1_idx) =
+        (counts.at(p1_idx) * vertices_mesh_normal_.at(p1_idx) + normal) /
+        (counts.at(p1_idx) + 1.0);
+    vertices_mesh_normal_.at(p2_idx) =
+        counts.at(p2_idx) * vertices_mesh_normal_.at(p2_idx) + normal /
+        (counts.at(p2_idx) + 1.0);
+    vertices_mesh_normal_.at(p3_idx) =
+        counts.at(p3_idx) * vertices_mesh_normal_.at(p3_idx) + normal /
+        (counts.at(p3_idx) + 1.0);
+    // assumes non-zero normals...
+    vertices_mesh_normal_.at(p1_idx) /=
+        cv::norm(vertices_mesh_normal_.at(p1_idx));
+    vertices_mesh_normal_.at(p2_idx) /=
+        cv::norm(vertices_mesh_normal_.at(p2_idx));
+    vertices_mesh_normal_.at(p3_idx) /=
+        cv::norm(vertices_mesh_normal_.at(p3_idx));
     /// Increase counts of normals added per vertex
-    counts[p1_idx]++;
-    counts[p2_idx]++;
-    counts[p3_idx]++;
+    counts.at(p1_idx)++;
+    counts.at(p2_idx)++;
+    counts.at(p3_idx)++;
   }
 
-  DCHECK_EQ(counts.size(), vertices_mesh_normal_.size());
-  // Average and normalize normals.
-  // clang-format off
-  // #pragma omp parallel for num_threads(params.omp_num_threads) schedule(static, params.omp_chunk_size)
-  // clang-format on
-  for (int i = 0; i < vertices_mesh_normal_.size(); i++) {
-    VertexNormal& normal = vertices_mesh_normal_.at(i);
-    // Average
-    normal /= counts[i];
-    // Normalize
-    double norm = cv::norm(normal);
-    DCHECK_GT(norm, 0.0);
-    normal /= norm;
-  }
+  CHECK_EQ(counts.size(), vertices_mesh_normal_.size());
   return;
 }
 
