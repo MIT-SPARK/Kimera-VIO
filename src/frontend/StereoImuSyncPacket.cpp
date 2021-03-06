@@ -33,6 +33,7 @@ StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
   // of the stereo frame. In case there is no IMU measurement with exactly
   // the same timestamp as the stereo frame, the user should interpolate
   // IMU measurements to get a value at the time of the stereo_frame.
+  CHECK_GT(imu_stamps_.cols(), 0);
   CHECK_EQ(stereo_frame_.timestamp_, imu_stamps_(imu_stamps_.cols() - 1));
   // TODO: Add check on ReinitPacket
 }
