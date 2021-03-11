@@ -2,21 +2,30 @@
 target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Camera.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoCamera.h"
+  "${CMAKE_CURRENT_LIST_DIR}/StereoMatcher.h"
   "${CMAKE_CURRENT_LIST_DIR}/UndistorterRectifier.h"
   "${CMAKE_CURRENT_LIST_DIR}/CameraParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoMatchingParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/Frame.h"
+  "${CMAKE_CURRENT_LIST_DIR}/FrontendInputPacketBase.h"
+  "${CMAKE_CURRENT_LIST_DIR}/FrontendOutputPacketBase.h"
+  "${CMAKE_CURRENT_LIST_DIR}/MonoVisionImuFrontend.h"
+  "${CMAKE_CURRENT_LIST_DIR}/MonoVisionImuFrontend-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoImuSyncPacket.h"
-  "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd-definitions.h"
-  "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd.h"
-  "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndParams.h"
-  "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndModule.h"
-  "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndFactory.h"
+  "${CMAKE_CURRENT_LIST_DIR}/MonoImuSyncPacket.h"
+  "${CMAKE_CURRENT_LIST_DIR}/StereoVisionImuFrontend-definitions.h"
+  "${CMAKE_CURRENT_LIST_DIR}/StereoVisionImuFrontend.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontend.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontend-definitions.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendParams.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendModule.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendFactory.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.h"
 )
 
 add_subdirectory(feature-detector)
+add_subdirectory(rgbd)
 add_subdirectory(optical-flow)

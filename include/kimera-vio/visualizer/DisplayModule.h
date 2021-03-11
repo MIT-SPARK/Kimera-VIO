@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
@@ -41,17 +42,13 @@ class DisplayModule
   DisplayModule(DisplayQueue* input_queue,
                 OutputQueue* output_queue,
                 bool parallel_run,
-                DisplayBase::UniquePtr&& display)
-      : SISO(input_queue, output_queue, "Display", parallel_run),
-        display_(std::move(display)) {}
+                DisplayBase::UniquePtr&& display);
 
   virtual ~DisplayModule() = default;
 
-  virtual OutputUniquePtr spinOnce(InputUniquePtr input) {
-    CHECK(input);
-    display_->spinOnce(std::move(input));
-    return VIO::make_unique<NullPipelinePayload>();
-  }
+  OutputUniquePtr spinOnce(InputUniquePtr input) override;
+
+  typename MISO::InputUniquePtr getInputPacket() override;
 
  private:
   // The renderer used to display the visualizer output.

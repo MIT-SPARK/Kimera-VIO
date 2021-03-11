@@ -34,7 +34,6 @@ namespace VIO {
 // Contains internal data for Visualizer3D window.
 WindowData::WindowData()
     : window_(cv::viz::Viz3d("3D Visualizer")),
-      background_color_(cv::viz::Color::black()),
       mesh_representation_(FLAGS_mesh_representation),
       mesh_shading_(FLAGS_mesh_shading),
       mesh_ambient_(FLAGS_set_mesh_ambient),

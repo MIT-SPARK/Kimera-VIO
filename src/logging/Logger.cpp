@@ -23,7 +23,7 @@
 
 #include <gflags/gflags.h>
 
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -333,7 +333,7 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
   if (!is_header_written || !log_accumulated_mesh) {
     output_mesh_stream << "ply\n"
                        << "format ascii 1.0\n"
-                       << "comment Mesh for SPARK VIO at timestamp "
+                       << "comment Mesh from KIMERA VIO at timestamp "
                        << timestamp << "\n"
                        << "element vertex " << vertex_count << "\n"
                        << "property float x\n"
@@ -395,7 +395,7 @@ void FrontendLogger::logFrontendStats(
     const DebugTrackerInfo& tracker_info,
     const TrackerStatusSummary& tracker_summary,
     const size_t& nrKeypoints) {
-  // We log frontend results in csv format.
+  // We log Frontend results in csv format.
   std::ofstream& output_stream_stats = output_frontend_stats_.ofstream_;
   bool& is_header_written = is_header_written_frontend_stats_;
 

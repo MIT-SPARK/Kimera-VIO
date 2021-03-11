@@ -29,7 +29,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz/types.hpp>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Macros.h"
@@ -52,7 +52,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   /**
    * @brief Visualizer3D constructor
    * @param viz_type: type of 3D visualization
-   * @param backend_type backend used so that we display the right info
+   * @param backend_type Backend used so that we display the right info
    */
   OpenCvVisualizer3D(const VisualizationType& viz_type,
                      const BackendType& backend_type);
@@ -127,7 +127,9 @@ class OpenCvVisualizer3D : public Visualizer3D {
       const cv::Mat& frustum_image,
       const cv::Affine3d& frustum_pose,
       WidgetsMap* widgets_map,
-      const std::string& widget_id = "Camera Pose with Frustum");
+      const std::string& widget_id = "Camera Pose with Frustum",
+      const cv::Matx33d K =
+          cv::Matx33d(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0));
 
   /**
    * @brief visualizePlyMesh Visualize a PLY from filename (absolute path).
@@ -153,6 +155,44 @@ class OpenCvVisualizer3D : public Visualizer3D {
                            const cv::Mat& normals = cv::Mat());
 
   void visualizeGlobalFrameOfReference(WidgetsMap* widgets, double scale = 1.0);
+
+  /**
+   * @brief visualizeMesh3D
+   * Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
+   * and provide color for each polygon.
+   * @param map_points_3d
+   * @param colors
+   * @param polygons_mesh
+   * @param widgets
+   * @param tcoords Optional texture cordinates
+   * @param texture Optional texture image
+   * @param id Optional string id in case you want to display multiple 3D meshes
+   * in the same visualization window
+   * @return false if nothing to draw
+   */
+  void visualizeMesh3D(const cv::Mat& map_points_3d,
+                       const cv::Mat& colors,
+                       const cv::Mat& polygons_mesh,
+                       WidgetsMap* widgets,
+                       const cv::Mat& tcoords = cv::Mat(),
+                       const cv::Mat& texture = cv::Mat(),
+                       const std::string& mesh_id = "Mesh ID");
+
+  //! Draw a line in opencv.
+  void drawLine(const std::string& line_id,
+                const double& from_x,
+                const double& from_y,
+                const double& from_z,
+                const double& to_x,
+                const double& to_y,
+                const double& to_z,
+                WidgetsMap* widgets);
+
+  //! Same as above but with different interface
+  void drawLine(const std::string& line_id,
+                const cv::Point3d& pt1,
+                const cv::Point3d& pt2,
+                WidgetsMap* widgets);
 
  private:
   //! Create a 2D mesh from 2D corners in an image, coded as a Frame class
@@ -182,35 +222,16 @@ class OpenCvVisualizer3D : public Visualizer3D {
                       const bool& visualize_plane_label = true,
                       const int& cluster_id = 1);
 
-  //! Draw a line in opencv.
-  void drawLine(const std::string& line_id,
-                const double& from_x,
-                const double& from_y,
-                const double& from_z,
-                const double& to_x,
-                const double& to_y,
-                const double& to_z,
-                WidgetsMap* widgets);
-
-  //! Same as above but with different interface
-  void drawLine(const std::string& line_id,
-                const cv::Point3d& pt1,
-                const cv::Point3d& pt2,
-                WidgetsMap* widgets);
-
-  //! Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-  void visualizeMesh3D(const cv::Mat& mapPoints3d,
-                       const cv::Mat& polygonsMesh,
-                       WidgetsMap* widgets);
-
-  //! Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
-  //! and provide color for each polygon.
+  /**
+   * @brief visualizeMesh3D Visualize a 3D point cloud of unique 3D landmarks
+   * with its connectivity with only one color.
+   * @param map_points_3d
+   * @param polygons
+   * @param widgets
+   */
   void visualizeMesh3D(const cv::Mat& map_points_3d,
-                       const cv::Mat& colors,
-                       const cv::Mat& polygons_mesh,
-                       WidgetsMap* widgets,
-                       const cv::Mat& tcoords = cv::Mat(),
-                       const cv::Mat& texture = cv::Mat());
+                       const cv::Mat& polygons,
+                       WidgetsMap* widgets);
 
   /// Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   /// Each triangle is colored depending on the cluster it is in, or gray if it

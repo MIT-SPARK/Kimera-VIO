@@ -14,12 +14,15 @@
 
 #pragma once
 
+#include <math.h>
 #include <map>
 #include <vector>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/viz/types.hpp>  // Just for color type.
+
+#include <glog/logging.h>
 
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/SerializationOpenCv.h"
@@ -38,12 +41,15 @@ class Mesh {
   // Normal for a vertex
   typedef cv::Point3f VertexNormal;
   typedef std::vector<VertexNormal> VertexNormals;
+  // Vertex id (for internal processing).
+  typedef size_t VertexId;
+  typedef std::vector<size_t> VertexIds;
 
  public:
   // Default constructor.
   Mesh(const size_t& polygon_dimension = 3);
 
-  // Delete copy constructor.
+  // Copy constructor.
   // Performs a deep copy (clones) the data members.
   Mesh(const Mesh& rhs_mesh);
 
@@ -62,8 +68,6 @@ class Mesh {
   ~Mesh() = default;
 
  private:
-  // Vertex id (for internal processing).
-  typedef int VertexId;
   // Maps (for internal processing).
   typedef std::map<VertexId, LandmarkId> VertexToLmkIdMap;
   typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
@@ -80,8 +84,8 @@ class Mesh {
 
     Vertex(const LandmarkId& lmk_id,
            const VertexPosition& vertex_position,
-           const VertexNormal& vertex_normal = VertexNormal(),
-           const VertexColorRGB& vertex_color = cv::viz::Color::white())
+           const VertexColorRGB& vertex_color = cv::viz::Color::white(),
+           const VertexNormal& vertex_normal = VertexNormal())
         : lmk_id_(lmk_id),
           vertex_position_(vertex_position),
           vertex_normal_(vertex_normal),
@@ -107,7 +111,11 @@ class Mesh {
     inline const VertexNormal& getVertexNormal() const {
       return vertex_normal_;
     }
+    inline const VertexColorRGB& getVertexColor() const {
+      return vertex_color_;
+    }
     inline const LandmarkId& getLmkId() const { return lmk_id_; }
+
     /// Setters.
     inline void setVertexPosition(const VertexPosition& position) {
       vertex_position_ = position;
@@ -126,10 +134,10 @@ class Mesh {
   typedef std::vector<VertexType> Polygon;
 
  public:
-  // Adds a new polygon into the mesh, updates the internal data structures.
+  //! Adds a new polygon into the mesh, updates the internal data structures.
   void addPolygonToMesh(const Polygon& polygon);
 
-  // Completely clears the mesh.
+  //! Completely clears the mesh.
   void clearMesh();
 
   /// Getters
@@ -142,10 +150,68 @@ class Mesh {
   // TODO needs to be generalized to aleatory polygonal meshes.
   // Currently it only allows polygons of same size.
   inline size_t getMeshPolygonDimension() const { return polygon_dimension_; }
+  inline cv::Mat getAdjacencyMatrix() const { return adjacency_matrix_; }
+
+  /// Checkers
+  inline bool isLmkIdInMesh(const LandmarkId& lmk_id) const {
+    const auto& it = lmk_id_to_vertex_map_.find(lmk_id);
+    if (it != lmk_id_to_vertex_map_.end()) {
+      // Sanity check
+      CHECK(isVtxIdInMesh(it->second));
+      return true;
+    } else {
+      return false;
+    }
+  }
+  inline bool isVtxIdInMesh(const VertexId& vtx_id) const {
+    const auto& it = vertex_to_lmk_id_map_.find(vtx_id);
+    if (it != vertex_to_lmk_id_map_.end()) {
+      // Sanity check
+      CHECK(isLmkIdInMesh(it->second));
+      return true;
+    } else {
+      return false;
+    }
+  }
+  inline bool getVtxIdForLmkId(const LandmarkId& lmk_id,
+                               VertexId* vtx_id) const {
+    CHECK_NOTNULL(vtx_id);
+    auto it = lmk_id_to_vertex_map_.find(lmk_id);
+    if (it != lmk_id_to_vertex_map_.end()) {
+      *vtx_id = it->second;
+      return true;
+    } else {
+      return false;
+    }
+  }
+  inline bool getLmkIdForVtxId(const VertexId& vtx_id,
+                               LandmarkId* lmk_id) const {
+    CHECK_NOTNULL(lmk_id);
+    auto it = vertex_to_lmk_id_map_.find(vtx_id);
+    if (it != vertex_to_lmk_id_map_.end()) {
+      *lmk_id = it->second;
+      return true;
+    } else {
+      return false;
+    }
+  }
 
   // Retrieve the mesh data structures.
-  void convertVerticesMeshToMat(cv::Mat* vertices_mesh) const;
-  void convertPolygonsMeshToMat(cv::Mat* polygons_mesh) const;
+  void getVerticesMeshToMat(cv::Mat* vertices_mesh) const;
+  void getPolygonsMeshToMat(cv::Mat* polygons_mesh) const;
+  cv::Mat getColorsMesh(const bool& safe = true) const;
+
+  /**
+   * @brief setTopology DANGEROUS: it replaces the current topology by the
+   * given one. NOTE THAT we don't check for consistency, meaning that we
+   * don't look over the given topology and check that the indices refer
+   * to actual vertices in the matrix, nor we check the polygon dimension, nor
+   * nothing...
+   * @param topology A [(1 + X)*N, 1] matrix where N is the number of polygons
+   * 1 is to specify the polygon size (3 for triangle), and X is the polygon
+   * size (X=3 for triangle).
+   */
+  void setTopology(const cv::Mat& topology);
 
   // Retrieve a single polygon in the mesh.
   // Iterate over the total number of polygons (given by getNumberOfPolygons)
@@ -195,16 +261,16 @@ class Mesh {
   /// Functions
   // Updates internal structures to add a vertex.
   // Used by addPolygonToMesh, it is not supposed to be used by the end user.
-  void updateMeshDataStructures(
+  VertexId updateMeshDataStructures(
       const LandmarkId& lmk_id,
       const VertexPosition& lmk_position,
+      const VertexColorRGB& vertex_color,
+      const VertexNormal& vertex_normal,
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
-      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_id_map,
       cv::Mat* vertices_mesh,
       VertexNormals* vertices_mesh_normal,
-      cv::Mat* vertices_mesh_color,
-      cv::Mat* polygon_mesh,
-      const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
+      cv::Mat* vertices_mesh_color) const;
 
   // Sets all vertex normals to 0.
   inline void clearVertexNormals() { vertices_mesh_normal_.clear(); }
@@ -222,6 +288,8 @@ class Mesh {
     ar& normals_computed_;
     ar& vertices_mesh_color_;
     ar& polygons_mesh_;
+    ar& adjacency_matrix_;
+    // ar& face_hashes_;
     ar& const_cast<size_t&>(polygon_dimension_);
   }
 
@@ -263,6 +331,14 @@ class Mesh {
   // index into the associated row in vertices_mesh_.
   cv::Mat polygons_mesh_;
 
+  //! Connectivity of the mesh at the edge level.
+  //! Squared matrix of vertices, ordered according to vtx_id (meaning their
+  //! position in the vertices_mesh_ rows.
+  cv::Mat adjacency_matrix_;
+
+  //! Used as a hash to know if a face is in the mesh
+  std::unordered_map<size_t, bool> face_hashes_;
+
   // Number of vertices per polygon.
   const size_t polygon_dimension_;
 };
@@ -276,5 +352,53 @@ typedef Mesh<Vertex2D> Mesh2D;
 typedef cv::Point3f Vertex3D;
 // A 3D Mesh of landmarks.
 typedef Mesh<Vertex3D> Mesh3D;
+
+inline Mesh3D::VertexType convertVertex2dTo3d(const Mesh2D::VertexType& vtx_2d,
+                                              const cv::Mat& tf_3_2) {
+  Vertex2D vtx_position_2d = vtx_2d.getVertexPosition();
+  // REMOVE BECAUSE IT MAKES NO SENSE TO USE PIXELS AS XYZ! >
+  cv::Mat mat_2_1 = cv::Mat(vtx_position_2d, false);
+  cv::Mat mat_3_1 = tf_3_2 * mat_2_1;
+  Vertex3D vtx_position_3d(mat_3_1);
+  auto norm = std::sqrt(vtx_position_2d.dot(vtx_position_2d));
+  vtx_position_3d.x = vtx_position_3d.x / norm * 5;
+  vtx_position_3d.y = vtx_position_3d.y / norm * 5;
+  // The important point is that we re-use the lmk ids, rather than position...
+  return Mesh3D::VertexType(vtx_2d.getLmkId(),
+                            vtx_position_3d,
+                            vtx_2d.getVertexColor(),
+                            vtx_2d.getVertexNormal());
+}
+
+// Needs to be thoroughly tested: particularly topology preserving and lmk_id
+// preserving.
+/**
+ * @brief convertMesh2dTo3d
+ * @param mesh_2d
+ * @param tf_3_2 A linear transformation from 2D to 3D points
+ * @param mesh_3d
+ * @param z
+ */
+inline void convertMesh2dTo3d(const Mesh2D& mesh_2d,
+                              const cv::Mat& tf_3_2,
+                              Mesh3D* mesh_3d,
+                              const float& z = 1.0f) {
+  CHECK_NOTNULL(mesh_3d);
+  Mesh2D::Polygon polygon_2d;
+  Mesh3D::Polygon polygon_3d;
+  polygon_3d.resize(3);
+  for (size_t tri_idx = 0u; tri_idx < mesh_2d.getNumberOfPolygons();
+       tri_idx++) {
+    CHECK(mesh_2d.getPolygon(tri_idx, &polygon_2d));
+    CHECK_EQ(polygon_2d.size(), 3);
+    polygon_3d[0] = convertVertex2dTo3d(polygon_2d[0], tf_3_2);
+    polygon_3d[1] = convertVertex2dTo3d(polygon_2d[1], tf_3_2);
+    polygon_3d[2] = convertVertex2dTo3d(polygon_2d[2], tf_3_2);
+    mesh_3d->addPolygonToMesh(polygon_3d);
+  }
+  CHECK_EQ(mesh_3d->getNumberOfPolygons(), mesh_2d.getNumberOfPolygons());
+  CHECK_EQ(mesh_3d->getNumberOfUniqueVertices(),
+           mesh_2d.getNumberOfUniqueVertices());
+}
 
 }  // namespace VIO

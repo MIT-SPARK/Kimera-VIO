@@ -18,7 +18,7 @@
 #include <string>
 
 #include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -30,10 +30,11 @@ class DataProviderInterface {
   KIMERA_POINTER_TYPEDEFS(DataProviderInterface);
   //! IMU input callbacks come in two flavours:
   //! - Single: allows to add only one single measurement at a time.
-  //! - Multi: allows to add a bunck of measurements at a time.
+  //! - Multi: allows to add a bunch of measurements at a time.
   typedef std::function<void(const ImuMeasurement&)> ImuSingleInputCallback;
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
+  typedef std::function<void(DepthFrame::UniquePtr)> DepthFrameInputCallback;
 
   DataProviderInterface() = default;
   virtual ~DataProviderInterface();
@@ -73,6 +74,10 @@ class DataProviderInterface {
   inline void registerRightFrameCallback(const FrameInputCallback& callback) {
     right_frame_callback_ = callback;
   }
+  inline void registerDepthFrameCallback(
+      const DepthFrameInputCallback& callback) {
+    depth_frame_callback_ = callback;
+  }
 
  protected:
   // Vio callbacks. These functions should be called once data is available for
@@ -81,6 +86,7 @@ class DataProviderInterface {
   ImuMultiInputCallback imu_multi_callback_;
   FrameInputCallback left_frame_callback_;
   FrameInputCallback right_frame_callback_;
+  DepthFrameInputCallback depth_frame_callback_;
 
   // Shutdown switch to stop data provider.
   std::atomic_bool shutdown_ = {false};

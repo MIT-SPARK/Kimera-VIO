@@ -34,7 +34,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/backend/VioBackEndParams.h"
+#include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
 
 using namespace std;

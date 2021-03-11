@@ -23,6 +23,7 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
 
+#include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
@@ -63,7 +64,7 @@ class EurocDataProvider : public DataProviderInterface {
    * return until it finishes.
    * @return True if the dataset still has data, false otherwise.
    */
-  bool spin() override;
+  virtual bool spin() override;
 
   /**
    * @brief print Print info about dataset.
@@ -85,25 +86,24 @@ class EurocDataProvider : public DataProviderInterface {
   }
   std::string getDatasetName();
 
- private:
-
+ protected:
   /**
    * @brief spinOnce Send data to VIO pipeline on a per-frame basis
    * @return if the dataset finished or not
    */
-  bool spinOnce();
-
-  /**
-   * @brief sendImuData We send IMU data first (before frames) so that the VIO
-   * pipeline can query all IMU data between frames.
-   */
-  void sendImuData() const;
+  virtual bool spinOnce();
 
   /**
    * @brief parse Parses Euroc dataset. This is done already in spin() and
    * does not need to be called by the user. Left in public for experimentation.
    */
   void parse();
+
+  /**
+   * @brief sendImuData We send IMU data first (before frames) so that the VIO
+   * pipeline can query all IMU data between frames.
+   */
+  void sendImuData() const;
 
   /**
    * @brief parseDataset Parse camera, gt, and imu data if using
@@ -201,7 +201,7 @@ class EurocDataProvider : public DataProviderInterface {
   // Clip final frame to the number of images in the dataset.
   void clipFinalFrame();
 
- private:
+ protected:
   VioParams vio_params_;
 
   /// Images data.
@@ -233,6 +233,27 @@ class EurocDataProvider : public DataProviderInterface {
 
 
   EurocGtLogger::UniquePtr logger_;
+};
+
+class MonoEurocDataProvider : public EurocDataProvider {
+ public:
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MonoEurocDataProvider);
+  KIMERA_POINTER_TYPEDEFS(MonoEurocDataProvider);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
+  MonoEurocDataProvider(const std::string& dataset_path,
+                        const int& initial_k,
+                        const int& final_k,
+                        const VioParams& vio_params);
+
+  explicit MonoEurocDataProvider(const VioParams& vio_params);
+
+  virtual ~MonoEurocDataProvider();
+
+  bool spin() override;
+
+ protected:
+  bool spinOnce() override;
 };
 
 }  // namespace VIO

@@ -10,22 +10,23 @@
  * @file   StereoCamera.h
  * @brief  Class describing a StereoCamera.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #pragma once
 
 #include <Eigen/Core>
 
-#include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 
 #include <gtsam/geometry/Cal3_S2Stereo.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
-#include "kimera-vio/frontend/UndistorterRectifier.h"
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -38,24 +39,28 @@ class StereoCamera {
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoCamera);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using Baseline = double;
+
   /**
    * @brief StereoCamera definition of what a Stereo Camera is. Computes
    * rectification and undistortion parameters that can be readily applied
    * to stereo images.
    * @param left_cam_params
    * @param right_cam_params
-   * @param stereo_matching_params
    */
   StereoCamera(const CameraParams& left_cam_params,
-               const CameraParams& right_cam_params,
-               const StereoMatchingParams& stereo_matching_params);
+               const CameraParams& right_cam_params);
+
+  StereoCamera(Camera::ConstPtr left_camera,
+               Camera::ConstPtr right_camera);
 
   virtual ~StereoCamera() = default;
 
  public:
   /** NOT TESTED
-   * @brief project Lmks into images, doesn't do any check...
-   * @param lmks
+   * @brief project 3D Lmks into images as 2D pixels, doesn't do any check...
+   * @param lmks Given in World coordinates or rather in whatever frame of
+   * reference the pose of the left camera is given (usually the body frame!)
    * @param left_kpts
    * @param right_kpts
    */
@@ -64,6 +69,41 @@ class StereoCamera {
                KeypointsCV* right_kpts) const;
 
   /**
+   * @brief project One lmk into left/right images, doesn't do any check...
+   * @param[in] lmks
+   * @param[out] left_kpts
+   * @param[out] right_kpts
+   */
+  void project(const LandmarkCV& lmk,
+               KeypointCV* left_kpt,
+               KeypointCV* right_kpt) const;
+
+  /**
+   * @brief backProjectDisparity Back project a 2D keypoint in 3D given a
+   * disparity value. The 3D vector
+   * is expressed in body coordinates (or whatever frame of reference the
+   * stereo camera's pose is).
+   * @param kp 2D keypoint in pixel coordinates
+   * @param disparity of the 3D landmark
+   * @param lmk 3D landmark resulting from the backProjection of the 2D keypoint
+   */
+  void backProjectDisparity(const KeypointCV& kp,
+                            const Depth& disparity,
+                            LandmarkCV* lmk) const;
+
+  /**
+   * @brief backProject A 2D keypoint in 3D given a depth value. The 3D vector
+   * is expressed in body coordinates (or whatever frame of reference the
+   * stereo camera's pose is).
+   * @param kp 2D keypoint in pixel coordinates
+   * @param depth Depth of the landmark
+   * @param lmk 3D landmark resulting from the backProjection of the 2D keypoint
+   */
+  void backProjectDepth(const KeypointCV& kp,
+                        const Depth& depth,
+                        LandmarkCV* lmk) const;
+
+  /** // NOT TESTED and probably wrong!
    * @brief backProject keypoints given disparity image
    * @param kps
    * @param disparity_img
@@ -71,17 +111,6 @@ class StereoCamera {
   void backProject(const KeypointsCV& kps,
                    const cv::Mat& disparity_img,
                    LandmarksCV* lmks) const;
-
-  /**
-   * @brief stereoDisparityReconstruction
-   * Given left and right images reconstructs a dense disparity image.
-   * @param left_img
-   * @param right_img
-   * @param disparity_img
-   */
-  void stereoDisparityReconstruction(const cv::Mat& left_img,
-                                     const cv::Mat& right_img,
-                                     cv::Mat* disparity_img);
 
   /**
    * @brief backProjectDisparityTo3D Given a disparity image, it
@@ -92,18 +121,44 @@ class StereoCamera {
    * fractional bits.
    * @param depth
    * Output 3-channel floating-point image of the same size as disparity . Each
-   * element of _3dImage(x,y) contains 3D coordinates of the point (x,y)
-   * computed from the disparity
-   * map.
+   * element of _3dImage(u, v) contains 3D coordinates of the keypoint (u, v)
+   * computed from the disparity map.
+   * WARNING The output 3D landmarks (x, y, z) are given in camera coordinates!!
+   * rather than body coordinates!
    */
-  void backProjectDisparityTo3D(const cv::Mat& disparity_img, cv::Mat* depth);
+  void backProjectDisparityTo3D(const cv::Mat& disparity_img,
+                                cv::Mat* depth) const;
+  void backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
+                                      cv::Mat* depth) const;
+
+  inline const Camera::ConstPtr& getOriginalLeftCamera() const {
+    return original_left_camera_;
+  }
+
+  inline const Camera::ConstPtr& getOriginalRightCamera() const {
+    return original_right_camera_;
+  }
+
+  inline gtsam::StereoCamera getUndistortedRectifiedStereoCamera() const {
+    return undistorted_rectified_stereo_camera_impl_;
+  }
 
   /**
-   * @brief getLeftCamRectPose Get left camera pose after rectification with
+   * @brief getBodyPoseLeftCamRect Get left camera pose after rectification with
    * respect to the body frame.
    * @return
    */
-  inline gtsam::Pose3 getLeftCamRectPose() const { return B_Pose_camLrect_; }
+  inline gtsam::Pose3 getBodyPoseLeftCamRect() const {
+    return B_Pose_camLrect_;
+  }
+  /**
+   * @brief getBodyPoseRightCamRect Get right camera pose after rectification
+   * with respect to the body frame.
+   * @return
+   */
+  inline gtsam::Pose3 getBodyPoseRightCamRect() const {
+    return B_Pose_camRrect_;
+  }
 
   // Ideally this would return a const shared pointer or a copy, but GTSAM's
   // idiosyncrasies require shared ptrs all over the place.
@@ -112,14 +167,61 @@ class StereoCamera {
    * @return stereo camera calibration after undistortion and rectification.
    */
   inline gtsam::Cal3_S2Stereo::shared_ptr getStereoCalib() const {
+    CHECK(stereo_calibration_);
     return stereo_calibration_;
   }
+
+  /**
+   * @brief getImageSize
+   * @return image size of left/right frames
+   */
+  inline cv::Size getImageSize() const {
+    CHECK_EQ(ROI1_, ROI2_);
+    return cv::Size(ROI1_.x, ROI1_.y);
+  }
+  inline cv::Rect getROI1() const { return ROI1_; }
+  inline cv::Rect getROI2() const { return ROI2_; }
+
+  inline CameraParams getLeftCamParams() const {
+    return original_left_camera_->getCamParams();
+  }
+
+  inline CameraParams getRightCamParams() const {
+    return original_right_camera_->getCamParams();
+  }
+
+  inline cv::Mat getP1() const { return P1_; }
+
+  inline cv::Mat getP2() const { return P2_; }
+
+  inline cv::Mat getR1() const { return R1_; }
+
+  inline cv::Mat getR2() const { return R2_; }
+
+  inline cv::Mat getQ() const { return Q_; }
+
+  inline Baseline getBaseline() const { return stereo_baseline_; }
 
   /**
    * @brief rectifyUndistortStereoFrame
    * @param stereo_frame
    */
-  void undistortRectifyStereoFrame(StereoFrame* stereo_frame);
+  void undistortRectifyStereoFrame(StereoFrame* stereo_frame) const;
+
+  /**
+   * @brief undistortRectifyLeftKeypoints Undistorts and rectifies left keypoints
+   * using the left camera distortion and rectification parameters.
+   * Further provides a KeypointStatus on the keypoints so that out of image
+   * and/or badly undistorted-rectified keypoints can be discarded.
+   * @param keypoints
+   * @param status_keypoints
+   */
+  void undistortRectifyLeftKeypoints(const KeypointsCV& keypoints,
+                                     StatusKeypointsCV* status_keypoints) const;
+
+  void distortUnrectifyRightKeypoints(
+      const StatusKeypointsCV& status_keypoints,
+      KeypointsCV* keypoints) const;
 
   /**
    * @brief computeRectificationParameters
@@ -156,22 +258,23 @@ class StereoCamera {
       cv::Rect* ROI1,
       cv::Rect* ROI2);
 
- protected:
+ private:
+  //! Left and right camera objects.
+  //! These are neither undistorted nor rectified
+  VIO::Camera::ConstPtr original_left_camera_;
+  VIO::Camera::ConstPtr original_right_camera_;
+
   //! Stereo camera implementation
-  gtsam::StereoCamera stereo_camera_impl_;
+  gtsam::StereoCamera undistorted_rectified_stereo_camera_impl_;
 
   //! Stereo camera calibration
   gtsam::Cal3_S2Stereo::shared_ptr stereo_calibration_;
 
-  //! Pose from Body to Left Camera after rectification
+  //! Pose from Body to Left/Right Camera after rectification
   gtsam::Pose3 B_Pose_camLrect_;
+  gtsam::Pose3 B_Pose_camRrect_;
 
-  //! Non-rectified parameters
-  CameraParams left_cam_params_;
-  CameraParams right_cam_params_;
-
-  //! Parameters for dense stereo matching
-  StereoMatchingParams stereo_matching_params_;
+  //! Undistortion rectification pre-computed maps for cv::remap
   UndistorterRectifier::UniquePtr left_cam_undistort_rectifier_;
   UndistorterRectifier::UniquePtr right_cam_undistort_rectifier_;
 
@@ -189,32 +292,11 @@ class StereoCamera {
   /// cv::reprojectImageTo3D or cv::stereoRectify).
   cv::Mat Q_;
 
+  //! Regions of interest in the left/right image.
   cv::Rect ROI1_, ROI2_;
 
   //! Stereo baseline
-  double baseline_;
-
-  // TODO(Toni): put on its own struct, dense stereo depth reconstruction
-  //! Dense Stereo Reconstruction params
-  bool use_sgbm_ = true;
-  bool post_filter_disparity_ = false;
-  bool median_blur_disparity_ = false;
-  int pre_filter_cap_ = 31;
-  int sad_window_size_ = 11;
-  int min_disparity_ = 1;
-  int num_disparities_ = 64;
-  int uniqueness_ratio_ = 0;
-  int speckle_range_ = 3;
-  int speckle_window_size_ = 500;
-  // bm parameters
-  int texture_threshold_ = 0;
-  int pre_filter_type_ = cv::StereoBM::PREFILTER_XSOBEL;
-  int pre_filter_size_ = 9;
-  // sgbm parameters
-  int p1_ = 120;
-  int p2_ = 240;
-  int disp_12_max_diff_ = -1;
-  bool use_mode_HH_ = true;
+  Baseline stereo_baseline_;
 };
 
 }  // namespace VIO

@@ -78,22 +78,18 @@ std::string UtilsOpenCV::typeToString(int type) {
 bool UtilsOpenCV::compareCvMatsUpToTol(const cv::Mat& mat1,
                                        const cv::Mat& mat2,
                                        const double& tol) {
+  CHECK_EQ(mat1.size(), mat2.size());
+  CHECK_EQ(mat1.type(), mat2.type());
+
   // treat two empty mat as identical as well
   if (mat1.empty() && mat2.empty()) {
     LOG(WARNING) << "CvMatCmp: asked comparison of 2 empty matrices.";
     return true;
   }
 
-  // if dimensionality of two mats are not identical, these two mats are not
-  // identical
-  if (mat1.cols != mat2.cols || mat1.rows != mat2.rows ||
-      mat1.dims != mat2.dims) {
-    return false;
-  }
-
   // Compare the two matrices!
   cv::Mat diff = mat1 - mat2;
-  return cv::checkRange(diff, true, 0, -tol, tol);
+  return cv::checkRange(diff, true, nullptr, -tol, tol);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -215,7 +211,8 @@ gtsam::Pose3 UtilsOpenCV::openGvTfToGtsamPose3(
 
 /* -------------------------------------------------------------------------- */
 // Crops pixel coordinates avoiding that it falls outside image
-bool UtilsOpenCV::cropToSize(cv::Point2f* px, const cv::Size& size) {
+// TODO(marcus): template on input precision? have to change whole class
+bool UtilsOpenCV::cropToSize(KeypointCV* px, const cv::Size& size) {
   CHECK_NOTNULL(px);
   bool cropped = false;
   float max_width = static_cast<float>(size.width - 1);
@@ -236,6 +233,7 @@ bool UtilsOpenCV::cropToSize(cv::Point2f* px, const cv::Size& size) {
   }
   return cropped;
 }
+
 /* -------------------------------------------------------------------------- */
 /** @brief Crop to size and round pixel coordinates to integers
  * @param
@@ -462,24 +460,26 @@ void UtilsOpenCV::PlainMatchTemplate(const cv::Mat stripe,
 }
 /* -------------------------------------------------------------------------- */
 // add circles in the image at desired position/size/color
-void UtilsOpenCV::DrawCirclesInPlace(
-    cv::Mat& img,
-    const std::vector<cv::Point2f>& imagePoints,
-    const cv::Scalar& color,
-    const double msize,
-    const std::vector<int>& pointIds,
-    const int remId) {
-  cv::Point2f textOffset = cv::Point2f(-10, -5);  // text offset
+void UtilsOpenCV::DrawCirclesInPlace(cv::Mat& img,
+                                     const KeypointsCV& image_points,
+                                     const cv::Scalar& color,
+                                     const double& msize,
+                                     const std::vector<int>& point_ids,
+                                     const int& rem_id) {
+  // text offset
+  cv::Point2f text_offset(-10, -5);
   if (img.channels() < 3) cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
-  for (size_t i = 0; i < imagePoints.size(); i++) {
-    cv::circle(img, imagePoints[i], msize, color, 2);
-    if (pointIds.size() == imagePoints.size())  // we also have text
+  for (size_t i = 0u; i < image_points.size(); i++) {
+    cv::circle(img, image_points[i], msize, color, 2);
+    if (point_ids.size() == image_points.size()) {
+      // We also have text
       cv::putText(img,
-                  std::to_string(pointIds[i] % remId),
-                  imagePoints[i] + textOffset,
+                  std::to_string(point_ids[i] % rem_id),
+                  image_points[i] + text_offset,
                   CV_FONT_HERSHEY_COMPLEX,
                   0.5,
                   color);
+    }
   }
 }
 /* -------------------------------------------------------------------------- */
@@ -588,90 +588,137 @@ cv::Mat UtilsOpenCV::concatenateTwoImages(const cv::Mat& left_img,
 
 /* -------------------------------------------------------------------------- */
 // Draw corner matches and return results as a new mat.
+// TODO(marcus): color the keypoints based on status!
 cv::Mat UtilsOpenCV::DrawCornersMatches(
     const cv::Mat& img1,
-    const std::vector<cv::Point2f>& corners1,
+    const StatusKeypointsCV& corners_with_status_1,
     const cv::Mat& img2,
-    const std::vector<cv::Point2f>& corners2,
-    const std::vector<cv::DMatch>& matches,
-    const bool randomColor) {
+    const StatusKeypointsCV& corners_with_status_2,
+    const DMatchVec& matches,
+    const bool& random_color) {
+  KeypointsCV keypoints_1, keypoints_2;
+  keypoints_1.reserve(corners_with_status_1.size());
+  keypoints_2.reserve(corners_with_status_2.size());
+
+  for (int i = 0; i < corners_with_status_1.size(); i++) {
+    keypoints_1.push_back(corners_with_status_1[i].second);
+  }
+
+  for (int i = 0; i < corners_with_status_2.size(); i++) {
+    keypoints_2.push_back(corners_with_status_2[i].second);
+  }
+
+  return DrawCornersMatches(
+      img1, keypoints_1, img2, keypoints_2, matches, random_color);
+}
+
+/* -------------------------------------------------------------------------- */
+// Draw corner matches and return results as a new mat.
+cv::Mat UtilsOpenCV::DrawCornersMatches(
+    const cv::Mat& img1,
+    const KeypointsCV& corners_1,
+    const cv::Mat& img2,
+    const KeypointsCV& corners_2,
+    const DMatchVec& matches,
+    const bool& random_color) {
   cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
-  cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
+  KeypointCV pt_offset(img1.cols, 0);
   cv::RNG rng(12345);
-  for (int i = 0; i < matches.size(); i++) {
+  for (const cv::DMatch& match : matches) {
     cv::Scalar color;
-    if (randomColor)
+    if (random_color) {
+      // Random color is useful to disambiguate between matches
       color = cv::Scalar(
           rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-    else
+    } else {
+      // Green color
       color = cv::Scalar(0, 255, 0);
-    cv::line(canvas,
-             corners1[matches[i].queryIdx],
-             corners2[matches[i].trainIdx] + ptOffset,
-             color);
-    cv::circle(canvas, corners1[matches[i].queryIdx], 3, color, 2);
-    cv::circle(canvas, corners2[matches[i].trainIdx] + ptOffset, 3, color, 2);
+    }
+
+    // TODO TONI REUSE THE OTHER FUNCTIONS!!!!
+    const KeypointCV& corner_1 = corners_1[match.queryIdx];
+    const KeypointCV& corner_2 = corners_2[match.trainIdx];
+
+    // Trace a line from the image on the left to the one image on the right
+    cv::line(canvas, corner_1, corner_2 + pt_offset, color);
+    cv::circle(canvas, corners_1[match.queryIdx], 3, color, 2);
+    cv::circle(canvas, corners_2[match.trainIdx] + pt_offset, 3, color, 2);
   }
+
   return canvas;
 }
+
 /* -------------------------------------------------------------------------- */
 cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
-                                 const StatusKeypointsCV& imagePoints,
-                                 const std::vector<double>& circleSizes) {
-  KeypointsCV valid_imagePoints;
-  std::vector<cv::Scalar> circleColors;
-  for (size_t i = 0; i < imagePoints.size(); i++) {
-    if (imagePoints[i].first ==
-        KeypointStatus::VALID) {  // it is a valid point!
-      valid_imagePoints.push_back(imagePoints[i].second);
-      circleColors.push_back(cv::Scalar(0, 255, 0));  // green
-    } else if (imagePoints[i].first ==
-               KeypointStatus::NO_RIGHT_RECT) {  // template matching did not
-                                                 // pass
-      valid_imagePoints.push_back(imagePoints[i].second);
-      circleColors.push_back(cv::Scalar(0, 0, 255));
+                                 const StatusKeypointsCV& img_points,
+                                 const std::vector<double>& circle_sizes) {
+  KeypointsCV valid_img_points;
+  std::vector<cv::Scalar> circle_colors;
+  for (size_t i = 0u; i < img_points.size(); i++) {
+    if (img_points[i].first == KeypointStatus::VALID) {
+      valid_img_points.push_back(img_points[i].second);
+      // green
+      circle_colors.push_back(cv::Scalar(0, 255, 0));
+    } else if (img_points[i].first == KeypointStatus::NO_RIGHT_RECT) {
+      valid_img_points.push_back(img_points[i].second);
+      // red
+      circle_colors.push_back(cv::Scalar(0, 0, 255));
     } else {
-      valid_imagePoints.push_back(
-          imagePoints[i].second);  // disparity turned out negative
-      circleColors.push_back(cv::Scalar(0, 0, 255));
+      // Disparity turned out negative
+      valid_img_points.push_back(img_points[i].second);
+      // red
+      circle_colors.push_back(cv::Scalar(0, 0, 255));
     }
   }
   return UtilsOpenCV::DrawCircles(
-      img, valid_imagePoints, circleColors, circleSizes);
+      img, valid_img_points, circle_colors, circle_sizes);
 }
+
+cv::Scalar UtilsOpenCV::getColorFromKeypointStatus(
+    const KeypointStatus& kpt_status) {
+  static const cv::Scalar green = cv::Scalar(0, 255, 0);
+  static const cv::Scalar red = cv::Scalar(0, 0, 255);
+  if (kpt_status == KeypointStatus::VALID) {
+    return green;
+  } else {
+    return red;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
-                                 const KeypointsCV& imagePoints,
-                                 const std::vector<cv::Scalar>& circleColors,
-                                 const std::vector<double>& circleSizes) {
-  bool displayWithSize =
-      false;  // if true size of circles is proportional to depth
-  bool displayWithText = true;     // if true display text with depth
-  KeypointCV textOffset(-10, -5);  // text offset
+                                 const KeypointsCV& image_points,
+                                 const std::vector<cv::Scalar>& circle_colors,
+                                 const std::vector<double>& circle_sizes,
+                                 const bool& display_with_size,
+                                 const bool& display_with_text) {
+  KeypointCV text_offset(-10.0, -5.0);
   cv::Mat img_color = img.clone();
-  if (img_color.channels() < 3) {
+  if (img_color.channels() < 3u) {
     cv::cvtColor(img_color, img_color, cv::COLOR_GRAY2BGR);
   }
-  for (size_t i = 0; i < imagePoints.size(); i++) {
-    double circleSize = 3;
-    cv::Scalar circleColor = cv::Scalar(0, 255, 0);
 
-    if (displayWithSize && circleSizes.size() == imagePoints.size())
-      circleSize = 5 * std::max(circleSizes[i], 0.5);
+  for (size_t i = 0u; i < image_points.size(); i++) {
+    double circle_size = 3.0;
+    cv::Scalar circle_color(0u, 255u, 0u);
+    if (display_with_size && circle_sizes.size() == image_points.size()) {
+      circle_size = 5.0 * std::max(circle_sizes[i], 0.5);
+    }
 
-    if (circleColors.size() == imagePoints.size())
-      circleColor = circleColors[i];
+    if (circle_colors.size() == image_points.size()) {
+      circle_color = circle_colors[i];
+    }
 
-    cv::circle(img_color, imagePoints[i], circleSize, circleColor, 2);
+    cv::circle(img_color, image_points[i], circle_size, circle_color, 2u);
 
-    if (displayWithText && circleSizes.size() == imagePoints.size() &&
-        circleSizes[i] != -1) {
+    if (display_with_text && circle_sizes.size() == image_points.size() &&
+        circle_sizes[i] != -1.0) {
       cv::putText(img_color,
-                  UtilsNumerical::To_string_with_precision(circleSizes[i]),
-                  imagePoints[i] + textOffset,
+                  UtilsNumerical::To_string_with_precision(circle_sizes[i]),
+                  image_points[i] + text_offset,
                   CV_FONT_HERSHEY_COMPLEX,
                   0.4,
-                  circleColor);
+                  circle_color);
     }
   }
   return img_color;
@@ -682,7 +729,7 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
     const std::vector<cv::Point2f>& corners1,
     const cv::Mat img2,
     const std::vector<cv::Point2f>& corners2,
-    const std::vector<cv::DMatch>& matches) {
+    const DMatchVec& matches) {
   cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
 
@@ -697,12 +744,34 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
     cv::waitKey(1);
   }
 }
+
+void UtilsOpenCV::showImagesSideBySide(const cv::Mat& img_left,
+                                       const cv::Mat& img_right,
+                                       const std::string& title,
+                                       const bool& show_images,
+                                       const bool& save_images) {
+  cv::Mat original_left_right =
+      UtilsOpenCV::concatenateTwoImages(img_left, img_right);
+
+  if (show_images) {
+    // Moved in here to allow saving images
+    cv::namedWindow(title, cv::WINDOW_AUTOSIZE);
+    cv::imshow("Original Left/Right images", original_left_right);
+    cv::waitKey(1);
+  }
+
+  if (save_images) {
+    std::string img_name = "./outputImages/" + title + ".png";
+    cv::imwrite(img_name, original_left_right);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 //  find max absolute value of matrix entry
 double UtilsOpenCV::MaxAbsValue(gtsam::Matrix M) {
-  double maxVal = 0;
-  for (size_t i = 0; i < M.rows(); i++) {
-    for (size_t j = 0; j < M.cols(); j++) {
+  double maxVal = 0.0;
+  for (size_t i = 0u; i < M.rows(); i++) {
+    for (size_t j = 0u; j < M.cols(); j++) {
       maxVal = std::max(maxVal, fabs(M(i, j)));
     }
   }

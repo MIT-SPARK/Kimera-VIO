@@ -24,21 +24,23 @@
 #include <gflags/gflags.h>
 
 #include <opencv2/viz.hpp>
-
+// To convert from/to eigen
 #include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/nonlinear/LinearContainerFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include <opencv2/core/eigen.hpp>
+
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
+#include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsGTSAM.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
-
-#include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 
 // TODO(Toni): remove visualizer gflags! There are far too many, use a
 // yaml params class (aka inherit from PipelineParams.
@@ -100,8 +102,8 @@ OpenCvVisualizer3D::~OpenCvVisualizer3D() {
 
 VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
     const VisualizerInput& input) {
-  DCHECK(input.frontend_output_);
-  DCHECK(input.backend_output_);
+  CHECK(input.frontend_output_);
+  CHECK(input.backend_output_);
 
   VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
 
@@ -118,7 +120,11 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
 
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe =
-      input.frontend_output_->stereo_frame_lkf_.getLeftFrame();
+      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)->stereo_frame_lkf_.left_frame_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput> (
+                input.frontend_output_)->frame_lkf_;
   switch (visualization_type_) {
     // Computes and visualizes 3D mesh from 2D triangulation.
     // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
@@ -239,7 +245,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
                     input.backend_output_->state_,
                     ppf_plane_key,
                     &current_plane_estimate));
-                // WARNING assumes the backend updates normal and distance
+                // WARNING assumes the Backend updates normal and distance
                 // of plane and that no one modifies it afterwards...
                 visualizePlaneConstraints(
                     plane.getPlaneSymbol().key(),
@@ -297,7 +303,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
           }
         }
 
-        // Also remove planes that were deleted by the backend...
+        // Also remove planes that were deleted by the Backend...
         for (const Plane& plane : planes_prev) {
           const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
           const std::uint64_t& plane_index = plane_symbol.index();
@@ -360,27 +366,46 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   // Visualize trajectory.
   // First, add current pose to trajectory
   VLOG(10) << "Starting trajectory visualization...";
+  const gtsam::Pose3& b_Pose_cam_Lrect =
+      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_camL_rect_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_cam_rect_;
   addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-      input.backend_output_->W_State_Blkf_.pose_.compose(
-          input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect())));
+      input.backend_output_->W_State_Blkf_.pose_.compose(b_Pose_cam_Lrect)));
   // Generate line through all poses
   visualizeTrajectory3D(&output->widgets_);
   // Generate frustums for the last 10 poses.
   // visualizeTrajectoryWithFrustums(&output->widgets_, 10u);
   // Generate frustum with an image inside it for the current pose.
-  visualizePoseWithImgInFrustum(FLAGS_visualize_mesh_in_frustum
-                                    ? mesh_2d_img
-                                    : input.frontend_output_->feature_tracks_,
-                                trajectory_poses_3d_.back(),
-                                &output->widgets_);
+  visualizePoseWithImgInFrustum(
+      FLAGS_visualize_mesh_in_frustum ? mesh_2d_img
+      : input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)
+                ->feature_tracks_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                input.frontend_output_)
+                ->feature_tracks_,
+      trajectory_poses_3d_.back(),
+      &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
   // Visualize the factor-graph in 3D, this trajectory might be different
   // than the one above!
   visualizeFactorGraph(
       input.backend_output_->state_,
       input.backend_output_->factor_graph_,
-      input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect(),
-      input.frontend_output_->stereo_frame_lkf_.getBPoseCamRRect(),
+      b_Pose_cam_Lrect,
+      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_camR_rect_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_cam_rect_,  // TODO(marcus): should be null
       &output->widgets_);
 
   // Add widgets to remove
@@ -1194,7 +1219,7 @@ void OpenCvVisualizer3D::drawLine(const std::string& line_id,
                                   WidgetsMap* widgets) {
   cv::Point3d pt1(from_x, from_y, from_z);
   cv::Point3d pt2(to_x, to_y, to_z);
-  drawLine(line_id, pt1, pt2, widgets);
+  drawLine("Line " + line_id, pt1, pt2, widgets);
 }
 
 void OpenCvVisualizer3D::drawLine(const std::string& line_id,
@@ -1217,7 +1242,8 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                          const cv::Mat& polygons_mesh,
                                          WidgetsMap* widgets,
                                          const cv::Mat& tcoords,
-                                         const cv::Mat& texture) {
+                                         const cv::Mat& texture,
+                                         const std::string& mesh_id) {
   CHECK_NOTNULL(widgets);
   // Check data
   bool color_mesh = false;
@@ -1225,7 +1251,9 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     CHECK_EQ(map_points_3d.rows, colors.rows)
         << "Map points and Colors should have same number of rows. One"
            " color per map point.";
-    LOG(ERROR) << "Coloring mesh!";
+    LOG_IF(ERROR, !tcoords.empty())
+        << "Texture provided, but colors as well... Do not provide colors if "
+           "you want your mesh to be textured.";
     color_mesh = true;
   }
 
@@ -1249,7 +1277,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   cv_mesh.texture = texture;
 
   // Plot mesh.
-  (*widgets)["Mesh"] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
+  (*widgets)[mesh_id] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
 }
 
 void OpenCvVisualizer3D::visualizePlyMesh(const std::string& filename,
@@ -1500,7 +1528,8 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
     const cv::Mat& frustum_image,
     const cv::Affine3d& frustum_pose,
     WidgetsMap* widgets_map,
-    const std::string& widget_id) {
+    const std::string& widget_id,
+    const cv::Matx33d K) {
   CHECK_NOTNULL(widgets_map);
   std::unique_ptr<cv::viz::WCameraPosition> cam_widget_ptr = nullptr;
   if (frustum_image.empty()) {
@@ -1525,7 +1554,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                                    const double& distance,
                                                    const LandmarkId& lmk_id,
                                                    const gtsam::Point3& point,
-                                                   WidgetsMap* widgets) {
+                                                   WidgetsMap* widgets_map) {
   PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
   LmkIdToLineIdMap* lmk_id_to_line_id_map_ptr = nullptr;
   LineNr* line_nr_ptr = nullptr;
@@ -1571,7 +1600,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                              point.x(),
                              point.y(),
                              point.z(),
-                             widgets);
+                             widgets_map);
     // Augment line_nr for next line_id.
     (*line_nr_ptr)++;
   } else {
@@ -1588,7 +1617,7 @@ void OpenCvVisualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
                                point.x(),
                                point.y(),
                                point.z(),
-                               widgets);
+                               widgets_map);
   }
 }
 
@@ -1715,7 +1744,7 @@ Mesh3DVizProperties OpenCvVisualizer3D::texturizeMesh3D(
     // Returns indices of points in the 3D mesh corresponding to the
     // vertices
     // in the 2D mesh.
-    int p0_id, p1_id, p2_id;
+    Mesh3D::VertexId p0_id, p1_id, p2_id;
     if (mesh_3d.getVertex(lmk0, nullptr, &p0_id) &&
         mesh_3d.getVertex(lmk1, nullptr, &p1_id) &&
         mesh_3d.getVertex(lmk2, nullptr, &p2_id)) {

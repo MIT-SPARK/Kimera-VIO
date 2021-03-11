@@ -26,6 +26,8 @@
 #include <vector>
 
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoMatcher.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
@@ -55,6 +57,8 @@ class LoopClosureDetector {
    *  instantiated and output/statistics are logged at every spinOnce().
    */
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
+                      const StereoCamera::ConstPtr& stereo_camera,
+                      const StereoMatchingParams& stereo_matching_params,
                       bool log_output);
 
   /* ------------------------------------------------------------------------ */
@@ -173,14 +177,6 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Returns the "intrinsics flag", which is true if the pipeline has
-   *  recieved the dimensions, principle point, and focal length of the images
-   *  in the frames, as well as the transformation from body to camera.
-   * @return True if the intrinsics have been recieved, false otherwise.
-   */
-  inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Returns the pose between the inertial world-reference frame and the
    *  "map" frame, which is the error between the VIO and the PGO trajectories.
    * @return The pose of the map frame relative to the world frame.
@@ -200,16 +196,6 @@ class LoopClosureDetector {
    *  the PGO.
    */
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Set the bool set_intrinsics as well as the parameter members
-   *  representing the principle point, image dimensions, focal length and
-   *  camera-to-body pose.
-   * @param[in] stereo_frame A StereoFrame with the calibration and parameters
-   *  needed to set the intrinsics.
-   */
-  // TODO(marcus): this should be private. But that makes testing harder.
-  void setIntrinsics(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Set the OrbDatabase internal member.
@@ -286,7 +272,7 @@ class LoopClosureDetector {
   /* ------------------------------------------------------------------------ */
   /** @brief Adds an odometry factor to the PGO and optimizes the trajectory.
    *  No actual optimization is performed on the RPGO side for odometry.
-   * @param[in] factor An OdometryFactor representing the backend's guess for
+   * @param[in] factor An OdometryFactor representing the Backend's guess for
    *  odometry between two consecutive keyframes.
    */
   void addOdometryFactorAndOptimize(const OdometryFactor& factor);
@@ -300,7 +286,7 @@ class LoopClosureDetector {
 
   /* ------------------------------------------------------------------------ */
   /** @brief Initializes the RobustSolver member with an initial prior factor,
-   *  which can be the first OdometryFactor given by the backend.
+   *  which can be the first OdometryFactor given by the Backend.
    * @param[in] factor An OdometryFactor representing the pose between the
    *  initial state of the vehicle and the first keyframe.
    */
@@ -379,7 +365,6 @@ class LoopClosureDetector {
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = false;
-  bool set_intrinsics_ = false;
 
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;
@@ -396,7 +381,8 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
-  gtsam::Cal3_S2Stereo::shared_ptr stereo_calibration_;
+  StereoCamera::ConstPtr stereo_camera_;
+  StereoMatcher::UniquePtr stereo_matcher_;
 
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
@@ -411,7 +397,6 @@ class LoopClosureDetector {
 
  private:
   // Lcd typedefs
-  using DMatchVec = std::vector<cv::DMatch>;
   using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
   using SacProblemMono =
       opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
@@ -435,10 +420,15 @@ class LcdFactory {
   static LoopClosureDetector::UniquePtr createLcd(
       const LoopClosureDetectorType& lcd_type,
       const LoopClosureDetectorParams& lcd_params,
+      const StereoCamera::ConstPtr& stereo_camera,
+      const StereoMatchingParams& stereo_matching_params,
       bool log_output) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
-        return VIO::make_unique<LoopClosureDetector>(lcd_params, log_output);
+        return VIO::make_unique<LoopClosureDetector>(lcd_params,
+                                                     stereo_camera,
+                                                     stereo_matching_params,
+                                                     log_output);
       }
       default: {
         LOG(FATAL) << "Requested loop closure detector type is not supported.\n"
@@ -454,7 +444,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(LcdModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdModule);
-  using LcdFrontendInput = FrontendOutput::Ptr;
+  using LcdFrontendInput = FrontendOutputPacketBase::Ptr;
   using LcdBackendInput = BackendOutput::Ptr;
 
   LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
@@ -493,19 +483,19 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     CHECK(backend_payload);
     const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
 
-    // Look for the synchronized packet in frontend payload queue
+    // Look for the synchronized packet in Frontend payload queue
     // This should always work, because it should not be possible to have
-    // a backend payload without having a frontend one first!
+    // a Backend payload without having a Frontend one first!
     LcdFrontendInput frontend_payload = nullptr;
     PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
     CHECK(frontend_payload);
     CHECK(frontend_payload->is_keyframe_);
+    CHECK_EQ(timestamp, frontend_payload->timestamp_);
 
     // Push the synced messages to the lcd's input queue
-    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
     return VIO::make_unique<LcdInput>(
-        timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
+        timestamp, frontend_payload, backend_payload->cur_kf_id_, body_pose);
   }
 
   OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
@@ -521,7 +511,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
   //! Checks if the module has work to do (should check input queues are empty)
   bool hasWork() const override {
-    // We don't check frontend queue because it runs faster than backend queue.
+    // We don't check Frontend queue because it runs faster than Backend queue.
     return !backend_queue_.empty();
   }
 

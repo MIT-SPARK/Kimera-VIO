@@ -20,7 +20,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/mesh/Mesh.h"
 
@@ -114,7 +114,7 @@ class BackendLogger {
   OfstreamWrapper output_backend_timing_csv_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
-  double timing_loggerBackend_;
+  double timing_loggerbackend_;
   bool is_header_written_poses_vio_ = false;
   bool is_header_written_smart_factors_ = false;
   bool is_header_written_pim_navstates_ = false;
