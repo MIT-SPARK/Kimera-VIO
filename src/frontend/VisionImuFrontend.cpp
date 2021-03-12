@@ -53,7 +53,8 @@ VisionImuFrontend::~VisionImuFrontend() {
 
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
-  switch (frontend_state_) {
+  const FrontendState& frontend_state = frontend_state_;
+  switch (frontend_state) {
     case FrontendState::Bootstrap: {
       return bootstrapSpin(std::move(input));
     } break;
