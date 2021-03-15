@@ -1,0 +1,34 @@
+%YAML:1.0
+
+################################################################################
+# Created by: Nathan Hughes                                                    #
+# Created on: 2020-11-28T22:20:01.303910                                       #
+# Camera: Realsense D435i (SN028522074025)                                     #
+################################################################################
+
+# Type of IMU preintegration
+# 0: CombinedImuFactor
+# 1: ImuFactor
+imu_preintegration_type: 0
+
+# Sensor extrinsics wrt. the body-frame
+T_BS:
+  cols: 4
+  rows: 4
+  data: [1.00000000, 0.00000000, 0.00000000, 0.00000000,
+         0.00000000, 1.00000000, 0.00000000, 0.00000000,
+         0.00000000, 0.00000000, 1.00000000, 0.00000000,
+         0.00000000, 0.00000000, 0.00000000, 1.00000000]
+
+# inertial sensor parameters
+rate_hz: 400.0
+gyroscope_noise_density: 0.0000488  # [rad/s/sqrt(Hz)] (gyro "white noise")
+gyroscope_random_walk: 4.88e-05  # [rad/s^2/sqrt(Hz)] (gyro bias diffusion)
+accelerometer_noise_density: 0.000147  # [m/s^2/sqrt(Hz)] (accel "white noise")
+accelerometer_random_walk: 0.000147  # [m/s^3/sqrt(Hz)] (accel bias diffusion)
+
+# other parameters
+imu_integration_sigma: 1e-08
+# Defined as t_imu = t_imu + imu_shift
+imu_time_shift: 0.00  # in seconds
+n_gravity: [0.00000000, 0.00000000, -9.81000000]  # [m/s^2] (gravity vectory in "world" frame)

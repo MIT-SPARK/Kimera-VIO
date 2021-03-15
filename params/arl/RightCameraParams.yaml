@@ -1,0 +1,27 @@
+%YAML:1.0
+
+################################################################################
+# Created by: Nathan Hughes                                                    #
+# Created on: 2020-11-28T22:20:01.303910                                       #
+# Camera: Realsense D435i (SN028522074025)                                     #
+################################################################################
+
+# General sensor definitions
+camera_id: right_cam
+
+# Sensor extrinsics wrt. the body-frame
+T_BS:
+  cols: 4
+  rows: 4
+  data: [0.99988806, -0.01491847, -0.00114548, 0.04693137,
+         0.01492270, 0.99988153, 0.00377346, 0.00898537,
+         0.00108905, -0.00379013, 0.99999222, 0.03160033,
+         0.00000000, 0.00000000, 0.00000000, 1.00000000]
+
+# Camera specific definitions
+rate_hz: 30.0
+resolution: [640, 480]  # [width, height]
+camera_model: pinhole
+intrinsics: [374.7492803905514, 374.10145273047954, 320.2703917705449, 243.30444813985991]  # [fu, fv, cu, cv]
+distortion_model: radtan
+distortion_coefficients: [-0.02154070, 0.00740320, -0.00052475, -0.00247126]  # model dependent
