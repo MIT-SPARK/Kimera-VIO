@@ -123,9 +123,12 @@ class VioBackend {
   // NOT TESTED
   void computeStateCovariance();
 
+
   // Set initial state at given pose, velocity and bias.
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
+
+  void initializeTimeAlignment(const BackendInput& input);
 
   void initializeBackend(const BackendInput& input) {
     CHECK(backend_state_ == BackendState::Bootstrap);
@@ -185,8 +188,9 @@ class VioBackend {
 
  protected:
   enum class BackendState {
-    Bootstrap = 0u,  //! Initialize Backend
-    Nominal = 1u     //! Run Backend
+    TemporalAlignment = 0u,  //! Initialize imu to camera time-shift
+    Bootstrap = 1u,  //! Initialize Backend
+    Nominal = 2u     //! Run Backend
   };
   std::atomic<BackendState> backend_state_;
 
