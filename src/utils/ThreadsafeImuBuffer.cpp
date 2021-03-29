@@ -95,7 +95,6 @@ void ThreadsafeImuBuffer::linearInterpolate(const Timestamp& t0,
                     static_cast<double>(t1 - t0);
 }
 
-
 ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
     const Timestamp& timestamp_ns_from,
     const Timestamp& timestamp_ns_to,
