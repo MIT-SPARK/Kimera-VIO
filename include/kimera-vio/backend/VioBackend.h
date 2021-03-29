@@ -123,7 +123,6 @@ class VioBackend {
   // NOT TESTED
   void computeStateCovariance();
 
-
   // Set initial state at given pose, velocity and bias.
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
@@ -186,8 +185,8 @@ class VioBackend {
 
  protected:
   enum class BackendState {
-    Bootstrap = 1u,  //! Initialize Backend
-    Nominal = 2u     //! Run Backend
+    Bootstrap = 0u,  //! Initialize Backend
+    Nominal = 1u     //! Run Backend
   };
   std::atomic<BackendState> backend_state_;
 
