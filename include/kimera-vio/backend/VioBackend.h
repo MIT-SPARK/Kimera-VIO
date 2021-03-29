@@ -128,8 +128,6 @@ class VioBackend {
   bool initStateAndSetPriors(
       const VioNavStateTimestamped& vio_nav_state_initial_seed);
 
-  void initializeTimeAlignment(const BackendInput& input);
-
   void initializeBackend(const BackendInput& input) {
     CHECK(backend_state_ == BackendState::Bootstrap);
     switch (backend_params_.autoInitialize_) {
@@ -188,7 +186,6 @@ class VioBackend {
 
  protected:
   enum class BackendState {
-    TemporalAlignment = 0u,  //! Initialize imu to camera time-shift
     Bootstrap = 1u,  //! Initialize Backend
     Nominal = 2u     //! Run Backend
   };

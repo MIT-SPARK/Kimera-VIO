@@ -129,22 +129,11 @@ VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
 }
 
 /* -------------------------------------------------------------------------- */
-void VioBackend::initializeTimeAlignment(const BackendInput& input) {
-  backend_state_ = BackendState::Bootstrap;
-}
-
 BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
   if (VLOG_IS_ON(10)) input.print();
 
   bool backend_status = false;
   switch (backend_state_) {
-    case BackendState::TemporalAlignment: {
-      initializeTimeAlignment(input);
-      // TODO(nathan) to me, it makes sense for this to be false as we're
-      // still figuring out what is properly aligned
-      backend_status = false;
-      break;
-    }
     case BackendState::Bootstrap: {
       initializeBackend(input);
       // TODO(nathan) change: should be influenced by whether init is actually successful
