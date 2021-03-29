@@ -13,6 +13,7 @@
  */
 
 #include "kimera-vio/frontend/VisionImuFrontend.h"
+#include "kimera-vio/initial/CrossCorrTimeAligner.h"
 
 DEFINE_bool(visualize_feature_tracks, true, "Display feature tracks.");
 DEFINE_bool(visualize_frontend_images,
@@ -31,9 +32,9 @@ DEFINE_bool(log_mono_tracking_images,
 namespace VIO {
 
 VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
-                               const ImuBias& imu_initial_bias,
-                               DisplayQueue* display_queue,
-                               bool log_output)
+                                     const ImuBias& imu_initial_bias,
+                                     DisplayQueue* display_queue,
+                                     bool log_output)
     : frontend_state_(FrontendState::Bootstrap),
       frame_count_(0),
       keyframe_count_(0),
@@ -44,7 +45,13 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       display_queue_(display_queue),
       logger_(nullptr) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
-  if (log_output) logger_ = VIO::make_unique<FrontendLogger>();
+  if (log_output) {
+    logger_ = VIO::make_unique<FrontendLogger>();
+  }
+  // TODO(nathan) think about disabling this when not doing time alignment
+  // TODO(nathan) think about window size as a param
+  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(
+      imu_params.imu_time_shift_, imu_params.do_initial_time_alignment_);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {
@@ -54,16 +61,28 @@ VisionImuFrontend::~VisionImuFrontend() {
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
   switch (frontend_state_) {
-    case FrontendState::Bootstrap: {
+    case FrontendState::Bootstrap:
       return bootstrapSpin(std::move(input));
-    } break;
-    case FrontendState::Nominal: {
+    case FrontendState::InitialTimeAlignment:
+      return timeAlignmentSpin(std::move(input));
+    case FrontendState::Nominal:
       return nominalSpin(std::move(input));
-    } break;
-    default: {
+    default:
       LOG(FATAL) << "Unrecognized Frontend state.";
-    } break;
+      break;
   }
+}
+
+FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
+    FrontendInputPacketBase::UniquePtr&& input) {
+  // TODO(nathan) grab imu timestamps and measurements here and add to time
+  // aligner
+  FrontendOutputPacketBase::UniquePtr nominal_output =
+      nominalSpin(std::move(input));
+  CHECK(nominal_output);
+  // TODO(nathan) grab estimated pose from features here and add to time
+  // aligner
+  return nominal_output;
 }
 
 void VisionImuFrontend::outlierRejectionMono(
@@ -86,7 +105,7 @@ void VisionImuFrontend::outlierRejectionMono(
 }
 
 void VisionImuFrontend::printTrackingStatus(const TrackingStatus& status,
-                                         const std::string& type) {
+                                            const std::string& type) {
   LOG(INFO) << "Status " << type << ": "
             << TrackerStatusSummary::asString(status);
 }

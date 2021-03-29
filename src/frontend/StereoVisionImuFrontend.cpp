@@ -71,7 +71,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
   CHECK(stereoFrame_lkf_);
   return VIO::make_unique<StereoFrontendOutput>(
-      stereoFrame_lkf_->isKeyframe(),
+      stereoFrame_lkf_->isKeyframe() && !imu_frontend_->doInitialTimeAlignment(),
       nullptr,
       TrackingStatus::DISABLED,
       getRelativePoseBodyStereo(),
@@ -192,7 +192,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     // Return the output of the Frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<StereoFrontendOutput>(
-        true,
+        frontend_state_ == FrontendState::Nominal,
         status_stereo_measurements,
         tracker_status_summary_.kfTrackingStatus_stereo_,
         tracker_->tracker_params_.useStereoTracking_

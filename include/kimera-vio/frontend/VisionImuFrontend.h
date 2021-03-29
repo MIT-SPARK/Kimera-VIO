@@ -26,6 +26,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/imu-frontend/ImuFrontendParams.h"
+#include "kimera-vio/initial/TimeAlignerBase.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
@@ -110,6 +111,9 @@ class VisionImuFrontend {
       bootstrapSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
 
   virtual FrontendOutputPacketBase::UniquePtr
+      timeAlignmentSpin(FrontendInputPacketBase::UniquePtr&& input);
+
+  virtual FrontendOutputPacketBase::UniquePtr
       nominalSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
 
   /* ------------------------------------------------------------------------ */
@@ -136,8 +140,9 @@ class VisionImuFrontend {
 
  protected:
   enum class FrontendState {
-    Bootstrap = 0u,  //! Initialize Frontend
-    Nominal = 1u     //! Run Frontend
+    Bootstrap = 0u,               //! Initialize Frontend
+    InitialTimeAlignment = 1u,    //! Optionally initialize IMU-Camera time alignment
+    Nominal = 2u                  //! Run Frontend
   };
   std::atomic<FrontendState> frontend_state_;
 
@@ -160,6 +165,9 @@ class VisionImuFrontend {
 
   // Logger
   FrontendLogger::UniquePtr logger_;
+
+  // Time alignment
+  TimeAlignerBase::UniquePtr time_aligner_;
 };
 
 }  // namespace VIO

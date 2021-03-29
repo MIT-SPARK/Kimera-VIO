@@ -19,6 +19,8 @@ namespace VIO {
 
 class TimeAlignerBase {
  public:
+  typedef std::unique_ptr<TimeAlignerBase> UniquePtr;
+
   struct Result {
     bool valid;             //<! Whether or not the estimate is valid
     double imu_time_shift;  //<! Defined as t_imu = t_cam + imu_shift
