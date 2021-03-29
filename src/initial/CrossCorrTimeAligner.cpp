@@ -26,20 +26,28 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(double imu_time_shift_est,
       vision_rotation_angles_(window_size),
       pim_rotation_angles_(window_size) {}
 
+void CrossCorrTimeAligner::addNewImuData(const ImuStampS& imu_stamps_,
+                                         const ImuAccGyrS& imu_acc_gyrs) {
+  // TODO(nathan) ring buffer of IMU norms here
+  // TODO(nathan) ring buffer of IMU timestamps here
+}
+
 TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
-    const BackendInput& input) {
-  if (not input.stereo_ransac_body_pose_) {
-    // TODO(nathan) log stuff about needing a pose estimate
+    const FrontendOutputPacketBase& input) {
+  // TODO(nathan) interpolate camera pose to IMU rate in ring buffer
+
+  if (num_measurements_ < window_size_) {
+    // we're still trying to accumulate enough measurements
     return {false, 0.0};
   }
-  vision_rotation_angles_(curr_index_) =
-      Rot3::Logmap((*input.stereo_ransac_body_pose_).rotation()).norm();
-  pim_rotation_angles_(curr_index_) =
-      Rot3::Logmap(input.pim_->deltaRij()).norm();
-  num_measurements_++;
 
-  // TODO(nathan) ring buffer here
-  // TODO(nathan) cross correlation and timestamps here
+  // TODO(nathan) cross correlation and delay calculation
+  // vision_rotation_angles_(curr_index_) =
+  // Rot3::Logmap((*input.stereo_ransac_body_pose_).rotation()).norm();
+  // pim_rotation_angles_(curr_index_) =
+  // Rot3::Logmap(input.pim_->deltaRij()).norm();
+  // num_measurements_++;
+
   return {false, 0.0};
 }
 

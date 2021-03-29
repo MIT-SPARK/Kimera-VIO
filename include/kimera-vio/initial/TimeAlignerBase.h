@@ -13,7 +13,8 @@
  */
 
 #pragma once
-#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 
 namespace VIO {
 
@@ -32,20 +33,23 @@ class TimeAlignerBase {
 
   virtual ~TimeAlignerBase() = default;
 
-  Result estimateTimeAlignment(const BackendInput& input) {
+  virtual void addNewImuData(const ImuStampS& imu_stamps,
+                             const ImuAccGyrS& imu_accgyrs) = 0;
+
+  Result estimateTimeAlignment(const FrontendOutputPacketBase& input) {
     if (not should_estimate_) {
       return {true, imu_time_shift_est_};
     }
 
-    // TODO(nathan) this could maybe also be a PIMPL pattern if we really cared enough
-    // to do that
+    // TODO(nathan) this could maybe also be a PIMPL pattern if we really cared
+    // enough to do that
     return attemptEstimation(input);
   }
 
  protected:
   double imu_time_shift_est_;  //<! Defined as t_imu = t_cam + imu_shift
 
-  virtual Result attemptEstimation(const BackendInput& input) = 0;
+  virtual Result attemptEstimation(const FrontendOutputPacketBase& input) = 0;
 
  private:
   bool should_estimate_;  //<! whether or not estimation is enabled

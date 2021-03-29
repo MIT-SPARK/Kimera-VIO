@@ -75,11 +75,18 @@ FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
 
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
     FrontendInputPacketBase::UniquePtr&& input) {
-  // TODO(nathan) grab imu timestamps and measurements here and add to time
-  // aligner
+  CHECK(time_aligner_);
+  time_aligner_->addNewImuData(input->imu_stamps_, input->imu_accgyrs_);
+
   FrontendOutputPacketBase::UniquePtr nominal_output =
       nominalSpin(std::move(input));
   CHECK(nominal_output);
+
+  TimeAlignerBase::Result result = time_aligner_->estimateTimeAlignment(*nominal_output);
+  if (result.valid) {
+    // TODO(nathan) apply new imu time shift to data provider
+    frontend_state_ = FrontendState::Nominal;
+  }
   // TODO(nathan) grab estimated pose from features here and add to time
   // aligner
   return nominal_output;

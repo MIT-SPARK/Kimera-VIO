@@ -25,8 +25,11 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
                        bool should_estimate = false,
                        size_t window_size = 100);
 
+
+  void addNewImuData(const ImuStampS& imu_stamps_, const ImuAccGyrS& imu_acc_gyrs) override;
+
  protected:
-  TimeAlignerBase::Result attemptEstimation(const BackendInput& input) override;
+  TimeAlignerBase::Result attemptEstimation(const FrontendOutputPacketBase& input) override;
 
  private:
   size_t window_size_;
