@@ -136,7 +136,6 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
   switch (backend_state_) {
     case BackendState::Bootstrap: {
       initializeBackend(input);
-      // TODO(nathan) change: should be influenced by whether init is actually successful
       backend_status = true;
       break;
     }
