@@ -84,7 +84,8 @@ FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
 
   TimeAlignerBase::Result result = time_aligner_->estimateTimeAlignment(*nominal_output);
   if (result.valid) {
-    // TODO(nathan) apply new imu time shift to data provider
+    CHECK(imu_time_shift_update_callback_);
+    imu_time_shift_update_callback_(result.imu_time_shift);
     frontend_state_ = FrontendState::Nominal;
   }
   // TODO(nathan) grab estimated pose from features here and add to time

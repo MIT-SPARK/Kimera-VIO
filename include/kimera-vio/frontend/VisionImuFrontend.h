@@ -46,7 +46,8 @@ class VisionImuFrontend {
   KIMERA_POINTER_TYPEDEFS(VisionImuFrontend);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisionImuFrontend);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  
+  typedef std::function<void(double imu_time_shift_s)> ImuTimeShiftCallback;
+
  public:
   VisionImuFrontend(const ImuParams& imu_params,
                  const ImuBias& imu_initial_bias,
@@ -104,6 +105,13 @@ class VisionImuFrontend {
   // Get tracker info.
   inline DebugTrackerInfo getTrackerInfo() const {
     return tracker_->debug_info_;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // register a callback for the frontend to update the imu time shift
+  inline void registerImuTimeShiftUpdateCallback(const ImuTimeShiftCallback& callback) {
+    imu_time_shift_update_callback_ = callback;
+    // TODO(nathan) think about an initial call to the callback
   }
 
  protected:
@@ -167,6 +175,7 @@ class VisionImuFrontend {
   FrontendLogger::UniquePtr logger_;
 
   // Time alignment
+  ImuTimeShiftCallback imu_time_shift_update_callback_;
   TimeAlignerBase::UniquePtr time_aligner_;
 };
 

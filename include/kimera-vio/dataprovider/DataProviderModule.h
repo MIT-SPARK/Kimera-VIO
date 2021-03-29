@@ -23,6 +23,7 @@
 #include <functional>
 #include <string>
 #include <utility>  // for move
+#include <atomic>
 
 #include <glog/logging.h>
 
@@ -74,6 +75,10 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
     do_initial_imu_timestamp_correction_ = true;
   }
 
+  inline void updateImuTimeShift(double imu_time_shift_s) {
+    imu_time_shift_ns_ = static_cast<Timestamp>(1.0e9 * imu_time_shift_s);
+  }
+
  protected:
   // THE USER NEEDS TO IMPLEMENT getInputPacket()!
   // Spin the dataset: processes the input data and constructs a Stereo Imu
@@ -106,6 +111,7 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   Timestamp timestamp_last_frame_;
   bool do_initial_imu_timestamp_correction_;
   Timestamp imu_timestamp_correction_;
+  std::atomic<Timestamp> imu_time_shift_ns_;  // t_imu = t_cam + imu_shift
   PipelineOutputCallback vio_pipeline_callback_;
 };
 

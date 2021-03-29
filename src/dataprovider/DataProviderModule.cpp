@@ -25,7 +25,8 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
       // not super nice to init a member with another member in ctor...
       timestamp_last_frame_(kNoFrameYet),
       do_initial_imu_timestamp_correction_(false),
-      imu_timestamp_correction_(0) {}
+      imu_timestamp_correction_(0),
+      imu_time_shift_ns_(0) {}
 
 bool DataProviderModule::getTimeSyncedImuMeasurements(
     const Timestamp& timestamp,
@@ -66,9 +67,9 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
     // we get query = new_frame.timestamp + delta = frame_delta + imu.timestamp
     imu_timestamp_correction_ = newest_imu.timestamp_ - timestamp;
     if (imu_data_.imu_rate_ != 0.0) {
-      // If the timestamp difference is small enough to be explained by a sampling
-      // difference (i.e. that the timestamps are within one IMU period), then
-      // force the coarse alignment to 0
+      // If the timestamp difference is small enough to be explained by a
+      // sampling difference (i.e. that the timestamps are within one IMU
+      // period), then force the coarse alignment to 0
       const double imu_period = 1.0 / imu_data_.imu_rate_;
       imu_timestamp_correction_ =
           std::abs(imu_timestamp_correction_) < imu_period
@@ -80,16 +81,31 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
             << imu_timestamp_correction_;
   }
 
+  // imu_time_shift_ can be externally, asynchronously modified, which would
+  // be bad if it happended during the loop. Caching here prevents this nasty
+  // race condition and avoids locking for the entire call to
+  // getTimeSyncedImuMeasurements.
+  // Also note that the imu_timestamp_correction_ doesn't currently do anything
+  // here unless do_initial_imu_timestamp_correction_ is enabled
+  const Timestamp curr_imu_time_shift = imu_time_shift_ns_;
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
-  // Note that the imu_timestamp_correction_ doesn't currently do anything
-  // here unless do_initial_imu_timestamp_correction_ is enabled
+
+  // Note that the second term (-t_frame_start + t_imu_start) is a coarse
+  // correction to provide the timestamp of the imu measurements in the "image
+  // timing coordinate frame" and the t_imu_from_cam is the transform to the imu
+  // timing coordinate frame
+  /* t_last_imu = t_last_frame + (-t_frame_start + t_imu_start) +
+   * (t_imu_from_cam) */
+  /* t_curr_imu = t_curr_frame + (-t_frame_start + t_imu_start) +
+   * (t_imu_from_cam) */
   while (
       !MISO::shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-           timestamp_last_frame_ + imu_timestamp_correction_,
-           timestamp + imu_timestamp_correction_,
+           timestamp_last_frame_ + imu_timestamp_correction_ +
+               curr_imu_time_shift,
+           timestamp + imu_timestamp_correction_ + curr_imu_time_shift,
            &imu_meas->timestamps_,
            &imu_meas->acc_gyr_)) !=
           utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
@@ -132,6 +148,10 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
     }
   }
   timestamp_last_frame_ = timestamp;
+
+  // adjust the timestamps for the frontend
+  // TODO(nathan) may also need to apply imu_time_shift_ here
+  imu_meas->timestamps_.array() -= imu_timestamp_correction_;
 
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
            << "STAMPS IMU rows : \n"
