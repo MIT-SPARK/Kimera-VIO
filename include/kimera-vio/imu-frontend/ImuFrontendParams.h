@@ -47,6 +47,10 @@ protected:
   double acc_random_walk_ = 0.0;
   double imu_time_shift_ = 0.0;  // Defined as t_imu = t_cam + imu_shift
 
+  // perform coarse time alignment in data-provider and then
+  // refinement in front-end
+  bool do_initial_time_alignment_ = false;
+
   double nominal_sampling_time_s_ = 0.0;
   double imu_integration_sigma_ = 0.0;
 

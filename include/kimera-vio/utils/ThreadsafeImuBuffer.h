@@ -162,6 +162,10 @@ class ThreadsafeImuBuffer {
       ImuStampS* imu_timestamps,
       ImuAccGyrS* imu_measurements);
 
+  /// Get the most recently pushed IMU measurement
+  /// Returns true unless the buffer is empty
+  bool getNewestImuMeasurement(ImuMeasurement* value);
+
   /// Linear interpolation between two imu measurements.
   static void linearInterpolate(const Timestamp& x0,
                                 const ImuAccGyr& y0,

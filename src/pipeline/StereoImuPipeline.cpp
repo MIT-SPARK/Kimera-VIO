@@ -51,6 +51,9 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
       parallel_run_,
       // TODO(Toni): these params should not be sent...
       params.frontend_params_.stereo_matching_params_);
+  if (params.imu_params_.do_initial_time_alignment_) {
+    data_provider_module_->doCoarseTimestampCorrection();
+  }
 
   data_provider_module_->registerVioPipelineCallback(
       std::bind(&StereoImuPipeline::spinOnce, this, std::placeholders::_1));

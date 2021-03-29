@@ -44,6 +44,9 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
       &frontend_input_queue_,
       "Mono Data Provider",
       parallel_run_);
+  if (params.imu_params_.do_initial_time_alignment_) {
+    data_provider_module_->doCoarseTimestampCorrection();
+  }
 
   data_provider_module_->registerVioPipelineCallback(
     std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));

@@ -23,7 +23,9 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
     : MISO(output_queue, name_id, parallel_run),
       imu_data_(),
       // not super nice to init a member with another member in ctor...
-      timestamp_last_frame_(kNoFrameYet) {}
+      timestamp_last_frame_(kNoFrameYet),
+      do_initial_imu_timestamp_correction_(false),
+      imu_timestamp_correction_(0) {}
 
 bool DataProviderModule::getTimeSyncedImuMeasurements(
     const Timestamp& timestamp,
@@ -50,14 +52,44 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
     return false;
   }
 
+  // Do a very coarse timestamp correction to make sure that the IMU data
+  // is aligned enough to send packets to the front-end. This is assumed
+  // to be very inaccurate and should not be enabled without some other
+  // actual time alignment in the frontend
+  // if (false) {
+  if (do_initial_imu_timestamp_correction_) {
+    CHECK_GT(imu_data_.imu_buffer_.size(), 0)
+        << "IMU buffer lost measurements unexpectedly";
+    ImuMeasurement newest_imu;
+    imu_data_.imu_buffer_.getNewestImuMeasurement(&newest_imu);
+    // this is delta = imu.timestamp - frame.timestamp so that when querying,
+    // we get query = new_frame.timestamp + delta = frame_delta + imu.timestamp
+    imu_timestamp_correction_ = newest_imu.timestamp_ - timestamp;
+    if (imu_data_.imu_rate_ != 0.0) {
+      // If the timestamp difference is small enough to be explained by a sampling
+      // difference (i.e. that the timestamps are within one IMU period), then
+      // force the coarse alignment to 0
+      const double imu_period = 1.0 / imu_data_.imu_rate_;
+      imu_timestamp_correction_ =
+          std::abs(imu_timestamp_correction_) < imu_period
+              ? 0.0
+              : imu_timestamp_correction_;
+    }
+    do_initial_imu_timestamp_correction_ = false;
+    VLOG(1) << "Computed intial time alignment of "
+            << imu_timestamp_correction_;
+  }
+
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
+  // Note that the imu_timestamp_correction_ doesn't currently do anything
+  // here unless do_initial_imu_timestamp_correction_ is enabled
   while (
       !MISO::shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-           timestamp_last_frame_,
-           timestamp,
+           timestamp_last_frame_ + imu_timestamp_correction_,
+           timestamp + imu_timestamp_correction_,
            &imu_meas->timestamps_,
            &imu_meas->acc_gyr_)) !=
           utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {

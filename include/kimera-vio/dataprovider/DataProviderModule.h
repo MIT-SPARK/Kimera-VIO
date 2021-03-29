@@ -70,6 +70,10 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
     vio_pipeline_callback_ = cb;
   }
 
+  inline void doCoarseTimestampCorrection() {
+    do_initial_imu_timestamp_correction_ = true;
+  }
+
  protected:
   // THE USER NEEDS TO IMPLEMENT getInputPacket()!
   // Spin the dataset: processes the input data and constructs a Stereo Imu
@@ -100,6 +104,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   ImuData imu_data_;
   static const Timestamp kNoFrameYet = 0;
   Timestamp timestamp_last_frame_;
+  bool do_initial_imu_timestamp_correction_;
+  Timestamp imu_timestamp_correction_;
   PipelineOutputCallback vio_pipeline_callback_;
 };
 
