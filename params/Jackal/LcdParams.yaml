@@ -1,0 +1,64 @@
+%YAML:1.0
+# LoopClosureDetector parameters:
+use_nss: 1
+alpha: 0.001
+min_temporal_matches: 1
+recent_frames_window: 1
+max_db_results: 50
+min_nss_factor: 0.05
+min_matches_per_island: 1
+max_intraisland_gap: 3
+max_nrFrames_between_islands: 3
+max_nrFrames_between_queries: 2
+
+geom_check_id: 0
+min_correspondences: 12
+max_ransac_iterations_mono: 500
+ransac_probability_mono: 0.995
+ransac_threshold_mono: 1e-5
+ransac_randomize_mono: 1
+ransac_inlier_threshold_mono: 0.01
+
+pose_recovery_option_id: 0
+max_ransac_iterations_stereo: 500
+ransac_probability_stereo: 0.995
+ransac_threshold_stereo: 0.3
+ransac_randomize_stereo: 1
+ransac_inlier_threshold_stereo: 0.3
+use_mono_rot: 0
+refine_pose: 1
+
+lowe_ratio: 0.2  # TODO(marcus): get rid, not used
+matcher_type: 3
+
+nfeatures: 1000
+scale_factor: 1.2
+nlevels: 8
+edge_threshold: 31
+first_level: 0
+WTA_K: 2
+score_type_id: 0
+patch_sze: 31
+fast_threshold: 20
+
+betweenRotationPrecision: 10000 # 1/(0.01*0.01)
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
+
+pgo_rot_threshold: 0.005
+pgo_trans_threshold: 0.05
+
+# geom_check_id options:
+#   0: NISTER
+#   1: NONE
+
+# pose_recovery_option_id options:
+#   0: RANSAC_ARUN
+#   1: GIVEN_ROT
+
+# matcher_type options:
+#   0: FLANNBASED
+#   1: BRUTEFORCE
+#   2: BRUTEFORCE_L1
+#   3: BRUTEFORCE_HAMMING
+#   4: BRUTEFORCE_HAMMINGLUT
+#   5: BRUTEFORCE_SL2

@@ -1,0 +1,57 @@
+#!/bin/bash
+# Mesher parameters.
+# General functionality for the mesher.
+--add_extra_lmks_from_stereo=true
+--reduce_mesh_to_time_horizon=true
+--compute_per_vertex_normals=false
+
+# Visualization.
+--visualize_histogram_1D=false
+--log_histogram_1D=false
+--visualize_histogram_2D=false
+--log_histogram_2D=false
+--visualize_mesh_2d=true
+
+# Mesh filters.
+--min_ratio_btw_largest_smallest_side=0.2
+--min_elongation_ratio=0.2
+--max_triangle_side=2.0
+
+# Association.
+--normal_tolerance_polygon_plane_association=0.021
+--distance_tolerance_polygon_plane_association=0.20
+--normal_tolerance_plane_plane_association=0.011
+--distance_tolerance_plane_plane_association=0.20
+--do_double_association=true
+--only_associate_a_polygon_to_a_single_plane=true
+
+# Segmentation.
+--normal_tolerance_horizontal_surface=0.035
+--normal_tolerance_walls=0.021
+--only_use_non_clustered_points=true
+
+# Histogram 2D.
+--hist_2d_gaussian_kernel_size=3
+--hist_2d_nr_of_local_max=2
+--hist_2d_min_support=20
+--hist_2d_min_dist_btw_local_max=5
+--hist_2d_theta_bins=40
+--hist_2d_distance_bins=40
+--hist_2d_theta_range_min=0
+--hist_2d_theta_range_max=3.14159265
+--hist_2d_distance_range_min=-6.0
+--hist_2d_distance_range_max=6.0
+
+# Z histogram.
+--z_histogram_bins=512
+--z_histogram_min_range=-0.75
+--z_histogram_max_range=3.0
+--z_histogram_window_size=3
+--z_histogram_peak_per=0.5
+--z_histogram_min_support=50
+--z_histogram_min_separation=0.1
+--z_histogram_gaussian_kernel_size=5
+--z_histogram_max_number_of_peaks_to_select=3
+
+# Extras
+--return_mesh_2d=true
