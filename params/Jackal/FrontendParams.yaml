@@ -4,7 +4,7 @@ klt_win_size: 24
 klt_max_iter: 30
 klt_max_level: 4
 klt_eps: 0.1
-maxFeatureAge: 50
+maxFeatureAge: 25
 
 # Detector Params
 # 0: FAST
@@ -12,11 +12,11 @@ maxFeatureAge: 50
 # 2: AGAST
 # 3: GFTT, aka Good Features To Track
 feature_detector_type: 3
-maxFeaturesPerFrame: 300
+maxFeaturesPerFrame: 400
 
 # Good Features To Track specific parameters
 quality_level: 0.001
-min_distance: 8
+min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
@@ -24,14 +24,14 @@ k: 0.04
 # FAST detector specific parameters [10, 20]
 fast_thresh: 10
 
-equalizeImage: 0
+equalizeImage: 1
 nominalBaseline: 0.05
 toleranceTemplateMatching: 0.15
 templ_cols: 101 #must be odd
 templ_rows: 11
 stripe_extra_rows: 0
-minPointDist: 0.5
-maxPointDist: 10
+minPointDist: 0.3
+maxPointDist: 2
 bidirectionalMatching: 0
 
 # Non-maximum suppression params
@@ -50,14 +50,14 @@ useSuccessProbabilities: 1
 useRANSAC: 1
 minNrMonoInliers: 10
 minNrStereoInliers: 5
-ransac_threshold_mono: 1e-06
-ransac_threshold_stereo: 1
+ransac_threshold_mono: 1e-05
+ransac_threshold_stereo: 0.8
 ransac_use_1point_stereo: 1
 ransac_use_2point_mono: 1
 ransac_max_iterations: 100
-ransac_probability: 0.995
+ransac_probability: 0.990
 ransac_randomize: 0
-intra_keyframe_time: 0.1
+intra_keyframe_time: 0.10
 minNumberFeatures: 0
 useStereoTracking: 1
 disparityThreshold: 0.5
