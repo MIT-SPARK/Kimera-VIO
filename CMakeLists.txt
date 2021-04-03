@@ -253,6 +253,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
     tests/testStereoMatcher.cpp
     tests/testUndistortRectifier.cpp
+    tests/testTemporalCalibration.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp

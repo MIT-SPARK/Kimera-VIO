@@ -81,17 +81,13 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
             << imu_timestamp_correction_;
   }
 
-  // imu_time_shift_ can be externally, asynchronously modified, which would
-  // be bad if it happended during the loop. Caching here prevents this nasty
-  // race condition and avoids locking for the entire call to
-  // getTimeSyncedImuMeasurements.
-  // Also note that the imu_timestamp_correction_ doesn't currently do anything
-  // here unless do_initial_imu_timestamp_correction_ is enabled
-  const Timestamp curr_imu_time_shift = imu_time_shift_ns_;
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
 
+  // imu_time_shift_ can be externally, asynchronously modified.
+  // Caching here prevents a nasty race condition and avoids locking
+  const Timestamp curr_imu_time_shift = imu_time_shift_ns_;
   // Note that the second term (-t_frame_start + t_imu_start) is a coarse
   // correction to provide the timestamp of the imu measurements in the "image
   // timing coordinate frame" and the t_imu_from_cam is the transform to the imu
@@ -100,12 +96,15 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
    * (t_imu_from_cam) */
   /* t_curr_imu = t_curr_frame + (-t_frame_start + t_imu_start) +
    * (t_imu_from_cam) */
+  const Timestamp imu_timestamp_last_frame =
+      timestamp_last_frame_ + imu_timestamp_correction_ + curr_imu_time_shift;
+  const Timestamp imu_timestamp_curr_frame =
+      timestamp + imu_timestamp_correction_ + curr_imu_time_shift;
   while (
       !MISO::shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-           timestamp_last_frame_ + imu_timestamp_correction_ +
-               curr_imu_time_shift,
-           timestamp + imu_timestamp_correction_ + curr_imu_time_shift,
+           imu_timestamp_last_frame,
+           imu_timestamp_curr_frame,
            &imu_meas->timestamps_,
            &imu_meas->acc_gyr_)) !=
           utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
@@ -127,7 +126,8 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
         LOG(WARNING)
             << "Asking for data before start of IMU stream, from timestamp: "
-            << timestamp_last_frame_ << " to timestamp: " << timestamp;
+            << imu_timestamp_last_frame
+            << " to timestamp: " << imu_timestamp_curr_frame;
         // Ignore frames that happened before the earliest imu data
         timestamp_last_frame_ = timestamp;
         return false;
@@ -136,8 +136,8 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
           kTooFewMeasurementsAvailable: {
         LOG(WARNING) << "No IMU measurements here, and IMU data stream already "
                         "passed this time region"
-                     << "from timestamp: " << timestamp_last_frame_
-                     << " to timestamp: " << timestamp;
+                     << "from timestamp: " << imu_timestamp_last_frame
+                     << " to timestamp: " << imu_timestamp_curr_frame;
         return false;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
