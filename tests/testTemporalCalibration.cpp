@@ -27,11 +27,6 @@ class TestMonoProvider : public MonoDataProviderModule {
   TestMonoProvider(DataProviderModule::OutputQueue* output_queue)
       : MonoDataProviderModule(output_queue, "test_mono_data_prov", false) {
     last_id_ = 0;
-    registerVioPipelineCallback([&](FrontendInputPacketBase::UniquePtr input) {
-      // not ideal, but output_queue_ is private.
-      CHECK(output_queue);
-      output_queue->push(std::move(input));
-    });
   }
 
   void addFakeFrames(Timestamp timestamp) {
@@ -62,11 +57,6 @@ class TestStereoProvider : public StereoDataProviderModule {
                                  false,
                                  StereoMatchingParams()) {
     last_id_ = 0;
-    registerVioPipelineCallback([&](FrontendInputPacketBase::UniquePtr input) {
-      // not ideal, but output_queue_ is private.
-      CHECK(output_queue);
-      output_queue->push(std::move(input));
-    });
   }
 
   void addFakeFrames(Timestamp timestamp) {
@@ -98,6 +88,11 @@ class TestStereoProvider : public StereoDataProviderModule {
 TEST(testTemporalCalibration, MonoPipelineValidImuSequence) {
   DataProviderModule::OutputQueue output_queue("test_queue");
   TestMonoProvider module(&output_queue);
+  module.registerVioPipelineCallback(
+      [&](FrontendInputPacketBase::UniquePtr input) {
+        output_queue.push(std::move(input));
+      });
+
   // for whatever reason, the data provider needs IMU data to start
   module.addImu(0);
   module.addFakeFrames(1);
@@ -122,6 +117,11 @@ TEST(testTemporalCalibration, MonoPipelineValidImuSequence) {
 TEST(testTemporalCalibration, StereoPipelineValidImuSequence) {
   DataProviderModule::OutputQueue output_queue("test_queue");
   TestStereoProvider module(&output_queue);
+  module.registerVioPipelineCallback(
+      [&](FrontendInputPacketBase::UniquePtr input) {
+        output_queue.push(std::move(input));
+      });
+
   // for whatever reason, the data provider needs IMU data to start
   module.addImu(0);
   module.addFakeFrames(1);
@@ -141,6 +141,128 @@ TEST(testTemporalCalibration, StereoPipelineValidImuSequence) {
   ASSERT_TRUE(output_queue.pop(output));
   EXPECT_EQ(output->imu_stamps_.cols(), 2);
   EXPECT_EQ(output->imu_accgyrs_.cols(), 2);
+}
+
+TEST(testTemporalCalibration, MonoPipelineInvalidImuSequence) {
+  DataProviderModule::OutputQueue output_queue("test_queue");
+  TestMonoProvider module(&output_queue);
+  module.registerVioPipelineCallback(
+      [&](FrontendInputPacketBase::UniquePtr input) {
+        output_queue.push(std::move(input));
+      });
+
+  // Get past the need for available IMU data
+  module.addImu(10);
+  module.addFakeFrames(1);
+
+  module.spin();
+
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue.pop(output));
+
+  module.addImu(11);
+  module.addImu(12);
+  module.addImu(13);
+  module.addFakeFrames(3);
+
+  module.spin();
+
+  EXPECT_FALSE(output_queue.pop(output));
+}
+
+TEST(testTemporalCalibration, StereoPipelineInvalidImuSequence) {
+  DataProviderModule::OutputQueue output_queue("test_queue");
+  TestStereoProvider module(&output_queue);
+  module.registerVioPipelineCallback(
+      [&](FrontendInputPacketBase::UniquePtr input) {
+        output_queue.push(std::move(input));
+      });
+
+  // Get past the need for available IMU data
+  module.addImu(10);
+  module.addFakeFrames(1);
+
+  module.spin();
+
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue.pop(output));
+
+  module.addImu(11);
+  module.addImu(12);
+  module.addImu(13);
+  module.addFakeFrames(3);
+
+  module.spin();
+
+  EXPECT_FALSE(output_queue.pop(output));
+}
+
+TEST(testTemporalCalibration, MonoPipelineWithCal) {
+  DataProviderModule::OutputQueue output_queue("test_queue");
+  TestMonoProvider module(&output_queue);
+  module.registerVioPipelineCallback(
+      [&](FrontendInputPacketBase::UniquePtr input) {
+        output_queue.push(std::move(input));
+      });
+  module.doCoarseTimestampCorrection();
+
+  // Get past the need for available IMU data
+  module.addImu(10);
+  module.addFakeFrames(1);
+
+  module.spin();
+
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue.pop(output));
+
+  module.addImu(11);
+  module.addImu(12);
+  module.addImu(13);
+  module.addFakeFrames(3);
+
+  module.spin();
+
+  ASSERT_TRUE(output_queue.pop(output));
+
+  EXPECT_EQ(output->imu_stamps_.cols(), 3);
+  EXPECT_EQ(output->imu_accgyrs_.cols(), 3);
+  EXPECT_EQ(output->imu_stamps_(0, 0), 1u);
+  EXPECT_EQ(output->imu_stamps_(0, 1), 2u);
+  EXPECT_EQ(output->imu_stamps_(0, 2), 3u);
+}
+
+TEST(testTemporalCalibration, StereoPipelineWithCal) {
+  DataProviderModule::OutputQueue output_queue("test_queue");
+  TestStereoProvider module(&output_queue);
+  module.registerVioPipelineCallback(
+      [&](FrontendInputPacketBase::UniquePtr input) {
+        output_queue.push(std::move(input));
+      });
+  module.doCoarseTimestampCorrection();
+
+  // Get past the need for available IMU data
+  module.addImu(10);
+  module.addFakeFrames(1);
+
+  module.spin();
+
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue.pop(output));
+
+  module.addImu(11);
+  module.addImu(12);
+  module.addImu(13);
+  module.addFakeFrames(3);
+
+  module.spin();
+
+  ASSERT_TRUE(output_queue.pop(output));
+
+  EXPECT_EQ(output->imu_stamps_.cols(), 3);
+  EXPECT_EQ(output->imu_accgyrs_.cols(), 3);
+  EXPECT_EQ(output->imu_stamps_(0, 0), 1u);
+  EXPECT_EQ(output->imu_stamps_(0, 1), 2u);
+  EXPECT_EQ(output->imu_stamps_(0, 2), 3u);
 }
 
 }  // namespace VIO

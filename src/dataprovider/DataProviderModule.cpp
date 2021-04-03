@@ -28,6 +28,16 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
       imu_timestamp_correction_(0),
       imu_time_shift_ns_(0) {}
 
+inline Timestamp adjustOffsetForImuPeriod(double imu_rate,
+                                          Timestamp imu_correction) {
+  // If the timestamp difference is small enough to be explained by a
+  // sampling difference (i.e. that the timestamps are within one IMU
+  // period), then force the coarse alignment to 0
+  const double imu_period_s = 1.0 / imu_rate;
+  const Timestamp imu_period_ns = static_cast<Timestamp>(1.0e9 * imu_period_s);
+  return std::abs(imu_correction) < imu_period_ns ? 0.0 : imu_correction;
+}
+
 bool DataProviderModule::getTimeSyncedImuMeasurements(
     const Timestamp& timestamp,
     ImuMeasurements* imu_meas) {
@@ -57,7 +67,6 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
   // is aligned enough to send packets to the front-end. This is assumed
   // to be very inaccurate and should not be enabled without some other
   // actual time alignment in the frontend
-  // if (false) {
   if (do_initial_imu_timestamp_correction_) {
     CHECK_GT(imu_data_.imu_buffer_.size(), 0)
         << "IMU buffer lost measurements unexpectedly";
@@ -66,16 +75,7 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
     // this is delta = imu.timestamp - frame.timestamp so that when querying,
     // we get query = new_frame.timestamp + delta = frame_delta + imu.timestamp
     imu_timestamp_correction_ = newest_imu.timestamp_ - timestamp;
-    if (imu_data_.imu_rate_ != 0.0) {
-      // If the timestamp difference is small enough to be explained by a
-      // sampling difference (i.e. that the timestamps are within one IMU
-      // period), then force the coarse alignment to 0
-      const double imu_period = 1.0 / imu_data_.imu_rate_;
-      imu_timestamp_correction_ =
-          std::abs(imu_timestamp_correction_) < imu_period
-              ? 0.0
-              : imu_timestamp_correction_;
-    }
+    // TODO(nathan) check for small offsets
     do_initial_imu_timestamp_correction_ = false;
     VLOG(1) << "Computed intial time alignment of "
             << imu_timestamp_correction_;
