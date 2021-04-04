@@ -16,30 +16,19 @@
 
 namespace VIO {
 
-CrossCorrTimeAligner::CrossCorrTimeAligner(double imu_time_shift_est,
-                                           bool should_estimate,
+CrossCorrTimeAligner::CrossCorrTimeAligner(bool do_imu_rate_estimation,
                                            size_t window_size)
-    : TimeAlignerBase(imu_time_shift_est, should_estimate),
-      window_size_(window_size),
-      num_measurements_(0),
-      curr_index_(0),
-      vision_rotation_angles_(window_size),
-      pim_rotation_angles_(window_size) {}
+    : TimeAlignerBase(),
+      do_imu_rate_estimation_(do_imu_rate_estimation),
+      imu_buffer_(window_size),
+      vision_buffer_(window_size) {}
 
 void CrossCorrTimeAligner::addNewImuData(const ImuStampS& imu_stamps_,
-                                         const ImuAccGyrS& imu_acc_gyrs) {
-  // TODO(nathan) ring buffer of IMU norms here
-  // TODO(nathan) ring buffer of IMU timestamps here
-}
+                                         const ImuAccGyrS& imu_acc_gyrs) {}
 
 TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     const FrontendOutputPacketBase& input) {
   // TODO(nathan) interpolate camera pose to IMU rate in ring buffer
-
-  if (num_measurements_ < window_size_) {
-    // we're still trying to accumulate enough measurements
-    return {false, 0.0};
-  }
 
   // TODO(nathan) cross correlation and delay calculation
   // vision_rotation_angles_(curr_index_) =

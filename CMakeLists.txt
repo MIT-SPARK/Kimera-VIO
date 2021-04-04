@@ -227,6 +227,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoImuPipeline.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE
+    tests/testCrossCorrelation.cpp
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp

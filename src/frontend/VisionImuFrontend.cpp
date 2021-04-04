@@ -48,10 +48,8 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
-  // TODO(nathan) think about disabling this when not doing time alignment
-  // TODO(nathan) think about window size as a param
-  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(
-      imu_params.imu_time_shift_, imu_params.do_initial_time_alignment_);
+  // TODO(nathan) add params to imu params and pas to constructor
+  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(false);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {
