@@ -55,8 +55,15 @@ inline void ThreadsafeImuBuffer::addMeasurement(
   // Enforce strict time-wise ordering.
   ImuMeasurement last_value;
   if (buffer_.getNewestValue(&last_value)) {
-    CHECK_GT(timestamp_nanoseconds, last_value.timestamp_)
-        << "Timestamps not strictly increasing.";
+    if (timestamp_nanoseconds <= last_value.timestamp_) {
+      if (!have_warned_user_) {
+        LOG(WARNING) << "Imu timestamps not strictly increasing";
+        have_warned_user_ = true;
+      } else {
+        VLOG(10) << "Timestamps not strictly increasing";
+      }
+      return;
+    }
   }
   buffer_.addValue(
       timestamp_nanoseconds,

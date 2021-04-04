@@ -77,8 +77,8 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
     imu_timestamp_correction_ = newest_imu.timestamp_ - timestamp;
     // TODO(nathan) check for small offsets
     do_initial_imu_timestamp_correction_ = false;
-    VLOG(1) << "Computed intial time alignment of "
-            << imu_timestamp_correction_;
+    LOG(WARNING) << "Computed intial time alignment of "
+                 << imu_timestamp_correction_;
   }
 
   utils::ThreadsafeImuBuffer::QueryResult query_result =
