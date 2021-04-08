@@ -14,7 +14,9 @@
 
 #pragma once
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
-#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/Tracker.h"
+#include <utility>
 
 namespace VIO {
 
@@ -31,16 +33,19 @@ class TimeAlignerBase {
 
   virtual ~TimeAlignerBase() = default;
 
-  virtual void addNewImuData(const ImuStampS& imu_stamps,
-                             const ImuAccGyrS& imu_accgyrs) = 0;
-
-  inline Result estimateTimeAlignment(const FrontendOutputPacketBase& input) {
-    // TODO(nathan) there might be an advantage to putting some extra logic here
-    return attemptEstimation(input);
-  }
+  virtual Result estimateTimeAlignment(Tracker& tracker,
+                                       const FrontendOutputPacketBase& output,
+                                       const ImuStampS& imu_stamps,
+                                       const ImuAccGyrS& imu_accgyrs);
 
  protected:
-  virtual Result attemptEstimation(const FrontendOutputPacketBase& input) = 0;
+  virtual Result attemptEstimation(
+      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const gtsam::Pose3& T_ref_cur,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyrs) = 0;
+
+  Frame::UniquePtr last_frame_;
 };
 
 }  // namespace VIO
