@@ -22,37 +22,6 @@
 
 namespace VIO {
 
-TEST(testCrossCorrelation, basicPointerDiffCorrect) {
-  RingBuffer<int> buffer(5);
-  EXPECT_EQ(0, buffer.begin() - buffer.end());
-  EXPECT_EQ(0, buffer.end() - buffer.begin());
-  buffer.push(1);
-  EXPECT_EQ(-1, buffer.begin() - buffer.end());
-  EXPECT_EQ(1, buffer.end() - buffer.begin());
-  buffer.push(2);
-  EXPECT_EQ(-2, buffer.begin() - buffer.end());
-  EXPECT_EQ(2, buffer.end() - buffer.begin());
-  buffer.push(3);
-  EXPECT_EQ(-3, buffer.begin() - buffer.end());
-  EXPECT_EQ(3, buffer.end() - buffer.begin());
-  buffer.push(4);
-  EXPECT_EQ(-4, buffer.begin() - buffer.end());
-  EXPECT_EQ(4, buffer.end() - buffer.begin());
-}
-
-TEST(testCrossCorrelation, DISABLED_harderPointerDiffCorrect) {
-  RingBuffer<int> buffer(5);
-  for (size_t i = 0; i < 7; ++i) {
-    buffer.push(0);  // contents don't matter
-  }
-  EXPECT_EQ(-5, buffer.begin() - buffer.end());
-  EXPECT_EQ(5, buffer.end() - buffer.begin());
-
-  RingBuffer<int>::iterator next_to_last = buffer.end() - 1;
-  EXPECT_EQ(1, buffer.end() - next_to_last);
-  EXPECT_EQ(-1, next_to_last - buffer.end());
-}
-
 TEST(testCrossCorrelation, ringBufferSimpleTest) {
   RingBuffer<int> buffer(5);
   buffer.push(1);
@@ -94,6 +63,16 @@ TEST(testCrossCorrelation, ringBufferPushWhileFull) {
 
   for (size_t i = 0; i < values.size(); ++i) {
     EXPECT_EQ(expected[i], values[i]);
+    EXPECT_EQ(values[i], buffer[i]);
+  }
+
+  std::vector<int> reverse_expected{9, 8, 7, 6, 5};
+  std::vector<int> reverse_estimate(5);
+  std::reverse_copy(
+      std::begin(buffer), std::end(buffer), std::begin(reverse_estimate));
+  for (size_t i = 0; i < values.size(); ++i) {
+    EXPECT_EQ(reverse_expected[i], reverse_estimate[i]);
+    EXPECT_EQ(reverse_expected[i], buffer[buffer.size() - i - 1]);
   }
 }
 
@@ -128,6 +107,35 @@ TEST(testCrossCorrelation, bufferFrontAndBack) {
     EXPECT_EQ(buffer.back(), i);
     EXPECT_EQ(buffer.front(), i - 4);
   }
+}
+
+TEST(testCrossCorrelation, basicIterDiffCorrect) {
+  RingBuffer<int> buffer(5);
+  EXPECT_EQ(0, buffer.begin() - buffer.end());
+  EXPECT_EQ(0, buffer.end() - buffer.begin());
+  buffer.push(1);
+  EXPECT_EQ(-1, buffer.begin() - buffer.end());
+  EXPECT_EQ(1, buffer.end() - buffer.begin());
+  buffer.push(2);
+  EXPECT_EQ(-2, buffer.begin() - buffer.end());
+  EXPECT_EQ(2, buffer.end() - buffer.begin());
+  buffer.push(3);
+  EXPECT_EQ(-3, buffer.begin() - buffer.end());
+  EXPECT_EQ(3, buffer.end() - buffer.begin());
+  buffer.push(4);
+  EXPECT_EQ(-4, buffer.begin() - buffer.end());
+  EXPECT_EQ(4, buffer.end() - buffer.begin());
+}
+
+TEST(testCrossCorrelation, harderIterDiffCorrect) {
+  RingBuffer<int> buffer(5);
+  for (size_t i = 0; i < 7; ++i) {
+    buffer.push(0);  // contents don't matter
+  }
+  EXPECT_EQ(0, buffer.begin() - buffer.begin());
+  EXPECT_EQ(0, buffer.end() - buffer.end());
+  EXPECT_EQ(5, buffer.end() - buffer.begin());
+  EXPECT_EQ(-5, buffer.begin() - buffer.end());
 }
 
 }  // namespace VIO

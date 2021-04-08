@@ -10,8 +10,7 @@ namespace VIO {
 // https://internalpointers.com/post/writing-custom-iterators-modern-cpp
 template <typename Value>
 struct RingBufferIter {
-  // using iterator_category = std::random_access_iterator_tag;
-  using iterator_category = std::forward_iterator_tag;
+  using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
   using value_type = Value;
   using pointer = value_type*;
@@ -35,40 +34,15 @@ struct RingBufferIter {
 
   pointer operator->() { return m_ptr_; }
 
-  // TODO(nathan) sit down and do the math for all of these
-  RingBufferIter& operator-=(difference_type diff) { return *this; }
-
-  RingBufferIter& operator+=(difference_type diff) { return *this; }
-
-  RingBufferIter operator-(difference_type diff) const { return *this; }
-
-  RingBufferIter operator+(difference_type diff) const { return *this; }
-
   difference_type operator-(const RingBufferIter& rhs) {
     CHECK_EQ(begin_ptr_, rhs.begin_ptr_);
     CHECK_EQ(end_ptr_, rhs.end_ptr_);
     CHECK_EQ(curr_index_, rhs.curr_index_);
     CHECK_EQ(num_values_, rhs.num_values_);
-    // get the absolute index in the buffer
-    difference_type lhs_abs_idx = m_ptr_ - begin_ptr_;
-    difference_type rhs_abs_idx = rhs.m_ptr_ - rhs.begin_ptr_;
-    // get the relative index compared to curr_index_
-    difference_type lhs_rel_idx;
-    if (lhs_abs_idx > curr_index_) {
-      lhs_rel_idx = lhs_abs_idx - curr_index_;
-    } else {
-      lhs_rel_idx = num_values_ - (curr_index_ - lhs_abs_idx);
-    }
-    // do the same for the right side
-    difference_type rhs_rel_idx;
-    if (rhs_abs_idx > curr_index_) {
-      rhs_rel_idx = rhs_abs_idx - curr_index_;
-    } else {
-      rhs_rel_idx = num_values_ - (curr_index_ - rhs_abs_idx);
-    }
-    return lhs_rel_idx - rhs_rel_idx;
+    return getRelativeIndex_() - rhs.getRelativeIndex_();
   }
 
+  // TODO(nathan) consider adding other operators
   RingBufferIter& operator++() {
     m_ptr_++;
     if (m_ptr_ > end_ptr_) {
@@ -83,6 +57,20 @@ struct RingBufferIter {
     return tmp;
   }
 
+  RingBufferIter& operator--() {
+    m_ptr_--;
+    if (m_ptr_ < begin_ptr_) {
+      m_ptr_ = end_ptr_;
+    }
+    return *this;
+  }
+
+  RingBufferIter operator--(int) {
+    RingBufferIter tmp = *this;
+    --(*this);
+    return tmp;
+  }
+
   friend bool operator==(const RingBufferIter& a, const RingBufferIter& b) {
     return a.m_ptr_ == b.m_ptr_;
   }
@@ -91,14 +79,19 @@ struct RingBufferIter {
     return !(a == b);
   }
 
-  friend std::ostream& operator<<(std::ostream& out,
-                                  const RingBufferIter<Value>& iter) {
-    out << "iter<(curr=" << iter.m_ptr_ << ", begin=" << iter.begin_ptr_
-        << ", end=" << iter.end_ptr_ << ")>";
-    return out;
+ private:
+  difference_type getRelativeIndex_() const {
+    if (num_values_ == 0) {
+      return 0;
+    }
+
+    difference_type abs_idx = m_ptr_ - begin_ptr_;
+    if (abs_idx > curr_index_) {
+      return abs_idx - curr_index_ - 1;
+    }
+    return num_values_ - (curr_index_ - abs_idx);
   }
 
- private:
   pointer m_ptr_;
   size_t curr_index_;
   size_t num_values_;
@@ -121,6 +114,18 @@ class RingBuffer {
     values_ = std::vector<T>(size_ + 1);
     num_values_ = 0;
     curr_index_ = 0;
+  }
+
+  inline T operator[](size_t index) const {
+    if (num_values_ < size_) {
+      return values_.at(index);
+    }
+
+    if (index < size_ - curr_index_) {
+      return values_.at(curr_index_ + index + 1);
+    }
+
+    return values_.at(0);
   }
 
   inline size_t size() const { return num_values_; }
@@ -157,8 +162,8 @@ class RingBuffer {
 
   friend std::ostream& operator<<(std::ostream& out, const RingBuffer& buffer) {
     out << "buffer<(curr=" << buffer.curr_index_
-        << ", size=" << buffer.num_values_
-        << ", max_size=" << buffer.size_ << ")>";
+        << ", size=" << buffer.num_values_ << ", max_size=" << buffer.size_
+        << ")>";
     return out;
   }
 

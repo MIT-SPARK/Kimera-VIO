@@ -49,8 +49,9 @@ bool CrossCorrTimeAligner::add_new_imu_data_(Timestamp frame_timestamp,
         frame_timestamp, Rot3::Logmap(rot_pim.deltaRij()).norm()));
   } else {
     for (int i = 0; i < imu_stamps.cols(); ++i) {
+      // TODO(nathan) think about multiplying by dt
       imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-          imu_stamps(0, i), imu_acc_gyrs.block<3, 1>(0, i).norm()));
+          imu_stamps(0, i), imu_acc_gyrs.block<3, 1>(3, i).norm()));
     }
   }
 
@@ -68,10 +69,11 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   }
 
   if (do_imu_rate_estimation_) {
-    // RingBuffer::Measurement last_vision = vision_buffer_.front();
-    // size_t new_measurements = imu_buffer_.size() - vision_buffer_.size();
-    // for (iter = imu_buffer_(-num_measurements); iter != imu_buffer_.end();
-    // ++iter)
+  /*  size_t N = imu_buffer_.size() - vision_buffer_.size();*/
+    //Eigen::Vector3d interp_angle = Rot3::Logmap(T_ref_cur.rotation()).norm() / N;
+    //for (size_t i = 0; i < N; ++i) {
+      //vision_buffer_.push(...);
+    /*}*/
   } else {
     vision_buffer_.push(CrossCorrTimeAligner::Measurement(
         timestamps_ref_cur.first, Rot3::Logmap(T_ref_cur.rotation()).norm()));
@@ -80,6 +82,8 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   if (!vision_buffer_.full()) {
     return {false, 0.0};
   }
+
+  //TODO(nathan) cross correlation
 
   return {true, 0.0};
 }
