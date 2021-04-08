@@ -14,28 +14,59 @@
 
 #pragma once
 #include <Eigen/Dense>
+#include <cstddef>
+#include <iterator>
+#include <vector>
 
+#include <gtsam/navigation/PreintegratedRotation.h>
+#include "kimera-vio/initial/RingBuffer.h"
 #include "kimera-vio/initial/TimeAlignerBase.h"
 
 namespace VIO {
+
+typedef boost::shared_ptr<gtsam::PreintegratedRotationParams>
+    RotOnlyPIMParamPtr;
+
 class CrossCorrTimeAligner : public TimeAlignerBase {
  public:
+  struct Measurement {
+    Measurement() {}
+
+    Measurement(Timestamp timestamp, double value)
+        : timestamp(timestamp), value(value) {}
+
+    friend std::ostream& operator<<(std::ostream& out, const Measurement& m) {
+      out << "measurement<(t=" << m.timestamp << ", v=" << m.value << ")>";
+      return out;
+    }
+
+    Timestamp timestamp{0};
+    double value{0.0};
+  };
+  typedef RingBuffer<Measurement> Buffer;
+
   // TODO(nathan) add other parameters here
-  CrossCorrTimeAligner(double imu_time_shift_est = 0.0,
-                       bool should_estimate = false,
+  CrossCorrTimeAligner(bool do_imu_rate_estimation,
+                       double imu_period_s,
                        size_t window_size = 100);
 
-
-  void addNewImuData(const ImuStampS& imu_stamps_, const ImuAccGyrS& imu_acc_gyrs) override;
-
  protected:
-  TimeAlignerBase::Result attemptEstimation(const FrontendOutputPacketBase& input) override;
+  TimeAlignerBase::Result attemptEstimation(
+      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const gtsam::Pose3& T_ref_cur,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_acc_gyrs) override;
 
  private:
-  size_t window_size_;
-  size_t num_measurements_;
-  size_t curr_index_;
-  Eigen::VectorXd vision_rotation_angles_;
-  Eigen::VectorXd pim_rotation_angles_;
+  bool add_new_imu_data_(Timestamp frame_timestamp,
+                         const ImuStampS& imu_stamps,
+                         const ImuAccGyrS& imu_acc_gyrs);
+
+  RotOnlyPIMParamPtr pim_params_;
+  bool do_imu_rate_estimation_;
+  double imu_period_s_;
+  Buffer imu_buffer_;
+  Buffer vision_buffer_;
 };
+
 }  // namespace VIO

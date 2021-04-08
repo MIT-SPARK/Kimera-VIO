@@ -48,10 +48,9 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
-  // TODO(nathan) think about disabling this when not doing time alignment
-  // TODO(nathan) think about window size as a param
+  // TODO(nathan) add params to imu params and pas to constructor
   time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(
-      imu_params.imu_time_shift_, imu_params.do_initial_time_alignment_);
+      false, imu_params.nominal_sampling_time_s_);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {
@@ -76,20 +75,22 @@ FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
     FrontendInputPacketBase::UniquePtr&& input) {
   CHECK(time_aligner_);
-  time_aligner_->addNewImuData(input->imu_stamps_, input->imu_accgyrs_);
+
+  ImuStampS imu_stamps = input->imu_stamps_;
+  ImuAccGyrS imu_accgyrs = input->imu_accgyrs_;
 
   FrontendOutputPacketBase::UniquePtr nominal_output =
       nominalSpin(std::move(input));
   CHECK(nominal_output);
 
-  TimeAlignerBase::Result result = time_aligner_->estimateTimeAlignment(*nominal_output);
+  TimeAlignerBase::Result result = time_aligner_->estimateTimeAlignment(
+      *tracker_, *nominal_output, imu_stamps, imu_accgyrs);
   if (result.valid) {
     CHECK(imu_time_shift_update_callback_);
     imu_time_shift_update_callback_(result.imu_time_shift);
     frontend_state_ = FrontendState::Nominal;
   }
-  // TODO(nathan) grab estimated pose from features here and add to time
-  // aligner
+
   return nominal_output;
 }
 
