@@ -15,4 +15,4 @@ backend_type: 0
 display_type: 0
 
 # Run VIO parallel or sequential
-parallel_run: 0
+parallel_run: 1
