@@ -23,17 +23,15 @@ namespace VIO {
 MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run)
-    : DataProviderModule(output_queue,
-                         name_id,
-                         parallel_run),
+    : DataProviderModule(output_queue, name_id, parallel_run),
       left_frame_queue_("data_provider_left_frame_queue") {}
 
 MonoDataProviderModule::InputUniquePtr
 MonoDataProviderModule::getInputPacket() {
   if (!MISO::shutdown_) {
-    MonoImuSyncPacket::UniquePtr mono_imu_sync_packet =getMonoImuSyncPacket();
+    MonoImuSyncPacket::UniquePtr mono_imu_sync_packet = getMonoImuSyncPacket();
     if (!mono_imu_sync_packet) return nullptr;
-    
+
     CHECK(vio_pipeline_callback_);
     vio_pipeline_callback_(std::move(mono_imu_sync_packet));
   } else {
@@ -46,6 +44,12 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
   //! Retrieve left frame data.
   Frame::UniquePtr left_frame_payload = getLeftFramePayload();
   if (!left_frame_payload) {
+    return nullptr;
+  }
+
+  if (timestamp_last_frame_ >= left_frame_payload->timestamp_) {
+    LOG(WARNING) << "Dropping frame: " << left_frame_payload->timestamp_
+                 << " (curr) <= " << timestamp_last_frame_ << "(last)";
     return nullptr;
   }
 
