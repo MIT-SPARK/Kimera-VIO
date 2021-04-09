@@ -175,6 +175,7 @@ class VisionImuFrontend {
   FrontendLogger::UniquePtr logger_;
 
   // Time alignment
+  bool do_time_alignment_;
   ImuTimeShiftCallback imu_time_shift_update_callback_;
   TimeAlignerBase::UniquePtr time_aligner_;
 };

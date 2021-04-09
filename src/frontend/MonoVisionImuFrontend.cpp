@@ -60,7 +60,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   processFirstFrame(input->getFrame());
 
   // Initialization done, set state to nominal
-  frontend_state_ = FrontendState::Nominal;
+  frontend_state_ = do_time_alignment_ ? FrontendState::InitialTimeAlignment : FrontendState::Nominal;
 
   // Create mostly invalid output
   CHECK(mono_frame_lkf_);

@@ -43,7 +43,8 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_(nullptr),
       tracker_status_summary_(),
       display_queue_(display_queue),
-      logger_(nullptr) {
+      logger_(nullptr),
+      do_time_alignment_(imu_params.do_initial_time_alignment_) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
@@ -101,7 +102,8 @@ void VisionImuFrontend::outlierRejectionMono(
     TrackingStatusPose* status_pose_mono) {
   CHECK_NOTNULL(status_pose_mono);
   if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
+      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity()) &&
+      frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
     *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(

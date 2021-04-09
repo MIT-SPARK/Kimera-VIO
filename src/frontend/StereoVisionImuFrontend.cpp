@@ -66,7 +66,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   processFirstStereoFrame(input->getStereoFrame());
 
   // Initialization done, set state to nominal
-  frontend_state_ = FrontendState::Nominal;
+  frontend_state_ = do_time_alignment_ ? FrontendState::InitialTimeAlignment : FrontendState::Nominal;
 
   // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
   CHECK(stereoFrame_lkf_);
@@ -470,7 +470,8 @@ void StereoVisionImuFrontend::outlierRejectionStereo(
   gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
   if (tracker_->tracker_params_.ransac_use_1point_stereo_ &&
       !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
-      !force_53point_ransac_) {
+      !force_53point_ransac_ &&
+      frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 1-point RANSAC.
     std::tie(*status_pose_stereo, infoMatStereoTranslation) =
         tracker_->geometricOutlierRejectionStereoGivenRotation(
