@@ -50,7 +50,7 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
   }
   // TODO(nathan) add params to imu params and pas to constructor
   time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(
-      false, imu_params.nominal_sampling_time_s_);
+      false, imu_params.nominal_sampling_time_s_, imu_params.gyro_noise_density_);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {

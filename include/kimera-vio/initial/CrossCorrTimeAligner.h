@@ -41,13 +41,14 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
     }
 
     Timestamp timestamp{0};
-    double value{0.0};
+    double value = 0.0;
   };
   typedef RingBuffer<Measurement> Buffer;
 
   // TODO(nathan) add other parameters here
   CrossCorrTimeAligner(bool do_imu_rate_estimation,
                        double imu_period_s,
+                       double gyro_noise_density,
                        size_t window_size = 100);
 
  protected:
@@ -58,13 +59,14 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       const ImuAccGyrS& imu_acc_gyrs) override;
 
  private:
-  bool add_new_imu_data_(Timestamp frame_timestamp,
-                         const ImuStampS& imu_stamps,
-                         const ImuAccGyrS& imu_acc_gyrs);
+  bool addNewImuData_(Timestamp frame_timestamp,
+                      const ImuStampS& imu_stamps,
+                      const ImuAccGyrS& imu_acc_gyrs);
 
   RotOnlyPIMParamPtr pim_params_;
   bool do_imu_rate_estimation_;
   double imu_period_s_;
+  double imu_variance_threshold_;
   Buffer imu_buffer_;
   Buffer vision_buffer_;
 };

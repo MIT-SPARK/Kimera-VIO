@@ -18,18 +18,20 @@ namespace VIO {
 
 CrossCorrTimeAligner::CrossCorrTimeAligner(bool do_imu_rate_estimation,
                                            double imu_period_s,
+                                           double gyro_noise_density,
                                            size_t window_size)
     : TimeAlignerBase(),
       do_imu_rate_estimation_(do_imu_rate_estimation),
       imu_period_s_(imu_period_s),
+      imu_variance_threshold_(3 * std::pow(gyro_noise_density, 2.0)),
       imu_buffer_(window_size),
       vision_buffer_(window_size) {
   pim_params_.reset(new gtsam::PreintegratedRotationParams());
 }
 
-bool CrossCorrTimeAligner::add_new_imu_data_(Timestamp frame_timestamp,
-                                             const ImuStampS& imu_stamps,
-                                             const ImuAccGyrS& imu_acc_gyrs) {
+bool CrossCorrTimeAligner::addNewImuData_(Timestamp frame_timestamp,
+                                          const ImuStampS& imu_stamps,
+                                          const ImuAccGyrS& imu_acc_gyrs) {
   if (imu_stamps.cols() == 0) {
     // TODO(nathan) think about handling this better
     LOG(ERROR) << "addNewImuData called with no measurements";
@@ -49,31 +51,54 @@ bool CrossCorrTimeAligner::add_new_imu_data_(Timestamp frame_timestamp,
         frame_timestamp, Rot3::Logmap(rot_pim.deltaRij()).norm()));
   } else {
     for (int i = 0; i < imu_stamps.cols(); ++i) {
-      // TODO(nathan) think about multiplying by dt
       imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-          imu_stamps(0, i), imu_acc_gyrs.block<3, 1>(3, i).norm()));
+          imu_stamps(0, i),
+          imu_acc_gyrs.block<3, 1>(3, i).norm() * imu_period_s_));
     }
   }
 
   return true;
 }
 
+namespace {
+
+double valueAccessor(const CrossCorrTimeAligner::Measurement& m) {
+  return m.value;
+}
+
+}  // namespace
+
 TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
     const gtsam::Pose3& T_ref_cur,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs) {
-  if (!add_new_imu_data_(timestamps_ref_cur.first, imu_stamps, imu_acc_gyrs)) {
+  if (!addNewImuData_(timestamps_ref_cur.first, imu_stamps, imu_acc_gyrs)) {
     LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
     return {true, 0.0};
   }
 
   if (do_imu_rate_estimation_) {
-  /*  size_t N = imu_buffer_.size() - vision_buffer_.size();*/
-    //Eigen::Vector3d interp_angle = Rot3::Logmap(T_ref_cur.rotation()).norm() / N;
-    //for (size_t i = 0; i < N; ++i) {
-      //vision_buffer_.push(...);
-    /*}*/
+    const size_t N = imu_stamps.cols();
+    const double angle = Rot3::Logmap(T_ref_cur.rotation()).norm();
+    double frame_diff = UtilsNumerical::NsecToSec(
+        timestamps_ref_cur.first - vision_buffer_.back().timestamp);
+    double imu_diff = UtilsNumerical::NsecToSec(
+        imu_buffer_.back().timestamp -
+        imu_buffer_[imu_buffer_.size() - N].timestamp);
+
+    for (size_t i = 0; i < N; ++i) {
+      const size_t index = imu_buffer_.size() - N + i;
+      double ratio = UtilsNumerical::NsecToSec(
+                         imu_buffer_[index].timestamp -
+                         imu_buffer_[imu_buffer_.size() - N].timestamp) /
+                     imu_diff;
+      CHECK_GE(ratio, 0.0) << "invalid ratio between imu timestamps: " << ratio;
+      Timestamp new_timestamp = vision_buffer_.back().timestamp +
+                                UtilsNumerical::SecToNsec(ratio * frame_diff);
+      vision_buffer_.push(
+          CrossCorrTimeAligner::Measurement(new_timestamp, angle * ratio));
+    }
   } else {
     vision_buffer_.push(CrossCorrTimeAligner::Measurement(
         timestamps_ref_cur.first, Rot3::Logmap(T_ref_cur.rotation()).norm()));
@@ -83,9 +108,36 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     return {false, 0.0};
   }
 
-  //TODO(nathan) cross correlation
+  using std::placeholders::_1;
+  double imu_variance =
+      utils::variance(imu_buffer_, std::bind(valueAccessor, _1));
+  if (imu_variance < imu_variance_threshold_) {
+    return {false, 0.0}; // signal appears to mostly be noise
+  }
 
-  return {true, 0.0};
+  // TODO(nathan) check the vision variance as well
+
+  std::vector<double> correlation = utils::crossCorrelation(
+      vision_buffer_, imu_buffer_, std::bind(valueAccessor, _1));
+  size_t max_idx =
+      std::distance(correlation.begin(),
+                    std::max_element(correlation.begin(), correlation.end()));
+  int64_t offset = static_cast<int64_t>(vision_buffer_.size()) -
+                   correlation.size() + max_idx;
+
+  double timeshift = 0.0;
+  if (max_idx >= vision_buffer_.size()) {
+    timeshift =
+        UtilsNumerical::NsecToSec(imu_buffer_[std::abs(offset)].timestamp -
+                                  vision_buffer_.front().timestamp);
+  } else {
+    timeshift =
+        UtilsNumerical::NsecToSec(vision_buffer_.front().timestamp -
+                                  imu_buffer_[std::abs(offset)].timestamp);
+  }
+  LOG(WARNING) << "Computed timeshift of " << timeshift
+               << " (t_imu = t_cam + timeshift)";
+  return {true, timeshift};
 }
 
 }  // namespace VIO
