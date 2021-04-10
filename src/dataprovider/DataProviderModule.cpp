@@ -138,8 +138,7 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
 
   timestamp_last_frame_ = timestamp;
   // adjust the timestamps for the frontend
-  // TODO(nathan) may also need to apply imu_time_shift_ here
-  imu_meas->timestamps_.array() -= imu_timestamp_correction_;
+  imu_meas->timestamps_.array() -= imu_timestamp_correction_ + curr_imu_time_shift;
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
            << "STAMPS IMU rows : \n"
            << imu_meas->timestamps_.rows() << '\n'

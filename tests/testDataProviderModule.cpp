@@ -427,4 +427,32 @@ TEST_F(TestStereoProvider, stereoPipelineWithCoarseCorrection) {
   EXPECT_EQ(3, output->imu_stamps_(0, 2));
 }
 
+TEST_F(TestStereoProvider, stereoPipelineManualTimeShift) {
+  test_provider_->updateImuTimeShift(10.0e-9);
+
+  addImu(10);  // Get past the need for available IMU data
+  addFrame(1);
+
+  spinWithTimeout();
+
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue_.pop(output));
+
+  addImu(11);
+  addImu(12);
+  addImu(13);
+  addFrame(3);
+
+  spinWithTimeout();
+  ASSERT_TRUE(output_queue_.pop(output));
+  ASSERT_TRUE(output != nullptr);
+
+  EXPECT_EQ(3, output->timestamp_);
+  EXPECT_EQ(3, output->imu_stamps_.cols());
+  EXPECT_EQ(3, output->imu_accgyrs_.cols());
+  EXPECT_EQ(1, output->imu_stamps_(0, 0));
+  EXPECT_EQ(2, output->imu_stamps_(0, 1));
+  EXPECT_EQ(3, output->imu_stamps_(0, 2));
+}
+
 }  // namespace VIO
