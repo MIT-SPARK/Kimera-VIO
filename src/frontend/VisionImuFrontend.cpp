@@ -44,14 +44,12 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_status_summary_(),
       display_queue_(display_queue),
       logger_(nullptr),
-      do_time_alignment_(imu_params.do_initial_time_alignment_) {
+      do_time_alignment_(imu_params.do_fine_initial_time_alignment_) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
-  // TODO(nathan) add params to imu params and pas to constructor
-  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(
-      false, imu_params.nominal_sampling_time_s_, imu_params.gyro_noise_density_);
+  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(imu_params);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {

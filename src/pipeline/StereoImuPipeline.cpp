@@ -50,8 +50,16 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
       parallel_run_,
       // TODO(Toni): these params should not be sent...
       params.frontend_params_.stereo_matching_params_);
-  if (params.imu_params_.do_initial_time_alignment_) {
+  if (params.imu_params_.do_coarse_initial_time_alignment_) {
     data_provider_module_->doCoarseTimestampCorrection();
+  }
+  if (!params.imu_params_.do_fine_initial_time_alignment_) {
+    if (params.imu_params_.do_coarse_initial_time_alignment_) {
+      LOG(WARNING) << "The manually provided IMU time shift will be applied on "
+                      "top of whatever the coarse time alignment calculates. "
+                      "This may or may not be what you want!";
+    }
+    data_provider_module_->updateImuTimeShift(imu_params_.imu_time_shift_);
   }
 
   data_provider_module_->registerVioPipelineCallback(

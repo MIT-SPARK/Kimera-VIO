@@ -195,7 +195,7 @@ public:
   generateRegularImuParams(const ImuParams& imu_params);
 
   inline bool doInitialTimeAlignment() const {
-    return imu_params_.do_initial_time_alignment_;
+    return imu_params_.do_fine_initial_time_alignment_;
   }
 
  private:

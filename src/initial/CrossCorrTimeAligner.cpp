@@ -16,16 +16,13 @@
 
 namespace VIO {
 
-CrossCorrTimeAligner::CrossCorrTimeAligner(bool do_imu_rate_estimation,
-                                           double imu_period_s,
-                                           double gyro_noise_density,
-                                           size_t window_size)
+CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
     : TimeAlignerBase(),
-      do_imu_rate_estimation_(do_imu_rate_estimation),
-      imu_period_s_(imu_period_s),
-      imu_variance_threshold_(3 * std::pow(gyro_noise_density, 2.0)),
-      imu_buffer_(window_size),
-      vision_buffer_(window_size) {
+      do_imu_rate_estimation_(params.do_imu_rate_time_alignment_),
+      imu_period_s_(params.nominal_sampling_time_s_),
+      imu_variance_threshold_(3 * std::pow(params.gyro_noise_density_, 2.0)),
+      imu_buffer_(params.time_alignment_window_size_),
+      vision_buffer_(params.time_alignment_window_size_) {
   pim_params_.reset(new gtsam::PreintegratedRotationParams());
 }
 

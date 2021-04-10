@@ -45,11 +45,7 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
   };
   typedef RingBuffer<Measurement> Buffer;
 
-  // TODO(nathan) add other parameters here
-  CrossCorrTimeAligner(bool do_imu_rate_estimation,
-                       double imu_period_s,
-                       double gyro_noise_density,
-                       size_t window_size = 100);
+  CrossCorrTimeAligner(const ImuParams& params);
 
  protected:
   TimeAlignerBase::Result attemptEstimation(

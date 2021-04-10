@@ -111,7 +111,6 @@ class VisionImuFrontend {
   // register a callback for the frontend to update the imu time shift
   inline void registerImuTimeShiftUpdateCallback(const ImuTimeShiftCallback& callback) {
     imu_time_shift_update_callback_ = callback;
-    // TODO(nathan) think about an initial call to the callback
   }
 
  protected:
