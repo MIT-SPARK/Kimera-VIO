@@ -133,7 +133,8 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
   if (VLOG_IS_ON(10)) input.print();
 
   bool backend_status = false;
-  switch (backend_state_) {
+  const BackendState backend_state = backend_state_;
+  switch (backend_state) {
     case BackendState::Bootstrap: {
       initializeBackend(input);
       backend_status = true;
