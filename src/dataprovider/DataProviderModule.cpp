@@ -51,7 +51,7 @@ void DataProviderModule::logQueryResult(
                    << " to  " << UtilsNumerical::NsecToSec(timestamp);
       break;
     case ThreadsafeImuBuffer::QueryResult::kTooFewMeasurementsAvailable:
-      LOG(WARNING) << "IMU data stream does not contain measurments from "
+      LOG(WARNING) << "IMU data stream does not contain measurements from "
                    << UtilsNumerical::NsecToSec(timestamp_last_frame_) << " to "
                    << UtilsNumerical::NsecToSec(timestamp);
       break;

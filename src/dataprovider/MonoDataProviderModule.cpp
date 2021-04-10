@@ -57,8 +57,8 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
   }
 
   if (timestamp_last_frame_ >= left_frame_payload->timestamp_) {
-    LOG(WARNING) << "Dropping frame: " << left_frame_payload->timestamp_
-                 << " (curr) <= " << timestamp_last_frame_ << "(last)";
+    LOG(WARNING) << "Dropping frame: " << UtilsNumerical::NsecToSec(left_frame_payload->timestamp_)
+                 << " (curr) <= " << UtilsNumerical::NsecToSec(timestamp_last_frame_) << " (last)";
     return nullptr;
   }
 
