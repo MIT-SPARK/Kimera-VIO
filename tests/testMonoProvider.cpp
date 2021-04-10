@@ -7,8 +7,8 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   tstDataProviderModule.cpp
- * @brief  test DataProviderModule, especially regression testing
+ * @file   tstMonoProvider.cpp
+ * @brief  test the MonoDataProvider for invariants around timestamp ordering
  * @author Andrew Violette
  * @author Luca Carlone
  * @author Nathan Hughes
@@ -22,43 +22,38 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/dataprovider/StereoDataProviderModule.h"
+#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
-#include "kimera-vio/frontend/StereoFrame.h"
 
 namespace VIO {
 
-class TestStereoProvider : public ::testing::Test {
+class TestMonoProvider : public ::testing::Test {
  public:
-  TestStereoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = make_unique<StereoDataProviderModule>(
-        &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
+  TestMonoProvider() : last_id_(0), output_queue_("test_output") {
+    test_provider_ = make_unique<MonoDataProviderModule>(
+        &output_queue_, "test_mono_provider", false);
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
           output_queue_.push(std::move(packet));
         });
   }
 
-  ~TestStereoProvider() = default;
+  ~TestMonoProvider() = default;
 
  protected:
   DataProviderModule::OutputQueue output_queue_;
-  VIO::StereoDataProviderModule::UniquePtr test_provider_;
+  MonoDataProviderModule::UniquePtr test_provider_;
   FrameId last_id_;
 
   void addImu(Timestamp timestamp) {
-    test_provider_->fillImuQueue(
-        ImuMeasurement(timestamp, VIO::ImuAccGyr::Zero()));
+    test_provider_->fillImuQueue(ImuMeasurement(timestamp, ImuAccGyr::Zero()));
   }
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
         make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
-    Frame::UniquePtr rframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
-    test_provider_->fillRightFrameQueue(std::move(rframe));
     last_id_++;
   }
 
@@ -79,7 +74,7 @@ class TestStereoProvider : public ::testing::Test {
   }
 };
 
-TEST_F(TestStereoProvider, basicSequentialCase) {
+TEST_F(TestMonoProvider, basicSequentialCase) {
   // First frame is needed for benchmarking, send it and spin
   addImu(10);
   addFrame(11);
@@ -106,14 +101,14 @@ TEST_F(TestStereoProvider, basicSequentialCase) {
   expected_imu_times << 12, 13, 14, 17;
   EXPECT_EQ(expected_imu_times, result_base->imu_stamps_);
 
-  StereoImuSyncPacket::UniquePtr result =
-      safeCast<FrontendInputPacketBase, StereoImuSyncPacket>(
+  MonoImuSyncPacket::UniquePtr result =
+      safeCast<FrontendInputPacketBase, MonoImuSyncPacket>(
           std::move(result_base));
   ASSERT_TRUE(result != nullptr);
-  EXPECT_EQ(static_cast<FrameId>(1), result->getStereoFrame().id_);
+  EXPECT_EQ(static_cast<FrameId>(1), result->getFrame().id_);
 }
 
-TEST_F(TestStereoProvider, dropFramesOlderThanImu) {
+TEST_F(TestMonoProvider, dropFramesOlderThanImu) {
   addImu(10);
   addFrame(11);
   spinWithTimeout();
@@ -148,7 +143,7 @@ TEST_F(TestStereoProvider, dropFramesOlderThanImu) {
   EXPECT_EQ(expected_imu_times, result->imu_stamps_);
 }
 
-TEST_F(TestStereoProvider, manyImuTest) {
+TEST_F(TestMonoProvider, manyImuTest) {
   Timestamp t_curr = 10;
   Timestamp num_imu = 5;
   for (Timestamp t = 0; t < num_imu; ++t) {
@@ -172,7 +167,7 @@ TEST_F(TestStereoProvider, manyImuTest) {
 
   for (size_t i = 0; i < num_valid_frames; i++) {
     spinWithTimeout();
-    VIO::FrontendInputPacketBase::UniquePtr result;
+    FrontendInputPacketBase::UniquePtr result;
     ASSERT_TRUE(output_queue_.pop(result));
     ASSERT_TRUE(result != nullptr);
 
@@ -183,7 +178,7 @@ TEST_F(TestStereoProvider, manyImuTest) {
   }
 }
 
-TEST_F(TestStereoProvider, imageBeforeImuTest) {
+TEST_F(TestMonoProvider, imageBeforeImuTest) {
   // Drop any frame that appears before the IMU packets do
   addFrame(10);
   spinWithTimeout();
@@ -210,7 +205,7 @@ TEST_F(TestStereoProvider, imageBeforeImuTest) {
   EXPECT_EQ(14, result->imu_stamps_(0, 1));
 }
 
-TEST_F(TestStereoProvider, imageBeforeImuDelayedSpinTest) {
+TEST_F(TestMonoProvider, imageBeforeImuDelayedSpinTest) {
   // Drop any frame that appears before the IMU packets do
   addFrame(10);
 
@@ -229,7 +224,7 @@ TEST_F(TestStereoProvider, imageBeforeImuDelayedSpinTest) {
   EXPECT_TRUE(output_queue_.empty());
 
   spinWithTimeout();  // Third frame should work
-  VIO::FrontendInputPacketBase::UniquePtr result;
+  FrontendInputPacketBase::UniquePtr result;
   ASSERT_TRUE(output_queue_.pop(result));
   ASSERT_TRUE(result != nullptr);
   EXPECT_EQ(14, result->timestamp_);
@@ -238,7 +233,7 @@ TEST_F(TestStereoProvider, imageBeforeImuDelayedSpinTest) {
   EXPECT_EQ(14, result->imu_stamps_(0, 1));
 }
 
-TEST_F(TestStereoProvider, stereoPipelineValidImuSequence) {
+TEST_F(TestMonoProvider, monoPipelineValidImuSequence) {
   addImu(0);
   addFrame(1);
 
@@ -261,7 +256,7 @@ TEST_F(TestStereoProvider, stereoPipelineValidImuSequence) {
   EXPECT_EQ(2, output->imu_accgyrs_.cols());
 }
 
-TEST_F(TestStereoProvider, stereoPipelineInvalidImuSequence) {
+TEST_F(TestMonoProvider, monoPipelineInvalidImuSequence) {
   addImu(10);  // Get past the need for available IMU data
   addFrame(1);
 
@@ -279,7 +274,7 @@ TEST_F(TestStereoProvider, stereoPipelineInvalidImuSequence) {
   EXPECT_FALSE(output_queue_.pop(output));
 }
 
-TEST_F(TestStereoProvider, testPartialImuSequence) {
+TEST_F(TestMonoProvider, testPartialImuSequence) {
   addImu(0);  // Get past the need for available IMU data
   addFrame(1);
 
@@ -309,7 +304,7 @@ TEST_F(TestStereoProvider, testPartialImuSequence) {
   EXPECT_EQ(5, output->imu_stamps_(0, 3));
 }
 
-TEST_F(TestStereoProvider, testOutOfOrderImuSequence) {
+TEST_F(TestMonoProvider, testOutOfOrderImuSequence) {
   addImu(0);  // Get past the need for available IMU data
   addFrame(1);
 
@@ -338,7 +333,7 @@ TEST_F(TestStereoProvider, testOutOfOrderImuSequence) {
   EXPECT_EQ(5, output->imu_stamps_(0, 2));
 }
 
-TEST_F(TestStereoProvider, testOutOfOrderImageSequence) {
+TEST_F(TestMonoProvider, testOutOfOrderImageSequence) {
   addImu(0);  // Get past the need for available IMU data
   addFrame(3);
 
@@ -367,7 +362,7 @@ TEST_F(TestStereoProvider, testOutOfOrderImageSequence) {
   EXPECT_EQ(5, output->imu_stamps_(0, 2));
 }
 
-TEST_F(TestStereoProvider, testOutOfOrderImuAndImageSequence) {
+TEST_F(TestMonoProvider, testOutOfOrderImuAndImageSequence) {
   addImu(0);  // Get past the need for available IMU data
   addFrame(3);
 
@@ -399,7 +394,7 @@ TEST_F(TestStereoProvider, testOutOfOrderImuAndImageSequence) {
   EXPECT_EQ(5, output->imu_stamps_(0, 1));
 }
 
-TEST_F(TestStereoProvider, stereoPipelineWithCoarseCorrection) {
+TEST_F(TestMonoProvider, monoPipelineWithCoarseCorrection) {
   test_provider_->doCoarseTimestampCorrection();
 
   addImu(10);  // Get past the need for available IMU data
@@ -427,7 +422,7 @@ TEST_F(TestStereoProvider, stereoPipelineWithCoarseCorrection) {
   EXPECT_EQ(3, output->imu_stamps_(0, 2));
 }
 
-TEST_F(TestStereoProvider, stereoPipelineManualTimeShift) {
+TEST_F(TestMonoProvider, monoPipelineManualTimeShift) {
   test_provider_->updateImuTimeShift(10.0e-9);
 
   addImu(10);  // Get past the need for available IMU data

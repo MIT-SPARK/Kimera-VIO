@@ -231,7 +231,6 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
-    tests/testDataProviderModule.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
@@ -245,16 +244,17 @@ if(KIMERA_BUILD_TESTS)
     tests/testMesh.cpp
     tests/testMeshUtils.cpp
     tests/testMeshOptimization.cpp
+    tests/testMonoProvider.cpp
     tests/testParallelPlaneRegularBasicFactor.cpp
     tests/testParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testPointPlaneFactor.cpp
     #tests/testRegularVioBackend.cpp # rotten
     tests/testRegularVioBackendParams.cpp
     tests/testStereoFrame.cpp # NEEDS UPDATE
-    tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
     tests/testStereoMatcher.cpp
+    tests/testStereoProvider.cpp
+    tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
     tests/testUndistortRectifier.cpp
-    tests/testTemporalCalibration.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp
