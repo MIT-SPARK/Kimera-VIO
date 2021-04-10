@@ -20,10 +20,10 @@
 
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <string>
 #include <utility>  // for move
-#include <atomic>
 
 #include <glog/logging.h>
 
@@ -76,10 +76,19 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   }
 
   inline void updateImuTimeShift(double imu_time_shift_s) {
-    imu_time_shift_ns_ = static_cast<Timestamp>(1.0e9 * imu_time_shift_s);
+    imu_time_shift_ns_ = UtilsNumerical::SecToNsec(imu_time_shift_s);
   }
 
  protected:
+  /**
+   * @brief Preferred step to take with current frame based on IMU status
+   */
+  enum class FrameAction {
+    Drop,  // None of the timestamp invariants check out
+    Wait,  // We need more data to use the frame
+    Use,   // The frame is good, use
+  };
+
   // THE USER NEEDS TO IMPLEMENT getInputPacket()!
   // Spin the dataset: processes the input data and constructs a Stereo Imu
   // Synchronized Packet (stereo pair + IMU measurements), the minimum data
@@ -96,18 +105,22 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    * @param[in] timestamp Timestamp for the IMU data to query since
    * timestamp_last_frame_.
    * @param[out] imu_meas IMU measurements to be populated and returned
-   * @return False if synchronization failed, true otherwise.
+   * @return Preferred action with frame
    */
-  bool getTimeSyncedImuMeasurements(const Timestamp& timestamp,
-                                    ImuMeasurements* imu_meas);
+  FrameAction getTimeSyncedImuMeasurements(const Timestamp& timestamp,
+                                           ImuMeasurements* imu_meas);
+
+  void logQueryResult(const Timestamp& timestamp,
+                      utils::ThreadsafeImuBuffer::QueryResult result) const;
 
   //! Called when general shutdown of PipelineModule is triggered.
   virtual void shutdownQueues();
 
  protected:
+  static const Timestamp kNoFrameYet = 0;
   //! Input data
   ImuData imu_data_;
-  static const Timestamp kNoFrameYet = 0;
+  bool repeated_frame_;
   Timestamp timestamp_last_frame_;
   bool do_initial_imu_timestamp_correction_;
   Timestamp imu_timestamp_correction_;

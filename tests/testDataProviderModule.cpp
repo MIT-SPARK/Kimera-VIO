@@ -278,7 +278,7 @@ TEST_F(TestStereoProvider, stereoPipelineInvalidImuSequence) {
   EXPECT_FALSE(output_queue_.pop(output));
 }
 
-TEST_F(TestStereoProvider, DISABLED_testPartialImuSequence) {
+TEST_F(TestStereoProvider, testPartialImuSequence) {
   addImu(0);  // Get past the need for available IMU data
   addFrame(1);
 
@@ -291,7 +291,7 @@ TEST_F(TestStereoProvider, DISABLED_testPartialImuSequence) {
   addImu(4);
   addFrame(5);
 
-  spinWithTimeout(); // should fail with current pipeline
+  spinWithTimeout(); // earlier versions would loop forever here
   EXPECT_FALSE(output_queue_.pop(output));
 
   addImu(5); // add missing imu measurement

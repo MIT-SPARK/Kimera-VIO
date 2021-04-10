@@ -24,7 +24,8 @@ MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run)
     : DataProviderModule(output_queue, name_id, parallel_run),
-      left_frame_queue_("data_provider_left_frame_queue") {}
+      left_frame_queue_("data_provider_left_frame_queue"),
+      cached_left_frame_(nullptr) {}
 
 MonoDataProviderModule::InputUniquePtr
 MonoDataProviderModule::getInputPacket() {
@@ -41,8 +42,16 @@ MonoDataProviderModule::getInputPacket() {
 }
 
 MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
-  //! Retrieve left frame data.
-  Frame::UniquePtr left_frame_payload = getLeftFramePayload();
+  // Retrieve left frame data.
+  Frame::UniquePtr left_frame_payload;
+  if (cached_left_frame_) {
+    repeated_frame_ = true;
+    left_frame_payload = std::move(cached_left_frame_);
+  } else {
+    repeated_frame_ = false;
+    left_frame_payload = getLeftFramePayload();
+  }
+
   if (!left_frame_payload) {
     return nullptr;
   }
@@ -56,8 +65,15 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
   //! Retrieve IMU data.
   const Timestamp& timestamp = left_frame_payload->timestamp_;
   ImuMeasurements imu_meas;
-  if (!getTimeSyncedImuMeasurements(timestamp, &imu_meas)) {
-    return nullptr;
+  FrameAction action = getTimeSyncedImuMeasurements(timestamp, &imu_meas);
+  switch (action) {
+    case FrameAction::Use:
+      break;
+    case FrameAction::Wait:
+      cached_left_frame_ = std::move(left_frame_payload);
+      return nullptr;
+    case FrameAction::Drop:
+      return nullptr;
   }
 
   //! Send synchronized left frame and IMU data.

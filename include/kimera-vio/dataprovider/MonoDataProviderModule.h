@@ -104,6 +104,9 @@ class MonoDataProviderModule : public DataProviderModule {
  protected:
   //! Input data
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
+
+  //! Used to handle when we're waiting for IMU data in sequential mode
+  Frame::UniquePtr cached_left_frame_;
 };
 
 }  // namespace VIO
