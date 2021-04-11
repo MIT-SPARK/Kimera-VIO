@@ -256,6 +256,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoMatcher.cpp
     tests/testStereoProvider.cpp
     tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
+    tests/testTemporalCalibration.cpp
     tests/testUndistortRectifier.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
@@ -274,7 +275,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )
-  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
+  target_link_libraries(testKimeraVIO gtest gmock kimera_vio::kimera_vio)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
     enable_testing()
