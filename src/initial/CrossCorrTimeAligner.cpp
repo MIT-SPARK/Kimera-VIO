@@ -76,11 +76,16 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
     vision_buffer_.push(
         CrossCorrTimeAligner::Measurement(imu_buffer_.back().timestamp, angle));
   } else {
-    double frame_diff = UtilsNumerical::NsecToSec(
-        timestamps_ref_cur.first - vision_buffer_.back().timestamp);
+    double frame_diff = UtilsNumerical::NsecToSec(timestamps_ref_cur.second -
+                                                  timestamps_ref_cur.first);
+    double last_frame_angle = vision_buffer_.back().value;
+    double frame_value_diff = angle - last_frame_angle;
+    // TODO(nathan) this isn't right when the buffer starts, but
+    // maybe not a big deal
+    size_t first_idx =
+        (imu_buffer_.size() == N) ? 0 : imu_buffer_.size() - N - 1;
     double imu_diff = UtilsNumerical::NsecToSec(
-        imu_buffer_.back().timestamp -
-        imu_buffer_[imu_buffer_.size() - N].timestamp);
+        imu_buffer_.back().timestamp - imu_buffer_[first_idx].timestamp);
 
     for (size_t i = 0; i < N; ++i) {
       const size_t index = imu_buffer_.size() - N + i;
@@ -89,10 +94,10 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
                          imu_buffer_[imu_buffer_.size() - N].timestamp) /
                      imu_diff;
       CHECK_GE(ratio, 0.0) << "Invalid ratio between imu timestamps: " << ratio;
-      Timestamp new_timestamp = vision_buffer_.back().timestamp +
+      Timestamp new_timestamp = timestamps_ref_cur.first +
                                 UtilsNumerical::SecToNsec(ratio * frame_diff);
-      vision_buffer_.push(
-          CrossCorrTimeAligner::Measurement(new_timestamp, angle * ratio));
+      vision_buffer_.push(CrossCorrTimeAligner::Measurement(
+          new_timestamp, last_frame_angle + frame_value_diff * ratio));
     }
   }
 }
@@ -102,7 +107,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     const gtsam::Pose3& T_ref_cur,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs) {
-  if (!addNewImuData_(timestamps_ref_cur.first, imu_stamps, imu_acc_gyrs)) {
+  if (!addNewImuData_(timestamps_ref_cur.second, imu_stamps, imu_acc_gyrs)) {
     LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
     return {true, 0.0};
   }
@@ -112,7 +117,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
         timestamps_ref_cur, T_ref_cur, imu_stamps, imu_acc_gyrs);
   } else {
     vision_buffer_.push(CrossCorrTimeAligner::Measurement(
-        timestamps_ref_cur.first, Rot3::Logmap(T_ref_cur.rotation()).norm()));
+        timestamps_ref_cur.second, Rot3::Logmap(T_ref_cur.rotation()).norm()));
   }
 
   if (!vision_buffer_.full()) {
@@ -127,15 +132,6 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   if (imu_variance < imu_variance_threshold_) {
     LOG(WARNING) << "Low gyro signal variance, delaying temporal calibration";
     return {false, 0.0};  // signal appears to mostly be noise
-  }
-
-  VLOG(0) << "vision measurements: ";
-  for (const auto& m : vision_buffer_) {
-    VLOG(0) << "(t=" << m.timestamp << ", v=" << m.value << ") ";
-  }
-  VLOG(0) << "imu measurements: ";
-  for (const auto& m : imu_buffer_) {
-    VLOG(0) << "(t=" << m.timestamp << ", v=" << m.value << ") ";
   }
 
   // TODO(nathan) check the vision variance as well

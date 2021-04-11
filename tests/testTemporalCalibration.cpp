@@ -386,7 +386,73 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
     } else {
       results.emplace_back(
           TrackingStatus::VALID,
-          gtsam::Pose3(gtsam::Rot3::Rz(rotation_scale * (10 - i)),
+          gtsam::Pose3(
+              gtsam::Rot3::Rz(rotation_scale *
+                              (params.time_alignment_window_size_ - i)),
+              Eigen::Vector3d::Zero()));
+    }
+  }
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  FrontendOutputPacketBase::UniquePtr output = make_output(0);
+  ImuStampS times(1, 1);
+  times << 0;
+  ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+  aligner.estimateTimeAlignment(tracker, *output, times, values);
+
+  for (size_t i = 1; i <= results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(i);
+    ImuStampS times(1, 1);
+    times << i;
+    ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+    if (i <= results.size() / 2) {
+      values(3, 0) = rotation_scale * (i - 1);
+    } else {
+      values(3, 0) = rotation_scale * (results.size() - i + 1);
+    }
+
+    if (i != results.size()) {
+      aligner.estimateTimeAlignment(tracker, *output, times, values);
+    } else {
+      TimeAlignerBase::Result result =
+          aligner.estimateTimeAlignment(tracker, *output, times, values);
+      EXPECT_TRUE(result.valid);
+      EXPECT_EQ(0.0, result.imu_time_shift);
+    }
+  }
+}
+
+TEST(temporalCalibration, testWellFormedMultiImuSmallDelay) {
+  MockTracker tracker;
+
+  const size_t num_frames = 10;
+  const size_t num_imu_per = 5;
+  const double rotation_scale = 0.1;  // radians per sample
+  const bool imu_rate = false;
+
+  ImuParams params;
+  params.gyro_noise_density_ = 0.0;
+  params.do_imu_rate_time_alignment_ = imu_rate;
+  params.time_alignment_window_size_ =
+      imu_rate ? num_frames * num_imu_per : num_frames;
+  params.nominal_sampling_time_s_ = 1.0 / num_imu_per;
+  CrossCorrTimeAligner aligner(params);
+
+  std::vector<RansacResult> results;
+  for (size_t i = 0; i < num_frames; ++i) {
+    if (i < 5) {
+      results.emplace_back(TrackingStatus::VALID,
+                           gtsam::Pose3(gtsam::Rot3::Rz(rotation_scale * i),
+                                        Eigen::Vector3d::Zero()));
+    } else {
+      results.emplace_back(
+          TrackingStatus::VALID,
+          gtsam::Pose3(gtsam::Rot3::Rz(rotation_scale * (num_frames - i)),
                        Eigen::Vector3d::Zero()));
     }
   }
@@ -403,23 +469,30 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
   ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
   aligner.estimateTimeAlignment(tracker, *output, times, values);
 
-  for (size_t i = 0; i < results.size(); ++i) {
-    FrontendOutputPacketBase::UniquePtr output = make_output(i);
-    ImuStampS times(1, 1);
-    times << i;
-    ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
-    if (i < 5) {
-      values(3, 0) = rotation_scale * i;  // create some signal
-    } else {
-      values(3, 0) = rotation_scale * (10 - i);
+  // TODO(nathan) this is wrong, fix this
+  for (size_t i = 1; i <= results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(num_imu_per * i);
+
+    ImuStampS times(1, num_imu_per);
+    ImuAccGyrS values = ImuAccGyrS::Zero(6, num_imu_per);
+
+    for (size_t k = 0; k < num_imu_per; ++k) {
+      times(0, k) = num_imu_per * (i - 1) + k;
+      double offset = 1.0 - (k / static_cast<double>(num_imu_per));
+      if (i < 5) {
+        values(3, k) = rotation_scale * (i - offset);  // create some signal
+      } else {
+        values(3, k) = rotation_scale * (10 - i + offset);
+      }
     }
-    if (i != results.size() - 1) {
+
+    if (i != results.size()) {
       aligner.estimateTimeAlignment(tracker, *output, times, values);
     } else {
       TimeAlignerBase::Result result =
           aligner.estimateTimeAlignment(tracker, *output, times, values);
       EXPECT_TRUE(result.valid);
-      EXPECT_EQ(0.0, result.imu_time_shift);
+      EXPECT_EQ(5.0e-9, result.imu_time_shift);
     }
   }
 }
