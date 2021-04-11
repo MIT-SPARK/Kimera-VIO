@@ -245,8 +245,10 @@ if(KIMERA_BUILD_TESTS)
     tests/testMeshUtils.cpp
     tests/testMeshOptimization.cpp
     tests/testMonoProvider.cpp
+    tests/testParallelMonoProvider.cpp
     tests/testParallelPlaneRegularBasicFactor.cpp
     tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+    tests/testParallelStereoProvider.cpp
     tests/testPointPlaneFactor.cpp
     #tests/testRegularVioBackend.cpp # rotten
     tests/testRegularVioBackendParams.cpp

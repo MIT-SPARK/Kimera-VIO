@@ -117,7 +117,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
       // TODO(Toni): add a timer to avoid waiting forever...
       if (!queue->popBlockingWithTimeout(*pipeline_payload, timeout_ms)) {
-        LOG(ERROR) << "Queu sync failed for module: " << name_id
+        LOG(ERROR) << "Queue sync failed for module: " << name_id
                    << " with queue: " << queue->queue_id_ << "\n Reason: \n"
                    << "Queue status: "
                    << (queue->isShutdown() ? "Shutdown..." : "Timeout...");

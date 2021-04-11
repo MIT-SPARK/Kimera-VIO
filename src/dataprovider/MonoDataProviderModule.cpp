@@ -91,7 +91,7 @@ Frame::UniquePtr MonoDataProviderModule::getLeftFramePayload() {
   }
 
   if (!queue_state) {
-    LOG_IF(WARNING, MISO::parallel_run_)
+    LOG_IF(WARNING, MISO::parallel_run_ && !MISO::shutdown_)
         << "Module: " << MISO::name_id_ << " - queue is down";
     VLOG_IF(1, !MISO::parallel_run_)
         << "Module: " << MISO::name_id_ << " - queue is empty or down";
