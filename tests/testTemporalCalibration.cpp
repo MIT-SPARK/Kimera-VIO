@@ -14,6 +14,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
 #include "kimera-vio/initial/TimeAlignerBase.h"
@@ -24,10 +26,10 @@
 namespace VIO {
 
 using ::testing::_;
-using ::testing::Invoke;
-using ::testing::NotNull;
 using ::testing::AllArgs;
+using ::testing::Invoke;
 using ::testing::Ne;
+using ::testing::NotNull;
 
 typedef std::pair<TrackingStatus, gtsam::Pose3> RansacResult;
 
@@ -46,15 +48,16 @@ class MockTracker : public Tracker {
 
 class ReturnHelper {
  public:
-  ReturnHelper(const std::vector<RansacResult>& values)
-      : vec_(values), vec_iter_(values.begin()) {}
+  ReturnHelper(const std::vector<RansacResult>& values) : vec_(values) {
+    vec_iter_ = vec_.begin();
+  }
 
   RansacResult getNext(Frame* /* ref */, Frame* /* curr */) {
     if (vec_iter_ == vec_.end()) {
       return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
     }
     RansacResult to_return = *vec_iter_;
-    std::next(vec_iter_);
+    ++vec_iter_;
     return to_return;
   }
 
@@ -63,6 +66,7 @@ class ReturnHelper {
   std::vector<RansacResult>::const_iterator vec_iter_;
 };
 
+// basic sanity check that mocking works as expected
 TEST(temporalCalibration, mockedTracker) {
   MockTracker tracker;
 
@@ -88,6 +92,286 @@ TEST(temporalCalibration, mockedTracker) {
   tracker.geometricOutlierRejectionMono(&test_prev, &test_curr);
   tracker.geometricOutlierRejectionMono(&test_prev, &test_curr);
   tracker.geometricOutlierRejectionMono(&test_prev, &test_curr);
+}
+
+FrontendOutputPacketBase::UniquePtr make_output(
+    Timestamp timestamp,
+    FrontendType frontend_type = FrontendType::kStereoImu) {
+  Frame fake_frame(1, timestamp, CameraParams(), cv::Mat());
+  if (frontend_type == FrontendType::kMonoImu) {
+    return std::move(
+        make_unique<MonoFrontendOutput>(false,
+                                        StatusMonoMeasurementsPtr(nullptr),
+                                        TrackingStatus::VALID,
+                                        gtsam::Pose3(),
+                                        gtsam::Pose3(),
+                                        fake_frame,
+                                        ImuFrontend::PimPtr(nullptr),
+                                        ImuAccGyrS(6, 1),
+                                        cv::Mat(),
+                                        DebugTrackerInfo()));
+  } else {
+    StereoFrame fake_stereo(
+        fake_frame.id_, fake_frame.timestamp_, fake_frame, fake_frame);
+    return std::move(
+        make_unique<StereoFrontendOutput>(false,
+                                          StatusStereoMeasurementsPtr(nullptr),
+                                          TrackingStatus::VALID,
+                                          gtsam::Pose3(),
+                                          gtsam::Pose3(),
+                                          gtsam::Pose3(),
+                                          fake_stereo,
+                                          ImuFrontend::PimPtr(nullptr),
+                                          ImuAccGyrS(6, 1),
+                                          cv::Mat(),
+                                          DebugTrackerInfo()));
+  }
+}
+
+TEST(temporalCalibration, testBadRansacStatus) {
+  MockTracker tracker;
+
+  std::vector<RansacResult> results;
+  results.emplace_back(
+      TrackingStatus::INVALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 1).finished()));
+  results.emplace_back(
+      TrackingStatus::DISABLED,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 2).finished()));
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(2)
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  ImuParams params;
+  CrossCorrTimeAligner aligner(params);
+
+  FrontendOutputPacketBase::UniquePtr output = make_output(1);
+  ImuStampS times(1, 0);
+  ImuAccGyrS values(6, 0);
+
+  // Set initial frame
+  TimeAlignerBase::Result result =
+      aligner.estimateTimeAlignment(tracker, *output, times, values);
+  EXPECT_FALSE(result.valid);
+  EXPECT_EQ(0.0, result.imu_time_shift);
+
+  // Time alignment "succeeds" if RANSAC is invalid (first result)
+  result = aligner.estimateTimeAlignment(tracker, *output, times, values);
+  EXPECT_TRUE(result.valid);
+  EXPECT_EQ(0.0, result.imu_time_shift);
+
+  // Time alignment "succeeds" if 5pt RANSAC is disabled (second result)
+  result = aligner.estimateTimeAlignment(tracker, *output, times, values);
+  EXPECT_TRUE(result.valid);
+  EXPECT_EQ(0.0, result.imu_time_shift);
+}
+
+TEST(temporalCalibration, testEmptyImu) {
+  MockTracker tracker;
+
+  std::vector<RansacResult> results;
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 1).finished()));
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 2).finished()));
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 3).finished()));
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(1)
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  ImuParams params;
+  CrossCorrTimeAligner aligner(params);
+
+  FrontendOutputPacketBase::UniquePtr output = make_output(1);
+  ImuStampS times(1, 0);
+  ImuAccGyrS values(6, 0);
+
+  // Set initial frame
+  TimeAlignerBase::Result result =
+      aligner.estimateTimeAlignment(tracker, *output, times, values);
+  EXPECT_FALSE(result.valid);
+  EXPECT_EQ(0.0, result.imu_time_shift);
+
+  // Time alignment "succeeds" if the IMU isn't present between frames
+  result = aligner.estimateTimeAlignment(tracker, *output, times, values);
+  EXPECT_TRUE(result.valid);
+  EXPECT_EQ(0.0, result.imu_time_shift);
+}
+
+TEST(temporalCalibration, testLessThanWindow) {
+  MockTracker tracker;
+
+  std::vector<RansacResult> results;
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 1).finished()));
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 2).finished()));
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 3).finished()));
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  ImuParams params;
+  params.time_alignment_window_size_ = 10;
+  CrossCorrTimeAligner aligner(params);
+
+  for (size_t i = 0; i <= results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(i);
+    ImuStampS times(1, 1);
+    times << i;
+    ImuAccGyrS values(6, 1);
+
+    TimeAlignerBase::Result result =
+        aligner.estimateTimeAlignment(tracker, *output, times, values);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(0.0, result.imu_time_shift);
+  }
+}
+
+TEST(temporalCalibration, testLessThanWindowFrameRate) {
+  MockTracker tracker;
+
+  std::vector<RansacResult> results;
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 1).finished()));
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 2).finished()));
+  results.emplace_back(
+      TrackingStatus::VALID,
+      gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 3).finished()));
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  ImuParams params;
+  params.time_alignment_window_size_ = 10;
+  params.do_imu_rate_time_alignment_ = false;
+  CrossCorrTimeAligner aligner(params);
+
+  for (size_t i = 0; i <= results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(i);
+    ImuStampS times(1, 1);
+    times << i;
+    ImuAccGyrS values(6, 1);
+
+    TimeAlignerBase::Result result =
+        aligner.estimateTimeAlignment(tracker, *output, times, values);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(0.0, result.imu_time_shift);
+  }
+}
+
+TEST(temporalCalibration, testLowVariance) {
+  MockTracker tracker;
+
+  ImuParams params;
+  params.gyro_noise_density_ = 1.0;
+  params.time_alignment_window_size_ = 3;
+  params.do_imu_rate_time_alignment_ = false;
+  CrossCorrTimeAligner aligner(params);
+
+  std::vector<RansacResult> results;
+  for (size_t i = 0; i < params.time_alignment_window_size_; ++i) {
+    results.emplace_back(
+        TrackingStatus::VALID,
+        gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 1).finished()));
+  }
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  for (size_t i = 0; i <= results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(i);
+    ImuStampS times(1, 1);
+    times << i;
+    ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+
+    // We get false either from not having enough data or not having enough
+    // variance
+    TimeAlignerBase::Result result =
+        aligner.estimateTimeAlignment(tracker, *output, times, values);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(0.0, result.imu_time_shift);
+  }
+}
+
+TEST(temporalCalibration, testEnoughVariance) {
+  MockTracker tracker;
+
+  ImuParams params;
+  params.gyro_noise_density_ = 0.0;
+  params.time_alignment_window_size_ = 3;
+  params.do_imu_rate_time_alignment_ = false;
+  CrossCorrTimeAligner aligner(params);
+
+  std::vector<RansacResult> results;
+  for (size_t i = 0; i < params.time_alignment_window_size_; ++i) {
+    results.emplace_back(
+        TrackingStatus::VALID,
+        gtsam::Pose3(gtsam::Rot3(), (Eigen::Vector3d() << 0, 0, 1).finished()));
+  }
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  for (size_t i = 0; i < results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(i);
+    ImuStampS times(1, 1);
+    times << i;
+    ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+    values(3, 0) = i;  // create some signal
+
+    // We get false either from not having enough data or not having enough
+    // variance
+    TimeAlignerBase::Result result =
+        aligner.estimateTimeAlignment(tracker, *output, times, values);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(0.0, result.imu_time_shift);
+  }
+
+  // make one last input
+  FrontendOutputPacketBase::UniquePtr output = make_output(results.size());
+  ImuStampS times(1, 1);
+  times << results.size();
+  ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+  values(3, 0) = results.size();  // create some signal
+
+  TimeAlignerBase::Result result =
+      aligner.estimateTimeAlignment(tracker, *output, times, values);
+  EXPECT_TRUE(result.valid);
+  // result needs to be somewhere with the min and max possible time difference
+  EXPECT_GE(UtilsNumerical::NsecToSec(results.size() - 1),
+            result.imu_time_shift);
+  EXPECT_LE(UtilsNumerical::NsecToSec(-results.size() + 1),
+            result.imu_time_shift);
 }
 
 }  // namespace VIO

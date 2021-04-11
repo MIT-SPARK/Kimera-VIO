@@ -65,19 +65,17 @@ double valueAccessor(const CrossCorrTimeAligner::Measurement& m) {
 
 }  // namespace
 
-TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
+void CrossCorrTimeAligner::interpNewImageMeasurements(
     const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
     const gtsam::Pose3& T_ref_cur,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs) {
-  if (!addNewImuData_(timestamps_ref_cur.first, imu_stamps, imu_acc_gyrs)) {
-    LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
-    return {true, 0.0};
-  }
-
-  if (do_imu_rate_estimation_) {
-    const size_t N = imu_stamps.cols();
-    const double angle = Rot3::Logmap(T_ref_cur.rotation()).norm();
+  const size_t N = imu_stamps.cols();
+  const double angle = Rot3::Logmap(T_ref_cur.rotation()).norm();
+  if (N == 1) {
+    vision_buffer_.push(
+        CrossCorrTimeAligner::Measurement(imu_buffer_.back().timestamp, angle));
+  } else {
     double frame_diff = UtilsNumerical::NsecToSec(
         timestamps_ref_cur.first - vision_buffer_.back().timestamp);
     double imu_diff = UtilsNumerical::NsecToSec(
@@ -96,12 +94,30 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
       vision_buffer_.push(
           CrossCorrTimeAligner::Measurement(new_timestamp, angle * ratio));
     }
+  }
+}
+
+TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
+    const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+    const gtsam::Pose3& T_ref_cur,
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_acc_gyrs) {
+  if (!addNewImuData_(timestamps_ref_cur.first, imu_stamps, imu_acc_gyrs)) {
+    LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
+    return {true, 0.0};
+  }
+
+  if (do_imu_rate_estimation_) {
+    interpNewImageMeasurements(
+        timestamps_ref_cur, T_ref_cur, imu_stamps, imu_acc_gyrs);
   } else {
     vision_buffer_.push(CrossCorrTimeAligner::Measurement(
         timestamps_ref_cur.first, Rot3::Logmap(T_ref_cur.rotation()).norm()));
   }
 
   if (!vision_buffer_.full()) {
+    VLOG(1)
+        << "Waiting for enough measurements to perform temporal calibration";
     return {false, 0.0};
   }
 
@@ -109,6 +125,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   double imu_variance =
       utils::variance(imu_buffer_, std::bind(valueAccessor, _1));
   if (imu_variance < imu_variance_threshold_) {
+    LOG(WARNING) << "Low gyro signal variance, delaying temporal calibration";
     return {false, 0.0};  // signal appears to mostly be noise
   }
 

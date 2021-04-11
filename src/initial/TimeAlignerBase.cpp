@@ -39,6 +39,7 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
   }
 
   if (!last_frame_) {
+    VLOG(1) << "Initializing first frame for temporal calibration";
     last_frame_ = std::move(curr_frame);
     return {false, 0.0};
   }
@@ -53,7 +54,7 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
 
   if (ransac_result.first == TrackingStatus::INVALID) {
     LOG(ERROR) << "Time alignment failed 5-pt RANSAC";
-    return {false, 0.0};
+    return {true, 0.0};
   }
   if (ransac_result.first == TrackingStatus::DISABLED) {
     LOG(ERROR)
