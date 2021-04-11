@@ -48,12 +48,14 @@ void DataProviderModule::logQueryResult(
     case ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable:
       LOG(WARNING) << "Asking for data before start of IMU stream:  "
                    << UtilsNumerical::NsecToSec(timestamp_last_frame_)
-                   << " to  " << UtilsNumerical::NsecToSec(timestamp);
+                   << "[s] to  " << UtilsNumerical::NsecToSec(timestamp)
+                   << "[s]";
       break;
     case ThreadsafeImuBuffer::QueryResult::kTooFewMeasurementsAvailable:
       LOG(WARNING) << "IMU data stream does not contain measurements from "
-                   << UtilsNumerical::NsecToSec(timestamp_last_frame_) << " to "
-                   << UtilsNumerical::NsecToSec(timestamp);
+                   << UtilsNumerical::NsecToSec(timestamp_last_frame_)
+                   << "[s] to " << UtilsNumerical::NsecToSec(timestamp)
+                   << "[s]";
       break;
     default:
       LOG(ERROR) << "Imu buffer returned unexpected query result";
@@ -72,7 +74,8 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
   CHECK_LT(timestamp_last_frame_, timestamp)
       << "Image timestamps out of order: "
       << UtilsNumerical::NsecToSec(timestamp_last_frame_)
-      << " (last) >= " << UtilsNumerical::NsecToSec(timestamp) << " (curr)";
+      << "[s] (last) >= " << UtilsNumerical::NsecToSec(timestamp)
+      << "[s] (curr)";
 
   if (imu_data_.imu_buffer_.size() == 0) {
     VLOG(1) << "No IMU measurements available yet, dropping this frame.";
@@ -101,7 +104,8 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
     imu_timestamp_correction_ = newest_imu.timestamp_ - timestamp;
     do_initial_imu_timestamp_correction_ = false;
     LOG(WARNING) << "Computed intial coarse time alignment of "
-                 << UtilsNumerical::NsecToSec(imu_timestamp_correction_);
+                 << UtilsNumerical::NsecToSec(imu_timestamp_correction_)
+                 << "[s]";
   }
 
   // imu_time_shift_ can be externally, asynchronously modified.
@@ -138,7 +142,8 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
 
   timestamp_last_frame_ = timestamp;
   // adjust the timestamps for the frontend
-  imu_meas->timestamps_.array() -= imu_timestamp_correction_ + curr_imu_time_shift;
+  imu_meas->timestamps_.array() -=
+      imu_timestamp_correction_ + curr_imu_time_shift;
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
            << "STAMPS IMU rows : \n"
            << imu_meas->timestamps_.rows() << '\n'

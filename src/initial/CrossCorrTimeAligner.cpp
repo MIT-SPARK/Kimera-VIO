@@ -90,7 +90,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
                          imu_buffer_[index].timestamp -
                          imu_buffer_[imu_buffer_.size() - N].timestamp) /
                      imu_diff;
-      CHECK_GE(ratio, 0.0) << "invalid ratio between imu timestamps: " << ratio;
+      CHECK_GE(ratio, 0.0) << "Invalid ratio between imu timestamps: " << ratio;
       Timestamp new_timestamp = vision_buffer_.back().timestamp +
                                 UtilsNumerical::SecToNsec(ratio * frame_diff);
       vision_buffer_.push(
@@ -109,7 +109,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   double imu_variance =
       utils::variance(imu_buffer_, std::bind(valueAccessor, _1));
   if (imu_variance < imu_variance_threshold_) {
-    return {false, 0.0}; // signal appears to mostly be noise
+    return {false, 0.0};  // signal appears to mostly be noise
   }
 
   // TODO(nathan) check the vision variance as well
@@ -133,7 +133,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
                                   imu_buffer_[std::abs(offset)].timestamp);
   }
   LOG(WARNING) << "Computed timeshift of " << timeshift
-               << " (t_imu = t_cam + timeshift)";
+               << "[s] (t_imu = t_cam + timeshift)";
   return {true, timeshift};
 }
 
