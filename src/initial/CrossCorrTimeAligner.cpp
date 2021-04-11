@@ -40,7 +40,7 @@ bool CrossCorrTimeAligner::addNewImuData_(Timestamp frame_timestamp,
     for (int i = 0; i < imu_stamps.cols(); ++i) {
       // TODO(nathan) think about incorporating bias, though mean removal should
       // take care of it and not affect the cross-correlation
-      rot_pim.integrateMeasurement(imu_acc_gyrs.block<3, 1>(0, i),
+      rot_pim.integrateMeasurement(imu_acc_gyrs.block<3, 1>(3, i),
                                    Eigen::Vector3d::Zero(),
                                    imu_period_s_);
     }
@@ -127,6 +127,15 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   if (imu_variance < imu_variance_threshold_) {
     LOG(WARNING) << "Low gyro signal variance, delaying temporal calibration";
     return {false, 0.0};  // signal appears to mostly be noise
+  }
+
+  VLOG(0) << "vision measurements: ";
+  for (const auto& m : vision_buffer_) {
+    VLOG(0) << "(t=" << m.timestamp << ", v=" << m.value << ") ";
+  }
+  VLOG(0) << "imu measurements: ";
+  for (const auto& m : imu_buffer_) {
+    VLOG(0) << "(t=" << m.timestamp << ", v=" << m.value << ") ";
   }
 
   // TODO(nathan) check the vision variance as well

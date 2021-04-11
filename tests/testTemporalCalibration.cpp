@@ -342,36 +342,86 @@ TEST(temporalCalibration, testEnoughVariance) {
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
+  for (size_t i = 0; i <= results.size(); ++i) {
+    FrontendOutputPacketBase::UniquePtr output = make_output(i);
+    ImuStampS times(1, 1);
+    times << i;
+    ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+
+    TimeAlignerBase::Result result =
+        aligner.estimateTimeAlignment(tracker, *output, times, values);
+    if (i < results.size()) {
+      // We get false from not having enough data
+      EXPECT_FALSE(result.valid);
+      EXPECT_EQ(0.0, result.imu_time_shift);
+    } else {
+      EXPECT_TRUE(result.valid);
+      // result needs to be somewhere with the min and max possible time
+      EXPECT_GE(UtilsNumerical::NsecToSec(results.size() - 1),
+                result.imu_time_shift);
+      EXPECT_LE(UtilsNumerical::NsecToSec(-results.size() + 1),
+                result.imu_time_shift);
+    }
+  }
+}
+
+TEST(temporalCalibration, testWellFormedNoDelay) {
+  MockTracker tracker;
+
+  ImuParams params;
+  params.gyro_noise_density_ = 0.0;
+  params.time_alignment_window_size_ = 10;
+  params.do_imu_rate_time_alignment_ = false;
+  params.nominal_sampling_time_s_ = 1.0;
+  CrossCorrTimeAligner aligner(params);
+
+  const double rotation_scale = 0.1;  // radians per sample
+
+  std::vector<RansacResult> results;
+  for (size_t i = 0; i < params.time_alignment_window_size_; ++i) {
+    if (i < 5) {
+      results.emplace_back(TrackingStatus::VALID,
+                           gtsam::Pose3(gtsam::Rot3::Rz(rotation_scale * i),
+                                        Eigen::Vector3d::Zero()));
+    } else {
+      results.emplace_back(
+          TrackingStatus::VALID,
+          gtsam::Pose3(gtsam::Rot3::Rz(rotation_scale * (10 - i)),
+                       Eigen::Vector3d::Zero()));
+    }
+  }
+
+  ReturnHelper helper(results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  FrontendOutputPacketBase::UniquePtr output = make_output(0);
+  ImuStampS times(1, 1);
+  times << 0;
+  ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
+  aligner.estimateTimeAlignment(tracker, *output, times, values);
+
   for (size_t i = 0; i < results.size(); ++i) {
     FrontendOutputPacketBase::UniquePtr output = make_output(i);
     ImuStampS times(1, 1);
     times << i;
     ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
-    values(3, 0) = i;  // create some signal
-
-    // We get false either from not having enough data or not having enough
-    // variance
-    TimeAlignerBase::Result result =
-        aligner.estimateTimeAlignment(tracker, *output, times, values);
-    EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
-  }
-
-  // make one last input
-  FrontendOutputPacketBase::UniquePtr output = make_output(results.size());
-  ImuStampS times(1, 1);
-  times << results.size();
-  ImuAccGyrS values = ImuAccGyrS::Zero(6, 1);
-  values(3, 0) = results.size();  // create some signal
-
-  TimeAlignerBase::Result result =
+    if (i < 5) {
+      values(3, 0) = rotation_scale * i;  // create some signal
+    } else {
+      values(3, 0) = rotation_scale * (10 - i);
+    }
+    if (i != results.size() - 1) {
       aligner.estimateTimeAlignment(tracker, *output, times, values);
-  EXPECT_TRUE(result.valid);
-  // result needs to be somewhere with the min and max possible time difference
-  EXPECT_GE(UtilsNumerical::NsecToSec(results.size() - 1),
-            result.imu_time_shift);
-  EXPECT_LE(UtilsNumerical::NsecToSec(-results.size() + 1),
-            result.imu_time_shift);
+    } else {
+      TimeAlignerBase::Result result =
+          aligner.estimateTimeAlignment(tracker, *output, times, values);
+      EXPECT_TRUE(result.valid);
+      EXPECT_EQ(0.0, result.imu_time_shift);
+    }
+  }
 }
 
 }  // namespace VIO
