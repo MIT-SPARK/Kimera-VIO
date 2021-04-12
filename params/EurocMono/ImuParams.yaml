@@ -22,8 +22,8 @@ accelerometer_noise_density: 2.0000e-3  # [ m / s^2 / sqrt(Hz) ]   ( accel "whit
 accelerometer_random_walk: 3.0000e-2    # [ m / s^3 / sqrt(Hz) ]  ( accel bias diffusion ) Default in Euroc: 3.0000e-3
 
 # Extra parameters
-do_fine_initial_time_alignment: 0
-do_coarse_initial_time_alignment: 0
+do_fine_imu_camera_temporal_sync: 0
+do_coarse_imu_camera_temporal_sync: 0
 do_imu_rate_time_alignment: 1
 time_alignment_window_size: 500
 imu_integration_sigma: 1.0e-8

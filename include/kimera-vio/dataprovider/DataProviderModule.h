@@ -71,11 +71,27 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
     vio_pipeline_callback_ = cb;
   }
 
-  inline void doCoarseTimestampCorrection() {
-    do_initial_imu_timestamp_correction_ = true;
+  /**
+   * @brief Set flag for the DataProvider to perform a coarse timestamp
+   * correction
+   *
+   * This flags tells the DataProvider to find the offset between the latest IMU
+   * measurement and camera frame the next time the data provider gets a frame
+   * and to apply that to all future IMU data. This is only useful if the IMU
+   * is improperly timestamped and has a static offset not related to a physical
+   * delay between the camera and IMU.
+   */
+  inline void doCoarseImuCameraTemporalSync() {
+    do_coarse_imu_camera_temporal_sync_ = true;
   }
 
-  inline void updateImuTimeShift(double imu_time_shift_s) {
+  /**
+   * @brief Set the "fine" timestamp correction between the IMU and Camera
+   *
+   * Either used to apply the estimate of the delay between the IMU and Camera
+   * or to use a manually provided value.
+   */
+  inline void setImuTimeShift(double imu_time_shift_s) {
     imu_time_shift_ns_ = UtilsNumerical::SecToNsec(imu_time_shift_s);
   }
 
@@ -117,12 +133,12 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   virtual void shutdownQueues();
 
  protected:
-  static const Timestamp kNoFrameYet = 0;
+  static const Timestamp InvalidTimestamp = 0;
   //! Input data
   ImuData imu_data_;
   bool repeated_frame_;
   Timestamp timestamp_last_frame_;
-  bool do_initial_imu_timestamp_correction_;
+  bool do_coarse_imu_camera_temporal_sync_;
   Timestamp imu_timestamp_correction_;
   std::atomic<Timestamp> imu_time_shift_ns_;  // t_imu = t_cam + imu_shift
   PipelineOutputCallback vio_pipeline_callback_;

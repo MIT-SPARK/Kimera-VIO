@@ -42,16 +42,16 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
 
   data_provider_module_ = VIO::make_unique<MonoDataProviderModule>(
       &frontend_input_queue_, "Mono Data Provider", parallel_run_);
-  if (params.imu_params_.do_coarse_initial_time_alignment_) {
-    data_provider_module_->doCoarseTimestampCorrection();
+  if (params.imu_params_.do_coarse_imu_camera_temporal_sync_) {
+    data_provider_module_->doCoarseImuCameraTemporalSync();
   }
-  if (!params.imu_params_.do_fine_initial_time_alignment_) {
-    if (params.imu_params_.do_coarse_initial_time_alignment_) {
+  if (!params.imu_params_.do_fine_imu_camera_temporal_sync_) {
+    if (params.imu_params_.do_coarse_imu_camera_temporal_sync_) {
       LOG(WARNING) << "The manually provided IMU time shift will be applied on "
                       "top of whatever the coarse time alignment calculates. "
                       "This may or may not be what you want!";
     }
-    data_provider_module_->updateImuTimeShift(imu_params_.imu_time_shift_);
+    data_provider_module_->setImuTimeShift(imu_params_.imu_time_shift_);
   }
 
   data_provider_module_->registerVioPipelineCallback(
@@ -72,7 +72,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           FLAGS_log_output));
   vio_frontend_module_->registerImuTimeShiftUpdateCallback(
       [&](double imu_time_shift_s) {
-        data_provider_module_->updateImuTimeShift(imu_time_shift_s);
+        data_provider_module_->setImuTimeShift(imu_time_shift_s);
       });
 
   auto& backend_input_queue = backend_input_queue_;

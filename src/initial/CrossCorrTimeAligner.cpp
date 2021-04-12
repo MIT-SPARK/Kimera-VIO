@@ -38,8 +38,6 @@ bool CrossCorrTimeAligner::addNewImuData_(Timestamp frame_timestamp,
   if (!do_imu_rate_estimation_) {
     gtsam::PreintegratedRotation rot_pim(pim_params_);
     for (int i = 0; i < imu_stamps.cols(); ++i) {
-      // TODO(nathan) think about incorporating bias, though mean removal should
-      // take care of it and not affect the cross-correlation
       rot_pim.integrateMeasurement(imu_acc_gyrs.block<3, 1>(3, i),
                                    Eigen::Vector3d::Zero(),
                                    imu_period_s_);
@@ -48,6 +46,7 @@ bool CrossCorrTimeAligner::addNewImuData_(Timestamp frame_timestamp,
         frame_timestamp, Rot3::Logmap(rot_pim.deltaRij()).norm()));
   } else {
     for (int i = 0; i < imu_stamps.cols(); ++i) {
+      // instantaneous rotation angle for single IMU measurement
       imu_buffer_.push(CrossCorrTimeAligner::Measurement(
           imu_stamps(0, i),
           imu_acc_gyrs.block<3, 1>(3, i).norm() * imu_period_s_));
@@ -86,6 +85,7 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
         (imu_buffer_.size() == N) ? 0 : imu_buffer_.size() - N - 1;
     double imu_diff = UtilsNumerical::NsecToSec(
         imu_buffer_.back().timestamp - imu_buffer_[first_idx].timestamp);
+    CHECK_NE(imu_diff, 0.0) << "IMU timestamps did not increase over window!";
 
     for (size_t i = 0; i < N; ++i) {
       const size_t index = imu_buffer_.size() - N + i;

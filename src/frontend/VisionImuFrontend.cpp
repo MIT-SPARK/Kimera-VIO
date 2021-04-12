@@ -44,7 +44,7 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_status_summary_(),
       display_queue_(display_queue),
       logger_(nullptr),
-      do_time_alignment_(imu_params.do_fine_initial_time_alignment_) {
+      do_fine_imu_camera_temporal_sync_(imu_params.do_fine_imu_camera_temporal_sync_) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();

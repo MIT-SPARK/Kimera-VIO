@@ -395,7 +395,7 @@ TEST_F(TestMonoProvider, testOutOfOrderImuAndImageSequence) {
 }
 
 TEST_F(TestMonoProvider, monoPipelineWithCoarseCorrection) {
-  test_provider_->doCoarseTimestampCorrection();
+  test_provider_->doCoarseImuCameraTemporalSync();
 
   addImu(10);  // Get past the need for available IMU data
   addFrame(1);
@@ -423,7 +423,7 @@ TEST_F(TestMonoProvider, monoPipelineWithCoarseCorrection) {
 }
 
 TEST_F(TestMonoProvider, monoPipelineManualTimeShift) {
-  test_provider_->updateImuTimeShift(10.0e-9);
+  test_provider_->setImuTimeShift(10.0e-9);
 
   addImu(10);  // Get past the need for available IMU data
   addFrame(1);

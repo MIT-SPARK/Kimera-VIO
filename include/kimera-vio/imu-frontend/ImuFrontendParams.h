@@ -47,10 +47,23 @@ protected:
   double acc_random_walk_ = 0.0;
   double imu_time_shift_ = 0.0;  // Defined as t_imu = t_cam + imu_shift
 
-  //! subtract imu and image timestamps for coarse alignment
-  bool do_coarse_initial_time_alignment_ = false;
-  //! feature-based alignment for finer time alignment
-  bool do_fine_initial_time_alignment_ = false;
+  /**
+   * @brief compute the static offset between the IMU and camera timestamps
+   *
+   * This is only really suitable for time offsets that have no physical
+   * meaning as it only computes the time difference between the last IMU
+   * and image measurement, and applies that to all IMU measurements going
+   * forward.
+   */
+  bool do_coarse_imu_camera_temporal_sync_ = false;
+  /**
+   * @brief compute the delay between the IMU and the camera
+   *
+   * This enables estimating the time delay between the IMU
+   * and the camera (currently by cross-correlation between
+   * relative rotation angles)
+   */
+  bool do_fine_imu_camera_temporal_sync_ = false;
   //! estimate fine alignment at IMU rate instead of image rate
   bool do_imu_rate_time_alignment_ = true;
   //! number of measurements for time alignment

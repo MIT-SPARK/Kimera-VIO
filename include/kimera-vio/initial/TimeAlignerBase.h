@@ -13,10 +13,10 @@
  */
 
 #pragma once
-#include "kimera-vio/frontend/FrontendInputPacketBase.h"
-#include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/Tracker.h"
 #include <utility>
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
+#include "kimera-vio/frontend/Tracker.h"
 
 namespace VIO {
 
@@ -33,6 +33,26 @@ class TimeAlignerBase {
 
   virtual ~TimeAlignerBase() = default;
 
+  /**
+   * @brief Attempt to estimate the temporal delay between the IMU and the
+   * camera
+   *
+   * This function takes in a single frame (the frontend output) as well as the
+   * un-integrated IMU measurements taken from the last frame to this one, and
+   * computes the relative rotation from the the previous (chached) frame using
+   * 5-pt RANSAC. If RANSAC succeeds, then the resulting IMU packet and relative
+   * rotation estimate are sent on to the estimator. If RANSAC fails, this
+   * returns a "valid" estimate of 0.0. In general, if this or the underlying
+   * derived class encounter a state that make it impossible to estimate the
+   * time alignment, they return a "valid" estimate of 0.0.
+   *
+   * @param tracker used exclusively to compute 5pt RANSAC
+   * @param output latest frame from the frontend
+   * @param imu_stamps timestamps for all IMU measurements between the last
+   * frame and the newest
+   * @param imuaccgyrs IMU measurements between the last frame and the newest.
+   * @returns the estimate and whether it is valid
+   */
   virtual Result estimateTimeAlignment(Tracker& tracker,
                                        const FrontendOutputPacketBase& output,
                                        const ImuStampS& imu_stamps,

@@ -309,7 +309,7 @@ TEST_F(TestParallelMonoProvider, testOutOfOrderImuAndImageSequence) {
 
 TEST_F(TestParallelMonoProvider, monoPipelineWithCoarseCorrection) {
   // this isn't threadsafe, but it doesn't matter
-  test_provider_->doCoarseTimestampCorrection();
+  test_provider_->doCoarseImuCameraTemporalSync();
 
   addImu(10);  // Get past the need for available IMU data
   addFrame(1);
@@ -332,7 +332,7 @@ TEST_F(TestParallelMonoProvider, monoPipelineWithCoarseCorrection) {
 }
 
 TEST_F(TestParallelMonoProvider, monoPipelineManualTimeShift) {
-  test_provider_->updateImuTimeShift(10.0e-9);
+  test_provider_->setImuTimeShift(10.0e-9);
 
   addImu(10);  // Get past the need for available IMU data
   addFrame(1);

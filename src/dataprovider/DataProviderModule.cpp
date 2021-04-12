@@ -25,8 +25,8 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
     : MISO(output_queue, name_id, parallel_run),
       imu_data_(),
       repeated_frame_(false),
-      timestamp_last_frame_(kNoFrameYet),
-      do_initial_imu_timestamp_correction_(false),
+      timestamp_last_frame_(InvalidTimestamp),
+      do_coarse_imu_camera_temporal_sync_(false),
       imu_timestamp_correction_(0),
       imu_time_shift_ns_(0) {}
 
@@ -82,7 +82,7 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
     return FrameAction::Drop;
   }
 
-  if (timestamp_last_frame_ == kNoFrameYet) {
+  if (timestamp_last_frame_ == InvalidTimestamp) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to
     // this
     // timestamp? We should add a method to the IMU buffer for that.
@@ -96,13 +96,13 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
   // is aligned enough to send packets to the front-end. This is assumed
   // to be very inaccurate and should not be enabled without some other
   // actual time alignment in the frontend
-  if (do_initial_imu_timestamp_correction_) {
+  if (do_coarse_imu_camera_temporal_sync_) {
     ImuMeasurement newest_imu;
     imu_data_.imu_buffer_.getNewestImuMeasurement(&newest_imu);
     // this is delta = imu.timestamp - frame.timestamp so that when querying,
     // we get query = new_frame.timestamp + delta = frame_delta + imu.timestamp
     imu_timestamp_correction_ = newest_imu.timestamp_ - timestamp;
-    do_initial_imu_timestamp_correction_ = false;
+    do_coarse_imu_camera_temporal_sync_ = false;
     LOG(WARNING) << "Computed intial coarse time alignment of "
                  << UtilsNumerical::NsecToSec(imu_timestamp_correction_)
                  << "[s]";
