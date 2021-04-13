@@ -24,7 +24,8 @@ MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run)
     : DataProviderModule(output_queue, name_id, parallel_run),
-      left_frame_queue_("data_provider_left_frame_queue") {}
+      left_frame_queue_("data_provider_left_frame_queue"),
+      cached_left_frame_(nullptr) {}
 
 MonoDataProviderModule::InputUniquePtr
 MonoDataProviderModule::getInputPacket() {
@@ -40,24 +41,43 @@ MonoDataProviderModule::getInputPacket() {
   return nullptr;
 }
 
-MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
-  //! Retrieve left frame data.
-  Frame::UniquePtr left_frame_payload = getLeftFramePayload();
+MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(bool cache_timestamp) {
+  // Retrieve left frame data.
+  Frame::UniquePtr left_frame_payload;
+  if (cached_left_frame_) {
+    repeated_frame_ = true;
+    left_frame_payload = std::move(cached_left_frame_);
+  } else {
+    repeated_frame_ = false;
+    left_frame_payload = getLeftFramePayload();
+  }
+
   if (!left_frame_payload) {
     return nullptr;
   }
 
   if (timestamp_last_frame_ >= left_frame_payload->timestamp_) {
-    LOG(WARNING) << "Dropping frame: " << left_frame_payload->timestamp_
-                 << " (curr) <= " << timestamp_last_frame_ << "(last)";
+    LOG(WARNING) << "Dropping frame: " << UtilsNumerical::NsecToSec(left_frame_payload->timestamp_)
+                 << " (curr) <= " << UtilsNumerical::NsecToSec(timestamp_last_frame_) << " (last)";
     return nullptr;
   }
 
   //! Retrieve IMU data.
   const Timestamp& timestamp = left_frame_payload->timestamp_;
   ImuMeasurements imu_meas;
-  if (!getTimeSyncedImuMeasurements(timestamp, &imu_meas)) {
-    return nullptr;
+  FrameAction action = getTimeSyncedImuMeasurements(timestamp, &imu_meas);
+  switch (action) {
+    case FrameAction::Use:
+      break;
+    case FrameAction::Wait:
+      cached_left_frame_ = std::move(left_frame_payload);
+      return nullptr;
+    case FrameAction::Drop:
+      return nullptr;
+  }
+
+  if (cache_timestamp) {
+    timestamp_last_frame_ = timestamp;
   }
 
   //! Send synchronized left frame and IMU data.
@@ -75,7 +95,7 @@ Frame::UniquePtr MonoDataProviderModule::getLeftFramePayload() {
   }
 
   if (!queue_state) {
-    LOG_IF(WARNING, MISO::parallel_run_)
+    LOG_IF(WARNING, MISO::parallel_run_ && !MISO::shutdown_)
         << "Module: " << MISO::name_id_ << " - queue is down";
     VLOG_IF(1, !MISO::parallel_run_)
         << "Module: " << MISO::name_id_ << " - queue is empty or down";

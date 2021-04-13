@@ -33,7 +33,7 @@ StereoDataProviderModule::StereoDataProviderModule(
 StereoDataProviderModule::InputUniquePtr
 StereoDataProviderModule::getInputPacket() {
   //! Get left image + IMU data
-  MonoImuSyncPacket::UniquePtr mono_imu_sync_packet = getMonoImuSyncPacket();
+  MonoImuSyncPacket::UniquePtr mono_imu_sync_packet = getMonoImuSyncPacket(false);
   if (!mono_imu_sync_packet) {
     return nullptr;
   }
@@ -54,6 +54,7 @@ StereoDataProviderModule::getInputPacket() {
     return nullptr;
   }
   CHECK(right_frame_payload);
+  timestamp_last_frame_ = timestamp;
 
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);

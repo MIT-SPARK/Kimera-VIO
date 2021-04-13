@@ -32,26 +32,32 @@
 namespace VIO {
 
 MonoImuPipeline::MonoImuPipeline(const VioParams& params,
-                           Visualizer3D::UniquePtr&& visualizer,
-                           DisplayBase::UniquePtr&& displayer)
-    : Pipeline(params),
-      camera_(nullptr) {
+                                 Visualizer3D::UniquePtr&& visualizer,
+                                 DisplayBase::UniquePtr&& displayer)
+    : Pipeline(params), camera_(nullptr) {
   // TODO(marcus): specify separate params for mono
-  // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for MonoImuPipeline.";
+  // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for
+  // MonoImuPipeline.";
   camera_ = std::make_shared<Camera>(params.camera_params_.at(0));
 
   data_provider_module_ = VIO::make_unique<MonoDataProviderModule>(
-      &frontend_input_queue_,
-      "Mono Data Provider",
-      parallel_run_);
-  if (params.imu_params_.do_initial_time_alignment_) {
-    data_provider_module_->doCoarseTimestampCorrection();
+      &frontend_input_queue_, "Mono Data Provider", parallel_run_);
+  if (params.imu_params_.do_coarse_imu_camera_temporal_sync_) {
+    data_provider_module_->doCoarseImuCameraTemporalSync();
+  }
+  if (!params.imu_params_.do_fine_imu_camera_temporal_sync_) {
+    if (params.imu_params_.do_coarse_imu_camera_temporal_sync_) {
+      LOG(WARNING) << "The manually provided IMU time shift will be applied on "
+                      "top of whatever the coarse time alignment calculates. "
+                      "This may or may not be what you want!";
+    }
+    data_provider_module_->setImuTimeShift(imu_params_.imu_time_shift_);
   }
 
   data_provider_module_->registerVioPipelineCallback(
-    std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));
+      std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));
 
-  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_) 
+  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_)
       << "useStereoTracking is set to true, but this is a mono pipeline!";
   vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,
@@ -66,28 +72,29 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           FLAGS_log_output));
   vio_frontend_module_->registerImuTimeShiftUpdateCallback(
       [&](double imu_time_shift_s) {
-        data_provider_module_->updateImuTimeShift(imu_time_shift_s);
+        data_provider_module_->setImuTimeShift(imu_time_shift_s);
       });
 
   auto& backend_input_queue = backend_input_queue_;
-  vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const FrontendOutputPacketBase::Ptr& output) {
-    MonoFrontendOutput::Ptr converted_output = 
-        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
+  vio_frontend_module_->registerOutputCallback(
+      [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
+        MonoFrontendOutput::Ptr converted_output =
+            VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
 
-    if (converted_output->is_keyframe_) {
-      //! Only push to Backend input queue if it is a keyframe!
-      backend_input_queue.push(VIO::make_unique<BackendInput>(
-          converted_output->frame_lkf_.timestamp_,
-          converted_output->status_mono_measurements_,
-          converted_output->tracker_status_,
-          converted_output->pim_,
-          converted_output->imu_acc_gyrs_,
-          boost::none));  // don't pass stereo pose to Backend!
-    } else {
-      VLOG(5) << "Frontend did not output a keyframe, skipping Backend input.";
-    }
-  });
+        if (converted_output->is_keyframe_) {
+          //! Only push to Backend input queue if it is a keyframe!
+          backend_input_queue.push(VIO::make_unique<BackendInput>(
+              converted_output->frame_lkf_.timestamp_,
+              converted_output->status_mono_measurements_,
+              converted_output->tracker_status_,
+              converted_output->pim_,
+              converted_output->imu_acc_gyrs_,
+              boost::none));  // don't pass stereo pose to Backend!
+        } else {
+          VLOG(5)
+              << "Frontend did not output a keyframe, skipping Backend input.";
+        }
+      });
 
   //! Params for what the Backend outputs.
   // TODO(Toni): put this into Backend params.
@@ -200,7 +207,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
                   output);
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
-    });
+        });
 
     // if (mesher_module_) {
     //   mesher_module_->registerOutputCallback(

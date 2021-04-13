@@ -27,6 +27,16 @@ namespace VIO {
 typedef boost::shared_ptr<gtsam::PreintegratedRotationParams>
     RotOnlyPIMParamPtr;
 
+/**
+ * @brief Class to estimate the time delay between the IMU and the camera via
+ * cross-correlation between relative rotation angles from the camera and IMU.
+ *
+ * We follow a similar approach to:
+ *   Mair, Elmar, et al. "Spatio-temporal initialization for IMU to camera
+ *   registration." 2011 IEEE International Conference on Robotics and
+ *   Biomimetics. IEEE, 2011.
+ *   https://doi.org/10.1109/ROBIO.2011.6181345
+ */
 class CrossCorrTimeAligner : public TimeAlignerBase {
  public:
   struct Measurement {
@@ -41,16 +51,24 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
     }
 
     Timestamp timestamp{0};
-    double value{0.0};
+    double value = 0.0;
   };
   typedef RingBuffer<Measurement> Buffer;
 
-  // TODO(nathan) add other parameters here
-  CrossCorrTimeAligner(bool do_imu_rate_estimation,
-                       double imu_period_s,
-                       size_t window_size = 100);
+  CrossCorrTimeAligner(const ImuParams& params);
 
  protected:
+  /**
+   * @brief Attempt estimation of time delay with all cached data
+   *
+   * This method either interpolates the estimated relative rotation angle
+   * from the camera to IMU rate or does rotation-only preintegration to
+   * estimate the relative rotation angle from the IMU at camera rate, and adds
+   * all measurements (at either camera or IMU rate) to a circular buffer. Once
+   * the buffer is full and the IMU buffer displays enough variance, this
+   * computes the time delay using the peak cross-correlation between the two
+   * signals.
+   */
   TimeAlignerBase::Result attemptEstimation(
       const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
       const gtsam::Pose3& T_ref_cur,
@@ -58,13 +76,20 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       const ImuAccGyrS& imu_acc_gyrs) override;
 
  private:
-  bool add_new_imu_data_(Timestamp frame_timestamp,
-                         const ImuStampS& imu_stamps,
-                         const ImuAccGyrS& imu_acc_gyrs);
+  bool addNewImuData_(Timestamp frame_timestamp,
+                      const ImuStampS& imu_stamps,
+                      const ImuAccGyrS& imu_acc_gyrs);
+
+  void interpNewImageMeasurements(
+      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const gtsam::Pose3& T_ref_cur,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_acc_gyrs);
 
   RotOnlyPIMParamPtr pim_params_;
   bool do_imu_rate_estimation_;
   double imu_period_s_;
+  double imu_variance_threshold_;
   Buffer imu_buffer_;
   Buffer vision_buffer_;
 };
