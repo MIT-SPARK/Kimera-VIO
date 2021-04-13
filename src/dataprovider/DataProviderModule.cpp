@@ -140,7 +140,6 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
       return FrameAction::Drop;
   }
 
-  timestamp_last_frame_ = timestamp;
   // adjust the timestamps for the frontend
   imu_meas->timestamps_.array() -=
       imu_timestamp_correction_ + curr_imu_time_shift;

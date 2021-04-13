@@ -41,7 +41,7 @@ MonoDataProviderModule::getInputPacket() {
   return nullptr;
 }
 
-MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
+MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(bool cache_timestamp) {
   // Retrieve left frame data.
   Frame::UniquePtr left_frame_payload;
   if (cached_left_frame_) {
@@ -74,6 +74,10 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket() {
       return nullptr;
     case FrameAction::Drop:
       return nullptr;
+  }
+
+  if (cache_timestamp) {
+    timestamp_last_frame_ = timestamp;
   }
 
   //! Send synchronized left frame and IMU data.

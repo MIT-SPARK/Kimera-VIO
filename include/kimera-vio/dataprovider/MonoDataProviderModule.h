@@ -77,9 +77,10 @@ class MonoDataProviderModule : public DataProviderModule {
   /**
    * @brief getMonoImuSyncPacket Convenience function to return synced
    * mono+imu data.
+   * @param cache_timestamp latch last_timestamp_ after detecting a valid frame
    * @return Synced Monocular image and IMU data.
    */
-  MonoImuSyncPacket::UniquePtr getMonoImuSyncPacket();
+  MonoImuSyncPacket::UniquePtr getMonoImuSyncPacket(bool cache_timestamp = true);
 
   /**
    * @brief getLeftFramePayload from the left_frame_queue

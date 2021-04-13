@@ -61,6 +61,24 @@ class TestStereoProvider : public ::testing::Test {
     last_id_++;
   }
 
+  void addLeftFrame(Timestamp timestamp, bool increment = false) {
+    Frame::UniquePtr lframe =
+        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+    test_provider_->fillLeftFrameQueue(std::move(lframe));
+    if (increment) {
+      last_id_++;
+    }
+  }
+
+  void addRightFrame(Timestamp timestamp, bool increment = false) {
+    Frame::UniquePtr rframe =
+        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+    test_provider_->fillRightFrameQueue(std::move(rframe));
+    if (increment) {
+      last_id_++;
+    }
+  }
+
   void spinWithTimeout(int timeout = 1000) {
     // These test cases have produced infinite loops in spin() in the past
     // Protect the testing servers with a timeout mechanism from Anton Lipov
@@ -74,7 +92,7 @@ class TestStereoProvider : public ::testing::Test {
         std::ref(promisedFinished))
         .detach();
     auto waitResult = futureResult.wait_for(std::chrono::milliseconds(timeout));
-    ASSERT_TRUE(waitResult != std::future_status::timeout);
+    CHECK(waitResult != std::future_status::timeout) << "spin timed out";
   }
 };
 
@@ -366,6 +384,59 @@ TEST_F(TestStereoProvider, testOutOfOrderImageSequence) {
   EXPECT_EQ(5, output->imu_stamps_(0, 2));
 }
 
+TEST_F(TestStereoProvider, testOutOfOrderManyImageSequence) {
+  addImu(0);  // Get past the need for available IMU data
+  addFrame(3);
+
+  spinWithTimeout();
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue_.pop(output));
+
+  addImu(2);
+  addImu(3);
+  addImu(4);
+  addImu(5);
+  addFrame(2);  // should be dropped
+  addFrame(5);
+  addImu(6);
+  addFrame(7);
+  addImu(8);
+  addFrame(9);
+  addImu(10);
+
+  spinWithTimeout();  // dropped out-of-order frame
+  ASSERT_FALSE(output_queue_.pop(output));
+  spinWithTimeout();
+  ASSERT_TRUE(output_queue_.pop(output));
+  ASSERT_TRUE(output != nullptr);
+
+  EXPECT_EQ(5, output->timestamp_);
+  EXPECT_EQ(3, output->imu_stamps_.cols());
+  EXPECT_EQ(3, output->imu_accgyrs_.cols());
+  EXPECT_EQ(3, output->imu_stamps_(0, 0));
+  EXPECT_EQ(4, output->imu_stamps_(0, 1));
+  EXPECT_EQ(5, output->imu_stamps_(0, 2));
+
+  spinWithTimeout();
+  ASSERT_TRUE(output_queue_.pop(output));
+  ASSERT_TRUE(output != nullptr);
+  EXPECT_EQ(7, output->timestamp_);
+  EXPECT_EQ(3, output->imu_stamps_.cols());
+  EXPECT_EQ(3, output->imu_accgyrs_.cols());
+  EXPECT_EQ(5, output->imu_stamps_(0, 0));
+  EXPECT_EQ(6, output->imu_stamps_(0, 1));
+  EXPECT_EQ(7, output->imu_stamps_(0, 2));
+
+  spinWithTimeout();
+  ASSERT_TRUE(output_queue_.pop(output));
+  ASSERT_TRUE(output != nullptr);
+  EXPECT_EQ(9, output->timestamp_);
+  EXPECT_EQ(2, output->imu_stamps_.cols());
+  EXPECT_EQ(2, output->imu_accgyrs_.cols());
+  EXPECT_EQ(8, output->imu_stamps_(0, 0));
+  EXPECT_EQ(9, output->imu_stamps_(0, 1));
+}
+
 TEST_F(TestStereoProvider, testOutOfOrderImuAndImageSequence) {
   addImu(0);  // Get past the need for available IMU data
   addFrame(3);
@@ -452,6 +523,41 @@ TEST_F(TestStereoProvider, stereoPipelineManualTimeShift) {
   EXPECT_EQ(1, output->imu_stamps_(0, 0));
   EXPECT_EQ(2, output->imu_stamps_(0, 1));
   EXPECT_EQ(3, output->imu_stamps_(0, 2));
+}
+
+TEST_F(TestStereoProvider, dropRightFrame) {
+  addImu(0);  // Get past the need for available IMU data
+  addFrame(1);
+
+  spinWithTimeout();
+
+  FrontendInputPacketBase::UniquePtr output;
+  EXPECT_FALSE(output_queue_.pop(output));
+
+  addImu(2);
+  addImu(3);
+  addImu(4);
+  addLeftFrame(5);
+  addImu(6);
+  addImu(7);
+  addFrame(8);
+  addImu(9);
+
+  spinWithTimeout();
+  EXPECT_FALSE(output_queue_.pop(output));
+  spinWithTimeout();
+  ASSERT_TRUE(output_queue_.pop(output));
+  ASSERT_TRUE(output != nullptr);
+
+  EXPECT_EQ(8, output->timestamp_);
+  EXPECT_EQ(6, output->imu_stamps_.cols());
+  EXPECT_EQ(6, output->imu_accgyrs_.cols());
+  EXPECT_EQ(2, output->imu_stamps_(0, 0));
+  EXPECT_EQ(3, output->imu_stamps_(0, 1));
+  EXPECT_EQ(4, output->imu_stamps_(0, 2));
+  EXPECT_EQ(6, output->imu_stamps_(0, 3));
+  EXPECT_EQ(7, output->imu_stamps_(0, 4));
+  EXPECT_EQ(8, output->imu_stamps_(0, 5));
 }
 
 }  // namespace VIO

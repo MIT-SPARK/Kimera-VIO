@@ -70,7 +70,7 @@ class TestMonoProvider : public ::testing::Test {
         std::ref(promisedFinished))
         .detach();
     auto waitResult = futureResult.wait_for(std::chrono::milliseconds(timeout));
-    ASSERT_TRUE(waitResult != std::future_status::timeout);
+    CHECK(waitResult != std::future_status::timeout) << "spin timed out";
   }
 };
 
