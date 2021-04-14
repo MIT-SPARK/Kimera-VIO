@@ -265,7 +265,7 @@ TEST(testThreadsafeQueue, peek) {
   EXPECT_EQ("hello world", *value);
 
   ThreadsafeQueue<std::unique_ptr<std::string>> q_unique("test_queue");
-  q_unique.push(make_unique<std::string>("hello world"));
+  q_unique.push(VIO::make_unique<std::string>("hello world"));
   std::unique_ptr<std::string>* value_unique;
   ASSERT_TRUE(q_unique.peekBlockingWithTimeout(value_unique, 100));
   ASSERT_TRUE(value_unique != nullptr);

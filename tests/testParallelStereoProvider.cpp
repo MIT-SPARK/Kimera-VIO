@@ -32,7 +32,7 @@ namespace VIO {
 class TestParallelStereoProvider : public ::testing::Test {
  public:
   TestParallelStereoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = make_unique<StereoDataProviderModule>(
+    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
         &output_queue_, "test_stereo_provider", true, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
@@ -58,10 +58,10 @@ class TestParallelStereoProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr rframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillRightFrameQueue(std::move(rframe));
     Frame::UniquePtr lframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     last_id_++;
   }

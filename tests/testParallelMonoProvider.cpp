@@ -31,7 +31,7 @@ namespace VIO {
 class TestParallelMonoProvider : public ::testing::Test {
  public:
   TestParallelMonoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = make_unique<MonoDataProviderModule>(
+    test_provider_ = VIO::make_unique<MonoDataProviderModule>(
         &output_queue_, "test_mono_provider", true);
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
@@ -57,7 +57,7 @@ class TestParallelMonoProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     last_id_++;
   }
