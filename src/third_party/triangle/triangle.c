@@ -261,8 +261,6 @@
 
 #include "kimera-vio/third_party/triangle/triangle.h"
 
-namespace triangle {
-
 /* Labels that signify the result of point location.  The result of a        */
 /*   search indicates that the point falls in the interior of a triangle, on */
 /*   an edge, on a vertex, or outside the mesh.                              */
@@ -8634,6 +8632,4 @@ void triangulate(char *triswitches, struct triangulateio *in,
   }
 
   triangledeinit(&m, &b);
-}
-
 }
