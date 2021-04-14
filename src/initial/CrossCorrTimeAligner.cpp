@@ -138,13 +138,13 @@ double CrossCorrTimeAligner::getTimeShift() const {
       max_corr = correlation[max_idx];
     }
     if (correlation[N + i] > max_corr) {
-      max_idx = N - 1;
+      max_idx = N + i;
       max_corr = correlation[max_idx];
     }
   }
-  int64_t offset = static_cast<int64_t>(vision_buffer_.size()) -
-                   correlation.size() + max_idx;
 
+  int64_t offset = static_cast<int64_t>(vision_buffer_.size()) -
+                   (correlation.size()) + max_idx;
   double timeshift = 0.0;
   if (max_idx >= vision_buffer_.size()) {
     timeshift =
