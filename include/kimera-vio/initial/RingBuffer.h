@@ -101,6 +101,8 @@ class RingBuffer {
 
   inline bool full() const { return size_ == num_values_; }
 
+  inline bool empty() const { return num_values_ == 0; }
+
   inline void push(const T& value) {
     values_[curr_index_] = value;
     if (curr_index_ == size_) {

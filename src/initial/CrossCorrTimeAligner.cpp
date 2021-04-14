@@ -26,13 +26,13 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
   pim_params_.reset(new gtsam::PreintegratedRotationParams());
 }
 
-bool CrossCorrTimeAligner::addNewImuData_(Timestamp frame_timestamp,
-                                          const ImuStampS& imu_stamps,
-                                          const ImuAccGyrS& imu_acc_gyrs) {
+size_t CrossCorrTimeAligner::addNewImuData(Timestamp frame_timestamp,
+                                           const ImuStampS& imu_stamps,
+                                           const ImuAccGyrS& imu_acc_gyrs) {
   if (imu_stamps.cols() == 0) {
     // TODO(nathan) think about handling this better
     LOG(ERROR) << "addNewImuData called with no measurements";
-    return false;
+    return 0;
   }
 
   if (!do_imu_rate_estimation_) {
@@ -44,16 +44,25 @@ bool CrossCorrTimeAligner::addNewImuData_(Timestamp frame_timestamp,
     }
     imu_buffer_.push(CrossCorrTimeAligner::Measurement(
         frame_timestamp, Rot3::Logmap(rot_pim.deltaRij()).norm()));
-  } else {
-    for (int i = 0; i < imu_stamps.cols(); ++i) {
-      // instantaneous rotation angle for single IMU measurement
-      imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-          imu_stamps(0, i),
-          imu_acc_gyrs.block<3, 1>(3, i).norm() * imu_period_s_));
-    }
+
+    return 1;
   }
 
-  return true;
+  int start = 0;
+  if (imu_buffer_.size() > 0 &&
+      imu_buffer_.back().timestamp >= imu_stamps(0, 0)) {
+    // this can occur normally  as interpUpperBorder in the DataProvider
+    // gives us imu measurements in [prev, curr], so we don't warn here
+    start = 1;
+  }
+  for (int i = start; i < imu_stamps.cols(); ++i) {
+    // instantaneous rotation angle for single IMU measurement
+    imu_buffer_.push(CrossCorrTimeAligner::Measurement(
+        imu_stamps(0, i),
+        imu_acc_gyrs.block<3, 1>(3, i).norm() * imu_period_s_));
+  }
+
+  return imu_stamps.cols() - start;
 }
 
 namespace {
@@ -67,39 +76,86 @@ double valueAccessor(const CrossCorrTimeAligner::Measurement& m) {
 void CrossCorrTimeAligner::interpNewImageMeasurements(
     const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
     const gtsam::Pose3& T_ref_cur,
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_acc_gyrs) {
-  const size_t N = imu_stamps.cols();
+    size_t num_new_imu_measurements) {
+  const size_t N = num_new_imu_measurements;
+  CHECK_LE(N, imu_buffer_.size())
+      << "IMU buffer should contain at least the number of new measurements";
+
   const double angle = Rot3::Logmap(T_ref_cur.rotation()).norm();
   if (N == 1) {
+    // we can't interpolate, so just push a single measurement
     vision_buffer_.push(
         CrossCorrTimeAligner::Measurement(imu_buffer_.back().timestamp, angle));
-  } else {
-    double frame_diff = UtilsNumerical::NsecToSec(timestamps_ref_cur.second -
-                                                  timestamps_ref_cur.first);
-    double last_frame_angle = vision_buffer_.back().value;
-    double frame_value_diff = angle - last_frame_angle;
-    // TODO(nathan) this isn't right when the buffer starts, but
-    // maybe not a big deal
-    size_t first_idx =
-        (imu_buffer_.size() == N) ? 0 : imu_buffer_.size() - N - 1;
-    double imu_diff = UtilsNumerical::NsecToSec(
-        imu_buffer_.back().timestamp - imu_buffer_[first_idx].timestamp);
-    CHECK_NE(imu_diff, 0.0) << "IMU timestamps did not increase over window!";
+    return;
+  }
 
-    for (size_t i = 0; i < N; ++i) {
-      const size_t index = imu_buffer_.size() - N + i;
-      double ratio = UtilsNumerical::NsecToSec(
-                         imu_buffer_[index].timestamp -
-                         imu_buffer_[imu_buffer_.size() - N].timestamp) /
-                     imu_diff;
-      CHECK_GE(ratio, 0.0) << "Invalid ratio between imu timestamps: " << ratio;
-      Timestamp new_timestamp = timestamps_ref_cur.first +
-                                UtilsNumerical::SecToNsec(ratio * frame_diff);
-      vision_buffer_.push(CrossCorrTimeAligner::Measurement(
-          new_timestamp, last_frame_angle + frame_value_diff * ratio));
+  // calculate t_j - t_i and v_j - v_i for the images
+  const double last_frame_angle =
+      vision_buffer_.empty() ? 0.0 : vision_buffer_.back().value;
+  const double frame_diff = UtilsNumerical::NsecToSec(
+      timestamps_ref_cur.second - timestamps_ref_cur.first);
+  const double frame_value_diff = angle - last_frame_angle;
+
+  // if we have no previous measurments, we have to start from the earliest
+  // IMU measurement from the current packet. Otherwise, we use the latest
+  // IMU measurement from the last packet for our reference for interpolation
+  const Timestamp first_imu =
+      (imu_buffer_.size() == N)
+          ? imu_buffer_[0].timestamp
+          : imu_buffer_[imu_buffer_.size() - N - 1].timestamp;
+  const double imu_diff =
+      UtilsNumerical::NsecToSec(imu_buffer_.back().timestamp - first_imu);
+  CHECK_GT(imu_diff, 0.0) << "IMU timestamps did not increase over window!";
+
+  for (size_t i = 0; i < N; ++i) {
+    // linear interpolation based on IMU timestamps
+    const double curr_diff = UtilsNumerical::NsecToSec(
+        imu_buffer_[imu_buffer_.size() - N + i].timestamp - first_imu);
+    const double ratio = curr_diff / imu_diff;
+    CHECK_GE(ratio, 0.0) << "Invalid ratio between imu timestamps: " << ratio;
+
+    Timestamp new_timestamp = timestamps_ref_cur.first +
+                              UtilsNumerical::SecToNsec(ratio * frame_diff);
+    vision_buffer_.push(CrossCorrTimeAligner::Measurement(
+        new_timestamp, last_frame_angle + frame_value_diff * ratio));
+  }
+}
+
+double CrossCorrTimeAligner::getTimeShift() const {
+  using std::placeholders::_1;
+  std::vector<double> correlation = utils::crossCorrelation(
+      vision_buffer_, imu_buffer_, std::bind(valueAccessor, _1));
+
+  // we start in the middle to keep the time shift stable under low
+  // correlation
+  const size_t N = vision_buffer_.size();
+  size_t max_idx = N;
+  double max_corr = correlation[N];
+  for (size_t i = 1; i < N; ++i) {
+    // TODO(nathan) think about a ratio based test
+    if (correlation[N - i] > max_corr) {
+      max_idx = N - i;
+      max_corr = correlation[max_idx];
+    }
+    if (correlation[N + i] > max_corr) {
+      max_idx = N - 1;
+      max_corr = correlation[max_idx];
     }
   }
+  int64_t offset = static_cast<int64_t>(vision_buffer_.size()) -
+                   correlation.size() + max_idx;
+
+  double timeshift = 0.0;
+  if (max_idx >= vision_buffer_.size()) {
+    timeshift =
+        UtilsNumerical::NsecToSec(imu_buffer_[std::abs(offset)].timestamp -
+                                  vision_buffer_.front().timestamp);
+  } else {
+    timeshift =
+        UtilsNumerical::NsecToSec(vision_buffer_.front().timestamp -
+                                  imu_buffer_[std::abs(offset)].timestamp);
+  }
+  return timeshift;
 }
 
 TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
@@ -107,14 +163,15 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     const gtsam::Pose3& T_ref_cur,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs) {
-  if (!addNewImuData_(timestamps_ref_cur.second, imu_stamps, imu_acc_gyrs)) {
+  size_t num_imu_added =
+      addNewImuData(timestamps_ref_cur.second, imu_stamps, imu_acc_gyrs);
+  if (num_imu_added == 0) {
     LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
     return {true, 0.0};
   }
 
   if (do_imu_rate_estimation_) {
-    interpNewImageMeasurements(
-        timestamps_ref_cur, T_ref_cur, imu_stamps, imu_acc_gyrs);
+    interpNewImageMeasurements(timestamps_ref_cur, T_ref_cur, num_imu_added);
   } else {
     vision_buffer_.push(CrossCorrTimeAligner::Measurement(
         timestamps_ref_cur.second, Rot3::Logmap(T_ref_cur.rotation()).norm()));
@@ -136,24 +193,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
 
   // TODO(nathan) check the vision variance as well
 
-  std::vector<double> correlation = utils::crossCorrelation(
-      vision_buffer_, imu_buffer_, std::bind(valueAccessor, _1));
-  size_t max_idx =
-      std::distance(correlation.begin(),
-                    std::max_element(correlation.begin(), correlation.end()));
-  int64_t offset = static_cast<int64_t>(vision_buffer_.size()) -
-                   correlation.size() + max_idx;
-
-  double timeshift = 0.0;
-  if (max_idx >= vision_buffer_.size()) {
-    timeshift =
-        UtilsNumerical::NsecToSec(imu_buffer_[std::abs(offset)].timestamp -
-                                  vision_buffer_.front().timestamp);
-  } else {
-    timeshift =
-        UtilsNumerical::NsecToSec(vision_buffer_.front().timestamp -
-                                  imu_buffer_[std::abs(offset)].timestamp);
-  }
+  double timeshift = getTimeShift();
   LOG(WARNING) << "Computed timeshift of " << timeshift
                << "[s] (t_imu = t_cam + timeshift)";
   return {true, timeshift};

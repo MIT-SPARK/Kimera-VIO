@@ -76,15 +76,16 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       const ImuAccGyrS& imu_acc_gyrs) override;
 
  private:
-  bool addNewImuData_(Timestamp frame_timestamp,
-                      const ImuStampS& imu_stamps,
-                      const ImuAccGyrS& imu_acc_gyrs);
+  size_t addNewImuData(Timestamp frame_timestamp,
+                       const ImuStampS& imu_stamps,
+                       const ImuAccGyrS& imu_acc_gyrs);
 
   void interpNewImageMeasurements(
       const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
       const gtsam::Pose3& T_ref_cur,
-      const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_acc_gyrs);
+      size_t num_new_imu_measurements);
+
+  double getTimeShift() const;
 
   RotOnlyPIMParamPtr pim_params_;
   bool do_imu_rate_estimation_;
