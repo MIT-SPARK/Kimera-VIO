@@ -52,7 +52,7 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   DataProviderModule(OutputQueue* output_queue,
                      const std::string& name_id,
                      const bool& parallel_run,
-                     bool use_additional_odometry = false);
+                     bool use_external_odometry = false);
 
   virtual ~DataProviderModule() = default;
 

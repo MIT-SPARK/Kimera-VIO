@@ -26,11 +26,11 @@ StereoDataProviderModule::StereoDataProviderModule(
     const std::string& name_id,
     const bool& parallel_run,
     const StereoMatchingParams& stereo_matching_params,
-    bool use_additional_odometry)
+    bool use_external_odometry)
     : MonoDataProviderModule(output_queue,
                              name_id,
                              parallel_run,
-                             use_additional_odometry),
+                             use_external_odometry),
       right_frame_queue_("data_provider_right_frame_queue"),
       stereo_matching_params_(stereo_matching_params) {}
 
