@@ -43,7 +43,7 @@ class StereoDataProviderModule : public MonoDataProviderModule {
                            const std::string& name_id,
                            const bool& parallel_run,
                            const StereoMatchingParams& stereo_matching_params,
-                           bool use_additional_odometry = false);
+                           bool use_external_odometry = false);
 
   ~StereoDataProviderModule() override = default;
 

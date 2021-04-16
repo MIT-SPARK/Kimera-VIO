@@ -23,11 +23,11 @@ namespace VIO {
 MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run,
-                                               bool use_additional_odometry)
+                                               bool use_external_odometry)
     : DataProviderModule(output_queue,
                          name_id,
                          parallel_run,
-                         use_additional_odometry),
+                         use_external_odometry),
       left_frame_queue_("data_provider_left_frame_queue"),
       cached_left_frame_(nullptr) {}
 

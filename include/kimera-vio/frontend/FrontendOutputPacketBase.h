@@ -29,20 +29,26 @@ class FrontendOutputPacketBase : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendOutputPacketBase);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  FrontendOutputPacketBase(const Timestamp& timestamp,
-                           const bool is_keyframe,
-                           const FrontendType frontend_type,
-                           const ImuFrontend::PimPtr& pim,
-                           const ImuAccGyrS& imu_acc_gyrs,
-                           const DebugTrackerInfo& debug_tracker_info,
-                           boost::optional<gtsam::Pose3> bodyj_Pose_bodyi = boost::none)
+  FrontendOutputPacketBase(
+      const Timestamp& timestamp,
+      const bool is_keyframe,
+      const FrontendType frontend_type,
+      const ImuFrontend::PimPtr& pim,
+      const ImuAccGyrS& imu_acc_gyrs,
+      const DebugTrackerInfo& debug_tracker_info,
+      boost::optional<gtsam::Pose3> lkf_body_odom_Pose_kf_body_odom =
+          boost::none,
+      boost::optional<gtsam::Velocity3> kf_body_odom_world_Vel_kf_body_odom =
+          boost::none)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
         frontend_type_(frontend_type),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
         debug_tracker_info_(debug_tracker_info),
-        bodyj_Pose_bodyi_(bodyj_Pose_bodyi) {}
+        lkf_body_odom_Pose_kf_body_odom_(lkf_body_odom_Pose_kf_body_odom),
+        kf_body_odom_world_Vel_kf_body_odom_(
+            kf_body_odom_world_Vel_kf_body_odom) {}
 
   virtual ~FrontendOutputPacketBase() = default;
 
@@ -52,8 +58,12 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const ImuFrontend::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
-  // TODO(nathan) think about this name
-  boost::optional<gtsam::Pose3> bodyj_Pose_bodyi_;
+  // TODO(nathan) reconsider these names; they make the constructor
+  // really ugly and are probably unwieldy to use in practice even
+  // if they are descriptive.
+  boost::optional<gtsam::Pose3> lkf_body_odom_Pose_kf_body_odom_;
+  // velocity of odom body frame w.r.t. world frame in the body frame
+  boost::optional<gtsam::Velocity3> kf_body_odom_world_Vel_kf_body_odom_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
