@@ -42,7 +42,8 @@ class StereoDataProviderModule : public MonoDataProviderModule {
   StereoDataProviderModule(OutputQueue* output_queue,
                            const std::string& name_id,
                            const bool& parallel_run,
-                           const StereoMatchingParams& stereo_matching_params);
+                           const StereoMatchingParams& stereo_matching_params,
+                           bool use_additional_odometry = false);
 
   ~StereoDataProviderModule() override = default;
 

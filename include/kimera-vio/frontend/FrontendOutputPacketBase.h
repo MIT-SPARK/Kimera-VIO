@@ -34,13 +34,15 @@ class FrontendOutputPacketBase : public PipelinePayload {
                            const FrontendType frontend_type,
                            const ImuFrontend::PimPtr& pim,
                            const ImuAccGyrS& imu_acc_gyrs,
-                           const DebugTrackerInfo& debug_tracker_info)
+                           const DebugTrackerInfo& debug_tracker_info,
+                           boost::optional<gtsam::Pose3> bodyj_Pose_bodyi = boost::none)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
         frontend_type_(frontend_type),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        debug_tracker_info_(debug_tracker_info) {}
+        debug_tracker_info_(debug_tracker_info),
+        bodyj_Pose_bodyi_(bodyj_Pose_bodyi) {}
 
   virtual ~FrontendOutputPacketBase() = default;
 
@@ -50,6 +52,8 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const ImuFrontend::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
+  // TODO(nathan) think about this name
+  boost::optional<gtsam::Pose3> bodyj_Pose_bodyi_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };

@@ -32,6 +32,7 @@
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeOdometryBuffer.h"
 
 namespace VIO {
 
@@ -50,7 +51,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
 
   DataProviderModule(OutputQueue* output_queue,
                      const std::string& name_id,
-                     const bool& parallel_run);
+                     const bool& parallel_run,
+                     bool use_additional_odometry = false);
 
   virtual ~DataProviderModule() = default;
 
@@ -69,6 +71,27 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   // TODO(Toni): remove, register at ctor level.
   inline void registerVioPipelineCallback(const PipelineOutputCallback& cb) {
     vio_pipeline_callback_ = cb;
+  }
+
+  /**
+   * @brief Push an external odometry measurement into the queue for later
+   * processing
+   * @param timestamp timestamp of measurement
+   * @param world_NavState_lkf_body "tuple" of world_Pose_lkf_body and
+   * lkf_body_world_Vel_lkf_body (i.e. pose of body w.r.t. world and velocity
+   * of the body frame in the world frame w.r.t. the body frame)
+   */
+  inline void fillExternalOdometryQueue(
+      Timestamp timestamp,
+      const gtsam::NavState& world_NavState_lkf_body,
+      bool blocking = false) {
+    if (!external_odometry_buffer_) {
+      LOG(WARNING)
+          << "Attempting to add external odometry when using an external "
+             "odometry source is disabled! Measurements will be ignored";
+      return;
+    }
+    external_odometry_buffer_->add(timestamp, world_NavState_lkf_body);
   }
 
   /**
@@ -142,6 +165,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   Timestamp imu_timestamp_correction_;
   std::atomic<Timestamp> imu_time_shift_ns_;  // t_imu = t_cam + imu_shift
   PipelineOutputCallback vio_pipeline_callback_;
-};
+  //! External odometry source
+  ThreadsafeOdometryBuffer::UniquePtr external_odometry_buffer_;
+};  // namespace VIO
 
 }  // namespace VIO
