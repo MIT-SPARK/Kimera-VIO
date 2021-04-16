@@ -21,14 +21,21 @@ using utils::ThreadsafeImuBuffer;
 
 DataProviderModule::DataProviderModule(OutputQueue* output_queue,
                                        const std::string& name_id,
-                                       const bool& parallel_run)
+                                       const bool& parallel_run,
+                                       bool use_external_odometry)
     : MISO(output_queue, name_id, parallel_run),
       imu_data_(),
       repeated_frame_(false),
       timestamp_last_frame_(InvalidTimestamp),
       do_coarse_imu_camera_temporal_sync_(false),
       imu_timestamp_correction_(0),
-      imu_time_shift_ns_(0) {}
+      imu_time_shift_ns_(0),
+      external_odometry_buffer_(nullptr) {
+  if (use_external_odometry) {
+    // TODO(nathan) replace with non-unlimited buffer size
+    external_odometry_buffer_ = VIO::make_unique<ThreadsafeOdometryBuffer>(-1);
+  }
+}
 
 void DataProviderModule::logQueryResult(
     const Timestamp& timestamp,

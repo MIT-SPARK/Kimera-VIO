@@ -85,6 +85,7 @@ class StereoImuSyncPacket : public FrontendInputPacketBase {
   StereoImuSyncPacket(const StereoFrame& stereo_frame,
                       const ImuStampS& imu_stamps,
                       const ImuAccGyrS& imu_accgyr,
+                      boost::optional<gtsam::NavState> external_odometry = boost::none,
                       const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 

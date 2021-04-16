@@ -22,8 +22,12 @@ namespace VIO {
 
 MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
-                                               const bool& parallel_run)
-    : DataProviderModule(output_queue, name_id, parallel_run),
+                                               const bool& parallel_run,
+                                               bool use_additional_odometry)
+    : DataProviderModule(output_queue,
+                         name_id,
+                         parallel_run,
+                         use_additional_odometry),
       left_frame_queue_("data_provider_left_frame_queue"),
       cached_left_frame_(nullptr) {}
 
@@ -78,6 +82,25 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
       return nullptr;
     case FrameAction::Drop:
       return nullptr;
+  }
+
+  bool odometry_valid = false;
+  gtsam::NavState external_odometry;
+  if (external_odometry_buffer_) {
+    ThreadsafeOdometryBuffer::QueryResult result =
+        external_odometry_buffer_->getNearest(timestamp, &external_odometry);
+    switch (result) {
+      case ThreadsafeOdometryBuffer::QueryResult::DataNotYetAvailable:
+        cached_left_frame_ =
+            std::move(left_frame_payload);  // we need to spin some more
+        return nullptr;
+      case ThreadsafeOdometryBuffer::QueryResult::DataNeverAvailable:
+        odometry_valid = false;
+        break;
+      case ThreadsafeOdometryBuffer::QueryResult::DataAvailable:
+        odometry_valid = true;
+        break;
+    }
   }
 
   if (cache_timestamp) {
