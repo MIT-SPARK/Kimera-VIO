@@ -19,7 +19,7 @@ For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080
 
 ## What is Kimera-VIO?
 
-Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data.
+Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. It can optionally use **Mono** + **IMU** data instead of stereo cameras.
 
 ## Publications
 
@@ -46,7 +46,7 @@ Backend optimization is based on:
 
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. **Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.** IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
-Alternatively, the `Regular VIO` backend, using structural regularities, is described in this paper:
+Alternatively, the `Regular VIO` Backend, using structural regularities, is described in this paper:
 
 - A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. **Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**. IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
 
@@ -128,6 +128,8 @@ bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 > Alternatively, one may directly use the executable in the build folder:
 `./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section below.
 
+Kimera can also run in monocular mode. For Euroc, this means only processing the left image. To use this simply use the parameters in `params/EurocMono`. In the bash script there is a `PARAMS_PATH` variable that can be set to point to these parameters instead.
+
 ## ii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
 We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
@@ -185,10 +187,10 @@ I0512 21:05:55.136549 21233 Pipeline.cpp:449] Statistics
 -----------                                  #	Log Hz	{avg     +- std    }	[min,max]
 Data Provider [ms]                      	    0	
 Display [ms]                            	  146	36.5421	{8.28082 +- 2.40370}	[3,213]
-VioBackEnd [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
-VioFrontEnd Frame Rate [ms]             	  222	59.3276	{5.77027 +- 1.51571}	[3,12]
-VioFrontEnd Keyframe Rate [ms]          	   73	19.6235	{31.4110 +- 7.29504}	[24,62]
-VioFrontEnd [ms]                        	  295	77.9727	{12.1593 +- 10.7279}	[3,62]
+VioBackend [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
+VioFrontend Frame Rate [ms]             	  222	59.3276	{5.77027 +- 1.51571}	[3,12]
+VioFrontend Keyframe Rate [ms]          	   73	19.6235	{31.4110 +- 7.29504}	[24,62]
+VioFrontend [ms]                        	  295	77.9727	{12.1593 +- 10.7279}	[3,62]
 Visualizer [ms]                         	   73	19.4639	{3.82192 +- 0.805234}	[2,7]
 backend_input_queue Size [#]            	   73	18.3878	{1.00000 +- 0.00000}	[1,1]
 data_provider_left_frame_queue Size (#) 	  663	165.202	{182.265 +- 14.5110}	[1,359]
@@ -205,21 +207,21 @@ visualizer_frontend_queue Size [#]      	  295	73.9984	{4.21695 +- 1.24381}	[1,7
 - `std` standard deviation of the value logged.
 - `[min,max]` minimum and maximum values that the logged value took.
 
-There are two main things logged: the time it takes for the pipeline modules to run (i.e. `VioBackEnd`, `Visualizer` etc), and the size of the queues between pipeline modules (i.e. `backend_input_queue`).
+There are two main things logged: the time it takes for the pipeline modules to run (i.e. `VioBackend`, `Visualizer` etc), and the size of the queues between pipeline modules (i.e. `backend_input_queue`).
 
 For example:
 ```
-VioBackEnd [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
+VioBackend [ms]                         	   73	19.4868	{15.2192 +- 9.75712}	[0,39]
 ```
 
-Shows that the backend runtime got sampled `73` times, at a rate of `19.48`Hz (which accounts for both the time the backend waits for input to consume and the time it takes to process it). That it takes `15.21`ms to consume its input with a standard deviation of `9.75`ms and that the least it took to run for one input was `0`ms and the most it took so far is `39`ms.
+Shows that the Backend runtime got sampled `73` times, at a rate of `19.48`Hz (which accounts for both the time the Backend waits for input to consume and the time it takes to process it). That it takes `15.21`ms to consume its input with a standard deviation of `9.75`ms and that the least it took to run for one input was `0`ms and the most it took so far is `39`ms.
 
 For the queues, for example:
 ```
 stereo_frontend_input_queue Size [#]    	  301	75.3519	{4.84718 +- 0.219043}	[1,5]
 ```
 
-Shows that the frontend input queue got sampled `301` times, at a rate of `75.38`Hz. That it stores an average of `4.84` elements, with a standard deviation of `0.21` elements, and that the min size it had was `1` element, and the max size it stored was of `5` elements.
+Shows that the Frontend input queue got sampled `301` times, at a rate of `75.38`Hz. That it stores an average of `4.84` elements, with a standard deviation of `0.21` elements, and that the min size it had was `1` element, and the max size it stored was of `5` elements.
 
 # 6. Chart
 

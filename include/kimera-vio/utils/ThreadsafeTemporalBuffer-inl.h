@@ -231,6 +231,9 @@ bool ThreadsafeTemporalBuffer<ValueType, AllocatorType>::getValuesBetweenTimes(
   const Timestamp latest_timestamp = values_.rbegin()->first;
   // TODO I don't see why only 100% overlapping query intervals are accepted.
   // Shouldn't it be oldest > higher || latest < lower ?
+  // Or at least accept as well when timestamp_lower_ns is smaller than
+  // oldest_timestamp, such that we only return false if we are asking for
+  // future msgs?
   if (oldest_timestamp > timestamp_lower_ns ||
       timestamp_higher_ns > latest_timestamp) {
     return false;

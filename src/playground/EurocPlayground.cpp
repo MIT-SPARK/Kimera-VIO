@@ -1,21 +1,18 @@
 #include "kimera-vio/playground/EurocPlayground.h"
+#include "kimera-vio/mesh/MeshUtils.h"
+#include "kimera-vio/visualizer/OpenCvDisplay.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 namespace VIO {
-
-static const double MISSING_Z = 10000.;
-
-static bool isValidPoint(const cv::Point3f& pt) {
-  // Check both for disparities explicitly marked as invalid (where OpenCV maps
-  // pt.z to MISSING_Z)
-  // and zero disparities (point mapped to infinity).
-  return pt.z != MISSING_Z && !std::isinf(pt.z);
-}
 
 EurocPlayground::EurocPlayground(const std::string& dataset_path,
                                  const std::string& params_path,
                                  const int& initial_k,
-                                 const int& final_k)
+                                 const int& final_k,
+                                 const size_t& subsample_n)
     : dataset_path_(dataset_path),
+      subsample_n(subsample_n),
       vio_params_(params_path),
       feature_detector_(nullptr),
       euroc_data_provider_(nullptr),
@@ -24,7 +21,9 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
       display_input_queue_("display_input_queue"),
       imu_data_(),
       left_frame_queue_("left_frame_queue"),
-      right_frame_queue_("right_frame_queue") {
+      right_frame_queue_("right_frame_queue"),
+      stereo_camera_(nullptr),
+      stereo_matcher_(nullptr) {
   // Set sequential mode
   vio_params_.parallel_run_ = false;
 
@@ -51,25 +50,31 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
   visualizer_3d_ = VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
 
   // Create Displayer
-  OpenCv3dDisplayParams opencv_3d_display_params;
-  opencv_3d_display_params.hold_display_ = true;
+  CHECK(vio_params_.display_params_);
+  OpenCv3dDisplayParams modified_display_params =
+      VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
+          *vio_params_.display_params_);
+  modified_display_params.hold_3d_display_ = true;
+  DisplayParams::Ptr new_display_params =
+      std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
   display_module_ = VIO::make_unique<DisplayModule>(
       &display_input_queue_,
       nullptr,
       vio_params_.parallel_run_,
-      VIO::make_unique<OpenCv3dDisplay>(nullptr, opencv_3d_display_params));
+      VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
 
   // Create Feature detector
   FeatureDetectorParams feature_detector_params;
-  feature_detector_params.feature_detector_type_ = FeatureDetectorType::FAST;
+  feature_detector_params.feature_detector_type_ = FeatureDetectorType::ORB;
   feature_detector_ =
       VIO::make_unique<FeatureDetector>(feature_detector_params);
 
   // Create Stereo Camera
   stereo_camera_ = VIO::make_unique<StereoCamera>(
       vio_params_.camera_params_.at(0),
-      vio_params_.camera_params_.at(1),
-      vio_params_.frontend_params_.stereo_matching_params_);
+      vio_params_.camera_params_.at(1));
+  stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+      stereo_camera_, vio_params_.frontend_params_.stereo_matching_params_);
 }
 
 void EurocPlayground::visualizeGtData(const bool& viz_traj,
@@ -97,11 +102,11 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
   }
 
   if (viz_img_in_frustum) {
-    static const FrameId subsample_n = 50u;
     CHECK_GT(vio_params_.camera_params_.size(), 0);
     const auto& K = vio_params_.camera_params_.at(0).K_;
     Frame::UniquePtr left_frame = nullptr;
     Frame::UniquePtr right_frame = nullptr;
+    size_t color_counter = 0u;
     while (left_frame_queue_.pop(left_frame) &&
            right_frame_queue_.pop(right_frame)) {
       CHECK(left_frame);
@@ -111,35 +116,54 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
           left_frame->id_,
           left_frame->timestamp_,
           *left_frame,
-          *right_frame,
-          vio_params_.frontend_params_.stereo_matching_params_);
+          *right_frame);
+
+      CHECK(stereo_camera_);
       if ((left_frame->id_ % subsample_n) == 0u) {
         // Add frame to frustum
-        const cv::Affine3d& left_cam_pose = UtilsOpenCV::gtsamPose3ToCvAffine3d(
-            euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
-                .compose(left_frame->cam_param_.body_Pose_cam_));
+        const cv::Affine3d& left_cam_rect_pose =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_)
+                    .compose(stereo_camera_->getBodyPoseLeftCamRect()));
+        const cv::Affine3d& right_cam_rect_pose =
+            UtilsOpenCV::gtsamPose3ToCvAffine3d(
+                euroc_data_provider_
+                    ->getGroundTruthPose(right_frame->timestamp_)
+                    .compose(stereo_camera_->getBodyPoseRightCamRect()));
 
         cv::Mat smaller_img;
-        cv::resize(left_frame->img_, smaller_img, cv::Size(), 0.5, 0.5);
+        static constexpr double kScaleFactor = 0.1;
+        cv::resize(left_frame->img_,
+                   smaller_img,
+                   cv::Size(),
+                   kScaleFactor,
+                   kScaleFactor);
+        cv::Mat resize_K = cv::Mat::eye(3, 3, CV_64FC1);
+        resize_K.at<double>(0, 0) = kScaleFactor;
+        resize_K.at<double>(1, 1) = kScaleFactor;
+        cv::Mat resized_K = resize_K * K;
         visualizer_3d_->visualizePoseWithImgInFrustum(
             smaller_img,
-            left_cam_pose,
+            left_cam_rect_pose,
             &output->widgets_,
-            "Camera id: " + std::to_string(left_frame->id_));
+            "Camera id: " + std::to_string(left_frame->id_),
+            resized_K);
 
         // Compute depth map just to see.
         cv::Mat disp_img =
             cv::Mat(left_frame->img_.rows, left_frame->img_.cols, CV_32F);
         CHECK(stereo_frame.isRectified());
         stereo_camera_->undistortRectifyStereoFrame(&stereo_frame);
-        stereo_camera_->stereoDisparityReconstruction(
+        CHECK(stereo_matcher_);
+        stereo_matcher_->denseStereoReconstruction(
             stereo_frame.getLeftImgRectified(),
             stereo_frame.getRightImgRectified(),
             &disp_img);
         cv::Mat disp_viz_img;
         UtilsOpenCV::getDisparityVis(disp_img, disp_viz_img, 1.0);
-        cv::imshow("Left Image", stereo_frame.getLeftImgRectified());
-        cv::imshow("Right Image", stereo_frame.getRightImgRectified());
+        cv::imshow("Left Image Rectified", stereo_frame.getLeftImgRectified());
+        cv::imshow("Right Image Rectified",
+                   stereo_frame.getRightImgRectified());
         cv::imshow("Disparity Image", disp_viz_img);
 
         // Check
@@ -151,17 +175,27 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
 
         // I think this is the perfect container for mesh optimization
         // since it encodes in (u, v) => (x, y, z).
+        // Maybe ideally it should be (u, v) => 1/z
         cv::Mat_<cv::Point3f> depth_map;
         // Need to move all points according to pose of stereo camera!
         stereo_camera_->backProjectDisparityTo3D(disp_img, &depth_map);
         CHECK_EQ(depth_map.type(), CV_32FC3);
         // Would that work? interpret xyz as rgb?
         cv::imshow("Depth Image", depth_map);
-        cv::waitKey(0);
+        cv::waitKey(1);
 
         // Store depth maps for mesh optimization.
-        cam_pose_depth_maps_.depth_maps_[left_frame->timestamp_] = depth_map;
-        cam_pose_depth_maps_.cam_poses_[left_frame->timestamp_] = left_cam_pose;
+        MeshPacket mesh_packet_;
+        // Shouldn't we send rectified camera pose?
+        mesh_packet_.world_pose_body_ =
+            euroc_data_provider_->getGroundTruthPose(left_frame->timestamp_);
+        mesh_packet_.left_cam_rect_pose_ = left_cam_rect_pose;
+        // Shouldn't we send rectified images?
+        mesh_packet_.left_image_rect_ =
+            stereo_frame.getLeftImgRectified().clone();
+        mesh_packet_.right_cam_rect_pose_ = right_cam_rect_pose;
+        mesh_packet_.right_image_rect =
+            stereo_frame.getRightImgRectified().clone();
 
         LOG(INFO) << "Converting depth to pcl.";
         // Reshape as a list of 3D points, same channels,
@@ -171,24 +205,30 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
         // Depth image contains INFs. We have to remove them:
         CHECK_EQ(left_frame->img_.type(), CV_8UC1);  // for color
         cv::Mat_<cv::Point3f> valid_depth = cv::Mat(1, 0, CV_32FC3);
-        cv::Mat_<cv::Vec3b> valid_color =
-            cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
-        static constexpr float kMaxZ = 5.0;  // 5 meters
-        for (int32_t u = 0; u < depth_map.rows; ++u) {
-          for (int32_t v = 0; v < depth_map.cols; ++v) {
-            const cv::Point3f& xyz = depth_map(u, v);
-            if (isValidPoint(xyz) && xyz.z <= kMaxZ) {
+        cv::Mat valid_colors = cv::Mat(1, 0, CV_8UC3, cv::viz::Color::red());
+        for (int32_t v = 0; v < depth_map.rows; ++v) {
+          for (int32_t u = 0; u < depth_map.cols; ++u) {
+            const cv::Point3f& xyz = depth_map(v, u);
+            if (isValidPoint(xyz)) {
               valid_depth.push_back(xyz);
-              auto grey_value = left_frame->img_.at<int8_t>(u, v);
-              valid_color.push_back(
-                  cv::Vec3b(grey_value, grey_value, grey_value));
+              const auto& grey_value =
+                  mesh_packet_.left_image_rect_.at<uint8_t>(v, u);
+              // We recolor the depth map for disambiguation of original
+              // viewpoint
+              valid_colors.push_back(
+                  cv::Vec3b(color_counter == 0u ? grey_value : 0u,
+                            color_counter == 1u ? grey_value : 0u,
+                            color_counter == 2u ? grey_value : 0u));
             }
           }
         }
+        color_counter++;
+        mesh_packet_.depth_map_ = depth_map;
+        mesh_packets_[left_frame->timestamp_] = mesh_packet_;
 
         LOG(INFO) << "Send pcl to viz.";
         visualizer_3d_->visualizePointCloud(
-            valid_depth, &output->widgets_, left_cam_pose, valid_color);
+            valid_depth, &output->widgets_, left_cam_rect_pose, valid_colors);
       }
     }
   }

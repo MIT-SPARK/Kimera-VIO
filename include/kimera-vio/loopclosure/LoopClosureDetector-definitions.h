@@ -26,7 +26,7 @@
 #include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -60,8 +60,8 @@ struct LCDFrame {
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
            const BearingVectors& versors,
-           const KeypointsCV& left_keypoints_rectified,
-           const KeypointsCV& right_keypoints_rectified)
+           const StatusKeypointsCV& left_keypoints_rectified,
+           const StatusKeypointsCV& right_keypoints_rectified)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -81,8 +81,8 @@ struct LCDFrame {
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors versors_;
-  KeypointsCV left_keypoints_rectified_;
-  KeypointsCV right_keypoints_rectified_;
+  StatusKeypointsCV left_keypoints_rectified_;
+  StatusKeypointsCV right_keypoints_rectified_;
 };  // struct LCDFrame
 
 struct MatchIsland {
@@ -226,22 +226,24 @@ struct LoopClosureFactor {
   const gtsam::SharedNoiseModel noise_;
 };  // struct LoopClosureFactor
 
-struct LcdInput {
+struct LcdInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(LcdInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(LcdInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LcdInput(const Timestamp& timestamp_kf,
+  LcdInput(const Timestamp& timestamp,
+           const FrontendOutputPacketBase::Ptr& frontend_output,
            const FrameId& cur_kf_id,
-           const StereoFrame& stereo_frame,
            const gtsam::Pose3& W_Pose_Blkf)
-      : timestamp_kf_(timestamp_kf),
+      : PipelinePayload(timestamp),
+        frontend_output_(frontend_output),
         cur_kf_id_(cur_kf_id),
-        stereo_frame_(stereo_frame),
-        W_Pose_Blkf_(W_Pose_Blkf) {}
+        W_Pose_Blkf_(W_Pose_Blkf) {
+    CHECK(frontend_output);
+    CHECK_EQ(timestamp, frontend_output->timestamp_);
+  }
 
-  const Timestamp timestamp_kf_;
+  const FrontendOutputPacketBase::Ptr frontend_output_;
   const FrameId cur_kf_id_;
-  const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
 };
 
@@ -277,8 +279,8 @@ struct LcdOutput : PipelinePayload {
         timestamp_match_(0),
         id_match_(0),
         id_recent_(0),
-        relative_pose_(gtsam::Pose3()),
-        W_Pose_Map_(gtsam::Pose3()),
+        relative_pose_(gtsam::Pose3::identity()),
+        W_Pose_Map_(gtsam::Pose3::identity()),
         states_(gtsam::Values()),
         nfg_(gtsam::NonlinearFactorGraph()) {}
 

@@ -21,12 +21,10 @@
 
 namespace VIO {
 
-using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
-using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
-using SmartStereoMeasurementsUniquePtr =
-    std::unique_ptr<SmartStereoMeasurements>;
+using StereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
+using StereoMeasurements = std::vector<StereoMeasurement>;
 using StatusStereoMeasurements =
-    std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
+    std::pair<TrackerStatusSummary, StereoMeasurements>;
 using StatusStereoMeasurementsPtr = std::shared_ptr<StatusStereoMeasurements>;
 
 // TODO make enum class.
@@ -47,6 +45,9 @@ using KeypointsWithDepth = std::vector<KeypointWithDepth>;
 // Definitions relevant to StereoFrame type.
 using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
-enum class VisionSensorType { STEREO, RGBD };  // 0 for stereo and 1 for RGBD
+enum class VisionSensorType { 
+STEREO = 0,
+RGBD = 1
+};
 
 }  // namespace VIO

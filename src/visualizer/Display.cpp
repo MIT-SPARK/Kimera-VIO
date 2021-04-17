@@ -14,6 +14,11 @@
 
 #include "kimera-vio/visualizer/Display.h"
 
+#include "kimera-vio/visualizer/DisplayParams.h"
+
 namespace VIO {
+
+DisplayBase::DisplayBase(const DisplayType& display_type)
+    : display_type_(display_type) {}
 
 }  // namespace VIO

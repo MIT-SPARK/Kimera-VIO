@@ -14,4 +14,6 @@
 
 #include "kimera-vio/visualizer/DisplayFactory.h"
 
-namespace VIO {}  // namespace VIO
+namespace VIO {
+
+}  // namespace VIO

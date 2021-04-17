@@ -26,61 +26,34 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/frontend/StereoImuSyncPacket.h"
-#include "kimera-vio/frontend/StereoMatchingParams.h"
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
+#include "kimera-vio/frontend/MonoImuSyncPacket.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
-class DataProviderModule
-    : public MISOPipelineModule<StereoImuSyncPacket, StereoImuSyncPacket> {
+class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
+                                                     FrontendInputPacketBase> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(DataProviderModule);
   KIMERA_POINTER_TYPEDEFS(DataProviderModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using VioPipelineCallback =
-      std::function<void(StereoImuSyncPacket::UniquePtr)>;
+  using MISO =
+      MISOPipelineModule<FrontendInputPacketBase, FrontendInputPacketBase>;
+  using OutputQueue = typename MISO::OutputQueue;
+  using PipelineOutputCallback =
+      std::function<void(FrontendInputPacketBase::UniquePtr)>;
 
   DataProviderModule(OutputQueue* output_queue,
                      const std::string& name_id,
-                     const bool& parallel_run,
-                     const StereoMatchingParams& stereo_matching_params);
+                     const bool& parallel_run);
 
   virtual ~DataProviderModule() = default;
 
-  inline OutputUniquePtr spinOnce(
-      StereoImuSyncPacket::UniquePtr input) override {
-    // Called by spin(), which also calls getInputPacket().
-    // Data provider syncs and publishes input sensor information, which
-    // is done at the level of getInputPacket. No other action needed.
-    return input;
-  }
-
   //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
-    CHECK(left_frame);
-    left_frame_queue_.push(std::move(left_frame));
-  }
-  inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
-    CHECK(right_frame);
-    right_frame_queue_.push(std::move(right_frame));
-  }
-  //! Callbacks to fill queues but they block if queues are getting full.
-  //! Blocking call in case you want to avoid overfilling the input queues.
-  //! This is useful when parsing datasets files, since parsing is much faster
-  //! than the pipeline. But this is not suitable for online scenarios where
-  //! you should not block the sensor processing.
-  inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
-    CHECK(left_frame);
-    left_frame_queue_.pushBlockingIfFull(std::move(left_frame), 5u);
-  }
-  inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
-    CHECK(right_frame);
-    right_frame_queue_.pushBlockingIfFull(std::move(right_frame), 5u);
-  }
   //! Fill multiple IMU measurements at once
   inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
     imu_data_.imu_buffer_.addMeasurements(imu_measurements.timestamps_,
@@ -93,11 +66,12 @@ class DataProviderModule
   }
 
   // TODO(Toni): remove, register at ctor level.
-  inline void registerVioPipelineCallback(const VioPipelineCallback& cb) {
+  inline void registerVioPipelineCallback(const PipelineOutputCallback& cb) {
     vio_pipeline_callback_ = cb;
   }
 
  protected:
+  // THE USER NEEDS TO IMPLEMENT getInputPacket()!
   // Spin the dataset: processes the input data and constructs a Stereo Imu
   // Synchronized Packet (stereo pair + IMU measurements), the minimum data
   // needed for the VIO pipeline to do one processing iteration.
@@ -105,26 +79,28 @@ class DataProviderModule
   // If a stereo pair appears after another stereo pair with no IMU packets in
   // between, it will be discarded.
   // The first valid pair is used as a timing fencepost and is not published.
-  InputUniquePtr getInputPacket() override;
+  virtual MISO::InputUniquePtr getInputPacket() = 0;
+
+  /**
+   * @brief getTimeSyncedImuMeasurements Time synchronizes the IMU buffer
+   * with the given timestamp (this is typically the timestamp of a left img)
+   * @param[in] timestamp Timestamp for the IMU data to query since
+   * timestamp_last_frame_.
+   * @param[out] imu_meas IMU measurements to be populated and returned
+   * @return False if synchronization failed, true otherwise.
+   */
+  bool getTimeSyncedImuMeasurements(const Timestamp& timestamp,
+                                    ImuMeasurements* imu_meas);
 
   //! Called when general shutdown of PipelineModule is triggered.
-  void shutdownQueues() override;
+  virtual void shutdownQueues();
 
-  //! Checks if the module has work to do (should check input queues are empty)
-  inline bool hasWork() const override {
-    return !left_frame_queue_.empty() || !right_frame_queue_.empty();
-  }
-
- private:
+ protected:
   //! Input data
   ImuData imu_data_;
-  ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
-  ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
-  const Timestamp kNoFrameYet = 0;
+  static const Timestamp kNoFrameYet = 0;
   Timestamp timestamp_last_frame_;
-  // TODO(Toni): remove these below
-  StereoMatchingParams stereo_matching_params_;
-  VioPipelineCallback vio_pipeline_callback_;
+  PipelineOutputCallback vio_pipeline_callback_;
 };
 
 }  // namespace VIO

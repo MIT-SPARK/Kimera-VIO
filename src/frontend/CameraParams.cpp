@@ -9,7 +9,7 @@
 /**
  * @file   CameraParams.cpp
  * @brief  Parameters describing a monocular camera.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
  */
 
 #include "kimera-vio/frontend/CameraParams.h"
@@ -21,8 +21,6 @@
 
 namespace VIO {
 
-/* -------------------------------------------------------------------------- */
-// Parse YAML file describing camera parameters.
 bool CameraParams::parseYAML(const std::string& filepath) {
   YamlParser yaml_parser(filepath);
 
@@ -48,21 +46,15 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   // Convert intrinsics to cv::Mat format.
   convertIntrinsicsVectorToMatrix(intrinsics_, &K_);
 
-  // Create gtsam calibration object.
-  // Calibration of a camera with radial distortion that also supports
-  createGtsamCalibration(distortion_coeff_mat_, intrinsics_, &calibration_);
-
   // P_ = R_rectify_ * camera_matrix_;
   return true;
 }
 
-/* -------------------------------------------------------------------------- */
 void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
   std::string distortion_model;
   yaml_parser.getYamlParam("distortion_model", &distortion_model);
   yaml_parser.getYamlParam("camera_model", &camera_model_);
   distortion_model_ = stringToDistortion(distortion_model, camera_model_);
-  // 4 parameters (read from file)
   CHECK(distortion_model_ == DistortionModel::RADTAN ||
         distortion_model_ == DistortionModel::EQUIDISTANT)
       << "Unsupported distortion model. Expected: radtan or equidistant.";
@@ -107,20 +99,17 @@ const DistortionModel CameraParams::stringToDistortion(
   }
 }
 
-/* -------------------------------------------------------------------------- */
-// Convert distortion coefficients to OpenCV Format
 void CameraParams::convertDistortionVectorToMatrix(
     const std::vector<double>& distortion_coeffs,
     cv::Mat* distortion_coeffs_mat) {
   CHECK_NOTNULL(distortion_coeffs_mat);
-  CHECK_EQ(distortion_coeffs.size(), 4);
+  CHECK_GE(distortion_coeffs.size(), 4u);
   *distortion_coeffs_mat = cv::Mat::zeros(1, distortion_coeffs.size(), CV_64F);
   for (int k = 0; k < distortion_coeffs_mat->cols; k++) {
     distortion_coeffs_mat->at<double>(0, k) = distortion_coeffs[k];
   }
 }
 
-/* -------------------------------------------------------------------------- */
 void CameraParams::parseImgSize(const YamlParser& yaml_parser,
                                 cv::Size* image_size) {
   CHECK_NOTNULL(image_size);
@@ -130,7 +119,6 @@ void CameraParams::parseImgSize(const YamlParser& yaml_parser,
   *image_size = cv::Size(resolution[0], resolution[1]);
 }
 
-/* -------------------------------------------------------------------------- */
 void CameraParams::parseFrameRate(const YamlParser& yaml_parser,
                                   double* frame_rate) {
   CHECK_NOTNULL(frame_rate);
@@ -140,7 +128,6 @@ void CameraParams::parseFrameRate(const YamlParser& yaml_parser,
   *frame_rate = 1 / static_cast<double>(rate);
 }
 
-/* -------------------------------------------------------------------------- */
 void CameraParams::parseBodyPoseCam(const YamlParser& yaml_parser,
                                     gtsam::Pose3* body_Pose_cam) {
   CHECK_NOTNULL(body_Pose_cam);
@@ -155,7 +142,6 @@ void CameraParams::parseBodyPoseCam(const YamlParser& yaml_parser,
   *body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 }
 
-/* -------------------------------------------------------------------------- */
 void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
                                          Intrinsics* intrinsics_) {
   CHECK_NOTNULL(intrinsics_);
@@ -168,7 +154,6 @@ void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
               intrinsics_->begin());
 }
 
-/* -------------------------------------------------------------------------- */
 void CameraParams::convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
                                                    cv::Mat* camera_matrix) {
   CHECK_NOTNULL(camera_matrix);
@@ -180,27 +165,28 @@ void CameraParams::convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
   camera_matrix->at<double>(1, 2) = intrinsics[3];
 }
 
-/* -------------------------------------------------------------------------- */
-// TODO(Toni) : Check if equidistant distortion is supported as well in gtsam.
-void CameraParams::createGtsamCalibration(const std::vector<double>& distortion,
+// TODO(Toni): Check if equidistant distortion is supported as well in gtsam.
+// TODO(Toni): rather remove this function as it is only used in tests for
+// uncalibrating the keypoints.. Use instead opencv.
+void CameraParams::createGtsamCalibration(const cv::Mat& distortion,
                                           const Intrinsics& intrinsics,
                                           gtsam::Cal3DS2* calibration) {
   CHECK_NOTNULL(calibration);
   CHECK_GE(intrinsics.size(), 4);
-  CHECK_GE(distortion.size(), 4);
-  *calibration = gtsam::Cal3DS2(intrinsics[0],   // fx
-                                intrinsics[1],   // fy
-                                0.0,             // skew
-                                intrinsics[2],   // u0
-                                intrinsics[3],   // v0
-                                distortion[0],   // k1
-                                distortion[1],   // k2
-                                distortion[2],   // p1 (k3)
-                                distortion[3]);  // p2 (k4)
+  CHECK_GE(distortion.cols, 4);
+  CHECK_EQ(distortion.rows, 1);
+  *calibration = gtsam::Cal3DS2(intrinsics[0],                 // fx
+                                intrinsics[1],                 // fy
+                                0.0,                           // skew
+                                intrinsics[2],                 // u0
+                                intrinsics[3],                 // v0
+                                distortion.at<double>(0, 0),   // k1
+                                distortion.at<double>(0, 1),   // k2
+                                distortion.at<double>(0, 2),   // p1 (k3)
+                                distortion.at<double>(0, 3));  // p2 (k4)
 }
 
-/* -------------------------------------------------------------------------- */
-// Display all params.
+//! Display all params.
 void CameraParams::print() const {
   std::stringstream out;
   PipelineParams::print(out,
@@ -223,17 +209,11 @@ void CameraParams::print() const {
   LOG(INFO) << out.str();
   LOG(INFO) << "- body_Pose_cam_: " << body_Pose_cam_ << '\n'
             << "- K: " << K_ << '\n'
-            << "- distortion_model: " << VIO::to_underlying(distortion_model_)
-            << '\n'
-            << "- distortion_coeff: " << distortion_coeff_mat_ << '\n'
-            << "- R_rectify: " << R_rectify_ << '\n'
-            << "- P: " << P_;
-
-  if (FLAGS_minloglevel < 1) calibration_.print("\n gtsam calibration:\n");
+            << "- Distortion Model:" << to_underlying(distortion_model_) << '\n'
+            << "- Distortion Coeff:" << distortion_coeff_mat_;
 }
 
-/* -------------------------------------------------------------------------- */
-// Assert equality up to a tolerance.
+//! Assert equality up to a tolerance.
 bool CameraParams::equals(const CameraParams& cam_par,
                           const double& tol) const {
   bool areIntrinsicEqual = true;
@@ -248,16 +228,9 @@ bool CameraParams::equals(const CameraParams& cam_par,
          (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
-         calibration_.equals(cam_par.calibration_, tol) &&
          UtilsOpenCV::compareCvMatsUpToTol(K_, cam_par.K_) &&
          UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_mat_,
-                                           cam_par.distortion_coeff_mat_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(undistort_rectify_map_x_,
-                                           cam_par.undistort_rectify_map_x_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(undistort_rectify_map_y_,
-                                           cam_par.undistort_rectify_map_y_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(R_rectify_, cam_par.R_rectify_) &&
-         UtilsOpenCV::compareCvMatsUpToTol(P_, cam_par.P_);
+                                           cam_par.distortion_coeff_mat_);
 }
 
 }  // namespace VIO

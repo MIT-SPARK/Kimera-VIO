@@ -68,10 +68,13 @@ def remap_kalibr_config(kalibr_config, mapping):
 
     for kimera_key, kalibr_key_map_pair in mapping.items():
         kalibr_key, transform_func = kalibr_key_map_pair
-        if transform_func is None:
-            kimera_config[kimera_key] = kalibr_config[kalibr_key]
+        if kalibr_key in kalibr_config:
+            if transform_func is None:
+                kimera_config[kimera_key] = kalibr_config[kalibr_key]
+            else:
+                kimera_config[kimera_key] = transform_func(kalibr_config[kalibr_key])
         else:
-            kimera_config[kimera_key] = transform_func(kalibr_config[kalibr_key])
+            logging.warning("Could not find key: " + kalibr_key + ". Ignoring entry...")
 
     return kimera_config
 
@@ -149,7 +152,7 @@ def load_kalibr_information_from_files(camera_file, imu_file):
 def load_kalibr_information(result_directory):
     """Detect and load kalibr results from a directory."""
     result_path = pathlib.Path(result_directory)
-    potential_camchains = list(result_path.glob("camchain-imucam*.yaml"))
+    potential_camchains = list(result_path.glob("camchain-*imu*cam*.yaml"))
     potential_imus = list(result_path.glob("imu*.yaml"))
 
     if len(potential_camchains) == 0:
@@ -169,22 +172,22 @@ def load_kalibr_information(result_directory):
     )
 
 
-def make_camera_config(kalibr_config, kalibr_camera_id, camera_id, extra_information):
+def make_camera_config(kalibr_camera, kalibr_camera_id, camera_id, extra_information):
     """Make a camera config."""
     kimera_config = remap_kalibr_config(
-        kalibr_config[kalibr_camera_id], CAMERA_MAPPINGS
+        kalibr_camera[kalibr_camera_id], CAMERA_MAPPINGS
     )
     kimera_config["camera_id"] = camera_id
     kimera_config.update(extra_information)
     return kimera_config
 
 
-def make_imu_config(kalibr_config, kalibr_imu_id, extra_information):
+def make_imu_config(kalibr_imu, kalibr_imu_id, extra_information):
     """Make an imu config."""
-    kimera_config = remap_kalibr_config(kalibr_config[kalibr_imu_id], IMU_MAPPINGS)
+    kimera_config = remap_kalibr_config(kalibr_imu[kalibr_imu_id], IMU_MAPPINGS)
 
-    if "time_offset" in kalibr_config[kalibr_imu_id]:
-        kimera_config["imu_time_shift"] = kalibr_config[kalibr_imu_id]["time_offset"]
+    if "time_offset" in kalibr_imu[kalibr_imu_id]:
+        kimera_config["imu_time_shift"] = kalibr_imu[kalibr_imu_id]["time_offset"]
     else:
         kimera_config["imu_time_shift"] = 0.0
 

@@ -13,7 +13,7 @@
  */
 
 #include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
 #include "kimera-vio/utils/YamlParser.h"

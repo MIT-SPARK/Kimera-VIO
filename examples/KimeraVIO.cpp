@@ -25,6 +25,8 @@
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
+#include "kimera-vio/pipeline/MonoImuPipeline.h"
+#include "kimera-vio/pipeline/StereoImuPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -48,7 +50,20 @@ int main(int argc, char* argv[]) {
   VIO::DataProviderInterface::Ptr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
+      switch (vio_params.frontend_type_) {
+        case VIO::FrontendType::kMonoImu: {
+          dataset_parser =
+              VIO::make_unique<VIO::MonoEurocDataProvider>(vio_params);
+        } break;
+        case VIO::FrontendType::kStereoImu: {
+          dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
+        } break;
+        default: {
+          LOG(FATAL) << "Unrecognized Frontend type: "
+                     << VIO::to_underlying(vio_params.frontend_type_)
+                     << ". 0: Mono, 1: Stereo.";
+        }
+      }
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -60,27 +75,49 @@ int main(int argc, char* argv[]) {
   }
   CHECK(dataset_parser);
 
-  VIO::Pipeline vio_pipeline(vio_params);
+  VIO::Pipeline::Ptr vio_pipeline;
 
-  // Register callback to shutdown data provider in case VIO pipeline shutsdown.
-  vio_pipeline.registerShutdownCallback(
+  switch (vio_params.frontend_type_) {
+    case VIO::FrontendType::kMonoImu: {
+      vio_pipeline = VIO::make_unique<VIO::MonoImuPipeline>(vio_params);
+    } break;
+    case VIO::FrontendType::kStereoImu: {
+      vio_pipeline = VIO::make_unique<VIO::StereoImuPipeline>(vio_params);
+    } break;
+    default: {
+      LOG(FATAL) << "Unrecognized Frontend type: "
+                 << VIO::to_underlying(vio_params.frontend_type_)
+                 << ". 0: Mono, 1: Stereo.";
+    } break;
+  }
+
+  // Register callback to shutdown data provider in case VIO pipeline
+  // shutsdown.
+  vio_pipeline->registerShutdownCallback(
       std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser));
 
   // Register callback to vio pipeline.
   dataset_parser->registerImuSingleCallback(
       std::bind(&VIO::Pipeline::fillSingleImuQueue,
-                &vio_pipeline,
+                vio_pipeline,
                 std::placeholders::_1));
   // We use blocking variants to avoid overgrowing the input queues (use
   // the non-blocking versions with real sensor streams)
   dataset_parser->registerLeftFrameCallback(
       std::bind(&VIO::Pipeline::fillLeftFrameQueue,
-                &vio_pipeline,
+                vio_pipeline,
                 std::placeholders::_1));
-  dataset_parser->registerRightFrameCallback(
-      std::bind(&VIO::Pipeline::fillRightFrameQueue,
-                &vio_pipeline,
-                std::placeholders::_1));
+
+  if (vio_params.frontend_type_ == VIO::FrontendType::kStereoImu) {
+    VIO::StereoImuPipeline::Ptr stereo_pipeline =
+        VIO::safeCast<VIO::Pipeline, VIO::StereoImuPipeline>(
+            vio_pipeline);
+
+    dataset_parser->registerRightFrameCallback(
+        std::bind(&VIO::StereoImuPipeline::fillRightFrameQueue,
+                  stereo_pipeline,
+                  std::placeholders::_1));
+  }
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
@@ -90,19 +127,24 @@ int main(int argc, char* argv[]) {
                              &VIO::DataProviderInterface::spin,
                              dataset_parser);
     auto handle_pipeline =
-        std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
-    auto handle_shutdown = std::async(std::launch::async,
-                                      &VIO::Pipeline::shutdownWhenFinished,
-                                      &vio_pipeline, 500, true);
-    vio_pipeline.spinViz();
+        std::async(std::launch::async,
+                   &VIO::Pipeline::spin,
+                   vio_pipeline);
+    auto handle_shutdown =
+        std::async(std::launch::async,
+                   &VIO::Pipeline::shutdownWhenFinished,
+                   vio_pipeline,
+                   500,
+                   true);
+    vio_pipeline->spinViz();
     is_pipeline_successful = !handle.get();
     handle_shutdown.get();
     handle_pipeline.get();
   } else {
-    while (dataset_parser->spin() && vio_pipeline.spin()) {
+    while (dataset_parser->spin() && vio_pipeline->spin()) {
       continue;
     };
-    vio_pipeline.shutdown();
+    vio_pipeline->shutdown();
     is_pipeline_successful = true;
   }
 

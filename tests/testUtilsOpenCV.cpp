@@ -426,13 +426,6 @@ TEST(testUtilsOpenCV, ExtractCornersWhiteWall) {
 }
 
 /* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, RoundToDigit2digits) {
-  double x_expected = 1.14;  // rounded to the 2nd decimal digit
-  double x_actual = UtilsNumerical::RoundToDigit(x);
-  EXPECT_NEAR(x_expected, x_actual, tol_);
-}
-
-/* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundUnit3) {
   {
     Unit3 a(0, 1, 0.9);
@@ -452,49 +445,6 @@ TEST_F(UtilsOpenCVFixture, RoundUnit3) {
     Unit3 a_expected(0, -1, 0);
     EXPECT_TRUE(assert_equal(a_expected, a_actual, tol_));
   }
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, RoundToDigit3digits) {
-  double x_expected = 1.142;  // rounded to the 3rd decimal digit
-  double x_actual = UtilsNumerical::RoundToDigit(x, 3);
-  EXPECT_NEAR(x_expected, x_actual, tol_);
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, RoundToDigitNeg2digits) {
-  double x_expected = -1.14;  // rounded to the 2nd decimal digit
-  double x_actual = UtilsNumerical::RoundToDigit(-x, 2);
-  EXPECT_NEAR(x_expected, x_actual, tol_);
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, RoundToDigitNeg3digits) {
-  double x_expected = -1.142;  // rounded to the 3rd decimal digit!
-  double x_actual = UtilsNumerical::RoundToDigit(-x, 3);
-  EXPECT_NEAR(x_expected, x_actual, tol_);
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionPos4digits) {
-  string str_expected("1.142");
-  string str_actual = UtilsNumerical::To_string_with_precision(x, 4);
-  EXPECT_EQ(str_expected.compare(str_actual), 0);
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionNeg3digits) {
-  string str_expected("-1.14");
-  string str_actual = UtilsNumerical::To_string_with_precision(-x, 3);
-  EXPECT_EQ(str_expected.compare(str_actual), 0);
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, NsecToSec) {
-  int64_t timestamp = 12345678;
-  double sec_expected = 0.012345678;
-  double sec_actual = UtilsNumerical::NsecToSec(timestamp);
-  EXPECT_NEAR(sec_expected, sec_actual, tol_);
 }
 
 /* ************************************************************************** */
@@ -637,21 +587,6 @@ TEST(testUtilsOpenCV, covariancebvx2xvb) {
 
   gtsam::Matrix cov_actual_xvb = UtilsOpenCV::Covariance_bvx2xvb(cov_bvx);
   EXPECT_TRUE(assert_equal(expected_cov_xvb, cov_actual_xvb));
-}
-
-/* ************************************************************************** */
-TEST(testUtilsOpenCV, VectorUnique) {
-  std::vector<int> vactual{1, 2, 3, 1, 2, 3, 3, 4, 5, 4, 5, 6, 7};
-  std::vector<int> vexpected{1, 2, 3, 4, 5, 6, 7};
-
-  UtilsOpenCV::VectorUnique<int>(vactual);
-  UtilsOpenCV::PrintVector<int>(vactual, "vactual");
-  UtilsOpenCV::PrintVector<int>(vexpected, "vexpected");
-
-  EXPECT_EQ(vexpected.size(), vactual.size());
-  for (size_t i = 0; i < vexpected.size(); i++) {
-    EXPECT_EQ(vexpected[i], vactual[i]);
-  }
 }
 
 /* ************************************************************************** */

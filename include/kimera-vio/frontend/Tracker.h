@@ -16,21 +16,23 @@
 // TODO(Toni): put tracker in another folder.
 #pragma once
 
-#include <opencv2/opencv.hpp>
-
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
+#include <opencv2/opencv.hpp>
+
+#include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/OpticalFlowPredictor.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
@@ -52,7 +54,7 @@ class Tracker {
    * @param camera_params Parameters for the camera used for tracking.
    */
   Tracker(const FrontendParams& tracker_params,
-          const CameraParams& camera_params,
+          const Camera::ConstPtr& camera,
           DisplayQueue* display_queue = nullptr);
 
   // Tracker parameters.
@@ -64,7 +66,8 @@ class Tracker {
  public:
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame,
-                       const gtsam::Rot3& inter_frame_rotation);
+                       const gtsam::Rot3& inter_frame_rotation,
+                       boost::optional<cv::Mat> R = boost::none);
 
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.
@@ -81,14 +84,17 @@ class Tracker {
   // Contrarily to the previous 2 this also returns a 3x3 covariance for the
   // translation estimate.
   std::pair<TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
-                                             Frame* cur_frame,
-                                             const gtsam::Rot3& R);
+  geometricOutlierRejectionMonoGivenRotation(
+      Frame* ref_frame,
+      Frame* cur_frame,
+      const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
   std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
-  geometricOutlierRejectionStereoGivenRotation(StereoFrame& ref_stereoFrame,
-                                               StereoFrame& cur_stereoFrame,
-                                               const gtsam::Rot3& R);
+  geometricOutlierRejectionStereoGivenRotation(
+      StereoFrame& ref_stereoFrame,
+      StereoFrame& cur_stereoFrame,
+      VIO::StereoCamera::ConstPtr stereo_camera,
+      const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
   void removeOutliersMono(const std::vector<int>& inliers,
                           Frame* ref_frame,
@@ -99,9 +105,6 @@ class Tracker {
                             StereoFrame* ref_stereoFrame,
                             StereoFrame* cur_stereoFrame,
                             KeypointMatches* matches_ref_cur);
-
-  void checkStatusRightKeypoints(
-      const std::vector<KeypointStatus>& right_keypoints_status);
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers
@@ -143,23 +146,21 @@ class Tracker {
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
-  // Get tracker info
-  inline DebugTrackerInfo getTrackerDebugInfo() { return debug_info_; }
+ public:
+  //! Debug info (its public to allow stereo frames to populate it).
+  DebugTrackerInfo debug_info_;
 
  private:
   // Incremental id assigned to new landmarks.
   LandmarkId landmark_count_;
 
-  // Camera params for the camera used to track: currently we only use K if the
-  // rotational optical flow predictor is used
-  const CameraParams camera_params_;
+  // StereoCamera object for the camera we are tracking. We use the left camera.
+  // TODO(marcus): this should be general to all camera types!
+  Camera::ConstPtr camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of
   // where the features moved from frame to frame.
   OpticalFlowPredictor::UniquePtr optical_flow_predictor_;
-
-  // Debug info.
-  DebugTrackerInfo debug_info_;
 
   // Display queue: push to this queue if you want to display an image.
   DisplayQueue* display_queue_;

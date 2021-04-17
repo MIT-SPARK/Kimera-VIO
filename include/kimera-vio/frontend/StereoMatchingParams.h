@@ -17,6 +17,8 @@
 #include "kimera-vio/frontend/StereoFrame-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 
+#include <opencv2/calib3d.hpp> // Only for StereoBM (put in another file).
+
 namespace VIO {
 
 class StereoMatchingParams : public PipelineParams {
@@ -57,6 +59,29 @@ class StereoMatchingParams : public PipelineParams {
   VisionSensorType vision_sensor_type_ = VisionSensorType::STEREO;
   double min_depth_factor_ = 0.3;    // min-depth to be used with RGB-D
   double map_depth_factor_ = 0.001;  // depth-map to be used with RGB-D
+};
+
+// TODO(Toni) make it a pipeline params and parseable.
+struct DenseStereoParams {
+  bool use_sgbm_ = true;
+  bool post_filter_disparity_ = false;
+  bool median_blur_disparity_ = false;
+  int pre_filter_cap_ = 31;
+  int sad_window_size_ = 11;
+  int min_disparity_ = 1;
+  int num_disparities_ = 64;
+  int uniqueness_ratio_ = 0;
+  int speckle_range_ = 3;
+  int speckle_window_size_ = 500;
+  // bm parameters
+  int texture_threshold_ = 0;
+  int pre_filter_type_ = cv::StereoBM::PREFILTER_XSOBEL;
+  int pre_filter_size_ = 9;
+  // sgbm parameters
+  int p1_ = 120;
+  int p2_ = 240;
+  int disp_12_max_diff_ = -1;
+  bool use_mode_HH_ = true;
 };
 
 }  // namespace VIO
