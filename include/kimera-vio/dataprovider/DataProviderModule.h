@@ -77,13 +77,13 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    * @brief Push an external odometry measurement into the queue for later
    * processing
    * @param timestamp timestamp of measurement
-   * @param world_NavState_lkf_body "tuple" of world_Pose_lkf_body and
-   * lkf_body_world_Vel_lkf_body (i.e. pose of body w.r.t. world and velocity
-   * of the body frame in the world frame w.r.t. the body frame)
+   * @param world_NavState_odom "tuple" of world_Pose_odom and
+   * odom_world_Vel_odom (i.e. pose of body (odom frame) w.r.t. world and
+   * velocity of the odom frame in the world frame w.r.t. the odom frame)
    */
   inline void fillExternalOdometryQueue(
       Timestamp timestamp,
-      const gtsam::NavState& world_NavState_lkf_body,
+      const gtsam::NavState& world_NavState_odom,
       bool blocking = false) {
     if (!external_odometry_buffer_) {
       LOG(WARNING)
@@ -91,7 +91,7 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
              "odometry source is disabled! Measurements will be ignored";
       return;
     }
-    external_odometry_buffer_->add(timestamp, world_NavState_lkf_body);
+    external_odometry_buffer_->add(timestamp, world_NavState_odom);
   }
 
   /**
