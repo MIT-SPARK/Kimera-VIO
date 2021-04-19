@@ -44,7 +44,8 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
                      const MonoFrontendParams& frontend_params,
                      const Camera::ConstPtr& camera,
                      DisplayQueue* display_queue = nullptr,
-                     bool log_output = false);
+                     bool log_output = false,
+                     bool use_external_odometry = false);
   virtual ~MonoVisionImuFrontend();
 
  private:

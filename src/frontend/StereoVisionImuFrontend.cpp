@@ -34,11 +34,13 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
     const FrontendParams& frontend_params,
     const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
-    bool log_output)
+    bool log_output,
+    bool use_external_odometry)
     : VisionImuFrontend(imu_params,
                         imu_initial_bias,
                         display_queue,
-                        log_output),
+                        log_output,
+                        use_external_odometry),
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
@@ -74,7 +76,15 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
-  // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
+  if (!do_fine_imu_camera_temporal_sync_ && use_external_odometry_) {
+    // note that we assume that the first frame is hardcoded to be
+    // a keyframe. It's also okay if world_NavState_odom_ is boost::none
+    VLOG(2) << "Caching first odom measurement in boostrapSpin";
+    // TODO(nathan|marcus) add odom_body transform here
+    world_Pose_lkf_body_ = input->world_NavState_odom_.value().pose();
+  }
+
+  // Create mostly invalid output, to send the imu_acc_gyrs to the Backend.
   CHECK(stereoFrame_lkf_);
   return VIO::make_unique<StereoFrontendOutput>(
       stereoFrame_lkf_->isKeyframe() && !do_fine_imu_camera_temporal_sync_,
@@ -209,7 +219,9 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
-        getTrackerInfo());
+        getTrackerInfo(),
+        getExternalOdometryRelativePose(input.get()),
+        getExternalOdometryVelocity(input.get()));
   } else {
     // Record frame rate timing
     timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());

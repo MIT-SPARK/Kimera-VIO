@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include <memory>
 #include <atomic>
+#include <memory>
 
 #include <boost/shared_ptr.hpp>  // used for opengv
 
@@ -50,11 +50,12 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
 
  public:
   StereoVisionImuFrontend(const ImuParams& imu_params,
-                       const ImuBias& imu_initial_bias,
-                       const FrontendParams& tracker_params,
-                       const StereoCamera::ConstPtr& stereo_camera,
-                       DisplayQueue* display_queue = nullptr,
-                       bool log_output = false);
+                          const ImuBias& imu_initial_bias,
+                          const FrontendParams& tracker_params,
+                          const StereoCamera::ConstPtr& stereo_camera,
+                          DisplayQueue* display_queue = nullptr,
+                          bool log_output = false,
+                          bool use_external_odometry = false);
   virtual ~StereoVisionImuFrontend();
 
  public:

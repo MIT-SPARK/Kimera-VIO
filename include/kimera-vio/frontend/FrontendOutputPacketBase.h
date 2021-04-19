@@ -36,19 +36,16 @@ class FrontendOutputPacketBase : public PipelinePayload {
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS& imu_acc_gyrs,
       const DebugTrackerInfo& debug_tracker_info,
-      boost::optional<gtsam::Pose3> lkf_body_odom_Pose_kf_body_odom =
-          boost::none,
-      boost::optional<gtsam::Velocity3> kf_body_odom_world_Vel_kf_body_odom =
-          boost::none)
+      boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body = boost::none,
+      boost::optional<gtsam::Velocity3> body_world_Vel_body = boost::none)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
         frontend_type_(frontend_type),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
         debug_tracker_info_(debug_tracker_info),
-        lkf_body_odom_Pose_kf_body_odom_(lkf_body_odom_Pose_kf_body_odom),
-        kf_body_odom_world_Vel_kf_body_odom_(
-            kf_body_odom_world_Vel_kf_body_odom) {}
+        lkf_body_Pose_kf_body_(lkf_body_Pose_kf_body),
+        body_world_Vel_body_(body_world_Vel_body) {}
 
   virtual ~FrontendOutputPacketBase() = default;
 
@@ -58,12 +55,9 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const ImuFrontend::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
-  // TODO(nathan) reconsider these names; they make the constructor
-  // really ugly and are probably unwieldy to use in practice even
-  // if they are descriptive.
-  boost::optional<gtsam::Pose3> lkf_body_odom_Pose_kf_body_odom_;
-  // velocity of odom body frame w.r.t. world frame in the body frame
-  boost::optional<gtsam::Velocity3> kf_body_odom_world_Vel_kf_body_odom_;
+  boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body_;
+  // velocity of the current body frame w.r.t. world frame in the body frame
+  boost::optional<gtsam::Velocity3> body_world_Vel_body_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
