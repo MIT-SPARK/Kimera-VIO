@@ -21,6 +21,7 @@
 
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
+#include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
@@ -53,7 +54,7 @@ class VisionImuFrontend {
                     const ImuBias& imu_initial_bias,
                     DisplayQueue* display_queue,
                     bool log_output,
-                    bool use_external_odometry = false);
+                    boost::optional<OdometryParams> odom_params = boost::none);
 
   virtual ~VisionImuFrontend();
 
@@ -147,12 +148,13 @@ class VisionImuFrontend {
                             TrackingStatusPose* status_pose_mono);
 
   // can't be const (needs to cache keyframe odom if possible)
-  inline boost::optional<gtsam::Pose3> getExternalOdometryRelativePose(
+  inline boost::optional<gtsam::Pose3> getExternalOdometryRelativeBodyPose(
       FrontendInputPacketBase* input) {
-    if (!use_external_odometry_) {
+    if (!odom_params_) {
       return boost::none;
     }
 
+    // Past this point we are using external odometry
     CHECK(input);
     if (!input->world_NavState_odom_) {
       LOG(WARNING)
@@ -160,23 +162,28 @@ class VisionImuFrontend {
       return boost::none;
     }
 
+    // First time getting a odometry measurement
+    const gtsam::Pose3& odom_Pose_body =
+        (*odom_params_).body_Pose_odom_.inverse();
     if (!world_Pose_lkf_body_) {
-      // TODO(nathan|marcus) add odom_body transform here
-      world_Pose_lkf_body_ = input->world_NavState_odom_.value().pose();
+      world_Pose_lkf_body_ =
+          (*input->world_NavState_odom_).pose().compose(odom_Pose_body);
       return boost::none;
     }
 
-    // TODO(nathan|marcus) add odom_body transform here
-    gtsam::Pose3 world_Pose_kf_body = input->world_NavState_odom_.value().pose();
+    gtsam::Pose3 world_Pose_kf_body =
+        (*input->world_NavState_odom_).pose().compose(odom_Pose_body);
     gtsam::Pose3 lkf_body_Pose_kf_body =
-        world_Pose_lkf_body_.value().inverse().compose(world_Pose_kf_body);
+        (*world_Pose_lkf_body_).between(world_Pose_kf_body);
+
+    // We cache the current keyframe odometry for the next keyframe
     world_Pose_lkf_body_ = world_Pose_kf_body;
     return lkf_body_Pose_kf_body;
   }
 
-  inline boost::optional<gtsam::Velocity3> getExternalOdometryVelocity(
+  inline boost::optional<gtsam::Velocity3> getExternalOdometryWorldVelocity(
       FrontendInputPacketBase* input) const {
-    if (!use_external_odometry_) {
+    if (!odom_params_) {
       return boost::none;
     }
 
@@ -185,8 +192,11 @@ class VisionImuFrontend {
       // we could log here to, but RelativePose handles it...
       return boost::none;
     }
-    // TODO(nathan|marcus) add odom_body transform here
-    return input->world_NavState_odom_.value().velocity();
+
+    // Pass the sensor velocity in the world frame if available
+    // NOTE: typical odometry is not suitable for this since the vel estimate
+    // in the world frame will not have a bounded error.
+    return (*input->world_NavState_odom_).velocity();
   }
 
  protected:
@@ -224,7 +234,7 @@ class VisionImuFrontend {
   TimeAlignerBase::UniquePtr time_aligner_;
 
   // External odometry
-  bool use_external_odometry_;
+  boost::optional<OdometryParams> odom_params_;
   // world_Pose_body for the last keyframe
   boost::optional<gtsam::Pose3> world_Pose_lkf_body_;
 };

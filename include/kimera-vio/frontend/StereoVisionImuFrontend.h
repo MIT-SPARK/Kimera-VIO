@@ -49,13 +49,14 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  StereoVisionImuFrontend(const ImuParams& imu_params,
-                          const ImuBias& imu_initial_bias,
-                          const FrontendParams& tracker_params,
-                          const StereoCamera::ConstPtr& stereo_camera,
-                          DisplayQueue* display_queue = nullptr,
-                          bool log_output = false,
-                          bool use_external_odometry = false);
+  StereoVisionImuFrontend(
+      const ImuParams& imu_params,
+      const ImuBias& imu_initial_bias,
+      const FrontendParams& tracker_params,
+      const StereoCamera::ConstPtr& stereo_camera,
+      DisplayQueue* display_queue = nullptr,
+      bool log_output = false,
+      boost::optional<OdometryParams> odom_params = boost::none);
   virtual ~StereoVisionImuFrontend();
 
  public:
