@@ -37,12 +37,12 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
     const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output,
-    bool use_external_odometry)
+    boost::optional<OdometryParams> odom_params)
     : VisionImuFrontend(imu_params,
                         imu_initial_bias,
                         display_queue,
                         log_output,
-                        use_external_odometry),
+                        odom_params),
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
@@ -78,7 +78,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
-  if (!FLAGS_do_fine_imu_camera_temporal_sync && use_external_odometry_) {
+  if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
     // note that we assume that the first frame is hardcoded to be
     // a keyframe. It's also okay if world_NavState_odom_ is boost::none
     VLOG(2) << "Caching first odom measurement in boostrapSpin";
@@ -227,8 +227,8 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
         input->getImuAccGyrs(),
         feature_tracks,
         getTrackerInfo(),
-        getExternalOdometryRelativePose(input.get()),
-        getExternalOdometryVelocity(input.get()));
+        getExternalOdometryRelativeBodyPose(input.get()),
+        getExternalOdometryWorldVelocity(input.get()));
   } else {
     // Record frame rate timing
     timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());

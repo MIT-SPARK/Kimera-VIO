@@ -72,7 +72,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           params.frontend_params_,
           camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
   vio_frontend_module_->registerImuTimeShiftUpdateCallback(
       [&](double imu_time_shift_s) {
         data_provider_module_->setImuTimeShift(imu_time_shift_s);
@@ -125,7 +126,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           *backend_params_,
           imu_params_,
           backend_output_params,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
 
   vio_backend_module_->registerOnFailureCallback(
       std::bind(&MonoImuPipeline::signalBackendFailure, this));

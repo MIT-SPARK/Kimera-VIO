@@ -31,6 +31,9 @@ bool OdometryParams::parseYAML(const std::string& filepath) {
   const gtsam::Pose3& body_Pose_cam =
       UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
+  yaml_parser.getYamlParam("odomRotationPrecision", &betweenRotationPrecision_);
+  yaml_parser.getYamlParam("odomPositionPrecision", &betweenTranslationPrecision_);
+  yaml_parser.getYamlParam("odomVelPrecision", &velocityPrecision_);
 
   double rate_hz = 0.0;
   yaml_parser.getYamlParam("rate_hz", &rate_hz);
@@ -45,6 +48,12 @@ void OdometryParams::print() const {
   PipelineParams::print(out,
                         "body_Pose_odom",
                         body_Pose_odom_,
+                        "odom_rotation_precision",
+                        betweenRotationPrecision_,
+                        "odom_position_precision",
+                        betweenTranslationPrecision_,
+                        "odom_vel_precision",
+                        velocityPrecision_,
                         "nominal_sampling_time_s",
                         nominal_sampling_time_s_);
   LOG(INFO) << out.str();

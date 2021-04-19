@@ -36,9 +36,13 @@ protected:
   bool equals(const PipelineParams& obj) const override;
 
  public:
-  gtsam::Pose3 body_Pose_odom_;
+  gtsam::Pose3 body_Pose_odom_ = gtsam::Pose3::identity();
 
-  double nominal_sampling_time_s_;
+  double betweenRotationPrecision_ = 0;
+  double betweenTranslationPrecision_ = 100;
+  double velocityPrecision_ = 0;
+
+  double nominal_sampling_time_s_ = 0;
 };
 
 }  // namespace VIO

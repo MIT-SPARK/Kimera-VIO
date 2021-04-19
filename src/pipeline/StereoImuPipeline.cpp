@@ -79,7 +79,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
           params.frontend_params_,
           stereo_camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerImuTimeShiftUpdateCallback(
       [&](double imu_time_shift_s) {
@@ -127,7 +128,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
           *backend_params_,
           imu_params_,
           backend_output_params,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
   vio_backend_module_->registerOnFailureCallback(
       std::bind(&StereoImuPipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(

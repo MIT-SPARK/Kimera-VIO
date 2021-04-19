@@ -11,6 +11,9 @@ T_BS:
          0.0, 0.0, 0.0, 1.0]
 rate_hz: 200
 
-# inertial sensor noise model parameters (static)
+# odometry sensor noise model parameters (static)
+odomPositionSigma: 1.0e-3
+odomRotationSigma: 1.0e-4
+odomVelSigma: 1.0e-2
 
 # Extra parameters
