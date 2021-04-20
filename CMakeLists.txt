@@ -232,6 +232,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
+    tests/testExternalOdometryFrontend.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
@@ -260,6 +261,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testTemporalCalibration.cpp
     tests/testUndistortRectifier.cpp
     tests/testThreadsafeImuBuffer.cpp
+    tests/testThreadsafeOdometryBuffer.cpp
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp
     tests/testTimer.cpp
