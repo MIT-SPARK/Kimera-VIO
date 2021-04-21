@@ -98,6 +98,8 @@ class BackendLogger {
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
 
+  void logBackendExtOdom(const BackendInput& input);
+
  private:
   void logBackendResultsCSV(const BackendOutput& output);
   void logSmartFactorsStats(const BackendOutput& output);
@@ -112,6 +114,7 @@ class BackendLogger {
   OfstreamWrapper output_pim_navstates_csv_;
   OfstreamWrapper output_backend_factors_stats_csv_;
   OfstreamWrapper output_backend_timing_csv_;
+  OfstreamWrapper output_backend_external_odometry_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
   double timing_loggerbackend_;
@@ -120,6 +123,7 @@ class BackendLogger {
   bool is_header_written_pim_navstates_ = false;
   bool is_header_written_backend_factors_stats_ = false;
   bool is_header_written_backend_timing_ = false;
+  bool is_header_written_external_odometry_ = false;
 };
 
 class FrontendLogger {
