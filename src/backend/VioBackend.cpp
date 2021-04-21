@@ -132,7 +132,13 @@ VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
 
 /* -------------------------------------------------------------------------- */
 BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
-  if (VLOG_IS_ON(10)) input.print();
+  if (VLOG_IS_ON(10)) {
+    input.print();
+  }
+
+  if (logger_) {
+    logger_->logBackendExtOdom(input);
+  }
 
   bool backend_status = false;
   const BackendState backend_state = backend_state_;
@@ -353,8 +359,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(
   }
 
   // Add odometry factors if they're available and have non-zero precision
-  if (odometry_body_pose && ((*odom_params_).betweenRotationPrecision_ > 0.0 ||
-                             (*odom_params_).betweenTranslationPrecision_ > 0.0)) {
+  if (odometry_body_pose &&
+      ((*odom_params_).betweenRotationPrecision_ > 0.0 ||
+       (*odom_params_).betweenTranslationPrecision_ > 0.0)) {
     CHECK(odom_params_);
     addBetweenFactor(last_kf_id_,
                      curr_kf_id_,
@@ -363,10 +370,12 @@ bool VioBackend::addVisualInertialStateAndOptimize(
                      (*odom_params_).betweenTranslationPrecision_);
   }
   if (odometry_vel && (*odom_params_).velocityPrecision_ > 0.0) {
-    LOG(WARNING) << "Using velocity priors from external odometry: "
-                 << "This only works if you have velocity estimates in the world frame! "
-                 << "(not provided by typical odometry sensors)";
-    addVelocityPrior(curr_kf_id_, *odometry_vel, (*odom_params_).velocityPrecision_);
+    LOG(WARNING)
+        << "Using velocity priors from external odometry: "
+        << "This only works if you have velocity estimates in the world frame! "
+        << "(not provided by typical odometry sensors)";
+    addVelocityPrior(
+        curr_kf_id_, *odometry_vel, (*odom_params_).velocityPrecision_);
   }
 
   // Why do we do this??
@@ -393,11 +402,10 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
       input.timestamp_,  // Current time for fixed lag smoother.
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
-      use_stereo_btw_factor
-          ? input.stereo_ransac_body_pose_
-          : boost::none,
+      use_stereo_btw_factor ? input.stereo_ransac_body_pose_ : boost::none,
       input.external_odometry_body_pose_,
-      input.external_odometry_vel_);  // optional: pose estimate from stereo ransac
+      input.external_odometry_vel_);  // optional: pose estimate from stereo
+                                      // ransac
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;
