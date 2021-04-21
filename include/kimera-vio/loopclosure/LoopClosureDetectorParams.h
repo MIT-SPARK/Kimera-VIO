@@ -88,7 +88,8 @@ class LoopClosureDetectorParams : public PipelineParams {
       double betweenTranslationPrecision = 1 / (0.1 * 0.1),
 
       double pgo_rot_threshold = 0.01,
-      double pgo_trans_threshold = 0.1);
+      double pgo_trans_threshold = 0.1,
+      double gnc_alpha = 0.7);
 
  public:
   virtual ~LoopClosureDetectorParams() = default;
@@ -151,7 +152,8 @@ class LoopClosureDetectorParams : public PipelineParams {
       betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
 
       pgo_rot_threshold_== rhs.pgo_rot_threshold_ &&
-      pgo_trans_threshold_== rhs.pgo_trans_threshold_;
+      pgo_trans_threshold_== rhs.pgo_trans_threshold_ &&
+      gnc_alpha_ == rhs.gnc_alpha_;
   }
 
  public:
@@ -227,6 +229,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   ////////////////////////////// PGO solver params /////////////////////////////
   double pgo_rot_threshold_;
   double pgo_trans_threshold_;
+  double gnc_alpha_;
   //////////////////////////////////////////////////////////////////////////////
 };
 
