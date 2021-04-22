@@ -47,8 +47,7 @@ class MonoDataProviderModule : public DataProviderModule {
 
   MonoDataProviderModule(OutputQueue* output_queue,
                          const std::string& name_id,
-                         const bool& parallel_run,
-                         bool use_external_odometry = false);
+                         const bool& parallel_run);
 
   virtual ~MonoDataProviderModule() = default;
 

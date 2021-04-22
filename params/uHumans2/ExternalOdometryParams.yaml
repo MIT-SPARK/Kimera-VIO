@@ -12,8 +12,8 @@ T_BS:
 rate_hz: 200
 
 # odometry sensor noise model parameters (static)
-odomPositionSigma: 1.0e-3
-odomRotationSigma: 1.0e-4
-odomVelSigma: 1.0e-2
+odomPositionPrecision: 1.0e-3
+odomRotationPrecision: 1.0e-4
+odomVelPrecision: 1.0e-2
 
 # Extra parameters
