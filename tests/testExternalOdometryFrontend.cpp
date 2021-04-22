@@ -37,8 +37,7 @@ class TestExternalOdometryProvider : public ::testing::Test {
         VIO::make_unique<StereoDataProviderModule>(&output_queue_,
                                                    "test_stereo_provider",
                                                    false,
-                                                   StereoMatchingParams(),
-                                                   false);
+                                                   StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
           output_queue_.push(std::move(packet));
@@ -95,8 +94,7 @@ class TestExternalOdometryProviderEnabled
         VIO::make_unique<StereoDataProviderModule>(&output_queue_,
                                                    "test_stereo_provider",
                                                    false,
-                                                   StereoMatchingParams(),
-                                                   true);
+                                                   StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
           output_queue_.push(std::move(packet));
