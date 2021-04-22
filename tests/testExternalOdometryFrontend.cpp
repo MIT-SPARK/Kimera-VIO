@@ -26,6 +26,7 @@
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/VisionImuFrontend.h"
+#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 
 namespace VIO {
 
@@ -66,7 +67,7 @@ class TestExternalOdometryProvider : public ::testing::Test {
   }
 
   void addOdometry(Timestamp timestamp) {
-    test_provider_->fillExternalOdometryQueue(timestamp, gtsam::NavState());
+    test_provider_->fillExternalOdometryQueue(ExternalOdomMeasurement(timestamp, gtsam::NavState()));
   }
 
   void spinWithTimeout(int timeout = 1000) {

@@ -20,15 +20,16 @@
 
 #pragma once
 
+#include <glog/logging.h>
+
 #include <atomic>
 #include <functional>
 #include <string>
 #include <utility>  // for move
 
-#include <glog/logging.h>
-
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
+#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
@@ -81,17 +82,14 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    * odom_world_Vel_odom (i.e. pose of body (odom frame) w.r.t. world and
    * velocity of the odom frame in the world frame w.r.t. the odom frame)
    */
-  inline void fillExternalOdometryQueue(
-      Timestamp timestamp,
-      const gtsam::NavState& world_NavState_odom,
-      bool blocking = false) {
+  inline void fillExternalOdometryQueue(const ExternalOdomMeasurement& odom) {
     if (!external_odometry_buffer_) {
       LOG(WARNING)
           << "Attempting to add external odometry when using an external "
              "odometry source is disabled! Measurements will be ignored";
       return;
     }
-    external_odometry_buffer_->add(timestamp, world_NavState_odom);
+    external_odometry_buffer_->add(odom.timestamp_, odom.odom_data_);
   }
 
   /**
