@@ -108,7 +108,6 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
   }
 
   if (odometry_valid) {
-    LOG(INFO) << "returning sync packet with odom";
     // return synchronized left frame, IMU data and external odometry
     return VIO::make_unique<MonoImuSyncPacket>(std::move(left_frame_payload),
                                                imu_meas.timestamps_,
