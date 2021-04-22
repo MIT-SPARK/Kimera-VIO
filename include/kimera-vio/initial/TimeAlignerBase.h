@@ -17,6 +17,7 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/logging/Logger.h"
 
 namespace VIO {
 
@@ -56,14 +57,16 @@ class TimeAlignerBase {
   virtual Result estimateTimeAlignment(Tracker& tracker,
                                        const FrontendOutputPacketBase& output,
                                        const ImuStampS& imu_stamps,
-                                       const ImuAccGyrS& imu_accgyrs);
+                                       const ImuAccGyrS& imu_accgyrs,
+                                       FrontendLogger* logger = nullptr);
 
  protected:
   virtual Result attemptEstimation(
       const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
       const gtsam::Pose3& T_ref_cur,
       const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_accgyrs) = 0;
+      const ImuAccGyrS& imu_accgyrs,
+      FrontendLogger* logger = nullptr) = 0;
 
   Frame::UniquePtr last_frame_;
 };

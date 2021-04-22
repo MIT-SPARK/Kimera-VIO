@@ -22,7 +22,8 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
     Tracker& tracker,
     const FrontendOutputPacketBase& output,
     const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyrs) {
+    const ImuAccGyrS& imu_accgyrs,
+    FrontendLogger* logger) {
   Frame::UniquePtr curr_frame;
   switch (output.frontend_type_) {
     case FrontendType::kMonoImu:
@@ -62,7 +63,7 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
     return {true, 0.0};
   }
 
-  return attemptEstimation(timestamps_ref_curr, ransac_result.second, imu_stamps, imu_accgyrs);
+  return attemptEstimation(timestamps_ref_curr, ransac_result.second, imu_stamps, imu_accgyrs, logger);
 }
 
 }  // namespace VIO

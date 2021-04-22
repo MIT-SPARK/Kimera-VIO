@@ -142,16 +142,25 @@ class FrontendLogger {
                       const std::string& dir_name,
                       bool disp_img,
                       bool save_img);
+  void logFrontendTemporalCal(const Timestamp& timestamp_vision,
+                              const Timestamp& timestamp_imu,
+                              double vision_relative_angle_norm,
+                              double image_relative_angle_norm,
+                              bool not_enough_data,
+                              bool not_enough_variance,
+                              double result);
 
  private:
   // StreamWrappers with filenames to which output is saved.
   OfstreamWrapper output_frontend_stats_;
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
+  OfstreamWrapper output_frontend_temporal_cal_;
   std::string output_frontend_img_path_;
   bool is_header_written_frontend_stats_ = false;
   bool is_header_written_ransac_mono_ = false;
   bool is_header_written_ransac_stereo_ = false;
+  bool is_header_written_temporal_cal_ = false;
 };
 
 class MesherLogger {

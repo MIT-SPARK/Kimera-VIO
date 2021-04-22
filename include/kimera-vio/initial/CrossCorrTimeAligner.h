@@ -73,7 +73,8 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
       const gtsam::Pose3& T_ref_cur,
       const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_acc_gyrs) override;
+      const ImuAccGyrS& imu_acc_gyrs,
+      FrontendLogger* logger = nullptr) override;
 
  private:
   size_t addNewImuData(Timestamp frame_timestamp,
@@ -86,6 +87,12 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       size_t num_new_imu_measurements);
 
   double getTimeShift() const;
+
+  void logData(FrontendLogger* logger,
+               size_t num_imu_added,
+               bool not_enough_data,
+               bool not_enough_variance,
+               double result);
 
   RotOnlyPIMParamPtr pim_params_;
   bool do_imu_rate_estimation_;

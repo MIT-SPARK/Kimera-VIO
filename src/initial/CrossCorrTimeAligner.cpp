@@ -158,11 +158,38 @@ double CrossCorrTimeAligner::getTimeShift() const {
   return timeshift;
 }
 
+void CrossCorrTimeAligner::logData(FrontendLogger* logger,
+                                   size_t num_imu_added,
+                                   bool not_enough_data,
+                                   bool not_enough_variance,
+                                   double result) {
+  if (!logger) {
+    return;
+  }
+
+  // this is a little awkward when doing things at imu rate,
+  // as the result and status gets copied for each of the
+  // samples even though the status is only is guaranteed to be
+  // correct for the last. It's simple enough to piece together
+  // later what happened though and this method is simpler
+  for (size_t i = 0; i < num_imu_added; ++i) {
+    size_t idx = imu_buffer_.size() - num_imu_added + i;
+    logger->logFrontendTemporalCal(vision_buffer_[idx].timestamp,
+                                   imu_buffer_[idx].timestamp,
+                                   vision_buffer_[idx].value,
+                                   imu_buffer_[idx].value,
+                                   not_enough_data,
+                                   not_enough_variance,
+                                   result);
+  }
+}
+
 TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
     const gtsam::Pose3& T_ref_cur,
     const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_acc_gyrs) {
+    const ImuAccGyrS& imu_acc_gyrs,
+    FrontendLogger* logger) {
   size_t num_imu_added =
       addNewImuData(timestamps_ref_cur.second, imu_stamps, imu_acc_gyrs);
   if (num_imu_added == 0) {
@@ -180,6 +207,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   if (!vision_buffer_.full()) {
     VLOG(1)
         << "Waiting for enough measurements to perform temporal calibration";
+    logData(logger, num_imu_added, true, false, 0.0);
     return {false, 0.0};
   }
 
@@ -188,6 +216,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
       utils::variance(imu_buffer_, std::bind(valueAccessor, _1));
   if (imu_variance < imu_variance_threshold_) {
     LOG(WARNING) << "Low gyro signal variance, delaying temporal calibration";
+    logData(logger, num_imu_added, false, true, 0.0);
     return {false, 0.0};  // signal appears to mostly be noise
   }
 
@@ -196,6 +225,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   double timeshift = getTimeShift();
   LOG(WARNING) << "Computed timeshift of " << timeshift
                << "[s] (t_imu = t_cam + timeshift)";
+  logData(logger, num_imu_added, false, false, timeshift);
   return {true, timeshift};
 }
 

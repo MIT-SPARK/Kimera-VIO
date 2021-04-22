@@ -374,6 +374,7 @@ FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
       output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
+      output_frontend_temporal_cal_("output_frontend_temporal_cal.csv"),
       output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
   // Create output directories for images.
   boost::filesystem::create_directory(
@@ -512,6 +513,29 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
     LOG(INFO) << "Writing image: " << img_name;
     cv::imwrite(img_name, img);
   }
+}
+
+void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
+                                            const Timestamp& timestamp_imu,
+                                            double vision_relative_angle_norm,
+                                            double image_relative_angle_norm,
+                                            bool not_enough_data,
+                                            bool not_enough_variance,
+                                            double result) {
+  std::ofstream& output_stream = output_frontend_ransac_mono_.ofstream_;
+
+  if (!is_header_written_temporal_cal_) {
+    output_stream << "#timestamp_vision,timestamp_imu,vision_relative_angle_"
+                     "norm,image_relative_angle_norm,not_enough_data,not_"
+                     "enough_variance,t_imu_cam_s"
+                  << std::endl;
+    is_header_written_temporal_cal_ = true;
+  }
+
+  output_stream << timestamp_vision << "," << timestamp_imu << ","
+                << vision_relative_angle_norm << ","
+                << image_relative_angle_norm << "," << not_enough_data << ","
+                << not_enough_variance << "," << result << "," << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
