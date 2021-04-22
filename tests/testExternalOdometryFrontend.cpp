@@ -25,19 +25,18 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/VisionImuFrontend.h"
+
+DECLARE_bool(use_external_odometry);
 
 namespace VIO {
 
 class TestExternalOdometryProvider : public ::testing::Test {
  public:
   TestExternalOdometryProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ =
-        VIO::make_unique<StereoDataProviderModule>(&output_queue_,
-                                                   "test_stereo_provider",
-                                                   false,
-                                                   StereoMatchingParams());
+    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
+        &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
           output_queue_.push(std::move(packet));
@@ -66,7 +65,8 @@ class TestExternalOdometryProvider : public ::testing::Test {
   }
 
   void addOdometry(Timestamp timestamp) {
-    test_provider_->fillExternalOdometryQueue(ExternalOdomMeasurement(timestamp, gtsam::NavState()));
+    test_provider_->fillExternalOdometryQueue(
+        ExternalOdomMeasurement(timestamp, gtsam::NavState()));
   }
 
   void spinWithTimeout(int timeout = 1000) {
@@ -90,15 +90,18 @@ class TestExternalOdometryProviderEnabled
     : public TestExternalOdometryProvider {
  public:
   TestExternalOdometryProviderEnabled() : TestExternalOdometryProvider() {
-    test_provider_ =
-        VIO::make_unique<StereoDataProviderModule>(&output_queue_,
-                                                   "test_stereo_provider",
-                                                   false,
-                                                   StereoMatchingParams());
+    FLAGS_use_external_odometry = true;
+    // remake provider now that odometry is enabled
+    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
+        &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
           output_queue_.push(std::move(packet));
         });
+  }
+
+  virtual ~TestExternalOdometryProviderEnabled() {
+    FLAGS_use_external_odometry = false;
   }
 };
 
