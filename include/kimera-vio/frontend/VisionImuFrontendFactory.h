@@ -41,12 +41,12 @@ class VisionImuFrontendFactory {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
         return VIO::make_unique<MonoVisionImuFrontend>(imu_params,
-                                                    imu_initial_bias,
-                                                    frontend_params,
-                                                    camera,
-                                                    display_queue,
-                                                    log_output,
-                                                    odom_params);
+                                                       imu_initial_bias,
+                                                       frontend_params,
+                                                       camera,
+                                                       display_queue,
+                                                       log_output,
+                                                       odom_params);
       }
       case FrontendType::kStereoImu: {
         LOG(FATAL) << "Tried to create a StereoVisionFrontEnd"
@@ -80,12 +80,12 @@ class VisionImuFrontendFactory {
       }
       case FrontendType::kStereoImu: {
         return VIO::make_unique<StereoVisionImuFrontend>(imu_params,
-                                                      imu_initial_bias,
-                                                      frontend_params,
-                                                      stereo_camera,
-                                                      display_queue,
-                                                      log_output,
-                                                      odom_params);
+                                                         imu_initial_bias,
+                                                         frontend_params,
+                                                         stereo_camera,
+                                                         display_queue,
+                                                         log_output,
+                                                         odom_params);
       }
       default: {
         LOG(FATAL) << "Requested frontend type is not supported.\n"
