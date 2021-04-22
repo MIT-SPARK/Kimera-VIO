@@ -81,7 +81,6 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
       [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
         MonoFrontendOutput::Ptr converted_output =
             VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
-
         if (converted_output->is_keyframe_) {
           //! Only push to Backend input queue if it is a keyframe!
           backend_input_queue.push(VIO::make_unique<BackendInput>(

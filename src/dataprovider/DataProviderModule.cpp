@@ -14,6 +14,9 @@
  */
 
 #include "kimera-vio/dataprovider/DataProviderModule.h"
+#include <gflags/gflags.h>
+
+DECLARE_bool(use_external_odometry);
 
 namespace VIO {
 
@@ -31,7 +34,8 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
       imu_time_shift_ns_(0),
       external_odometry_buffer_(nullptr) {
   // TODO(nathan) replace with non-unlimited buffer size
-  external_odometry_buffer_ = VIO::make_unique<ThreadsafeOdometryBuffer>(-1);
+  if (FLAGS_use_external_odometry)
+    external_odometry_buffer_ = VIO::make_unique<ThreadsafeOdometryBuffer>(-1);
 }
 
 void DataProviderModule::logQueryResult(
