@@ -34,7 +34,8 @@ VioParams::VioParams(const std::string& params_folder_path)
                 "BackendParams.yaml",
                 "LcdParams.yaml",
                 "DisplayParams.yaml",
-                FLAGS_use_external_odometry ? boost::optional<std::string>("ExternalOdometryParams.yaml") 
+                FLAGS_use_external_odometry ? boost::optional<std::string>(
+                                                  "ExternalOdometryParams.yaml")
                                             : boost::none) {}
 
 VioParams::VioParams(const std::string& params_folder_path,
@@ -153,7 +154,7 @@ bool VioParams::parseYAML(const std::string& folder_path) {
     OdometryParams odom_params;
     parsePipelineParams(folder_path + '/' + *odom_params_filename_,
                         &odom_params);
-    *odom_params_ = odom_params;
+    odom_params_ = odom_params;
   }
 
   return true;
