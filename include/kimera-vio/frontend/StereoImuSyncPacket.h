@@ -19,19 +19,15 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
-#include "kimera-vio/mesh/Mesh.h"
-#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
 struct ReinitPacket {
   ReinitPacket(const bool& reinit_flag_ext = false,
                const Timestamp& timestamp_ext = 0,
-               const gtsam::Pose3& W_Pose_Bext = gtsam::Pose3(),
+               const gtsam::Pose3& W_Pose_Bext = gtsam::Pose3::identity(),
                const gtsam::Vector3& W_Vel_Bext = gtsam::Vector3::Zero(3),
                const ImuBias& imu_bias_ext = gtsam::imuBias::ConstantBias())
       : reinit_flag_ext_(reinit_flag_ext),
@@ -80,7 +76,7 @@ struct ReinitPacket {
   }
 };
 
-class StereoImuSyncPacket : public PipelinePayload {
+class StereoImuSyncPacket : public FrontendInputPacketBase {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoImuSyncPacket);
@@ -91,8 +87,6 @@ class StereoImuSyncPacket : public PipelinePayload {
                       const ImuAccGyrS& imu_accgyr,
                       const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
-
-  // TODO delete copy-constructor because it is used in some places!
 
   // Careful, returning references to members can lead to dangling refs.
   inline const StereoFrame& getStereoFrame() const { return stereo_frame_; }
@@ -107,8 +101,6 @@ class StereoImuSyncPacket : public PipelinePayload {
 
  private:
   const StereoFrame stereo_frame_;
-  const ImuStampS imu_stamps_;
-  const ImuAccGyrS imu_accgyrs_;
   const ReinitPacket reinit_packet_;
 };
 

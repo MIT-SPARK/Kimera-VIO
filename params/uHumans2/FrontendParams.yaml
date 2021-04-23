@@ -35,7 +35,7 @@ maxPointDist: 50
 bidirectionalMatching: 0
 
 # Non-maximum suppression params
-enable_non_max_suppression: 1
+enable_non_max_suppression: 0
 non_max_suppression_type: 4
 
 # Subpixel corner refinement for the monocular case

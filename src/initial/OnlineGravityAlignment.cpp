@@ -78,14 +78,14 @@ void VisualInertialFrame::updateDeltaState(const gtsam::NavState &delta_state) {
 // TODO(Sandro): Check conventions
 // TODO(Sandro): Why are we not iterating also the tangent basis?
 // TODO(Sandro): Either retrieve all velocities and poses to insert
-// in the backend optimization or retrieve last pose and velocity
-// so that there is no lag for the backend optimization
+// in the Backend optimization or retrieve last pose and velocity
+// so that there is no lag for the Backend optimization
 
 /* -------------------------------------------------------------------------- */
 // Constructor for visual inertial alignment.
 // [in] estimated camera poses in initial body frame.
 // [in] delta timestamps of camera frames.
-// [in] pre-integrations performed in visual frontend.
+// [in] pre-integrations performed in visual Frontend.
 // [in] global gravity vector in world frame.
 OnlineGravityAlignment::OnlineGravityAlignment(
     const AlignmentPoses &estimated_body_poses,
@@ -139,7 +139,7 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
     // Align gravity vectors and estimate initial pose
     gtsam::Rot3 w0_R_b0 =
         UtilsOpenCV::AlignGravityVectors(*g_iter, g_world_, false);
-    gtsam::Pose3 w0_T_b0(w0_R_b0, gtsam::Point3());
+    gtsam::Pose3 w0_T_b0(w0_R_b0, gtsam::Point3::Zero());
     // Create initial navstate and rotate velocity in world frame
     *init_navstate = gtsam::NavState(w0_T_b0 * vi_frames.at(0).b0Tbk(),
                                      w0_T_b0.rotation() * init_velocity);
@@ -162,7 +162,7 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 // It populates the camera poses, delta pre-integrations and jacobian.
 // [in] vector of estimated camera poses from Bundle-Adjustment.
 // [in] vector of delta_t in camera frames.
-// [in] vector of pre-integrations from visual-frontend.
+// [in] vector of pre-integrations from visual-Frontend.
 // [out] vector of frames used for initial alignment.
 void OnlineGravityAlignment::constructVisualInertialFrames(
     const AlignmentPoses &estimated_body_poses,
@@ -208,7 +208,7 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
 
 /* -------------------------------------------------------------------------- */
 // Estimate gyroscope bias and update delta states in VI frames
-// [in] vector of pre-integrations from visual-frontend.
+// [in] vector of pre-integrations from visual-Frontend.
 // [out] new estimated value for gyroscope bias.
 // [out] frames containing pim constraints and body poses.
 bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
@@ -392,7 +392,7 @@ gtsam::Vector3 OnlineGravityAlignment::estimateGyroscopeResiduals(
 /* -------------------------------------------------------------------------- */
 // Corrects pre-integrated delta states with the gyro bias estimate.
 // It uses a first-order approximation around the gyro bias estimate.
-// [in] vector of pre-integrations from visual-frontend.
+// [in] vector of pre-integrations from visual-Frontend.
 // [in] new estimated value for gyroscope bias.
 // [out] updated vector of frames used for initial alignment.
 void OnlineGravityAlignment::updateDeltaStates(

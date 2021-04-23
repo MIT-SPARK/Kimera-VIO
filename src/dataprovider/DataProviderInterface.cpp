@@ -17,15 +17,13 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/backend/RegularVioBackEndParams.h"
-#include "kimera-vio/backend/VioBackEndParams.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/backend/RegularVioBackendParams.h"
+#include "kimera-vio/backend/VioBackendParams.h"
+#include "kimera-vio/frontend/VisionImuFrontendParams.h"
+#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 
 namespace VIO {
-
-DataProviderInterface::DataProviderInterface() {}
 
 DataProviderInterface::~DataProviderInterface() {
   LOG(INFO) << "Data provider destructor called.";

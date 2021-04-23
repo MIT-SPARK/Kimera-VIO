@@ -23,10 +23,16 @@
 #include <utility>  // for pair<>
 #include <vector>
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <gflags/gflags.h>
+
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/YamlParser.h"
 
@@ -34,11 +40,11 @@ DEFINE_string(dataset_path,
               "/Users/Luca/data/MH_01_easy",
               "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
 DEFINE_int64(initial_k,
-             50,
+             0,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
 DEFINE_int64(final_k,
-             10000,
+             100000,
              "Final frame to finish processing dataset, "
              "subsequent frames will not be used.");
 DEFINE_bool(log_euroc_gt_data,
@@ -57,24 +63,25 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       current_k_(std::numeric_limits<FrameId>::max()),
       initial_k_(initial_k),
       final_k_(final_k),
-      pipeline_params_(vio_params),
+      vio_params_(vio_params),
       imu_measurements_(),
       logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
                                       : nullptr) {
+  CHECK(!dataset_path_.empty())
+      << "Dataset path for EurocDataProvider is empty.";
+
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);
-  CHECK_GE(initial_k_, 10)
-      << "initial_k should be >= 10 for IMU bias initialization";
 
   // Finish processing dataset at frame final_k.
   // Last frame to process (to avoid processing the entire dataset),
   // skip last frames.
   CHECK_GT(final_k_, 0);
 
-  CHECK(final_k_ > initial_k_) << "Value for final_k (" << final_k_
-                               << ") is smaller than value for"
-                               << " initial_k (" << initial_k_ << ").";
+  CHECK_GT(final_k_, initial_k_) << "Value for final_k (" << final_k_
+                                 << ") is smaller than value for"
+                                 << " initial_k (" << initial_k_ << ").";
   current_k_ = initial_k_;
 
   // Parse the actual dataset first, then run it.
@@ -104,18 +111,22 @@ bool EurocDataProvider::spin() {
     if (!is_imu_data_sent_) {
       // First, send all the IMU data. The flag is to avoid sending it several
       // times if we are running in sequential mode.
-      sendImuData();
+      if (imu_single_callback_) {
+        sendImuData();
+      } else {
+        LOG(ERROR) << "Imu callback not registered! Not sending IMU data.";
+      }
       is_imu_data_sent_ = true;
     }
 
     // Spin.
-    CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
+    CHECK_EQ(vio_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
     // We log only the first one, because we may be running in sequential mode.
     LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
                          << " and frame " << final_k_;
     while (!shutdown_ && spinOnce()) {
-      if (!pipeline_params_.parallel_run_) {
+      if (!vio_params_.parallel_run_) {
         // Return, instead of blocking, when running in sequential mode.
         return true;
       }
@@ -127,6 +138,7 @@ bool EurocDataProvider::spin() {
   return false;
 }
 
+/* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spinOnce() {
   CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
       << "Are you sure you've initialized current_k_?";
@@ -135,10 +147,10 @@ bool EurocDataProvider::spinOnce() {
     return false;
   }
 
-  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
-  const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
+  const CameraParams& left_cam_info = vio_params_.camera_params_.at(0);
+  const CameraParams& right_cam_info = vio_params_.camera_params_.at(1);
   const bool& equalize_image =
-      pipeline_params_.frontend_params_.stereo_matching_params_.equalize_image_;
+      vio_params_.frontend_params_.stereo_matching_params_.equalize_image_;
 
   const Timestamp& timestamp_frame_k = timestampAtFrame(current_k_);
   VLOG(10) << "Sending left/right frames k= " << current_k_
@@ -194,7 +206,6 @@ void EurocDataProvider::sendImuData() const {
   }
 }
 
-
 /* -------------------------------------------------------------------------- */
 void EurocDataProvider::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
@@ -203,9 +214,9 @@ void EurocDataProvider::parse() {
   if (VLOG_IS_ON(1)) print();
 
   // Send first ground-truth pose to VIO for initialization if requested.
-  if (pipeline_params_.backend_params_->autoInitialize_ == 0) {
+  if (vio_params_.backend_params_->autoInitialize_ == 0) {
     // We want to initialize from ground-truth.
-    pipeline_params_.backend_params_->initial_ground_truth_state_ =
+    vio_params_.backend_params_->initial_ground_truth_state_ =
         getGroundTruthState(timestampAtFrame(initial_k_));
   }
 }
@@ -262,10 +273,11 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 
     if (previous_timestamp != -1) {
       sumOfDelta += (timestamp - previous_timestamp);
-      double deltaMismatch = std::fabs(
-          static_cast<double>(timestamp - previous_timestamp -
-                              pipeline_params_.imu_params_.nominal_sampling_time_s_) *
-          1e-9);
+      double deltaMismatch =
+          std::fabs(static_cast<double>(
+                        timestamp - previous_timestamp -
+                        vio_params_.imu_params_.nominal_sampling_time_s_) *
+                    1e-9);
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
       deltaCount += 1u;
@@ -301,19 +313,19 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
-  // int n_rows = 0;
-  // yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
-  // CHECK_EQ(n_rows, 4u);
-  // int n_cols = 0;
-  // yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
-  // CHECK_EQ(n_cols, 4u);
+  int n_rows = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  CHECK_EQ(n_rows, 4u);
+  int n_cols = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   gt_data_.body_Pose_prism_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame: aka body_Pose_prism_ == body_Pose_cam_
-  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3()))
+  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3::identity()))
       << "parseGTdata: we expected identity body_Pose_prism_: is everything "
          "ok?";
 
@@ -470,9 +482,9 @@ bool EurocDataProvider::sanityCheckCameraData(
     const std::vector<std::string>& camera_names,
     std::map<std::string, CameraImageLists>* camera_image_lists) const {
   CHECK_NOTNULL(camera_image_lists);
-  CHECK_GT(pipeline_params_.camera_params_.size(), 0u);
-  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
-  const auto& left_cam_info = pipeline_params_.camera_params_.at(0);
+  CHECK_GT(vio_params_.camera_params_.size(), 0u);
+  CHECK_EQ(vio_params_.camera_params_.size(), 2u);
+  const auto& left_cam_info = vio_params_.camera_params_.at(0);
   auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists_;
   auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists_;
   return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
@@ -738,18 +750,114 @@ void EurocDataProvider::print() const {
   LOG(INFO) << "------------------ ETHDatasetParser::print ------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
   // For each of the 2 cameras.
-  CHECK_EQ(pipeline_params_.camera_params_.size(), camera_names_.size());
+  CHECK_EQ(vio_params_.camera_params_.size(), camera_names_.size());
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
               << (i == 0 ? "Left" : "Right")
               << " camera name: " << camera_names_[i] << ", with params:\n";
-    pipeline_params_.camera_params_.at(i).print();
+    vio_params_.camera_params_.at(i).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
   if (FLAGS_minloglevel < 1) {
     gt_data_.print();
   }
   LOG(INFO) << "-------------------------------------------------------------";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+/* -------------------------------------------------------------------------- */
+MonoEurocDataProvider::MonoEurocDataProvider(const std::string& dataset_path,
+                                             const int& initial_k,
+                                             const int& final_k,
+                                             const VioParams& vio_params)
+    : EurocDataProvider(dataset_path, initial_k, final_k, vio_params) {}
+
+/* -------------------------------------------------------------------------- */
+MonoEurocDataProvider::MonoEurocDataProvider(const VioParams& vio_params)
+    : EurocDataProvider(vio_params) {}
+
+/* -------------------------------------------------------------------------- */
+MonoEurocDataProvider::~MonoEurocDataProvider() {
+  LOG(INFO) << "Mono ETHDataParser destructor called.";
+}
+
+/* -------------------------------------------------------------------------- */
+bool MonoEurocDataProvider::spin() {
+  if (dataset_parsed_) {
+    if (!is_imu_data_sent_) {
+      // First, send all the IMU data. The flag is to avoid sending it several
+      // times if we are running in sequential mode.
+      if (imu_single_callback_) {
+        sendImuData();
+      } else {
+        LOG(ERROR) << "Imu callback not registered! Not sending IMU data.";
+      }
+      is_imu_data_sent_ = true;
+    }
+
+    // Spin.
+    CHECK_EQ(vio_params_.camera_params_.size(), 2u);
+    CHECK_GT(final_k_, initial_k_);
+    // We log only the first one, because we may be running in sequential mode.
+    LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
+                         << " and frame " << final_k_;
+    while (!shutdown_ && spinOnce()) {
+      if (!vio_params_.parallel_run_) {
+        // Return, instead of blocking, when running in sequential mode.
+        return true;
+      }
+    }
+  } else {
+    LOG(ERROR) << "Euroc dataset was not parsed.";
+  }
+  LOG_IF(INFO, shutdown_) << "EurocDataProvider shutdown requested.";
+  return false;
+}
+
+/* -------------------------------------------------------------------------- */
+bool MonoEurocDataProvider::spinOnce() {
+  CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
+      << "Are you sure you've initialized current_k_?";
+  if (current_k_ >= final_k_) {
+    LOG(INFO) << "Finished spinning Euroc dataset.";
+    return false;
+  }
+
+  const CameraParams& left_cam_info = vio_params_.camera_params_.at(0);
+  const bool& equalize_image =
+      vio_params_.frontend_params_.stereo_matching_params_.equalize_image_;
+
+  const Timestamp& timestamp_frame_k = timestampAtFrame(current_k_);
+  VLOG(10) << "Sending left frame k= " << current_k_
+           << " with timestamp: " << timestamp_frame_k;
+
+  // TODO(Toni): ideally only send cv::Mat raw images...:
+  // - pass params to vio_pipeline ctor
+  // - make vio_pipeline actually equalize or transform images as necessary.
+  std::string left_img_filename;
+  bool available_left_img = getLeftImgName(current_k_, &left_img_filename);
+  if (available_left_img) {
+    // Both stereo images are available, send data to VIO
+    CHECK(left_frame_callback_);
+    left_frame_callback_(
+        VIO::make_unique<Frame>(current_k_,
+                                timestamp_frame_k,
+                                // TODO(Toni): this info should be passed to
+                                // the camera... not all the time here...
+                                left_cam_info,
+                                UtilsOpenCV::ReadAndConvertToGrayScale(
+                                    left_img_filename, equalize_image)));
+  } else {
+    LOG(ERROR) << "Missing left image, proceeding to the next one.";
+  }
+
+  // This is done directly when parsing the Imu data.
+  // imu_single_callback_(imu_meas);
+
+  VLOG(10) << "Finished VIO processing for frame k = " << current_k_;
+  current_k_++;
+  return true;
 }
 
 }  // namespace VIO

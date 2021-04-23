@@ -19,6 +19,9 @@
 #include <string>
 #include <vector>
 
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Pose3.h>
+
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/Macros.h"
@@ -29,6 +32,7 @@ namespace VIO {
 // Struct for performance in initialization
 struct InitializationPerformance {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Default constructor
   InitializationPerformance(const Timestamp& init_timestamp,
                             const int& init_n_frames,
@@ -38,7 +42,9 @@ struct InitializationPerformance {
                             const gtsam::Vector3& init_gravity,
                             const VioNavState& gt_nav_state,
                             const gtsam::Vector3& gt_gravity);
+  ~InitializationPerformance() = default;
 
+ public:
   void print() const;
 
  public:

@@ -8,35 +8,43 @@
 
 /**
  * @file   Pipeline.h
- * @brief  Implements VIO pipeline workflow.
+ * @brief  Implements abstract VIO pipeline workflow.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #pragma once
 
+#include <gflags/gflags.h>
 #include <stddef.h>
+
 #include <atomic>
 #include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
-#include <utility>  // for make_pair
 #include <vector>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/backend/VioBackEndModule.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/backend/VioBackendModule.h"
 #include "kimera-vio/common/VioNavState.h"
-#include "kimera-vio/dataprovider/DataProviderModule.h"
-#include "kimera-vio/frontend/StereoCamera.h"
-#include "kimera-vio/frontend/StereoImuSyncPacket.h"
-#include "kimera-vio/frontend/VisionFrontEndModule.h"
+#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
+#include "kimera-vio/frontend/VisionImuFrontendModule.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/MesherModule.h"
-#include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/DisplayModule.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
+
+DECLARE_bool(log_output);
+DECLARE_bool(extract_planes_from_the_scene);
+DECLARE_bool(visualize);
+DECLARE_bool(visualize_lmk_type);
+DECLARE_int32(viz_type);
+DECLARE_bool(deterministic_random_number_generator);
+DECLARE_int32(min_num_obs_for_mesher_points);
+DECLARE_bool(use_lcd);
 
 namespace VIO {
 
@@ -47,51 +55,30 @@ class Pipeline {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  /**
-   * @brief Pipeline
-   * @param params Vio parameters
-   * @param visualizer Optional visualizer for visualizing 3D results
-   * @param displayer Optional displayer for visualizing 2D results
-   */
-  Pipeline(const VioParams& params,
-           Visualizer3D::UniquePtr&& visualizer = nullptr,
-           DisplayBase::UniquePtr&& displayer = nullptr);
+  Pipeline(const VioParams& params);
 
   virtual ~Pipeline();
 
  public:
-  // Callbacks to fill input queues.
-  //! Callbacks to fill stereo frames
+  //! Callbacks to fill input queues.
   inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
     CHECK(data_provider_module_);
     CHECK(left_frame);
     data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
   }
-  inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
-    CHECK(data_provider_module_);
-    CHECK(right_frame);
-    data_provider_module_->fillRightFrameQueue(std::move(right_frame));
-  }
-  //! Callbacks to fill queues but they block if queues are getting full.
-  //! Useful when parsing datasets, don't use with real sensors.
+
   inline void fillLeftFrameQueueBlockingIfFull(Frame::UniquePtr left_frame) {
     CHECK(data_provider_module_);
     CHECK(left_frame);
     data_provider_module_->fillLeftFrameQueueBlockingIfFull(
         std::move(left_frame));
   }
-  inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
-    CHECK(data_provider_module_);
-    CHECK(right_frame);
-    data_provider_module_->fillRightFrameQueueBlockingIfFull(
-        std::move(right_frame));
-  }
-  //! Fill one IMU measurement at a time.
+
   inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
     CHECK(data_provider_module_);
     data_provider_module_->fillImuQueue(imu_measurement);
   }
-  //! Fill multiple IMU measurements in batch
+
   inline void fillMultiImuQueue(const ImuMeasurements& imu_measurements) {
     CHECK(data_provider_module_);
     data_provider_module_->fillImuQueue(imu_measurements);
@@ -99,11 +86,20 @@ class Pipeline {
 
  public:
   /**
+   * @brief spin Spin the whole pipeline by spinning the data provider
+   * If in sequential mode, it will return for each spin.
+   * If in parallel mode, it will not return until the pipeline is shutdown.
+   * @return Data provider module state: false if finished or shutdown, true
+   * if working nominally (it does not return unless shutdown in parallel mode).
+   */
+  virtual bool spin();
+
+  /**
    * @brief spinViz Run an endless loop until shutdown to visualize.
    * @return Returns whether the visualizer_ is running or not. While in
    * parallel mode, it does not return unless shutdown.
    */
-  bool spinViz();
+  virtual bool spinViz();
 
   /**
    * @brief printStatus Returns a string with useful information to monitor the
@@ -111,93 +107,42 @@ class Pipeline {
    * working and if their queues are filled.
    * @return String with pipeline status information
    */
-  std::string printStatus() const;
+  virtual std::string printStatus() const;
 
   /**
    * @brief hasFinished
    * @return Whether the pipeline has finished working or not.
    */
-  bool hasFinished() const;
+  virtual bool hasFinished() const;
 
   /**
    * @brief shutdownWhenFinished
-   * Shutdown the pipeline once all data has been consumed, or if the backend
+   * Shutdown the pipeline once all data has been consumed, or if the Backend
    * has died unexpectedly.
    * @param sleep_time_ms period of time between checks of vio status.
    * @return true if shutdown succesful, false otherwise (only returns
    * if running in sequential mode, or if shutdown happens).
    */
-  bool shutdownWhenFinished(const int& sleep_time_ms = 500,
-                            const bool& print_stats = false);
+  virtual bool shutdownWhenFinished(const int& sleep_time_ms = 500,
+                                    const bool& print_stats = false);
 
   /**
    * @brief shutdown Shutdown processing pipeline: stops and joins threads,
    * stops queues. And closes logfiles.
    */
-  void shutdown();
+  virtual void shutdown();
 
   inline bool isShutdown() const { return shutdown_; }
 
   /**
    * @brief resume Resumes all queues.
    */
-  void resume();
-
-  // Output Callbacks
-  //! Register external callback to output the VIO backend results.
-  inline void registerBackendOutputCallback(
-      const VioBackEndModule::OutputCallback& callback) {
-    CHECK(vio_backend_module_);
-    vio_backend_module_->registerOutputCallback(callback);
-  }
-
-  //! Register external callback to output the VIO frontend results.
-  inline void registerFrontendOutputCallback(
-      const StereoVisionFrontEndModule::OutputCallback& callback) {
-    CHECK(vio_frontend_module_);
-    vio_frontend_module_->registerOutputCallback(callback);
-  }
-
-  //! Register external callback to output mesher results.
-  inline void registerMesherOutputCallback(
-      const MesherModule::OutputCallback& callback) {
-    if (mesher_module_) {
-      mesher_module_->registerOutputCallback(callback);
-    } else {
-      LOG(ERROR) << "Attempt to register Mesher output callback, but no "
-                 << "Mesher member is active in pipeline.";
-    }
-  }
-
-  //! Register external callback to output the LoopClosureDetector's results.
-  inline void registerLcdOutputCallback(
-      const LcdModule::OutputCallback& callback) {
-    if (lcd_module_) {
-      lcd_module_->registerOutputCallback(callback);
-    } else {
-      LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
-                 << "LoopClosureDetector member is active in pipeline.";
-    }
-  }
+  virtual void resume();
 
   //! Register external callback to be called when the VIO pipeline shuts down.
-  inline void registerShutdownCallback(
+  virtual void registerShutdownCallback(
       const ShutdownPipelineCallback& callback) {
     shutdown_pipeline_cb_ = callback;
-  }
-
-  /**
-   * @brief spin Spin the whole pipeline by spinning the data provider
-   * If in sequential mode, it will return for each spin.
-   * If in parallel mode, it will not return until the pipeline is shutdown.
-   * @return Data provider module state: false if finished or shutdown, true
-   * if working nominally (it does not return unless shutdown in parallel mode).
-   */
-  bool spin() {
-    // Feed data to the pipeline
-    CHECK(data_provider_module_);
-    LOG(INFO) << "Spinning Kimera-VIO.";
-    return data_provider_module_->spin();
   }
 
   /**
@@ -208,70 +153,106 @@ class Pipeline {
     return utils::Statistics::Print();
   }
 
- private:
+ protected:
   // Spin the pipeline only once.
-  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
+  virtual void spinOnce(FrontendInputPacketBase::UniquePtr input);
 
-  // A parallel pipeline should always be able to run sequentially...
-  void spinSequential();
+  /**
+   * @brief Sequential pipeline runner.
+   * Must be written in the derived class because it references the data'
+   * provider module.
+  */
+  virtual void spinSequential();
 
- private:
+ protected:
   //! Initialize random seed for repeatability (only on the same machine).
   //! Still does not make RANSAC repeatable across different machines.
-  inline void setDeterministicPipeline() const { srand(0); }
+  virtual void setDeterministicPipeline() const { srand(0); }
 
-  inline bool isInitialized() const {
+  virtual bool isInitialized() const {
     return vio_frontend_module_->isInitialized() &&
-           vio_backend_module_->isInitialized();
+            vio_backend_module_->isInitialized();
   }
 
-  // Thread Managing
-  /// Launch threads for each pipeline module.
-  void launchThreads();
-
-  /// Shutdown processes and queues.
-  void stopThreads();
-
-  /// Join threads to do a clean shutdown.
-  void joinThreads();
-
-  /// Join a single thread.
-  void joinThread(const std::string& thread_name, std::thread* thread);
-
-  // Shutdown for in case backend fails (this is done for a graceful shutdown).
-  void signalBackendFailure() {
+  //! Shutdown for in case Backend fails (this is done for a graceful shutdown).
+  virtual void signalBackendFailure() {
     VLOG(1) << "Backend failure signal received.";
     is_backend_ok_ = false;
   }
 
+  inline void registerBackendOutputCallback(
+      const VioBackendModule::OutputCallback& callback) {
+    CHECK(vio_backend_module_);
+    vio_backend_module_->registerOutputCallback(callback);
+  }
+
+  inline void registerFrontendOutputCallback(
+      const typename VisionImuFrontendModule::OutputCallback& callback) {
+    CHECK(vio_frontend_module_);
+    vio_frontend_module_->registerOutputCallback(callback);
+  }
+
+  inline void registerMesherOutputCallback(
+      const MesherModule::OutputCallback& callback) {
+    if (mesher_module_) {
+      mesher_module_->registerOutputCallback(callback);
+    } else {
+      LOG(ERROR) << "Attempt to register Mesher output callback, but no "
+                 << "Mesher member is active in pipeline.";
+    }
+  }
+
+  inline void registerLcdOutputCallback(
+      const LcdModule::OutputCallback& callback) {
+    if (lcd_module_) {
+      lcd_module_->registerOutputCallback(callback);
+    } else {
+      LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
+                 << "LoopClosureDetector member is active in pipeline.";
+    }
+  }
+
+  /// Launch threads for each pipeline module.
+  virtual void launchThreads();
+
+  /// Shutdown processes and queues.
+  virtual void stopThreads();
+
+  /// Join threads to do a clean shutdown.
+  virtual void joinThreads();
+
+  /// Join a single thread.
+  virtual void joinThread(const std::string& thread_name,
+                          std::thread* thread);
+
+ protected:
   // VIO parameters
-  //! Mind that the backend params is shared with the dataprovider which might
+  //! Mind that the Backend params is shared with the dataprovider which might
   //! modify them to add the ground truth initial 3d pose
   BackendParams::ConstPtr backend_params_;
   FrontendParams frontend_params_;
   ImuParams imu_params_;
-  BackendType backend_type_;
   bool parallel_run_;
 
-  //! Definition of sensor rig used
-  StereoCamera::UniquePtr stereo_camera_;
+  //! Shutdown switch to stop pipeline, threads, and queues.
+  std::atomic_bool shutdown_ = {false};
 
   // Pipeline Modules
-  //! Data provider.
-  DataProviderModule::UniquePtr data_provider_module_;
-
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
-  StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
+  MonoDataProviderModule::UniquePtr data_provider_module_;
 
-  //! Stereo vision frontend payloads.
-  StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
+  // Vision Frontend
+  VisionImuFrontendModule::UniquePtr vio_frontend_module_;
+
+  //! Vision Frontend payloads.
+  VisionImuFrontendModule::InputQueue frontend_input_queue_;
 
   //! Backend
-  VioBackEndModule::UniquePtr vio_backend_module_;
+  VioBackendModule::UniquePtr vio_backend_module_;
 
-  //! Thread-safe queue for the backend.
-  VioBackEndModule::InputQueue backend_input_queue_;
+  //! Thread-safe queue for the Backend.
+  VioBackendModule::InputQueue backend_input_queue_;
 
   //! Mesher
   MesherModule::UniquePtr mesher_module_;
@@ -289,8 +270,6 @@ class Pipeline {
   DisplayModule::UniquePtr display_module_;
 
   // Atomic Flags
-  //! Shutdown switch to stop pipeline, threads, and queues.
-  std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_backend_ok_ = {true};
 
   // Pipeline Callbacks

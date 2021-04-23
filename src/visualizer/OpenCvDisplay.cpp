@@ -20,17 +20,21 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
+#include "kimera-vio/visualizer/DisplayParams.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
 
 namespace VIO {
 
 OpenCv3dDisplay::OpenCv3dDisplay(
-    const ShutdownPipelineCallback& shutdown_pipeline_cb,
-    const OpenCv3dDisplayParams& params)
-    : DisplayBase(),
+    DisplayParams::Ptr display_params,
+    const ShutdownPipelineCallback& shutdown_pipeline_cb)
+    : DisplayBase(display_params->display_type_), // DANGEROUS
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb),
-      params_(params) {
+      params_(VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
+          *display_params)) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -38,7 +42,7 @@ OpenCv3dDisplay::OpenCv3dDisplay(
   }
   window_data_.window_.registerKeyboardCallback(keyboardCallback,
                                                 &window_data_);
-  window_data_.window_.setBackgroundColor(window_data_.background_color_);
+  window_data_.window_.setBackgroundColor(params_.background_color_);
   window_data_.window_.showWidget("Coordinate Widget",
                                   cv::viz::WCoordinateSystem());
 
@@ -59,7 +63,7 @@ void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
   // Display 2D images.
   spin2dWindow(*display_input);
   // Display 3D window.
-  spin3dWindow(safeCast(std::move(display_input)));
+  spin3dWindow(safeDisplayInputCast(std::move(display_input)));
 }
 
 // Adds 3D widgets to the window, and displays it.
@@ -79,17 +83,25 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     }
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
+
+    // Remove requested widgets, do this first, to not remove new things.
+    for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
+      removeWidget(widget_id);
+    }
+
+    // Add requested widgets
     const WidgetsMap& widgets = viz_output->widgets_;
     for (auto it = widgets.begin(); it != widgets.end(); ++it) {
       CHECK(it->second);
       // This is to go around opencv issue #10829, new opencv should have this
-      // fixed.
+      // fixed. cv::viz::Widget3D::getPose segfaults.
       it->second->updatePose(cv::Affine3d());
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());
     }
-    if (params_.hold_display_) {
+    if (params_.hold_3d_display_) {
       // Spin forever until user closes window
+      LOG(WARNING) << "Holding OpenCV 3d window display";
       window_data_.window_.spin();
     } else {
       window_data_.window_.spinOnce(1, true);
@@ -103,8 +115,9 @@ void OpenCv3dDisplay::spin2dWindow(const DisplayInputBase& viz_output) {
     cv::imshow(img_to_display.name_, img_to_display.image_);
   }
   VLOG(10) << "Spin Visualize 2D output.";
-  if (params_.hold_display_) {
+  if (params_.hold_2d_display_) {
     // Spin forever until user closes window
+    LOG(WARNING) << "Holding OpenCV 2d window display";
     cv::waitKey(0);
   } else {
     // Just spins once
@@ -175,6 +188,22 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
                                     window_data_.mesh_ambient_);
   mesh_widget->setRenderingProperty(cv::viz::LIGHTING,
                                     window_data_.mesh_lighting_);
+}
+
+bool OpenCv3dDisplay::removeWidget(const std::string& widget_id) {
+  try {
+    window_data_.window_.removeWidget(widget_id);
+    return true;
+  } catch (const cv::Exception& e) {
+    VLOG(20) << e.what();
+    LOG(ERROR) << "Widget with id: " << widget_id.c_str()
+               << " is not in window.";
+  } catch (...) {
+    LOG(ERROR) << "Unrecognized exception when using "
+                  "window_data_.window_.removeWidget() "
+               << "with widget with id: " << widget_id.c_str();
+  }
+  return false;
 }
 
 void OpenCv3dDisplay::keyboardCallback(const cv::viz::KeyboardEvent& event,
@@ -331,7 +360,7 @@ void OpenCv3dDisplay::setOffScreenRendering() {
   window_data_.window_.setOffScreenRendering();
 }
 
-VisualizerOutput::UniquePtr OpenCv3dDisplay::safeCast(
+VisualizerOutput::UniquePtr OpenCv3dDisplay::safeDisplayInputCast(
     DisplayInputBase::UniquePtr display_input_base) {
   if (!display_input_base) return nullptr;
   VisualizerOutput::UniquePtr viz_output;

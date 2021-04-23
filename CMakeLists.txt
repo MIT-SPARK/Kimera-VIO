@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
-project(kimera_vio VERSION 1.0 LANGUAGES CXX)
+project(kimera_vio VERSION 1.0 LANGUAGES CXX C)
 
 # Make sure that custom modules like FindXXXX are found
 # Prefer to use system installation of gflags/glog
@@ -42,6 +42,8 @@ if(NOT TARGET DBoW2::DBoW2)
   INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
 endif()
 find_package(KimeraRPGO REQUIRED)
+# Pangolin is optional
+find_package(Pangolin QUIET)
 
 include(VerifyGtsamConfig)
 option(KIMERA_VERIFY_GTSAM_CONFIG "Check that GTSAM was compiled with the right options" ON)
@@ -87,10 +89,10 @@ add_subdirectory(src/dataprovider)
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/playground)
 add_subdirectory(src/playground)
-### Add source code for frontend.
+### Add source code for Frontend.
 add_subdirectory(include/kimera-vio/frontend)
 add_subdirectory(src/frontend)
-### Add source code for backend.
+### Add source code for Backend.
 add_subdirectory(include/kimera-vio/backend)
 add_subdirectory(src/backend)
 ### Add source code for factors
@@ -117,12 +119,15 @@ add_subdirectory(src/loopclosure)
 ### Add source code for logging
 add_subdirectory(include/kimera-vio/logging)
 add_subdirectory(src/logging)
-### Add source code for imu frontend
+### Add source code for imu Frontend
 add_subdirectory(include/kimera-vio/imu-frontend)
 add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
+### Add source code for third_party
+add_subdirectory(include/kimera-vio/third_party/triangle)
+add_subdirectory(src/third_party/triangle)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
@@ -136,7 +141,7 @@ target_link_libraries(${PROJECT_NAME}
     ${GLOG_LIBRARIES}
     gtsam
     gtsam_unstable
- )
+)
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
@@ -146,6 +151,21 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+
+# Pangolin is optional
+if(Pangolin_FOUND)
+  target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+      ${Pangolin_LIBRARIES}
+  )
+  target_include_directories(${PROJECT_NAME}
+    PUBLIC
+      ${Pangolin_INCLUDE_DIRS}
+  )
+  target_compile_definitions(${PROJECT_NAME} PRIVATE Pangolin_FOUND=1)
+else(Pangolin_FOUND)
+  message(STATUS "Pangolin not found.")
+endif(Pangolin_FOUND)
 
 target_compile_options(${PROJECT_NAME}
   PRIVATE -Wall -pipe
@@ -165,8 +185,8 @@ target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
 
 ############################### TESTS ##########################################
 ### Add testing
-option(BUILD_TESTS "Build tests" ON)
-if(BUILD_TESTS)
+option(KIMERA_BUILD_TESTS "Build tests" ON)
+if(KIMERA_BUILD_TESTS)
   # Download and unpack googletest at configure time
   # TODO Consider doing the same for glog, gflags, although it might
   # make the command `cmake ..` a bit slow.
@@ -204,40 +224,49 @@ if(BUILD_TESTS)
   include(CTest)
   add_executable(testKimeraVIO
     tests/testKimeraVIO.cpp
-    tests/testPipeline.cpp
-    tests/testVioParams.cpp
+    tests/testStereoImuPipeline.cpp
     tests/testEurocPlayground.cpp
+    tests/testCamera.cpp # NEEDS UPDATE
+    tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp
     tests/testFrame.cpp # NEEDS UPDATE
+    tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
-    tests/testImuFrontEnd.cpp
+    tests/testImuFrontend.cpp
     tests/testImuParams.cpp
     # tests/testKittiDataProvider.cpp # TODO
     tests/testLoopClosureDetector.cpp
     tests/testLogger.cpp
     tests/testMesher.cpp # rotten
+    tests/testMesh.cpp
+    tests/testMeshUtils.cpp
+    tests/testMeshOptimization.cpp
     tests/testParallelPlaneRegularBasicFactor.cpp
     tests/testParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testPointPlaneFactor.cpp
-    #tests/testRegularVioBackEnd.cpp # rotten
-    tests/testRegularVioBackEndParams.cpp
+    #tests/testRegularVioBackend.cpp # rotten
+    tests/testRegularVioBackendParams.cpp
     tests/testStereoFrame.cpp # NEEDS UPDATE
-    tests/testStereoVisionFrontEnd.cpp # NEEDS UPDATE
+    tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
+    tests/testStereoMatcher.cpp
+    tests/testUndistortRectifier.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp
     tests/testTimer.cpp
-    tests/testTracker.cpp
+    tests/testTracker.cpp # NEEDS UPDATE
     tests/testUtilsOpenCV.cpp
+    tests/testUtilsNumerical.cpp
     tests/testInitializationFromImu.cpp
-    tests/testVioBackEnd.cpp
-    tests/testVioBackEndParams.cpp
-    tests/testVisionFrontEndParams.cpp
+    tests/testVioBackend.cpp
+    tests/testVioBackendParams.cpp
+    tests/testVioParams.cpp
+    tests/testVisionImuFrontendParams.cpp
     tests/testFeatureDetectorParams.cpp
-    # tests/testVisualizer3D.cpp # NEEDS UPDATE
+    tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )
@@ -251,7 +280,7 @@ if(BUILD_TESTS)
     include(GoogleTest)
     gtest_discover_tests(testKimeraVIO)
   endif()
-endif(BUILD_TESTS)
+endif(KIMERA_BUILD_TESTS)
 
 ############################### INSTALL/EXPORT #################################
 ## We install the export that we defined above

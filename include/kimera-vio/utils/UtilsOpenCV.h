@@ -221,11 +221,11 @@ class UtilsOpenCV {
   // add circles in the image at desired position/size/color
   static void DrawCirclesInPlace(
       cv::Mat& img,
-      const std::vector<cv::Point2f>& imagePoints,
+      const KeypointsCV& image_points,
       const cv::Scalar& color = cv::Scalar(0, 255, 0),
-      const double msize = 3,
-      const std::vector<int>& pointIds = std::vector<int>(),
-      const int remId = 1e9);
+      const double& msize = 3,
+      const std::vector<int>& point_ids = std::vector<int>(),
+      const int& rem_id = 1e9);
 
   /* ------------------------------------------------------------------------ */
   // add squares in the image at desired position/size/color
@@ -265,11 +265,30 @@ class UtilsOpenCV {
   /* ------------------------------------------------------------------------ */
   // Draw corner matches and return results as a new mat.
   static cv::Mat DrawCornersMatches(const cv::Mat& img1,
-                                    const std::vector<cv::Point2f>& corners1,
+                                    const KeypointsCV& corners1,
                                     const cv::Mat& img2,
-                                    const std::vector<cv::Point2f>& corners2,
-                                    const std::vector<cv::DMatch>& matches,
-                                    const bool randomColor = false);
+                                    const KeypointsCV& corners2,
+                                    const DMatchVec& matches,
+                                    const bool& randomColor = false);
+
+  /* ------------------------------------------------------------------------ */
+  // Draw corner matches and return results as a new mat.
+  static cv::Mat DrawCornersMatches(const cv::Mat& img1,
+                                    const StatusKeypointsCV& corners1,
+                                    const cv::Mat& img2,
+                                    const StatusKeypointsCV& corners2,
+                                    const DMatchVec& matches,
+                                    const bool& randomColor = false);
+
+  /* ------------------------------------------------------------------------ */
+  static void showImagesSideBySide(const cv::Mat& img_left,
+                                   const cv::Mat& img_right,
+                                   const std::string& title,
+                                   const bool& show_images,
+                                   const bool& save_images);
+
+  cv::Scalar getColorFromKeypointStatus(
+      const KeypointStatus& kpt_status);
 
   /* ------------------------------------------------------------------------ */
   static cv::Mat DrawCircles(
@@ -277,12 +296,25 @@ class UtilsOpenCV {
       const StatusKeypointsCV& imagePoints,
       const std::vector<double>& circleSizes = std::vector<double>());
 
-  /* ------------------------------------------------------------------------ */
+  /**
+   * @brief DrawCircles
+   * @param img
+   * @param imagePoints
+   * @param circle_colors
+   * @param circle_sizes
+   * @param display_with_size
+   * if true size of circles is proportional to depth
+   * @param display_with_text
+   * if true display text with depth
+   * @return
+   */
   static cv::Mat DrawCircles(
       const cv::Mat img,
-      const KeypointsCV& imagePoints,
-      const std::vector<cv::Scalar>& circleColors = std::vector<cv::Scalar>(),
-      const std::vector<double>& circleSizes = std::vector<double>());
+      const KeypointsCV& image_points,
+      const std::vector<cv::Scalar>& circle_colors = std::vector<cv::Scalar>(),
+      const std::vector<double>& circle_sizes = std::vector<double>(),
+      const bool& display_with_size = false,
+      const bool& display_with_text = true);
 
   /* ------------------------------------------------------------------------ */
   static void DrawCornersMatchesOneByOne(
@@ -290,31 +322,7 @@ class UtilsOpenCV {
       const std::vector<cv::Point2f>& corners1,
       const cv::Mat img2,
       const std::vector<cv::Point2f>& corners2,
-      const std::vector<cv::DMatch>& matches);
-
-  /* --------------------------------------------------------------------------
-   */
-  //  print standard vector with header:
-  // TODO I don't know why I have a compiler error when I try to move this
-  // function definition to the cpp file!
-  template <typename T>
-  static void PrintVector(const std::vector<T>& vect,
-                          const std::string& vectorName) {
-    std::cout << vectorName << std::endl;
-    for (auto si : vect) std::cout << " " << si;
-    std::cout << std::endl;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  //  sort vector and remove duplicate elements
-  template <typename T>
-  static void VectorUnique(std::vector<T>& v) {
-    // e.g.: std::vector<int> v{1,2,3,1,2,3,3,4,5,4,5,6,7};
-    std::sort(v.begin(), v.end());  // 1 1 2 2 3 3 3 4 4 5 5 6 7
-    auto last = std::unique(v.begin(), v.end());
-    // v now holds {1 2 3 4 5 6 7 x x x x x x}, where 'x' is indeterminate
-    v.erase(last, v.end());
-  }
+      const DMatchVec& matches);
 
   /* ------------------------------------------------------------------------ */
   //  find max absolute value of matrix entry

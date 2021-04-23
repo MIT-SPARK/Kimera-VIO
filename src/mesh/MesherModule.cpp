@@ -43,9 +43,9 @@ MesherModule::InputUniquePtr MesherModule::getInputPacket() {
   CHECK(backend_payload);
   const Timestamp& timestamp = backend_payload->timestamp_;
 
-  // Look for the synchronized packet in frontend payload queue
+  // Look for the synchronized packet in Frontend payload queue
   // This should always work, because it should not be possible to have
-  // a backend payload without having a frontend one first!
+  // a Backend payload without having a Frontend one first!
   MesherFrontendInput frontend_payload = nullptr;
   PIO::syncQueue(timestamp, &frontend_payload_queue_, &frontend_payload);
   CHECK(frontend_payload);
@@ -68,7 +68,7 @@ void MesherModule::shutdownQueues() {
 };
 
 bool MesherModule::hasWork() const {
-  // We don't check frontend queue because it runs faster than backend queue.
+  // We don't check Frontend queue because it runs faster than Backend queue.
   return !backend_payload_queue_.empty();
 };
 

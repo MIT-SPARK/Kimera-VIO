@@ -19,28 +19,27 @@
 #include <utility>
 
 namespace VIO {
+
 StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,
                                          const ImuAccGyrS& imu_accgyrs,
                                          const ReinitPacket& reinit_packet)
-    : PipelinePayload(stereo_frame.getTimestamp()),
+    : FrontendInputPacketBase(stereo_frame.timestamp_,
+                              imu_stamps,
+                              imu_accgyrs),
       stereo_frame_(stereo_frame),
-      imu_stamps_(imu_stamps),
-      imu_accgyrs_(imu_accgyrs),
       reinit_packet_(reinit_packet) {
-  CHECK_GT(imu_stamps_.cols(), 0u);
-  CHECK_GT(imu_accgyrs_.cols(), 0u);
-  CHECK_EQ(imu_stamps_.cols(), imu_accgyrs_.cols());
   // The timestamp of the last IMU measurement must correspond to the timestamp
   // of the stereo frame. In case there is no IMU measurement with exactly
   // the same timestamp as the stereo frame, the user should interpolate
   // IMU measurements to get a value at the time of the stereo_frame.
-  CHECK_EQ(stereo_frame_.getTimestamp(), imu_stamps_(imu_stamps_.cols() - 1));
+  CHECK_GT(imu_stamps_.cols(), 0);
+  CHECK_EQ(stereo_frame_.timestamp_, imu_stamps_(imu_stamps_.cols() - 1));
   // TODO: Add check on ReinitPacket
 }
 
 void StereoImuSyncPacket::print() const {
-  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp()
+  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.timestamp_
             << '\n'
             << "STAMPS IMU rows : \n"
             << imu_stamps_.rows() << '\n'

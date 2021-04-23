@@ -94,7 +94,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   virtual ~LoopClosureDetectorParams() = default;
 
   // NOTE: we cannot parse width, height principe pt and focal length from here.
-  // Those are done via setIntrinsics() in real time in the first StereoFrame.
+  // Those are done at initialization of the LoopClosureDetector.
   bool parseYAML(const std::string& filepath) override;
 
   void print() const override;

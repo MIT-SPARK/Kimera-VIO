@@ -98,7 +98,7 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -106,7 +106,7 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with plotly and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, detailed_performance.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, detailed_performance.html, datasets.html, Frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
 
                     // Archive the website
                     archiveArtifacts (

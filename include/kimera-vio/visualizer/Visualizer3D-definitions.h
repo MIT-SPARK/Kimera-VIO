@@ -21,10 +21,9 @@
 
 #include <opencv2/viz/widgets.hpp>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
@@ -46,6 +45,7 @@ enum class VisualizationType {
 
 typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
 typedef std::map<std::string, WidgetPtr> WidgetsMap;
+typedef std::vector<std::string> WidgetIds;
 
 struct ImageToDisplay {
   ImageToDisplay() = default;
@@ -75,25 +75,24 @@ struct VisualizerInput : public PipelinePayload {
   VisualizerInput(const Timestamp& timestamp,
                   const MesherOutput::Ptr& mesher_output,
                   const BackendOutput::Ptr& backend_output,
-                  const FrontendOutput::Ptr& frontend_output,
+                  const FrontendOutputPacketBase::Ptr& frontend_output,
                   const LcdOutput::Ptr& lcd_output)
       : PipelinePayload(timestamp),
         mesher_output_(mesher_output),
         backend_output_(backend_output),
         frontend_output_(frontend_output),
         lcd_output_(lcd_output) {
-    CHECK(backend_output);
-    CHECK(frontend_output);
+    if (backend_output) CHECK_EQ(timestamp, backend_output->timestamp_);
+    if (frontend_output) CHECK_EQ(timestamp, frontend_output->timestamp_);
     if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
-    CHECK_EQ(timestamp, frontend_output->timestamp_);
-    CHECK_EQ(timestamp, backend_output->timestamp_);
+    if (lcd_output) CHECK_EQ(timestamp, lcd_output->timestamp_);
   }
   virtual ~VisualizerInput() = default;
 
   // Copy the pointers so that we do not need to copy the data.
   const MesherOutput::ConstPtr mesher_output_;
   const BackendOutput::ConstPtr backend_output_;
-  const FrontendOutput::ConstPtr frontend_output_;
+  const FrontendOutputPacketBase::Ptr frontend_output_;  // not ConstPtr because polymorphic
   const LcdOutput::ConstPtr lcd_output_;
 };
 
@@ -105,11 +104,13 @@ struct VisualizerOutput : public DisplayInputBase {
       : DisplayInputBase(),
         visualization_type_(VisualizationType::kNone),
         widgets_(),
+        widget_ids_to_remove_(),
         frustum_pose_(cv::Affine3d::Identity()) {}
   ~VisualizerOutput() = default;
 
   VisualizationType visualization_type_;
   WidgetsMap widgets_;
+  WidgetIds widget_ids_to_remove_;
   cv::Affine3d frustum_pose_;
 };
 

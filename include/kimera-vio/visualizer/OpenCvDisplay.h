@@ -21,23 +21,17 @@
 #include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
+#include "kimera-vio/visualizer/OpenCvDisplayParams.h"
 
 namespace VIO {
-
-struct OpenCv3dDisplayParams {
-  //! Spins the 3D window and 2D image display indefinitely, until user closes
-  //! the window.
-  bool hold_display_ = false;
-};
-
 
 class OpenCv3dDisplay : public DisplayBase {
  public:
   KIMERA_POINTER_TYPEDEFS(OpenCv3dDisplay);
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
-  OpenCv3dDisplay(const ShutdownPipelineCallback& shutdown_pipeline_cb,
-                  const OpenCv3dDisplayParams& params);
+  OpenCv3dDisplay(DisplayParams::Ptr display_params,
+                  const ShutdownPipelineCallback& shutdown_pipeline_cb);
 
   // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;
@@ -68,6 +62,9 @@ class OpenCv3dDisplay : public DisplayBase {
 
   //! Sets a 3D Widget Pose, because Widget3D::setPose() doesn't work;
   void setFrustumPose(const cv::Affine3d& frustum_pose);
+
+  //! Remove widget. True if successful, false if not.
+  bool removeWidget(const std::string& widget_id);
 
   //! Keyboard callback.
   static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
@@ -114,7 +111,7 @@ class OpenCv3dDisplay : public DisplayBase {
    * @param display_input_base
    * @return
    */
-  VisualizerOutput::UniquePtr safeCast(
+  VisualizerOutput::UniquePtr safeDisplayInputCast(
       DisplayInputBase::UniquePtr display_input_base);
 
  private:

@@ -7,8 +7,8 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testStereoVisionFrontEnd.cpp
- * @brief  test StereoVisionFrontEnd
+ * @file   testStereoVisionImuFrontend.cpp
+ * @brief  test StereoVisionImuFrontend
  * @author Antoni Rosinol
  * @author Luca Carlone
  */
@@ -25,8 +25,8 @@
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 
 DECLARE_string(test_data_path);
@@ -139,6 +139,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   logger_->logBackendOutput(BackendOutput(timestamp,
                                           state_values,
+                                          gtsam::NonlinearFactorGraph(),
                                           W_Pose_Blkf,
                                           W_Vel_Blkf,
                                           imu_bias,

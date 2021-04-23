@@ -14,12 +14,9 @@
  * @author Luca Carlone
  */
 
-#include <algorithm>
-#include <fstream>
-#include <memory>
-#include <string>
-#include <vector>
+#include "kimera-vio/loopclosure/LoopClosureDetector.h"
 
+#include <KimeraRPGO/RobustSolver.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -30,10 +27,10 @@
 #include <opengv/sac/Ransac.hpp>
 #include <opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp>
 #include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
+#include <string>
+#include <vector>
 
-#include <KimeraRPGO/RobustSolver.h>
-
-#include "kimera-vio/loopclosure/LoopClosureDetector.h"
+#include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -54,11 +51,12 @@ namespace VIO {
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
+    const StereoCamera::ConstPtr& stereo_camera,
+    const StereoMatchingParams& stereo_matching_params,
     bool log_output)
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
       log_output_(log_output),
-      set_intrinsics_(false),
       orb_feature_detector_(),
       orb_feature_matcher_(),
       db_BoW_(nullptr),
@@ -67,6 +65,8 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_tp_wrapper_(nullptr),
       latest_bowvec_(),
       B_Pose_camLrect_(),
+      stereo_camera_(stereo_camera),
+      stereo_matcher_(nullptr),
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
       logger_(nullptr) {
@@ -76,6 +76,20 @@ LoopClosureDetector::LoopClosureDetector(
   precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
   shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
+
+  // Set camera intrinsics for LCD
+  CameraParams cam_param = stereo_camera->getLeftCamParams();
+  lcd_params_.image_width_ = cam_param.image_size_.width;
+  lcd_params_.image_height_ = cam_param.image_size_.height;
+  lcd_params_.focal_length_ = cam_param.intrinsics_[0];
+  lcd_params_.principle_point_ =
+      cv::Point2d(cam_param.intrinsics_[2], cam_param.intrinsics_[3]);
+
+  B_Pose_camLrect_ = stereo_camera_->getBodyPoseLeftCamRect();
+
+  // Sparse stereo reconstruction members
+  stereo_matcher_ = 
+      VIO::make_unique<StereoMatcher>(stereo_camera_, stereo_matching_params);
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
@@ -127,17 +141,12 @@ LoopClosureDetector::~LoopClosureDetector() {
 
 /* ------------------------------------------------------------------------ */
 LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
-  // One time initialization from camera parameters.
-  if (!set_intrinsics_) {
-    setIntrinsics(input.stereo_frame_);
-  }
-  CHECK_EQ(set_intrinsics_, true);
   CHECK_GE(input.cur_kf_id_, 0);
 
-  // Update the PGO with the backend VIO estimate.
+  // Update the PGO with the Backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
-  timestamp_map_[input.cur_kf_id_] = input.timestamp_kf_;
+  timestamp_map_[input.cur_kf_id_] = input.timestamp_;
   // TODO: W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
@@ -162,35 +171,42 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
   // Process the StereoFrame and check for a loop closure with previous ones.
   LoopResult loop_result;
-  // Try to find a loop and update the PGO with the result if available.
-  if (detectLoop(input.stereo_frame_, &loop_result)) {
-    LoopClosureFactor lc_factor(loop_result.match_id_,
-                                loop_result.query_id_,
-                                loop_result.relative_pose_,
-                                shared_noise_model_);
+  if (input.frontend_output_->frontend_type_ == FrontendType::kStereoImu) {
+    StereoFrontendOutput::Ptr stereo_frontend_output =
+        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+            input.frontend_output_);
+    // Try to find a loop and update the PGO with the result if available.
+    if (detectLoop(stereo_frontend_output->stereo_frame_lkf_, &loop_result)) {
+      LoopClosureFactor lc_factor(loop_result.match_id_,
+                                  loop_result.query_id_,
+                                  loop_result.relative_pose_,
+                                  shared_noise_model_);
 
-    utils::StatsCollector stat_pgo_timing(
-        "PGO Update/Optimization Timing [ms]");
-    auto tic = utils::Timer::tic();
+      utils::StatsCollector stat_pgo_timing(
+          "PGO Update/Optimization Timing [ms]");
+      auto tic = utils::Timer::tic();
 
-    addLoopClosureFactorAndOptimize(lc_factor);
+      addLoopClosureFactorAndOptimize(lc_factor);
 
-    auto update_duration = utils::Timer::toc(tic).count();
-    stat_pgo_timing.AddSample(update_duration);
+      auto update_duration = utils::Timer::toc(tic).count();
+      stat_pgo_timing.AddSample(update_duration);
 
-    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
-            << loop_result.match_id_ << " to keyframe "
-            << loop_result.query_id_;
+      VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
+              << loop_result.match_id_ << " to keyframe "
+              << loop_result.query_id_;
+    } else {
+      VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
+              << LoopResult::asString(loop_result.status_);
+    }
+
+    // Timestamps for PGO and for LCD should match now.
+    CHECK_EQ(db_frames_.back().timestamp_,
+             timestamp_map_.at(db_frames_.back().id_));
+    CHECK_EQ(timestamp_map_.size(), db_frames_.size());
+    CHECK_EQ(timestamp_map_.size(), W_Pose_Blkf_estimates_.size());
   } else {
-    VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
-            << LoopResult::asString(loop_result.status_);
+    LOG(ERROR) << "LoopClosureDetector: Not using StereoFrontend! Change frontend.";
   }
-
-  // Timestamps for PGO and for LCD should match now.
-  CHECK_EQ(db_frames_.back().timestamp_,
-           timestamp_map_.at(db_frames_.back().id_));
-  CHECK_EQ(timestamp_map_.size(), db_frames_.size());
-  CHECK_EQ(timestamp_map_.size(), W_Pose_Blkf_estimates_.size());
 
   // Construct output payload.
   CHECK(pgo_);
@@ -202,7 +218,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   if (loop_result.isLoop()) {
     output_payload =
         VIO::make_unique<LcdOutput>(true,
-                                    input.timestamp_kf_,
+                                    input.timestamp_,
                                     timestamp_map_.at(loop_result.query_id_),
                                     timestamp_map_.at(loop_result.match_id_),
                                     loop_result.match_id_,
@@ -215,7 +231,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     latest_bowvec_,
                                     db_frames_.back().descriptors_mat_);
   } else {
-    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_kf_);
+    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_);
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
@@ -249,7 +265,7 @@ FrameId LoopClosureDetector::processAndAddFrame(
 
   // Extract ORB features and construct descriptors_vec.
   orb_feature_detector_->detectAndCompute(
-      stereo_frame.getLeftFrame().img_, cv::Mat(), keypoints, descriptors_mat);
+      stereo_frame.left_frame_.img_, cv::Mat(), keypoints, descriptors_mat);
 
   int L = orb_feature_detector_->descriptorSize();
   descriptors_vec.resize(descriptors_mat.size().height);
@@ -264,14 +280,14 @@ FrameId LoopClosureDetector::processAndAddFrame(
   rewriteStereoFrameFeatures(keypoints, &cp_stereo_frame);
 
   // Build and store LCDFrame object.
-  db_frames_.push_back(LCDFrame(cp_stereo_frame.getTimestamp(),
+  db_frames_.push_back(LCDFrame(cp_stereo_frame.timestamp_,
                                 db_frames_.size(),
-                                cp_stereo_frame.getFrameId(),
+                                cp_stereo_frame.id_,
                                 keypoints,
                                 cp_stereo_frame.keypoints_3d_,
                                 descriptors_vec,
                                 descriptors_mat,
-                                cp_stereo_frame.getLeftFrame().versors_,
+                                cp_stereo_frame.left_frame_.versors_,
                                 cp_stereo_frame.left_keypoints_rectified_,
                                 cp_stereo_frame.right_keypoints_rectified_));
 
@@ -509,11 +525,11 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   // TODO camMatch_T_camQuery rename to camMatch_T_camQuery
   gtsam::Key key_match = gtsam::Symbol('x', match_id);
   gtsam::Key key_query = gtsam::Symbol('x', query_id);
-  values.insert(key_match, gtsam::Pose3());
+  values.insert(key_match, gtsam::Pose3::identity());
   values.insert(key_query, camMatch_T_camQuery_stereo);
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Unit::Create(6);
-  nfg.add(gtsam::PriorFactor<gtsam::Pose3>(key_match, gtsam::Pose3(), noise));
+  nfg.add(gtsam::PriorFactor<gtsam::Pose3>(key_match, gtsam::Pose3::identity(), noise));
 
   gtsam::SharedNoiseModel noise_stereo = gtsam::noiseModel::Unit::Create(3);
 
@@ -531,10 +547,10 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   for (size_t i = 0; i < inlier_id_in_query_frame.size(); i++) {
     KeypointCV undistorted_rectified_left_query_keypoint =
         (db_frames_[query_id]
-             .left_keypoints_rectified_[inlier_id_in_query_frame[i]]);
+             .left_keypoints_rectified_.at(inlier_id_in_query_frame[i]).second);
     KeypointCV undistorted_rectified_right_query_keypoint =
         (db_frames_[query_id]
-             .right_keypoints_rectified_[inlier_id_in_query_frame[i]]);
+             .right_keypoints_rectified_.at(inlier_id_in_query_frame[i]).second);
 
     gtsam::StereoPoint2 sp_query_i(undistorted_rectified_left_query_keypoint.x,
                                    undistorted_rectified_right_query_keypoint.x,
@@ -542,20 +558,20 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
     SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
 
-    stereo_factor_i.add(sp_query_i, key_query, stereo_calibration_);
+    stereo_factor_i.add(sp_query_i, key_query, stereo_camera_->getStereoCalib());
 
     KeypointCV undistorted_rectified_left_match_keypoint =
         (db_frames_[match_id]
-             .left_keypoints_rectified_[inlier_id_in_match_frame[i]]);
+             .left_keypoints_rectified_.at(inlier_id_in_match_frame[i]).second);
     KeypointCV undistorted_rectified_right_match_keypoint =
         (db_frames_[match_id]
-             .right_keypoints_rectified_[inlier_id_in_match_frame[i]]);
+             .right_keypoints_rectified_.at(inlier_id_in_match_frame[i]).second);
 
     gtsam::StereoPoint2 sp_match_i(undistorted_rectified_left_match_keypoint.x,
                                    undistorted_rectified_right_match_keypoint.x,
                                    undistorted_rectified_left_match_keypoint.y);
 
-    stereo_factor_i.add(sp_match_i, key_match, stereo_calibration_);
+    stereo_factor_i.add(sp_match_i, key_match, stereo_camera_->getStereoCalib());
 
     nfg.add(stereo_factor_i);
   }
@@ -596,7 +612,7 @@ const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
     return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
   }
 
-  return gtsam::Pose3();
+  return gtsam::Pose3::identity();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -609,31 +625,6 @@ const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
 const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
   CHECK(pgo_);
   return pgo_->getFactorsUnsafe();
-}
-
-/* ------------------------------------------------------------------------ */
-// TODO(marcus): this should be parsed from CameraParams directly
-void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
-  const CameraParams& cam_param = stereo_frame.getLeftFrame().cam_param_;
-  const CameraParams::Intrinsics& intrinsics = cam_param.intrinsics_;
-
-  lcd_params_.image_width_ = cam_param.image_size_.width;
-  lcd_params_.image_height_ = cam_param.image_size_.height;
-  lcd_params_.focal_length_ = intrinsics[0];
-  lcd_params_.principle_point_ = cv::Point2d(intrinsics[2], intrinsics[3]);
-
-  B_Pose_camLrect_ = stereo_frame.getBPoseCamLRect();
-
-  gtsam::Cal3_S2 left_undist_rect_cam_mat =
-      stereo_frame.getLeftUndistRectCamMat();
-  stereo_calibration_ =
-      boost::make_shared<gtsam::Cal3_S2Stereo>(left_undist_rect_cam_mat.fx(),
-                                               left_undist_rect_cam_mat.fy(),
-                                               left_undist_rect_cam_mat.skew(),
-                                               left_undist_rect_cam_mat.px(),
-                                               left_undist_rect_cam_mat.py(),
-                                               stereo_frame.getBaseline());
-  set_intrinsics_ = true;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -659,8 +650,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
 
   // Populate frame keypoints with ORB features instead of the normal
   // VIO features that came with the StereoFrame.
-  Frame* left_frame_mutable = stereo_frame->getLeftFrameMutable();
-  Frame* right_frame_mutable = stereo_frame->getRightFrameMutable();
+  Frame* left_frame_mutable = &stereo_frame->left_frame_;
+  Frame* right_frame_mutable = &stereo_frame->right_frame_;
   CHECK_NOTNULL(left_frame_mutable);
   CHECK_NOTNULL(right_frame_mutable);
 
@@ -671,8 +662,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.clear();
   right_frame_mutable->versors_.clear();
   right_frame_mutable->scores_.clear();
-  stereo_frame->keypoints_3d_.clear();
   stereo_frame->keypoints_depth_.clear();
+  stereo_frame->keypoints_3d_.clear();
   stereo_frame->left_keypoints_rectified_.clear();
   stereo_frame->right_keypoints_rectified_.clear();
 
@@ -683,8 +674,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   right_frame_mutable->keypoints_.reserve(keypoints.size());
   right_frame_mutable->versors_.reserve(keypoints.size());
   right_frame_mutable->scores_.reserve(keypoints.size());
-  stereo_frame->keypoints_3d_.reserve(keypoints.size());
   stereo_frame->keypoints_depth_.reserve(keypoints.size());
+  stereo_frame->keypoints_3d_.reserve(keypoints.size());
   stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
   stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
 
@@ -694,21 +685,13 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        Frame::calibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
+        UndistorterRectifier::UndistortKeypointAndGetVersor(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 
   // Automatically match keypoints in right image with those in left.
-  stereo_frame->sparseStereoMatching();
-
-  size_t num_kp = keypoints.size();
-  CHECK_EQ(left_frame_mutable->keypoints_.size(), num_kp);
-  CHECK_EQ(left_frame_mutable->versors_.size(), num_kp);
-  CHECK_EQ(left_frame_mutable->scores_.size(), num_kp);
-  CHECK_EQ(stereo_frame->keypoints_3d_.size(), num_kp);
-  CHECK_EQ(stereo_frame->keypoints_depth_.size(), num_kp);
-  CHECK_EQ(stereo_frame->left_keypoints_rectified_.size(), num_kp);
-  CHECK_EQ(stereo_frame->right_keypoints_rectified_.size(), num_kp);
+  stereo_matcher_->sparseStereoReconstruction(stereo_frame);
+  stereo_frame->checkStereoFrame();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -718,8 +701,8 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
     const FrameId& query_id,
     const FrameId& match_id,
     bool cut_matches) const {
-  std::vector<std::vector<cv::DMatch>> matches;
-  std::vector<cv::DMatch> good_matches;
+  std::vector<DMatchVec> matches;
+  DMatchVec good_matches;
 
   // Use the Lowe's Ratio Test only if asked.
   double lowe_ratio = 1.0;
@@ -731,7 +714,7 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
                                  matches,
                                  2u);
 
-  for (const std::vector<cv::DMatch>& match : matches) {
+  for (const DMatchVec& match : matches) {
     if (match.at(0).distance < lowe_ratio * match.at(1).distance) {
       good_matches.push_back(match[0]);
     }
