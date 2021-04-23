@@ -28,8 +28,9 @@ bool OdometryParams::parseYAML(const std::string& filepath) {
 
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
-  const gtsam::Pose3& body_Pose_cam =
+  const gtsam::Pose3& body_Pose_odom =
       UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
+  body_Pose_odom_ = body_Pose_odom;
 
   yaml_parser.getYamlParam("odomRotationPrecision", &betweenRotationPrecision_);
   yaml_parser.getYamlParam("odomPositionPrecision", &betweenTranslationPrecision_);
