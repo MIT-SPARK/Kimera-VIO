@@ -174,7 +174,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
-        *mono_frame_lkf_,  //! This is really the current keyframe in this if
+        *mono_frame_km1_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
