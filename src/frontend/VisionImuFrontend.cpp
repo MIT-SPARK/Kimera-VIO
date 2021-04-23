@@ -59,14 +59,8 @@ VisionImuFrontend::~VisionImuFrontend() {
 
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
-<<<<<<< HEAD
-  const FrontendState& frontend_state = frontend_state_;
-  switch (frontend_state) {
-    case FrontendState::Bootstrap: {
-=======
   switch (frontend_state_) {
     case FrontendState::Bootstrap:
->>>>>>> integration/dcist
       return bootstrapSpin(std::move(input));
     case FrontendState::InitialTimeAlignment:
       return timeAlignmentSpin(std::move(input));
