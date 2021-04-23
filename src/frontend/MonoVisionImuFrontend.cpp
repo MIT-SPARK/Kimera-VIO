@@ -71,11 +71,9 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
                         : FrontendState::Nominal;
 
   if (!do_fine_imu_camera_temporal_sync_ && odom_params_) {
-    // note that we assume that the first frame is hardcoded to be
-    // a keyframe. It's also okay if world_NavState_odom_ is boost::none
-    VLOG(2) << "Caching first odom measurement in boostrapSpin";
-    // TODO(nathan|marcus) add odom_body transform here
-    world_Pose_lkf_body_ = input->world_NavState_odom_.value().pose();
+    // we assume that the first frame is hardcoded to be a keyframe.
+    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    cacheExternalOdometry(input.get());
   }
 
   // Create mostly invalid output

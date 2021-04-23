@@ -13,6 +13,7 @@
  */
 
 #include "kimera-vio/utils/ThreadsafeOdometryBuffer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
@@ -51,6 +52,10 @@ ThreadsafeOdometryBuffer::QueryResult ThreadsafeOdometryBuffer::getNearest(
 
   Odometry m_nearest;
   buffer_.getNearestValueToTime(timestamp, &m_nearest);
+  VLOG(10) << "Found odom measurement with t="
+           << UtilsNumerical::NsecToSec(m_nearest.timestamp) << " which is "
+           << UtilsNumerical::NsecToSec(m_nearest.timestamp - timestamp)
+           << " seconds away from t=" << UtilsNumerical::NsecToSec(timestamp);
 
   *odometry = m_nearest.value;
   return QueryResult::DataAvailable;

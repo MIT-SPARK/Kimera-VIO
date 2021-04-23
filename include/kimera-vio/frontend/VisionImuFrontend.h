@@ -147,6 +147,16 @@ class VisionImuFrontend {
                             Frame* frame_k,
                             TrackingStatusPose* status_pose_mono);
 
+  inline void cacheExternalOdometry(FrontendInputPacketBase* input) {
+    if (input->world_NavState_odom_) {
+      VLOG(2) << "Caching first odom measurement in boostrapSpin";
+      const gtsam::Pose3 odom_Pose_body =
+          (*odom_params_).body_Pose_odom_.inverse();
+      world_Pose_lkf_body_ =
+          (*input->world_NavState_odom_).pose().compose(odom_Pose_body);
+    }
+  }
+
   // can't be const (needs to cache keyframe odom if possible)
   inline boost::optional<gtsam::Pose3> getExternalOdometryRelativeBodyPose(
       FrontendInputPacketBase* input) {
