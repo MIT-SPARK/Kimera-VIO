@@ -78,6 +78,7 @@ RUN cd DBoW2 && \
 ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
 RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
 RUN cd Kimera-RPGO && \
+      git checkout feature\gnc && \
       mkdir build && \
       cd build && \
       cmake .. && \
