@@ -72,11 +72,9 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
                         : FrontendState::Nominal;
 
   if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
-    // note that we assume that the first frame is hardcoded to be
-    // a keyframe. It's also okay if world_NavState_odom_ is boost::none
-    VLOG(2) << "Caching first odom measurement in boostrapSpin";
-    // TODO(nathan|marcus) add odom_body transform here
-    world_Pose_lkf_body_ = input->world_NavState_odom_.value().pose();
+    // we assume that the first frame is hardcoded to be a keyframe.
+    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    cacheExternalOdometry(input.get());
   }
 
   // Create mostly invalid output
@@ -84,7 +82,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   CHECK(mono_camera_);
 
   if (FLAGS_do_fine_imu_camera_temporal_sync) {
-    return nullptr; // skip adding a frame to all downstream modules
+    return nullptr;  // skip adding a frame to all downstream modules
   }
 
   // Create mostly invalid output
@@ -199,7 +197,8 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
-        *mono_frame_km1_, // TODO(nathan) this used to be mono_frame_lkf_. Why???
+        *mono_frame_km1_,  // TODO(nathan) this used to be mono_frame_lkf_.
+                           // Why???
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
