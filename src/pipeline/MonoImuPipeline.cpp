@@ -44,6 +44,9 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
       &frontend_input_queue_,
       "Mono Data Provider",
       parallel_run_);
+  if (params.imu_params_.do_initial_time_alignment_) {
+    data_provider_module_->doCoarseTimestampCorrection();
+  }
 
   data_provider_module_->registerVioPipelineCallback(
     std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));
@@ -61,6 +64,10 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
+  vio_frontend_module_->registerImuTimeShiftUpdateCallback(
+      [&](double imu_time_shift_s) {
+        data_provider_module_->updateImuTimeShift(imu_time_shift_s);
+      });
 
   auto& backend_input_queue = backend_input_queue_;
   vio_frontend_module_->registerOutputCallback([&backend_input_queue](

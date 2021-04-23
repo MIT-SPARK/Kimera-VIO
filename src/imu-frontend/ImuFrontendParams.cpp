@@ -62,6 +62,7 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("accelerometer_random_walk", &acc_random_walk_);
   yaml_parser.getYamlParam("imu_integration_sigma", &imu_integration_sigma_);
   yaml_parser.getYamlParam("imu_time_shift", &imu_time_shift_);
+  yaml_parser.getYamlParam("do_initial_time_alignment", &do_initial_time_alignment_);
   std::vector<double> n_gravity;
   yaml_parser.getYamlParam("n_gravity", &n_gravity);
   CHECK_EQ(n_gravity.size(), 3);

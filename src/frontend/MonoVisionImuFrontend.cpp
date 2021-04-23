@@ -65,7 +65,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   // Create mostly invalid output
   CHECK(mono_frame_lkf_);
   CHECK(mono_camera_);
-  return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
+  return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_ && !imu_frontend_->doInitialTimeAlignment(),
                                               nullptr,
                                               TrackingStatus::DISABLED,
                                               gtsam::Pose3::identity(),  // no stereo!
@@ -153,7 +153,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     // Return the output of the Frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<MonoFrontendOutput>(
-        true,
+        frontend_state_ == FrontendState::Nominal,
         status_mono_measurements,
         TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!

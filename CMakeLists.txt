@@ -227,6 +227,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoImuPipeline.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE
+    tests/testCrossCorrelation.cpp
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
@@ -253,6 +254,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
     tests/testStereoMatcher.cpp
     tests/testUndistortRectifier.cpp
+    tests/testTemporalCalibration.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
     tests/testThreadsafeTemporalBuffer.cpp

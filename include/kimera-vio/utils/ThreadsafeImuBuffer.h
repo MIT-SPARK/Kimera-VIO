@@ -76,7 +76,7 @@ class ThreadsafeImuBuffer {
   };
 
   explicit ThreadsafeImuBuffer(const Timestamp& buffer_length_ns)
-      : buffer_(buffer_length_ns), shutdown_(false) {}
+      : buffer_(buffer_length_ns), shutdown_(false), have_warned_user_(false) {}
 
   ~ThreadsafeImuBuffer() { shutdown(); }
 
@@ -162,6 +162,10 @@ class ThreadsafeImuBuffer {
       ImuStampS* imu_timestamps,
       ImuAccGyrS* imu_measurements);
 
+  /// Get the most recently pushed IMU measurement
+  /// Returns true unless the buffer is empty
+  bool getNewestImuMeasurement(ImuMeasurement* value);
+
   /// Linear interpolation between two imu measurements.
   static void linearInterpolate(const Timestamp& x0,
                                 const ImuAccGyr& y0,
@@ -196,6 +200,7 @@ class ThreadsafeImuBuffer {
   mutable std::mutex m_buffer_;
   std::condition_variable cv_new_measurement_;
   std::atomic<bool> shutdown_;
+  std::atomic<bool> have_warned_user_;
 };
 
 }  // namespace utils

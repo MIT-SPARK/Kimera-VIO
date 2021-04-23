@@ -45,8 +45,9 @@ fast_threshold: 20
 betweenRotationPrecision: 10000 # 1/(0.01*0.01)
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
-pgo_rot_threshold: 0.0
-pgo_trans_threshold: 0.0
+pgo_rot_threshold: 0.01
+pgo_trans_threshold: 0.01
+gnc_alpha: 0.7
 
 # geom_check_id options:
 #   0: NISTER
