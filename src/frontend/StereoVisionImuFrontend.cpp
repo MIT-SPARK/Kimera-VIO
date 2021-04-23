@@ -220,7 +220,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
             : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
-        *stereoFrame_lkf_,
+        *stereoFrame_km1_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
