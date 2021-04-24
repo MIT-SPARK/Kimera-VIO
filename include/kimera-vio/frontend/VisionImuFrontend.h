@@ -199,7 +199,7 @@ class VisionImuFrontend {
 
     CHECK(input);
     if (!input->world_NavState_odom_) {
-      // we could log here to, but RelativePose handles it...
+      // we could log here too, but RelativePose handles it...
       return boost::none;
     }
 
