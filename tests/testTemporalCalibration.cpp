@@ -237,6 +237,65 @@ TestData makeTestData(size_t num_frames = 10,
   return to_return;
 }
 
+class MockTimeAligner : public TimeAlignerBase {
+ public:
+  MockTimeAligner() {}
+  ~MockTimeAligner() = default;
+
+  using TimeAlignerBase::mergeImuData;
+
+  void addPrevious(const ImuStampS& stamps, const ImuAccGyrS& values) {
+    imu_stamp_cache_.push_back(stamps);
+    imu_value_cache_.push_back(values);
+  }
+
+ protected:
+  TimeAlignerBase::Result attemptEstimation(
+      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const gtsam::Pose3& T_ref_cur,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyrs,
+      FrontendLogger* logger = nullptr) {
+    return {true, 0.0};
+  }
+};
+
+TEST(temporalCalibration, testMergeImuData) {
+  MockTimeAligner aligner;
+
+  ImuStampS first_stamps(1, 3);
+  first_stamps << 1, 2, 3;
+  ImuAccGyrS first_values(6, 3);
+  first_values.block<1, 3>(2, 0) << 1, 2, 3;
+  aligner.addPrevious(first_stamps, first_values);
+
+  ImuStampS second_stamps(1, 2);
+  second_stamps << 4, 5;
+  ImuAccGyrS second_values(6, 2);
+  second_values.block<1, 2>(2, 0) << 4, 5;
+  aligner.addPrevious(second_stamps, second_values);
+
+  ImuStampS third_stamps(1, 4);
+  third_stamps << 6, 7, 8, 9;
+  ImuAccGyrS third_values(6, 4);
+  third_values.block<1, 4>(2, 0) << 6, 7, 8, 9;
+
+  ImuStampS merged_stamps;
+  ImuAccGyrS merged_values;
+  aligner.mergeImuData(
+      third_stamps, third_values, &merged_stamps, &merged_values);
+
+  ASSERT_EQ(9, merged_stamps.cols());
+  ASSERT_EQ(1, merged_stamps.rows());
+  ASSERT_EQ(9, merged_values.cols());
+  ASSERT_EQ(6, merged_values.rows());
+
+  for (int i = 0; i < merged_stamps.cols(); ++i) {
+    EXPECT_EQ(i + 1, merged_stamps(0, i));
+    EXPECT_EQ(i + 1, merged_values(2, i));
+  }
+}
+
 TEST(temporalCalibration, testBadRansacStatus) {
   MockTracker tracker;
 
@@ -251,6 +310,7 @@ TEST(temporalCalibration, testBadRansacStatus) {
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
   ImuParams params;
+  params.nominal_sampling_time_s_ = 1.0;
   CrossCorrTimeAligner aligner(params);
 
   FrontendOutputPacketBase::Ptr output = makeOutput(1);
@@ -289,6 +349,7 @@ TEST(temporalCalibration, testEmptyImu) {
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
   ImuParams params;
+  params.nominal_sampling_time_s_ = 1.0;
   CrossCorrTimeAligner aligner(params);
 
   FrontendOutputPacketBase::Ptr output = makeOutput(1);
@@ -322,6 +383,7 @@ TEST(temporalCalibration, testLessThanWindow) {
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
   ImuParams params;
+  params.nominal_sampling_time_s_ = 1.0;
   params.time_alignment_window_size_ = 10;
   CrossCorrTimeAligner aligner(params);
 
@@ -355,6 +417,7 @@ TEST(temporalCalibration, testLessThanWindowFrameRate) {
   ImuParams params;
   params.time_alignment_window_size_ = 10;
   params.do_imu_rate_time_alignment_ = false;
+  params.nominal_sampling_time_s_ = 1.0;
   CrossCorrTimeAligner aligner(params);
 
   for (size_t i = 0; i <= results.size(); ++i) {
@@ -377,6 +440,7 @@ TEST(temporalCalibration, testLowVariance) {
   params.gyro_noise_density_ = 1.0;
   params.time_alignment_window_size_ = 3;
   params.do_imu_rate_time_alignment_ = false;
+  params.nominal_sampling_time_s_ = 1.0;
   CrossCorrTimeAligner aligner(params);
 
   std::vector<RansacResult> results;
@@ -412,6 +476,7 @@ TEST(temporalCalibration, testEnoughVariance) {
   params.gyro_noise_density_ = 0.0;
   params.time_alignment_window_size_ = 3;
   params.do_imu_rate_time_alignment_ = false;
+  params.nominal_sampling_time_s_ = 1.0;
   CrossCorrTimeAligner aligner(params);
 
   std::vector<RansacResult> results;

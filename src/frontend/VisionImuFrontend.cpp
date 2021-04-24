@@ -43,8 +43,7 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_(nullptr),
       tracker_status_summary_(),
       display_queue_(display_queue),
-      logger_(nullptr),
-      do_fine_imu_camera_temporal_sync_(imu_params.do_fine_imu_camera_temporal_sync_) {
+      logger_(nullptr) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
@@ -84,14 +83,16 @@ FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
   CHECK(nominal_output);
 
   TimeAlignerBase::Result result = time_aligner_->estimateTimeAlignment(
-      *tracker_, *nominal_output, imu_stamps, imu_accgyrs);
+      *tracker_, *nominal_output, imu_stamps, imu_accgyrs, logger_.get());
   if (result.valid) {
     CHECK(imu_time_shift_update_callback_);
     imu_time_shift_update_callback_(result.imu_time_shift);
     frontend_state_ = FrontendState::Nominal;
   }
 
-  return nominal_output;
+  // TODO(nathan) we used to return a valid output, but that messes with other modules
+  // that depend on performing backend / frontend synchronization
+  return nullptr;
 }
 
 void VisionImuFrontend::outlierRejectionMono(

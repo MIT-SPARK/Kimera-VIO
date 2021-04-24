@@ -29,6 +29,9 @@
 #include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
+DECLARE_bool(do_coarse_imu_camera_temporal_sync);
+DECLARE_bool(do_fine_imu_camera_temporal_sync);
+
 namespace VIO {
 
 MonoImuPipeline::MonoImuPipeline(const VioParams& params,
@@ -42,11 +45,11 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
 
   data_provider_module_ = VIO::make_unique<MonoDataProviderModule>(
       &frontend_input_queue_, "Mono Data Provider", parallel_run_);
-  if (params.imu_params_.do_coarse_imu_camera_temporal_sync_) {
+  if (FLAGS_do_coarse_imu_camera_temporal_sync) {
     data_provider_module_->doCoarseImuCameraTemporalSync();
   }
-  if (!params.imu_params_.do_fine_imu_camera_temporal_sync_) {
-    if (params.imu_params_.do_coarse_imu_camera_temporal_sync_) {
+  if (!FLAGS_do_fine_imu_camera_temporal_sync) {
+    if (FLAGS_do_coarse_imu_camera_temporal_sync) {
       LOG(WARNING) << "The manually provided IMU time shift will be applied on "
                       "top of whatever the coarse time alignment calculates. "
                       "This may or may not be what you want!";

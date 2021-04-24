@@ -61,6 +61,11 @@ class TimeAlignerBase {
                                        FrontendLogger* logger = nullptr);
 
  protected:
+  void mergeImuData(const ImuStampS& latest_stamps,
+                    const ImuAccGyrS& latest_accgyrs,
+                    ImuStampS* new_imu_stamps,
+                    ImuAccGyrS* new_imu_values);
+
   virtual Result attemptEstimation(
       const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
       const gtsam::Pose3& T_ref_cur,
@@ -69,6 +74,8 @@ class TimeAlignerBase {
       FrontendLogger* logger = nullptr) = 0;
 
   Frame::UniquePtr last_frame_;
+  std::vector<ImuStampS> imu_stamp_cache_;
+  std::vector<ImuAccGyrS> imu_value_cache_;
 };
 
 }  // namespace VIO

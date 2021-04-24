@@ -26,6 +26,8 @@
 DEFINE_bool(log_stereo_matching_images,
             false,
             "Display/Save mono tracking rectified and unrectified images.");
+DECLARE_bool(do_fine_imu_camera_temporal_sync);
+
 namespace VIO {
 
 StereoVisionImuFrontend::StereoVisionImuFrontend(
@@ -70,14 +72,14 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   processFirstStereoFrame(input->getStereoFrame());
 
   // Initialization done, set state to nominal
-  frontend_state_ = do_fine_imu_camera_temporal_sync_
+  frontend_state_ = FLAGS_do_fine_imu_camera_temporal_sync
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
   // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
   CHECK(stereoFrame_lkf_);
   return VIO::make_unique<StereoFrontendOutput>(
-      stereoFrame_lkf_->isKeyframe() && !do_fine_imu_camera_temporal_sync_,
+      stereoFrame_lkf_->isKeyframe() && !FLAGS_do_fine_imu_camera_temporal_sync,
       nullptr,
       TrackingStatus::DISABLED,
       getRelativePoseBodyStereo(),

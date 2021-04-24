@@ -20,6 +20,7 @@
 DEFINE_bool(log_mono_matching_images,
             false,
             "Display/Save mono tracking rectified and unrectified images.");
+DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
@@ -64,7 +65,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   processFirstFrame(input->getFrame());
 
   // Initialization done, set state to nominal
-  frontend_state_ = do_fine_imu_camera_temporal_sync_
+  frontend_state_ = FLAGS_do_fine_imu_camera_temporal_sync
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
@@ -72,7 +73,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   CHECK(mono_frame_lkf_);
   CHECK(mono_camera_);
   return VIO::make_unique<MonoFrontendOutput>(
-      mono_frame_lkf_->isKeyframe_ && !do_fine_imu_camera_temporal_sync_,
+      mono_frame_lkf_->isKeyframe_ && !FLAGS_do_fine_imu_camera_temporal_sync,
       nullptr,
       TrackingStatus::DISABLED,
       gtsam::Pose3::identity(),  // no stereo!

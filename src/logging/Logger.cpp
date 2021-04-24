@@ -522,7 +522,7 @@ void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
                                             bool not_enough_data,
                                             bool not_enough_variance,
                                             double result) {
-  std::ofstream& output_stream = output_frontend_ransac_mono_.ofstream_;
+  std::ofstream& output_stream = output_frontend_temporal_cal_.ofstream_;
 
   if (!is_header_written_temporal_cal_) {
     output_stream << "#timestamp_vision,timestamp_imu,vision_relative_angle_"

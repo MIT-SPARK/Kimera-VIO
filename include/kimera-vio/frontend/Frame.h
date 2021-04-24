@@ -154,7 +154,7 @@ class Frame : public PipelinePayload {
   // get a much smaller (and faster) copy of a frame for frame-to-frame RANSAC
   // TODO(nathan): see if there's a better way
   Frame::UniquePtr getRansacFrame() const {
-    return Frame::UniquePtr(new Frame(id_, timestamp_, landmarks_, versors_));
+    return Frame::UniquePtr(new Frame(id_, timestamp_, keypoints_, landmarks_, versors_));
   }
 
  public:
@@ -187,10 +187,12 @@ class Frame : public PipelinePayload {
  protected:
   Frame(FrameId id,
         Timestamp timestamp,
+        const KeypointsCV& keypoints,
         const LandmarkIds& landmarks,
         const BearingVectors& versors)
       : PipelinePayload(timestamp),
         id_(id),
+        keypoints_(keypoints),
         landmarks_(landmarks),
         versors_(versors) {}
 };

@@ -23,6 +23,7 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
       imu_variance_threshold_(3 * std::pow(params.gyro_noise_density_, 2.0)),
       imu_buffer_(params.time_alignment_window_size_),
       vision_buffer_(params.time_alignment_window_size_) {
+  CHECK_NE(imu_period_s_, 0.0) << "nominal_sampling_time_s_ must be non-zero";
   pim_params_.reset(new gtsam::PreintegratedRotationParams());
 }
 
@@ -192,6 +193,7 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     FrontendLogger* logger) {
   size_t num_imu_added =
       addNewImuData(timestamps_ref_cur.second, imu_stamps, imu_acc_gyrs);
+  VLOG(5) << "Added " << num_imu_added << " relative angle(s) to imu buffer for temporal sync";
   if (num_imu_added == 0) {
     LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
     return {true, 0.0};
