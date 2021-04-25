@@ -51,6 +51,8 @@ protected:
   bool do_imu_rate_time_alignment_ = true;
   //! number of measurements for time alignment
   size_t time_alignment_window_size_ = 500;
+  //! additional scaling to apply to nominal threshold of 3 * imu_gryo_variance
+  double time_alignment_variance_threshold_scaling_ = 1.0;
 
   double nominal_sampling_time_s_ = 0.0;
   double imu_integration_sigma_ = 0.0;

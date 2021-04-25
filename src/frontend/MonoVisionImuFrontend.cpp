@@ -69,11 +69,17 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
-  // Create mostly invalid output
+  // sanity checks
   CHECK(mono_frame_lkf_);
   CHECK(mono_camera_);
+
+  if (FLAGS_do_fine_imu_camera_temporal_sync) {
+    return nullptr; // skip adding a frame to all downstream modules
+  }
+
+  // Create mostly invalid output
   return VIO::make_unique<MonoFrontendOutput>(
-      mono_frame_lkf_->isKeyframe_ && !FLAGS_do_fine_imu_camera_temporal_sync,
+      mono_frame_lkf_->isKeyframe_,
       nullptr,
       TrackingStatus::DISABLED,
       gtsam::Pose3::identity(),  // no stereo!

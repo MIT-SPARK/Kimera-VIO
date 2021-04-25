@@ -23,8 +23,8 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
       imu_variance_threshold_(3 * std::pow(params.gyro_noise_density_, 2.0)),
       imu_buffer_(params.time_alignment_window_size_),
       vision_buffer_(params.time_alignment_window_size_) {
-  CHECK_NE(imu_period_s_, 0.0) << "nominal_sampling_time_s_ must be non-zero";
   pim_params_.reset(new gtsam::PreintegratedRotationParams());
+  imu_variance_threshold_ *= params.time_alignment_variance_threshold_scaling_;
 }
 
 size_t CrossCorrTimeAligner::addNewImuData(

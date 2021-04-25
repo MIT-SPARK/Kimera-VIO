@@ -24,6 +24,7 @@ accelerometer_random_walk: 3.0000e-3    # [ m / s^3 / sqrt(Hz) ].  ( accel bias 
 # Extra parameters
 do_imu_rate_time_alignment: 1
 time_alignment_window_size: 500
+time_alignment_variance_threshold_scaling: 1.0
 imu_integration_sigma: 1.0e-8
 imu_time_shift: 0.0
 n_gravity: [0.0, 0.0, -9.81]

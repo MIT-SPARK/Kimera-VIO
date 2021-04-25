@@ -76,10 +76,15 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
-  // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
+  // sanity check
   CHECK(stereoFrame_lkf_);
+
+  if (FLAGS_do_fine_imu_camera_temporal_sync) {
+    return nullptr; // skip adding a frame to all downstream modules
+  }
+
   return VIO::make_unique<StereoFrontendOutput>(
-      stereoFrame_lkf_->isKeyframe() && !FLAGS_do_fine_imu_camera_temporal_sync,
+      stereoFrame_lkf_->isKeyframe(),
       nullptr,
       TrackingStatus::DISABLED,
       getRelativePoseBodyStereo(),
