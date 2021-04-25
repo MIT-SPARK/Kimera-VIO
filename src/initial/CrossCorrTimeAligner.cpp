@@ -27,9 +27,10 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
   pim_params_.reset(new gtsam::PreintegratedRotationParams());
 }
 
-size_t CrossCorrTimeAligner::addNewImuData(Timestamp frame_timestamp,
-                                           const ImuStampS& imu_stamps,
-                                           const ImuAccGyrS& imu_acc_gyrs) {
+size_t CrossCorrTimeAligner::addNewImuData(
+    const std::vector<Timestamp>& image_stamps,
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_acc_gyrs) {
   if (imu_stamps.cols() == 0) {
     // TODO(nathan) think about handling this better
     LOG(ERROR) << "addNewImuData called with no measurements";
@@ -37,16 +38,30 @@ size_t CrossCorrTimeAligner::addNewImuData(Timestamp frame_timestamp,
   }
 
   if (!do_imu_rate_estimation_) {
+    CHECK_GE(image_stamps.size(), 2u);
+    size_t image_stamp_idx = 1;
     gtsam::PreintegratedRotation rot_pim(pim_params_);
     for (int i = 0; i < imu_stamps.cols(); ++i) {
+      if (image_stamp_idx < image_stamps.size() - 1 &&
+          image_stamps[image_stamp_idx] < imu_stamps(0, i)) {
+        // we hit a boundary between the last frame and the
+        // current one, so add a measurement and restart integration
+        imu_buffer_.push(CrossCorrTimeAligner::Measurement(
+            image_stamps[image_stamp_idx],
+            Rot3::Logmap(rot_pim.deltaRij()).norm()));
+        rot_pim = gtsam::PreintegratedRotation(pim_params_);
+        image_stamp_idx++;
+      }
+
       rot_pim.integrateMeasurement(imu_acc_gyrs.block<3, 1>(3, i),
                                    Eigen::Vector3d::Zero(),
                                    imu_period_s_);
     }
     imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-        frame_timestamp, Rot3::Logmap(rot_pim.deltaRij()).norm()));
+        image_stamps.back(), Rot3::Logmap(rot_pim.deltaRij()).norm()));
 
-    return 1;
+    // image_stamp_idx is equal to the number of measurements added
+    return image_stamp_idx;
   }
 
   int start = 0;
@@ -75,7 +90,7 @@ double valueAccessor(const CrossCorrTimeAligner::Measurement& m) {
 }  // namespace
 
 void CrossCorrTimeAligner::interpNewImageMeasurements(
-    const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+    const std::vector<Timestamp>& image_stamps,
     const gtsam::Pose3& T_ref_cur,
     size_t num_new_imu_measurements) {
   const size_t N = num_new_imu_measurements;
@@ -86,15 +101,15 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
   if (N == 1) {
     // we can't interpolate, so just push a single measurement
     vision_buffer_.push(
-        CrossCorrTimeAligner::Measurement(imu_buffer_.back().timestamp, angle));
+        CrossCorrTimeAligner::Measurement(image_stamps.back(), angle));
     return;
   }
 
   // calculate t_j - t_i and v_j - v_i for the images
   const double last_frame_angle =
       vision_buffer_.empty() ? 0.0 : vision_buffer_.back().value;
-  const double frame_diff = UtilsNumerical::NsecToSec(
-      timestamps_ref_cur.second - timestamps_ref_cur.first);
+  const double frame_diff =
+      UtilsNumerical::NsecToSec(image_stamps.back() - image_stamps.front());
   const double frame_value_diff = angle - last_frame_angle;
 
   // if we have no previous measurments, we have to start from the earliest
@@ -115,8 +130,8 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
     const double ratio = curr_diff / imu_diff;
     CHECK_GE(ratio, 0.0) << "Invalid ratio between imu timestamps: " << ratio;
 
-    Timestamp new_timestamp = timestamps_ref_cur.first +
-                              UtilsNumerical::SecToNsec(ratio * frame_diff);
+    Timestamp new_timestamp =
+        image_stamps.front() + UtilsNumerical::SecToNsec(ratio * frame_diff);
     vision_buffer_.push(CrossCorrTimeAligner::Measurement(
         new_timestamp, last_frame_angle + frame_value_diff * ratio));
   }
@@ -186,25 +201,23 @@ void CrossCorrTimeAligner::logData(FrontendLogger* logger,
 }
 
 TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
-    const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+    const std::vector<Timestamp>& image_stamps,
     const gtsam::Pose3& T_ref_cur,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs,
     FrontendLogger* logger) {
-  size_t num_imu_added =
-      addNewImuData(timestamps_ref_cur.second, imu_stamps, imu_acc_gyrs);
-  VLOG(5) << "Added " << num_imu_added << " relative angle(s) to imu buffer for temporal sync";
+  size_t num_imu_added = addNewImuData(image_stamps, imu_stamps, imu_acc_gyrs);
+  VLOG(5) << "Added " << num_imu_added
+          << " relative angle(s) to imu buffer for temporal sync";
   if (num_imu_added == 0) {
     LOG(ERROR) << "Failed to add IMU data. Returning default estimate.";
     return {true, 0.0};
   }
 
-  if (do_imu_rate_estimation_) {
-    interpNewImageMeasurements(timestamps_ref_cur, T_ref_cur, num_imu_added);
-  } else {
-    vision_buffer_.push(CrossCorrTimeAligner::Measurement(
-        timestamps_ref_cur.second, Rot3::Logmap(T_ref_cur.rotation()).norm()));
-  }
+  // this covers both the case of only having one measurement (frame rate
+  // estimation) and multiple measurements (frame rate with RANSAC failing and
+  // imu rate estimation)
+  interpNewImageMeasurements(image_stamps, T_ref_cur, num_imu_added);
 
   if (!vision_buffer_.full()) {
     VLOG(1)

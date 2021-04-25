@@ -67,13 +67,14 @@ class TimeAlignerBase {
                     ImuAccGyrS* new_imu_values);
 
   virtual Result attemptEstimation(
-      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const std::vector<Timestamp>& image_timestamps,
       const gtsam::Pose3& T_ref_cur,
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_accgyrs,
       FrontendLogger* logger = nullptr) = 0;
 
   Frame::UniquePtr last_frame_;
+  std::vector<Timestamp> image_stamp_cache_;
   std::vector<ImuStampS> imu_stamp_cache_;
   std::vector<ImuAccGyrS> imu_value_cache_;
 };

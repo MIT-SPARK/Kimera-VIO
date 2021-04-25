@@ -251,7 +251,7 @@ class MockTimeAligner : public TimeAlignerBase {
 
  protected:
   TimeAlignerBase::Result attemptEstimation(
-      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const std::vector<Timestamp>& image_stamps,
       const gtsam::Pose3& T_ref_cur,
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_accgyrs,
@@ -689,6 +689,66 @@ TEST(temporalCalibration, testPosDelayFrameRate) {
   MockTracker tracker;
   CrossCorrTimeAligner aligner(data.params);
 
+  ReturnHelper helper(data.results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(data.results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  TimeAlignerBase::Result result;
+  for (size_t i = 0; i < data.results.size(); ++i) {
+    result = aligner.estimateTimeAlignment(
+        tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(0.0, result.imu_time_shift);
+  }
+
+  result = aligner.estimateTimeAlignment(tracker,
+                                         *(data.outputs.back()),
+                                         data.imu_stamps.back(),
+                                         data.imu_values.back());
+  EXPECT_TRUE(result.valid);
+  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+}
+
+TEST(temporalCalibration, testPosDelayLowDisparity) {
+  TestData data = makeTestData(10, 5, 0.1, true, 7);
+
+  MockTracker tracker;
+  CrossCorrTimeAligner aligner(data.params);
+
+  data.results[4].first =
+      TrackingStatus::LOW_DISPARITY;  // force caching of IMU
+  ReturnHelper helper(data.results);
+  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+      .With(AllArgs(Ne()))
+      .Times(data.results.size())
+      .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
+
+  TimeAlignerBase::Result result;
+  for (size_t i = 0; i < data.results.size(); ++i) {
+    result = aligner.estimateTimeAlignment(
+        tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
+    EXPECT_FALSE(result.valid);
+    EXPECT_EQ(0.0, result.imu_time_shift);
+  }
+
+  result = aligner.estimateTimeAlignment(tracker,
+                                         *(data.outputs.back()),
+                                         data.imu_stamps.back(),
+                                         data.imu_values.back());
+  EXPECT_TRUE(result.valid);
+  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+}
+
+TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
+  TestData data = makeTestData(10, 5, 0.1, false, 7);
+
+  MockTracker tracker;
+  CrossCorrTimeAligner aligner(data.params);
+
+  data.results[4].first =
+      TrackingStatus::LOW_DISPARITY;  // force caching of IMU
   ReturnHelper helper(data.results);
   EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
       .With(AllArgs(Ne()))

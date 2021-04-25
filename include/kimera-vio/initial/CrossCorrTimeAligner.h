@@ -70,19 +70,19 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
    * signals.
    */
   TimeAlignerBase::Result attemptEstimation(
-      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const std::vector<Timestamp>& image_stamps,
       const gtsam::Pose3& T_ref_cur,
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_acc_gyrs,
       FrontendLogger* logger = nullptr) override;
 
  private:
-  size_t addNewImuData(Timestamp frame_timestamp,
+  size_t addNewImuData(const std::vector<Timestamp>& image_stamps,
                        const ImuStampS& imu_stamps,
                        const ImuAccGyrS& imu_acc_gyrs);
 
   void interpNewImageMeasurements(
-      const std::pair<Timestamp, Timestamp>& timestamps_ref_cur,
+      const std::vector<Timestamp>& image_timestamps,
       const gtsam::Pose3& T_ref_cur,
       size_t num_new_imu_measurements);
 

@@ -75,6 +75,10 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
       return {true, 0.0};
   }
 
+  // cache timestamp (so we can figure out how many frames occurred
+  // before RANSAC succeeded
+  image_stamp_cache_.push_back(curr_frame->timestamp_);
+
   if (!last_frame_) {
     VLOG(1) << "Initializing first frame for temporal calibration";
     last_frame_ = std::move(curr_frame);
@@ -106,9 +110,6 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
     return {false, 0.0};
   }
 
-  auto timestamps_ref_curr =
-      std::make_pair(last_frame_->timestamp_, curr_frame->timestamp_);
-
   ImuStampS new_imu_stamps;
   ImuAccGyrS new_imu_accgyrs;
   mergeImuData(imu_stamps, imu_accgyrs, &new_imu_stamps, &new_imu_accgyrs);
@@ -117,11 +118,14 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
           << " with frame #" << curr_frame->id_;
   last_frame_ = std::move(curr_frame);
 
-  return attemptEstimation(timestamps_ref_curr,
-                           ransac_result.second,
-                           new_imu_stamps,
-                           new_imu_accgyrs,
-                           logger);
+  Result result = attemptEstimation(image_stamp_cache_,
+                                    ransac_result.second,
+                                    new_imu_stamps,
+                                    new_imu_accgyrs,
+                                    logger);
+  image_stamp_cache_.clear();
+  image_stamp_cache_.push_back(last_frame_->timestamp_);
+  return result;
 }
 
 }  // namespace VIO
