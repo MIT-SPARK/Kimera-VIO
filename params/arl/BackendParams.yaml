@@ -5,16 +5,13 @@ backend_modality: 0
 
 #INITIALIZATION PARAMETERS
 autoInitialize: 1
-initialization_from_imu_type: 1
-initialize_on_detected_acceleration: 1
-imu_accel_std_dev_when_stationary: 0.15
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
 initialYawSigma: 0.00174533 # 0.1/180.0*M_PI
 initialVelocitySigma: 0.001
-initialAccBiasSigma: 0.1
-initialGyroBiasSigma: 0.01
+initialAccBiasSigma: 0.0001
+initialGyroBiasSigma: 0.001
 
 # VISION PARAMETERS ###########################################################
 ## Smart Factors ##
@@ -33,7 +30,7 @@ rankTolerance: 1
 #   * if the landmark is triangulated at distance larger than this,
 #   * result is flagged as degenerate.
 #   */
-landmarkDistanceThreshold: 2
+landmarkDistanceThreshold: 20
 
 # DynamicOutlierRejection:
 #  /**
@@ -41,7 +38,7 @@ landmarkDistanceThreshold: 2
 #   * is smaller than this threshold after triangulation, otherwise result is
 #   * flagged as degenerate.
 #   */
-outlierRejection: 2
+outlierRejection: 10
 # ///< threshold to decide whether to re-triangulate
 retriangulationThreshold: 0.001
 
@@ -58,7 +55,7 @@ regularityNormType: 1
 regularityNormParam: 0.04
 
 ## Between Stereo Factors ##
-addBetweenStereoFactors: 1
+addBetweenStereoFactors: 0
 betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
