@@ -29,16 +29,6 @@
 #include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/Macros.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "kimera-vio/third_party/triangle/triangle.h"
-
-#ifdef __cplusplus
-}
-#endif
-
 namespace VIO {
 
 class Mesher {
@@ -171,75 +161,7 @@ class Mesher {
   */
   static std::vector<cv::Vec6f> computeDelaunayTriangulation(
       const KeypointsCV& keypoints,
-      MeshIndices* vtx_indices = nullptr) {
-    // input/output structure for triangulation
-    struct triangulateio in, out;
-    int32_t k;
-
-    // Input number of points and point list
-    in.numberofpoints = keypoints.size();
-    in.pointlist = (float*)malloc(in.numberofpoints * 2 * sizeof(float));
-    k = 0;
-    for (int32_t i = 0; i < keypoints.size(); i++) {
-      in.pointlist[k++] = keypoints[i].x;
-      in.pointlist[k++] = keypoints[i].y;
-    }
-    in.numberofpointattributes = 0;
-    in.pointattributelist = NULL;
-    in.pointmarkerlist = NULL;
-    in.numberofsegments = 0;
-    in.numberofholes = 0;
-    in.numberofregions = 0;
-    in.regionlist = NULL;
-
-    // outputs
-    out.pointlist = NULL;
-    out.pointattributelist = NULL;
-    out.pointmarkerlist = NULL;
-    out.trianglelist = NULL;
-    out.triangleattributelist = NULL;
-    out.neighborlist = NULL;
-    out.segmentlist = NULL;
-    out.segmentmarkerlist = NULL;
-    out.edgelist = NULL;
-    out.edgemarkerlist = NULL;
-
-    // do triangulation (z=zero-based, n=neighbors, Q=quiet, B=no boundary
-    // markers)
-    char parameters[] = "zneQB";
-    ::triangulate(parameters, &in, &out, NULL);
-
-    // put resulting triangles into vector tri
-    // triangle structure is an array that holds the triangles 3 corners
-    // Stores one point and the remainder in a counterclockwise order
-    std::vector<cv::Vec6f> tri;
-    k = 0;
-    TriVtxIndices tri_vtx_indices;
-    for (int32_t i = 0; i < out.numberoftriangles; i++) {
-      // Find vertex ids!
-      if (vtx_indices) {
-        tri_vtx_indices[0] = out.trianglelist[k];
-        tri_vtx_indices[1] = out.trianglelist[k + 1];
-        tri_vtx_indices[2] = out.trianglelist[k + 2];
-        vtx_indices->push_back(tri_vtx_indices);
-      }
-      tri.push_back(cv::Vec6f(keypoints[out.trianglelist[k]].x,
-                              keypoints[out.trianglelist[k]].y,
-                              keypoints[out.trianglelist[k + 1]].x,
-                              keypoints[out.trianglelist[k + 1]].y,
-                              keypoints[out.trianglelist[k + 2]].x,
-                              keypoints[out.trianglelist[k + 2]].y));
-      k += 3;
-    }
-
-    // free memory used for triangulation
-    free(in.pointlist);
-    free(out.pointlist);
-    free(out.trianglelist);
-
-    // return triangles
-    return tri;
-  }
+      MeshIndices* vtx_indices = nullptr);
 
  private:
   // Provide Mesh 3D in read-only mode.

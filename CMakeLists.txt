@@ -80,8 +80,8 @@ else()
   message(STATUS "Vocabulary file exists, will not download.")
 endif()
 
-### Handle third party library
-add_subdirectory(src/third_party/triangle)
+### Handle third party libraries
+add_subdirectory(third_party)
 
 ### Compile the code
 add_library(${PROJECT_NAME} SHARED "")
@@ -134,7 +134,7 @@ target_link_libraries(${PROJECT_NAME}
     opengv
     DBoW2::DBoW2
     KimeraRPGO
-    triangle
+    triangle::triangle
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
