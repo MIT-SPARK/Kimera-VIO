@@ -31,7 +31,7 @@ namespace VIO {
 class TestMonoProvider : public ::testing::Test {
  public:
   TestMonoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = make_unique<MonoDataProviderModule>(
+    test_provider_ = VIO::make_unique<MonoDataProviderModule>(
         &output_queue_, "test_mono_provider", false);
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {

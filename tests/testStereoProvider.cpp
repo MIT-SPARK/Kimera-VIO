@@ -32,7 +32,7 @@ namespace VIO {
 class TestStereoProvider : public ::testing::Test {
  public:
   TestStereoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = make_unique<StereoDataProviderModule>(
+    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
         &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {

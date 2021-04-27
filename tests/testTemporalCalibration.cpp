@@ -100,7 +100,7 @@ FrontendOutputPacketBase::UniquePtr make_output(
   Frame fake_frame(1, timestamp, CameraParams(), cv::Mat());
   if (frontend_type == FrontendType::kMonoImu) {
     return std::move(
-        make_unique<MonoFrontendOutput>(false,
+        VIO::make_unique<MonoFrontendOutput>(false,
                                         StatusMonoMeasurementsPtr(nullptr),
                                         TrackingStatus::VALID,
                                         gtsam::Pose3(),
@@ -114,7 +114,7 @@ FrontendOutputPacketBase::UniquePtr make_output(
     StereoFrame fake_stereo(
         fake_frame.id_, fake_frame.timestamp_, fake_frame, fake_frame);
     return std::move(
-        make_unique<StereoFrontendOutput>(false,
+        VIO::make_unique<StereoFrontendOutput>(false,
                                           StatusStereoMeasurementsPtr(nullptr),
                                           TrackingStatus::VALID,
                                           gtsam::Pose3(),
