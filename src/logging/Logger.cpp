@@ -518,7 +518,7 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
 void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
                                             const Timestamp& timestamp_imu,
                                             double vision_relative_angle_norm,
-                                            double image_relative_angle_norm,
+                                            double imu_relative_angle_norm,
                                             bool not_enough_data,
                                             bool not_enough_variance,
                                             double result) {
@@ -526,7 +526,7 @@ void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
 
   if (!is_header_written_temporal_cal_) {
     output_stream << "#timestamp_vision,timestamp_imu,vision_relative_angle_"
-                     "norm,image_relative_angle_norm,not_enough_data,not_"
+                     "norm,imu_relative_angle_norm,not_enough_data,not_"
                      "enough_variance,t_imu_cam_s"
                   << std::endl;
     is_header_written_temporal_cal_ = true;
