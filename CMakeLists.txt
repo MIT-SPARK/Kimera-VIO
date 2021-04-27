@@ -271,8 +271,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )
-  # triangle included for testEurocPlayground
-  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio triangle)
+  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
     enable_testing()
