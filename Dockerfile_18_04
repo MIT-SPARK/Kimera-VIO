@@ -101,8 +101,8 @@ RUN cd evo-1 && python3.6 $(which pip3) install .
 # Install Kimera VIO Evaluation
 RUN python3.6 $(which pip3) install ipython prompt_toolkit
 # Hack to avoid Docker's cache when Kimera VIO Evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
 RUN cd Kimera-VIO-Evaluation && git fetch && git checkout master && python3.6 $(which pip3) install -e .
 
