@@ -7,6 +7,7 @@ target_sources(kimera_vio
     "${CMAKE_CURRENT_LIST_DIR}/Statistics.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeImuBuffer.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeImuBuffer-inl.h"
+    "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeOdometryBuffer.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeQueue.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeTemporalBuffer.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeTemporalBuffer-inl.h"

@@ -12,6 +12,7 @@ target_sources(kimera_vio
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionImuFrontend.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/MonoImuSyncPacket.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/MonoVisionImuFrontend.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/OdometryParams.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontend.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendModule.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendParams.cpp"

@@ -234,19 +234,23 @@ struct BackendInput : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   BackendInput(
-      const Timestamp& timestamp_kf_nsec,
-      const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
-      const TrackingStatus& stereo_tracking_status,
-      const ImuFrontend::PimPtr& pim,
+      const Timestamp &timestamp_kf_nsec,
+      const StatusStereoMeasurementsPtr &status_stereo_measurements_kf,
+      const TrackingStatus &stereo_tracking_status,
+      const ImuFrontend::PimPtr &pim,
       //! Raw imu msgs for Backend init only
-      const ImuAccGyrS& imu_acc_gyrs,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+      const ImuAccGyrS &imu_acc_gyrs,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
+      boost::optional<gtsam::Pose3> external_odometry_body_pose = boost::none,
+      boost::optional<gtsam::Velocity3> external_odometry_vel = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+        stereo_ransac_body_pose_(stereo_ransac_body_pose),
+        external_odometry_body_pose_(external_odometry_body_pose),
+        external_odometry_vel_(external_odometry_vel) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
@@ -255,6 +259,8 @@ struct BackendInput : public PipelinePayload {
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
+  boost::optional<gtsam::Pose3> external_odometry_body_pose_;
+  boost::optional<gtsam::Velocity3> external_odometry_vel_;
 
  public:
   void print() const {

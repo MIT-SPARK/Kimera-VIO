@@ -17,8 +17,8 @@
 #include "kimera-vio/backend/RegularVioBackendParams.h"
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
-#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontendParams.h"
@@ -89,7 +89,8 @@ struct VioParams : public PipelineParams {
             const std::string& frontend_params_filename,
             const std::string& backend_params_filename,
             const std::string& lcd_params_filename,
-            const std::string& display_params_filename);
+            const std::string& display_params_filename,
+            boost::optional<std::string> odom_params_filename);
   virtual ~VioParams() = default;
 
   /**
@@ -127,6 +128,7 @@ struct VioParams : public PipelineParams {
   FrontendType frontend_type_;
   BackendType backend_type_;
   DisplayType display_type_;
+  boost::optional<OdometryParams> odom_params_;
   bool parallel_run_;
 
  protected:
@@ -157,6 +159,7 @@ struct VioParams : public PipelineParams {
   std::string backend_params_filename_;
   std::string lcd_params_filename_;
   std::string display_params_filename_;
+  boost::optional<std::string> odom_params_filename_;
 };
 
 //! Callback called when the VIO pipeline has shut down.
