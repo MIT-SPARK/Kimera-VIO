@@ -74,7 +74,8 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     double betweenTranslationPrecision,
 
     double pgo_rot_threshold,
-    double pgo_trans_threshold)
+    double pgo_trans_threshold,
+    double gnc_alpha)
     : PipelineParams("Loop Closure Parameters"),
       image_width_(image_width),
       image_height_(image_height),
@@ -126,7 +127,8 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       betweenTranslationPrecision_(betweenTranslationPrecision),
 
       pgo_rot_threshold_(pgo_rot_threshold),
-      pgo_trans_threshold_(pgo_trans_threshold) {
+      pgo_trans_threshold_(pgo_trans_threshold),
+      gnc_alpha_(gnc_alpha) {
   // Trivial sanity checks:
   CHECK(alpha_ > 0);
   CHECK(nfeatures_ >= 100);  // TODO(marcus): add more checks, change this one
@@ -333,7 +335,9 @@ void LoopClosureDetectorParams::print() const {
                         "pgo_rot_threshold_: ",
                         pgo_rot_threshold_,
                         "pgo_trans_threshold_: ",
-                        pgo_trans_threshold_);
+                        pgo_trans_threshold_,
+                        "gnc_alpha_: ",
+                        gnc_alpha_);
   LOG(INFO) << out.str();
 }
 }  // namespace VIO
