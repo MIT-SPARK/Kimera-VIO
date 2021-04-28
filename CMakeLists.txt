@@ -80,6 +80,9 @@ else()
   message(STATUS "Vocabulary file exists, will not download.")
 endif()
 
+### Handle third party libraries
+add_subdirectory(third_party)
+
 ### Compile the code
 add_library(${PROJECT_NAME} SHARED "")
 
@@ -125,15 +128,13 @@ add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
-### Add source code for third_party
-add_subdirectory(include/kimera-vio/third_party/triangle)
-add_subdirectory(src/third_party/triangle)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
     opengv
     DBoW2::DBoW2
     KimeraRPGO
+    triangle::triangle
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
