@@ -27,6 +27,76 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
   imu_variance_threshold_ *= params.time_alignment_variance_threshold_scaling_;
 }
 
+size_t CrossCorrTimeAligner::addNewImuDataImuRate(
+    const std::vector<Timestamp>& image_stamps,
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_acc_gyrs) {
+  size_t num_added = 0;
+  for (int i = 0; i < imu_stamps.cols(); ++i) {
+    if (imu_buffer_.size() > 0 &&
+        imu_buffer_.back().timestamp >= imu_stamps(0, i)) {
+      // this can occur normally  as interpUpperBorder in the DataProvider
+      // gives us imu measurements in [prev, curr], so we don't warn here
+      continue;
+    }
+
+    if (image_stamps.back() <= imu_stamps(0, i)) {
+      // this can occur normally  as interpUpperBorder in the DataProvider
+      // gives us imu measurements in [prev, curr], so we don't warn here
+      break;
+    }
+
+    // instantaneous rotation angle for single IMU measurement
+    imu_buffer_.push(CrossCorrTimeAligner::Measurement(
+        imu_stamps(0, i),
+        imu_acc_gyrs.block<3, 1>(3, i).norm() * imu_period_s_));
+    num_added++;
+  }
+
+  return num_added;
+}
+
+size_t CrossCorrTimeAligner::addNewImuDataFrameRate(
+    const std::vector<Timestamp>& image_stamps,
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_acc_gyrs) {
+  CHECK_GE(image_stamps.size(), 2u);
+  size_t image_stamp_idx = 1;
+  gtsam::PreintegratedRotation rot_pim(pim_params_);
+  for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
+    if (image_stamp_idx < image_stamps.size() - 1 &&
+        image_stamps[image_stamp_idx] < imu_stamps(0, i)) {
+      // this IMU measurement is between the current and next frame
+      // so add a measurement and restart integration
+      imu_buffer_.push(CrossCorrTimeAligner::Measurement(
+          image_stamps[image_stamp_idx - 1],
+          Rot3::Logmap(rot_pim.deltaRij()).norm()));
+      rot_pim = gtsam::PreintegratedRotation(pim_params_);
+      image_stamp_idx++;
+    }
+
+    rot_pim.integrateMeasurement(
+        imu_acc_gyrs.block<3, 1>(3, i), Eigen::Vector3d::Zero(), imu_period_s_);
+  }
+
+  const double last_dt = UtilsNumerical::NsecToSec(
+      image_stamps.back() - imu_stamps[imu_stamps.cols() - 1]);
+  if (last_dt > 0.0) {
+    // integrate the last IMU measurement up to the frame timestamp
+    rot_pim.integrateMeasurement(
+        imu_acc_gyrs.block<3, 1>(3, imu_stamps.cols() - 1),
+        Eigen::Vector3d::Zero(),
+        last_dt);
+  }
+
+  imu_buffer_.push(CrossCorrTimeAligner::Measurement(
+      image_stamps[image_stamp_idx - 1],
+      Rot3::Logmap(rot_pim.deltaRij()).norm()));
+
+  // image_stamp_idx is equal to the number of measurements added
+  return image_stamp_idx;
+}
+
 size_t CrossCorrTimeAligner::addNewImuData(
     const std::vector<Timestamp>& image_stamps,
     const ImuStampS& imu_stamps,
@@ -37,52 +107,11 @@ size_t CrossCorrTimeAligner::addNewImuData(
     return 0;
   }
 
-  if (!do_imu_rate_estimation_) {
-    CHECK_GE(image_stamps.size(), 2u);
-    size_t image_stamp_idx = 1;
-    // frames: 0    1      2      3
-    // imu:     x x y x x x y x x x y
-    gtsam::PreintegratedRotation rot_pim(pim_params_);
-
-    for (int i = 0; i < imu_stamps.cols(); ++i) {
-      // TODO(nathan) handle variable IMU rate / last IMU sample differently
-      if (image_stamp_idx < image_stamps.size() - 1 &&
-          image_stamps[image_stamp_idx] < imu_stamps(0, i)) {
-        // we hit a boundary between the last frame and the
-        // current one, so add a measurement and restart integration
-        imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-            image_stamps[image_stamp_idx],
-            Rot3::Logmap(rot_pim.deltaRij()).norm()));
-        rot_pim = gtsam::PreintegratedRotation(pim_params_);
-        image_stamp_idx++;
-      }
-
-      rot_pim.integrateMeasurement(imu_acc_gyrs.block<3, 1>(3, i),
-                                   Eigen::Vector3d::Zero(),
-                                   imu_period_s_);
-    }
-    imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-        image_stamps.back(), Rot3::Logmap(rot_pim.deltaRij()).norm()));
-
-    // image_stamp_idx is equal to the number of measurements added
-    return image_stamp_idx;
+  if (do_imu_rate_estimation_) {
+    return addNewImuDataImuRate(image_stamps, imu_stamps, imu_acc_gyrs);
+  } else {
+    return addNewImuDataFrameRate(image_stamps, imu_stamps, imu_acc_gyrs);
   }
-
-  int start = 0;
-  if (imu_buffer_.size() > 0 &&
-      imu_buffer_.back().timestamp >= imu_stamps(0, 0)) {
-    // this can occur normally  as interpUpperBorder in the DataProvider
-    // gives us imu measurements in [prev, curr], so we don't warn here
-    start = 1;
-  }
-  for (int i = start; i < imu_stamps.cols(); ++i) {
-    // instantaneous rotation angle for single IMU measurement
-    imu_buffer_.push(CrossCorrTimeAligner::Measurement(
-        imu_stamps(0, i),
-        imu_acc_gyrs.block<3, 1>(3, i).norm() * imu_period_s_));
-  }
-
-  return imu_stamps.cols() - start;
 }
 
 namespace {
@@ -103,28 +132,21 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
 
   const double angle = Rot3::Logmap(T_ref_cur.rotation()).norm();
   if (N == 1) {
-    // we can't interpolate, so just push a single measurement
+    // special case: keep things simple
     vision_buffer_.push(
-        CrossCorrTimeAligner::Measurement(image_stamps.back(), angle));
+        CrossCorrTimeAligner::Measurement(image_stamps.front(), angle));
     return;
   }
 
-  // calculate t_j - t_i and v_j - v_i for the images
-  const double last_frame_angle =
-      vision_buffer_.empty() ? 0.0 : vision_buffer_.back().value;
+  // compute image quantities
   const double frame_diff =
       UtilsNumerical::NsecToSec(image_stamps.back() - image_stamps.front());
-  const double frame_value_diff = angle - last_frame_angle;
+  const double frame_angle = angle / N;  // constant velocity assumption
 
-  // if we have no previous measurments, we have to start from the earliest
-  // IMU measurement from the current packet. Otherwise, we use the latest
-  // IMU measurement from the last packet for our reference for interpolation
-  const Timestamp first_imu =
-      (imu_buffer_.size() == N)
-          ? imu_buffer_[0].timestamp
-          : imu_buffer_[imu_buffer_.size() - N - 1].timestamp;
-  const double imu_diff =
-      UtilsNumerical::NsecToSec(imu_buffer_.back().timestamp - first_imu);
+  // compute IMU quantitities
+  const Timestamp first_imu = imu_buffer_[imu_buffer_.size() - N].timestamp;
+  const Timestamp last_imu = imu_buffer_.back().timestamp;
+  const double imu_diff = UtilsNumerical::NsecToSec(last_imu - first_imu);
   CHECK_GT(imu_diff, 0.0) << "IMU timestamps did not increase over window!";
 
   for (size_t i = 0; i < N; ++i) {
@@ -136,8 +158,8 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
 
     Timestamp new_timestamp =
         image_stamps.front() + UtilsNumerical::SecToNsec(ratio * frame_diff);
-    vision_buffer_.push(CrossCorrTimeAligner::Measurement(
-        new_timestamp, last_frame_angle + frame_value_diff * ratio));
+    vision_buffer_.push(
+        CrossCorrTimeAligner::Measurement(new_timestamp, frame_angle));
   }
 }
 
@@ -230,6 +252,9 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     return {false, 0.0};
   }
 
+  // RANSAC should match up pretty well to the IMU, so we only check the
+  // variance of the IMU signal (as expected variance of RANSAC is harder to
+  // capture)
   using std::placeholders::_1;
   double imu_variance =
       utils::variance(imu_buffer_, std::bind(valueAccessor, _1));
@@ -238,8 +263,6 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
     logData(logger, num_imu_added, false, true, 0.0);
     return {false, 0.0};  // signal appears to mostly be noise
   }
-
-  // TODO(nathan) check the vision variance as well
 
   double timeshift = getTimeShift();
   LOG(WARNING) << "Computed timeshift of " << timeshift

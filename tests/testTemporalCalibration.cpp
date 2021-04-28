@@ -131,19 +131,17 @@ SignalData generateSignal(int num_frames,
                           double rotation_scale,
                           double imu_period_s) {
   SignalData signal;
+  // make flat signal at start
   if (num_delay < 0) {
     for (int i = 0; i < std::abs(num_delay); ++i) {
-      signal.imu_angles.push_back(0.0);
       signal.imu_times.push_back(i);
+      signal.imu_angles.push_back(0.0);
     }
-  } else {
-    signal.imu_angles.push_back(0.0);
-    signal.imu_times.push_back(0);
   }
 
-  double prev_angle = 0.0;
   for (size_t i = 1; i <= num_frames; ++i) {
     double angle;  // rotation angle for image
+    // make triangle wave
     if (i <= num_frames / 2) {
       angle = rotation_scale * i;
     } else {
@@ -153,23 +151,24 @@ SignalData generateSignal(int num_frames,
     signal.vision_times.push_back(i * num_imu_per);
     signal.vision_angles.push_back(angle);
 
-    double value_diff = angle - prev_angle;
-    for (size_t k = 1; k <= num_imu_per; ++k) {
-      double ratio = k / static_cast<double>(num_imu_per);
-      double imu_angle = (ratio * value_diff + prev_angle) / imu_period_s;
-
-      signal.imu_times.push_back(signal.imu_times.back() + 1);
+    // set IMU angular velocity to be ratio of image rotation angle
+    for (size_t k = 0; k < num_imu_per; ++k) {
+      double imu_angle = (angle / num_imu_per) / imu_period_s;
+      signal.imu_times.push_back(
+          signal.imu_times.empty() ? 0 : signal.imu_times.back() + 1);
       signal.imu_angles.push_back(imu_angle);
     }
-
-    prev_angle = angle;
   }
 
+  // make flat signal at end
   if (num_delay > 0) {
     for (int i = 0; i < num_delay; ++i) {
       signal.imu_angles.push_back(0.0);
       signal.imu_times.push_back(signal.imu_times.back() + 1);
     }
+  } else {
+    signal.imu_angles.push_back(0.0);
+    signal.imu_times.push_back(signal.imu_times.back() + 1);
   }
 
   return signal;
@@ -190,9 +189,8 @@ TestData makeTestData(size_t num_frames = 10,
 
   // correlation should ideally produce this
   if (imu_rate) {
-    int delay_ns = num_delay - std::copysign(1, num_delay);
     to_return.expected_delay =
-        to_return.params.nominal_sampling_time_s_ * delay_ns;
+        to_return.params.nominal_sampling_time_s_ * num_delay;
   } else {
     double imu_multiplier = static_cast<double>(num_imu_per);
     int delay_periods = std::round(num_delay / imu_multiplier);
@@ -390,7 +388,7 @@ TEST(temporalCalibration, testLessThanWindow) {
   for (size_t i = 0; i <= results.size(); ++i) {
     FrontendOutputPacketBase::Ptr output = makeOutput(i);
     ImuStampS times(1, 1);
-    times << i;
+    times << (i == 0 ? 0 : i - 1);  // first IMU stamp is discarded
     ImuAccGyrS values(6, 1);
 
     TimeAlignerBase::Result result =
@@ -517,8 +515,6 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
   TestData data = makeTestData(10, 1, 0.1, true);
 
   MockTracker tracker;
-  // handle the extra IMU measurement at the start
-  data.params.time_alignment_window_size_ += 1;
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);

@@ -77,6 +77,14 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       FrontendLogger* logger = nullptr) override;
 
  private:
+  size_t addNewImuDataImuRate(const std::vector<Timestamp>& image_stamps,
+                              const ImuStampS& imu_stamps,
+                              const ImuAccGyrS& imu_acc_gyrs);
+
+  size_t addNewImuDataFrameRate(const std::vector<Timestamp>& image_stamps,
+                                const ImuStampS& imu_stamps,
+                                const ImuAccGyrS& imu_acc_gyrs);
+
   size_t addNewImuData(const std::vector<Timestamp>& image_stamps,
                        const ImuStampS& imu_stamps,
                        const ImuAccGyrS& imu_acc_gyrs);
