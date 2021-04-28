@@ -22,35 +22,23 @@
 
 namespace VIO {
 
-TEST(testCrossCorrelation, basicPointerDiffCorrect) {
-  RingBuffer<int> buffer(5);
-  EXPECT_EQ(0, buffer.begin() - buffer.end());
-  EXPECT_EQ(0, buffer.end() - buffer.begin());
-  buffer.push(1);
-  EXPECT_EQ(-1, buffer.begin() - buffer.end());
-  EXPECT_EQ(1, buffer.end() - buffer.begin());
-  buffer.push(2);
-  EXPECT_EQ(-2, buffer.begin() - buffer.end());
-  EXPECT_EQ(2, buffer.end() - buffer.begin());
-  buffer.push(3);
-  EXPECT_EQ(-3, buffer.begin() - buffer.end());
-  EXPECT_EQ(3, buffer.end() - buffer.begin());
-  buffer.push(4);
-  EXPECT_EQ(-4, buffer.begin() - buffer.end());
-  EXPECT_EQ(4, buffer.end() - buffer.begin());
+template <typename T>
+double mean(const RingBuffer<T>& buffer) {
+  return utils::mean(buffer,
+                     [](const T& value) { return static_cast<double>(value); });
 }
 
-TEST(testCrossCorrelation, DISABLED_harderPointerDiffCorrect) {
-  RingBuffer<int> buffer(5);
-  for (size_t i = 0; i < 7; ++i) {
-    buffer.push(0);  // contents don't matter
-  }
-  EXPECT_EQ(-5, buffer.begin() - buffer.end());
-  EXPECT_EQ(5, buffer.end() - buffer.begin());
+template <typename T>
+double variance(const RingBuffer<T>& buffer) {
+  return utils::variance(
+      buffer, [](const T& value) { return static_cast<double>(value); });
+}
 
-  RingBuffer<int>::iterator next_to_last = buffer.end() - 1;
-  EXPECT_EQ(1, buffer.end() - next_to_last);
-  EXPECT_EQ(-1, next_to_last - buffer.end());
+template <typename T>
+std::vector<double> crossCorrelation(const RingBuffer<T>& seq_a,
+                                     const RingBuffer<T>& seq_b) {
+  return utils::crossCorrelation(
+      seq_a, seq_b, [](const T& value) { return static_cast<double>(value); });
 }
 
 TEST(testCrossCorrelation, ringBufferSimpleTest) {
@@ -94,6 +82,7 @@ TEST(testCrossCorrelation, ringBufferPushWhileFull) {
 
   for (size_t i = 0; i < values.size(); ++i) {
     EXPECT_EQ(expected[i], values[i]);
+    EXPECT_EQ(values[i], buffer[i]);
   }
 }
 
@@ -127,6 +116,96 @@ TEST(testCrossCorrelation, bufferFrontAndBack) {
     buffer.push(i);
     EXPECT_EQ(buffer.back(), i);
     EXPECT_EQ(buffer.front(), i - 4);
+  }
+}
+
+TEST(testCrossCorrelation, meanCorrect) {
+  RingBuffer<double> buffer(5);
+  EXPECT_EQ(0.0, mean(buffer));
+  buffer.push(1);
+  EXPECT_EQ(1.0, mean(buffer));
+  buffer.push(2);
+  EXPECT_EQ(1.5, mean(buffer));
+  buffer.push(3);
+  EXPECT_EQ(2, mean(buffer));
+  buffer.push(4);
+  EXPECT_EQ(2.5, mean(buffer));
+  buffer.push(5);
+  EXPECT_EQ(3.0, mean(buffer));
+  buffer.push(6);
+  EXPECT_EQ(4.0, mean(buffer));
+}
+
+TEST(testCrossCorrelation, varianceCorrect) {
+  RingBuffer<double> buffer(5);
+  EXPECT_EQ(0.0, variance(buffer));
+  buffer.push(1);
+  EXPECT_EQ(0.0, variance(buffer));
+  buffer.push(1);
+  EXPECT_EQ(0.0, variance(buffer));
+  buffer.push(4);
+  EXPECT_EQ(2.0, variance(buffer));
+}
+
+TEST(testCrossCorrelation, crossCorrelationIdentityA) {
+  RingBuffer<double> seq_a(1);
+  seq_a.push(1);
+
+  RingBuffer<double> seq_b(5);
+  seq_b.push(1);
+  seq_b.push(2);
+  seq_b.push(3);
+  seq_b.push(4);
+  seq_b.push(5);
+
+  std::vector<double> correlation = crossCorrelation(seq_a, seq_b);
+  ASSERT_EQ(seq_b.size(), correlation.size());
+  for (size_t i = 0; i < seq_b.size(); ++i) {
+    EXPECT_EQ(seq_b[i], correlation[seq_b.size() - 1 - i]);
+  }
+}
+
+TEST(testCrossCorrelation, crossCorrelationIdentityB) {
+  RingBuffer<double> seq_b(1);
+  seq_b.push(1);
+
+  RingBuffer<double> seq_a(5);
+  seq_a.push(1);
+  seq_a.push(2);
+  seq_a.push(3);
+  seq_a.push(4);
+  seq_a.push(5);
+
+  std::vector<double> correlation = crossCorrelation(seq_a, seq_b);
+  ASSERT_EQ(seq_a.size(), correlation.size());
+  for (size_t i = 0; i < seq_a.size(); ++i) {
+    EXPECT_EQ(seq_a[i], correlation[i]);
+  }
+}
+
+TEST(testCrossCorrelation, crossCorrelationNpyExample) {
+  RingBuffer<double> seq_a(3);
+  seq_a.push(1);
+  seq_a.push(2);
+  seq_a.push(3);
+
+  RingBuffer<double> seq_b(3);
+  seq_b.push(0);
+  seq_b.push(1);
+  seq_b.push(0.5);
+
+  std::vector<double> correlation = crossCorrelation(seq_a, seq_b);
+  std::vector<double> expected{0.5, 2.0, 3.5, 3.0, 0.0};
+  ASSERT_EQ(expected.size(), correlation.size());
+  for (size_t i = 0; i < seq_a.size(); ++i) {
+    EXPECT_EQ(expected[i], correlation[i]);
+  }
+
+  std::vector<double> correlation_rev = crossCorrelation(seq_b, seq_a);
+  std::vector<double> expected_rev(expected.rbegin(), expected.rend());
+  ASSERT_EQ(expected_rev.size(), correlation_rev.size());
+  for (size_t i = 0; i < seq_a.size(); ++i) {
+    EXPECT_EQ(expected_rev[i], correlation_rev[i]);
   }
 }
 

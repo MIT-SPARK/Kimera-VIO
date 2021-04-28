@@ -43,14 +43,13 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_(nullptr),
       tracker_status_summary_(),
       display_queue_(display_queue),
-      logger_(nullptr) {
+      logger_(nullptr),
+      do_fine_imu_camera_temporal_sync_(imu_params.do_fine_imu_camera_temporal_sync_) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
-  // TODO(nathan) add params to imu params and pas to constructor
-  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(
-      false, imu_params.nominal_sampling_time_s_);
+  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(imu_params);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {
@@ -59,7 +58,8 @@ VisionImuFrontend::~VisionImuFrontend() {
 
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
-  switch (frontend_state_) {
+  const FrontendState& frontend_state = frontend_state_;
+  switch (frontend_state) {
     case FrontendState::Bootstrap:
       return bootstrapSpin(std::move(input));
     case FrontendState::InitialTimeAlignment:
@@ -101,7 +101,8 @@ void VisionImuFrontend::outlierRejectionMono(
     TrackingStatusPose* status_pose_mono) {
   CHECK_NOTNULL(status_pose_mono);
   if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
+      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity()) &&
+      frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
     *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(

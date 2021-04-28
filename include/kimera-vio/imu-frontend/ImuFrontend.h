@@ -194,10 +194,6 @@ public:
   static boost::shared_ptr<gtsam::PreintegratedImuMeasurements::Params>
   generateRegularImuParams(const ImuParams& imu_params);
 
-  inline bool doInitialTimeAlignment() const {
-    return imu_params_.do_initial_time_alignment_;
-  }
-
  private:
   void initializeImuFrontend(const ImuBias& imu_bias);
 
