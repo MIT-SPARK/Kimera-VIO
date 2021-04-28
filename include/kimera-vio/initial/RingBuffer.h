@@ -2,6 +2,7 @@
 #include <glog/logging.h>
 #include <cstddef>
 #include <iterator>
+#include <numeric>
 #include <vector>
 
 namespace VIO {
@@ -10,64 +11,29 @@ namespace VIO {
 // https://internalpointers.com/post/writing-custom-iterators-modern-cpp
 template <typename Value>
 struct RingBufferIter {
-  // using iterator_category = std::random_access_iterator_tag;
-  using iterator_category = std::forward_iterator_tag;
+  using iterator_category = std::bidirectional_iterator_tag;
   using difference_type = std::ptrdiff_t;
   using value_type = Value;
   using pointer = value_type*;
   using reference = value_type&;
 
-  RingBufferIter(std::vector<Value>& buffer,
+  RingBufferIter(const std::vector<Value>& buffer,
                  size_t num_measurements,
                  size_t curr_index,
-                 pointer ptr)
+                 value_type const* ptr)
       : m_ptr_(ptr),
         curr_index_(curr_index),
         num_values_(num_measurements),
         begin_ptr_(&(buffer.data()[0])),
         end_ptr_(&(buffer.data()[buffer.size() - 1])) {}
 
-  reference operator*() const {
+  const value_type& operator*() const {
     CHECK_GE(m_ptr_, begin_ptr_);
     CHECK_LE(m_ptr_, end_ptr_);
     return *m_ptr_;
   }
 
   pointer operator->() { return m_ptr_; }
-
-  // TODO(nathan) sit down and do the math for all of these
-  RingBufferIter& operator-=(difference_type diff) { return *this; }
-
-  RingBufferIter& operator+=(difference_type diff) { return *this; }
-
-  RingBufferIter operator-(difference_type diff) const { return *this; }
-
-  RingBufferIter operator+(difference_type diff) const { return *this; }
-
-  difference_type operator-(const RingBufferIter& rhs) {
-    CHECK_EQ(begin_ptr_, rhs.begin_ptr_);
-    CHECK_EQ(end_ptr_, rhs.end_ptr_);
-    CHECK_EQ(curr_index_, rhs.curr_index_);
-    CHECK_EQ(num_values_, rhs.num_values_);
-    // get the absolute index in the buffer
-    difference_type lhs_abs_idx = m_ptr_ - begin_ptr_;
-    difference_type rhs_abs_idx = rhs.m_ptr_ - rhs.begin_ptr_;
-    // get the relative index compared to curr_index_
-    difference_type lhs_rel_idx;
-    if (lhs_abs_idx > curr_index_) {
-      lhs_rel_idx = lhs_abs_idx - curr_index_;
-    } else {
-      lhs_rel_idx = num_values_ - (curr_index_ - lhs_abs_idx);
-    }
-    // do the same for the right side
-    difference_type rhs_rel_idx;
-    if (rhs_abs_idx > curr_index_) {
-      rhs_rel_idx = rhs_abs_idx - curr_index_;
-    } else {
-      rhs_rel_idx = num_values_ - (curr_index_ - rhs_abs_idx);
-    }
-    return lhs_rel_idx - rhs_rel_idx;
-  }
 
   RingBufferIter& operator++() {
     m_ptr_++;
@@ -83,33 +49,29 @@ struct RingBufferIter {
     return tmp;
   }
 
-  friend bool operator==(const RingBufferIter& a, const RingBufferIter& b) {
+  inline friend bool operator==(const RingBufferIter& a,
+                                const RingBufferIter& b) {
     return a.m_ptr_ == b.m_ptr_;
   }
 
-  friend bool operator!=(const RingBufferIter& a, const RingBufferIter& b) {
+  inline friend bool operator!=(const RingBufferIter& a,
+                                const RingBufferIter& b) {
     return !(a == b);
   }
 
-  friend std::ostream& operator<<(std::ostream& out,
-                                  const RingBufferIter<Value>& iter) {
-    out << "iter<(curr=" << iter.m_ptr_ << ", begin=" << iter.begin_ptr_
-        << ", end=" << iter.end_ptr_ << ")>";
-    return out;
-  }
-
  private:
-  pointer m_ptr_;
-  size_t curr_index_;
-  size_t num_values_;
-  value_type* begin_ptr_;
-  value_type* end_ptr_;
+  value_type const* m_ptr_;
+  const size_t curr_index_;
+  const size_t num_values_;
+  value_type const* begin_ptr_;
+  value_type const* end_ptr_;
 };
 
 template <typename T>
 class RingBuffer {
  public:
   typedef RingBufferIter<T> iterator;
+  using value_type = T;
 
   explicit RingBuffer(size_t buffer_size)
       : size_(buffer_size),
@@ -121,6 +83,18 @@ class RingBuffer {
     values_ = std::vector<T>(size_ + 1);
     num_values_ = 0;
     curr_index_ = 0;
+  }
+
+  inline T operator[](size_t index) const {
+    if (num_values_ < size_) {
+      return values_.at(index);
+    }
+
+    if (index < size_ - curr_index_) {
+      return values_.at(curr_index_ + index + 1);
+    }
+
+    return values_.at(index - (size_ - curr_index_));
   }
 
   inline size_t size() const { return num_values_; }
@@ -139,14 +113,14 @@ class RingBuffer {
     }
   }
 
-  inline iterator begin() {
+  inline iterator begin() const {
     return iterator(values_,
                     num_values_,
                     curr_index_,
                     &(values_.data()[get_begin_index_()]));
   }
 
-  inline iterator end() {
+  inline iterator end() const {
     return iterator(
         values_, num_values_, curr_index_, &(values_.data()[get_end_index_()]));
   }
@@ -157,8 +131,8 @@ class RingBuffer {
 
   friend std::ostream& operator<<(std::ostream& out, const RingBuffer& buffer) {
     out << "buffer<(curr=" << buffer.curr_index_
-        << ", size=" << buffer.num_values_
-        << ", max_size=" << buffer.size_ << ")>";
+        << ", size=" << buffer.num_values_ << ", max_size=" << buffer.size_
+        << ")>";
     return out;
   }
 
@@ -193,5 +167,73 @@ class RingBuffer {
   size_t curr_index_;
   std::vector<T> values_;
 };
+
+namespace utils {
+
+template <typename T>
+double mean(const T& seq,
+            std::function<double(const typename T::value_type&)> accessor) {
+  if (seq.size() == 0) {
+    return 0;
+  }
+  const double total =
+      std::accumulate(std::begin(seq),
+                      std::end(seq),
+                      0.0,
+                      [&](double sum, const typename T::value_type& v) {
+                        return sum + accessor(v);
+                      });
+  return total / seq.size();
+}
+
+template <typename T>
+double variance(const T& seq,
+                std::function<double(const typename T::value_type&)> accessor) {
+  if (seq.size() == 0) {
+    return 0.0;
+  }
+
+  double x_bar = mean(seq, accessor);
+  double x_squared = 0.0;
+  for (const auto& x : seq) {
+    x_squared += accessor(x) * accessor(x);
+  }
+  return (x_squared / seq.size()) - (x_bar * x_bar);
+}
+
+template <typename T>
+std::vector<double> crossCorrelation(
+    const T& seq_a,
+    const T& seq_b,
+    std::function<double(const typename T::value_type&)> accessor,
+    bool mean_removal = false) {
+  double mean_a = 0.0;
+  double mean_b = 0.0;
+  if (mean_removal) {
+    mean_a = mean(seq_a, accessor);
+    mean_b = mean(seq_b, accessor);
+  }
+  const size_t N = seq_a.size() + seq_b.size() - 1;
+  std::vector<double> correlation(N);
+  for (size_t k = 0; k < N; ++k) {
+    int64_t offset =
+        static_cast<int64_t>(seq_a.size()) - static_cast<int64_t>(N) + k;
+    size_t start = (offset < 0) ? std::abs(offset) : 0;
+    size_t end = (k < seq_a.size()) ? seq_b.size()
+                                    : seq_b.size() - (k - seq_a.size()) - 1;
+
+    double corr = 0.0;
+    for (size_t n = start; n < end; ++n) {
+      // Note that the mean removal doesn't do anything
+      corr += (accessor(seq_a[n + offset]) - mean_a) *
+              (accessor(seq_b[n]) - mean_b);
+    }
+    correlation[k] = corr;
+  }
+
+  return correlation;
+}
+
+}  // namespace utils
 
 }  // namespace VIO
