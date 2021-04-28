@@ -54,26 +54,37 @@ void TimeAlignerBase::mergeImuData(const ImuStampS& latest_stamps,
   imu_value_cache_.clear();
 }
 
+inline Frame::UniquePtr getFrameFromOutput(
+    const FrontendOutputPacketBase& output) {
+  switch (output.frontend_type_) {
+    case FrontendType::kMonoImu:
+      return dynamic_cast<const MonoFrontendOutput&>(output)
+          .frame_lkf_.getRansacFrame();
+    case FrontendType::kStereoImu:
+      return dynamic_cast<const StereoFrontendOutput&>(output)
+          .stereo_frame_lkf_.left_frame_.getRansacFrame();
+    default:
+      LOG(ERROR)
+          << "Temporal calibration encountered an unknown frontend output "
+             "type. Giving up and defaulting to a time offset of 0.0 [s]";
+      return nullptr;
+  }
+}
+
 TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
     Tracker& tracker,
     const FrontendOutputPacketBase& output,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_accgyrs,
     FrontendLogger* logger) {
-  Frame::UniquePtr curr_frame;
-  switch (output.frontend_type_) {
-    case FrontendType::kMonoImu:
-      curr_frame = dynamic_cast<const MonoFrontendOutput&>(output)
-                       .frame_lkf_.getRansacFrame();
-      break;
-    case FrontendType::kStereoImu:
-      curr_frame = dynamic_cast<const StereoFrontendOutput&>(output)
-                       .stereo_frame_lkf_.left_frame_.getRansacFrame();
-      break;
-    default:
-      LOG(ERROR) << "Unknown frontend output type. Returning default value";
-      return {true, 0.0};
+  Frame::UniquePtr curr_frame = getFrameFromOutput(output);
+  if (!curr_frame) {
+    return {true, 0.0};
   }
+
+  VLOG(5) << "Temporal calibration processing frame " << curr_frame->id_
+          << " @ " << UtilsNumerical::NsecToSec(curr_frame->timestamp_)
+          << " [s]";
 
   // cache timestamp (so we can figure out how many frames occurred
   // before RANSAC succeeded
@@ -85,26 +96,33 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
     return {false, 0.0};
   }
 
-  CHECK(last_frame_) << "last_frame_ is invalid";
-  CHECK(curr_frame) << "curr_frame is invalid";
+  CHECK(last_frame_);
+  CHECK(curr_frame);
   TrackingStatusPose ransac_result = tracker.geometricOutlierRejectionMono(
       last_frame_.get(), curr_frame.get());
-  if (ransac_result.first == TrackingStatus::INVALID) {
-    LOG(ERROR) << "Time alignment failed 5-pt RANSAC";
-    return {true, 0.0};
-  }
   if (ransac_result.first == TrackingStatus::DISABLED) {
-    LOG(ERROR)
-        << "5-pt RANSAC disabled for time-alignment. Returning default value";
+    LOG(ERROR) << "5-pt RANSAC disabled for time-alignment when trying to "
+                  "perform temporal calibration. 5-pt RANSAC MUST BE ENABLED "
+                  "FOR TEMPORAL CALIBRATION TO WORK, PLEASE CHECK YOUR "
+                  "CONFIGURATION! Giving up calibration and defaulting to "
+                  "a time offset of 0.0 [s]";
     return {true, 0.0};
   }
 
-  if (ransac_result.first != TrackingStatus::VALID) {
-    VLOG(1) << "RANSAC for temporal sync failed due to "
-            << (ransac_result.first == TrackingStatus::FEW_MATCHES
-                    ? "too few matches"
-                    : "too little disparity")
-            << ". Caching IMU measurements";
+  if (ransac_result.first == TrackingStatus::INVALID) {
+    // TODO(nathan) investigate dropping samples when INVALID
+    LOG(ERROR)
+        << "Temporal calibration attempted to perform RANSAC without "
+           "enough measurements. Giving up calibration and defaulting to "
+           "a time offset of 0.0 [s]";
+    return {true, 0.0};
+  }
+
+  if (ransac_result.first == TrackingStatus::FEW_MATCHES) {
+    // TODO(nathan) investigate dropping samples for FEW_MATCHES
+    // TODO(nathan) investigate capping number of FEW_MATCHES for last_frame_
+    VLOG(1) << "RANSAC for temporal sync failed due to too few matches. "
+               "Caching IMU measurements";
     imu_stamp_cache_.push_back(imu_stamps);
     imu_value_cache_.push_back(imu_accgyrs);
     return {false, 0.0};
@@ -114,17 +132,16 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
   ImuAccGyrS new_imu_accgyrs;
   mergeImuData(imu_stamps, imu_accgyrs, &new_imu_stamps, &new_imu_accgyrs);
 
-  VLOG(5) << "temporal sync replacing frame #" << last_frame_->id_
-          << " with frame #" << curr_frame->id_;
-  last_frame_ = std::move(curr_frame);
-
   Result result = attemptEstimation(image_stamp_cache_,
                                     ransac_result.second,
                                     new_imu_stamps,
                                     new_imu_accgyrs,
                                     logger);
+
   image_stamp_cache_.clear();
-  image_stamp_cache_.push_back(last_frame_->timestamp_);
+  image_stamp_cache_.push_back(curr_frame->timestamp_);
+  last_frame_ = std::move(curr_frame);
+
   return result;
 }
 

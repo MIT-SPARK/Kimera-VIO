@@ -534,7 +534,7 @@ void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
 
   output_stream << timestamp_vision << "," << timestamp_imu << ","
                 << vision_relative_angle_norm << ","
-                << image_relative_angle_norm << "," << not_enough_data << ","
+                << imu_relative_angle_norm << "," << not_enough_data << ","
                 << not_enough_variance << "," << result << "," << std::endl;
 }
 

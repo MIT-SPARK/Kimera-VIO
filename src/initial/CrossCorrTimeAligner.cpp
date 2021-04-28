@@ -40,8 +40,12 @@ size_t CrossCorrTimeAligner::addNewImuData(
   if (!do_imu_rate_estimation_) {
     CHECK_GE(image_stamps.size(), 2u);
     size_t image_stamp_idx = 1;
+    // frames: 0    1      2      3
+    // imu:     x x y x x x y x x x y
     gtsam::PreintegratedRotation rot_pim(pim_params_);
+
     for (int i = 0; i < imu_stamps.cols(); ++i) {
+      // TODO(nathan) handle variable IMU rate / last IMU sample differently
       if (image_stamp_idx < image_stamps.size() - 1 &&
           image_stamps[image_stamp_idx] < imu_stamps(0, i)) {
         // we hit a boundary between the last frame and the

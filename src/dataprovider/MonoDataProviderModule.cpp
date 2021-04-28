@@ -41,7 +41,8 @@ MonoDataProviderModule::getInputPacket() {
   return nullptr;
 }
 
-MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(bool cache_timestamp) {
+MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
+    bool cache_timestamp) {
   // Retrieve left frame data.
   Frame::UniquePtr left_frame_payload;
   if (cached_left_frame_) {
@@ -57,8 +58,11 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(bool c
   }
 
   if (timestamp_last_frame_ >= left_frame_payload->timestamp_) {
-    LOG(WARNING) << "Dropping frame: " << UtilsNumerical::NsecToSec(left_frame_payload->timestamp_)
-                 << " (curr) <= " << UtilsNumerical::NsecToSec(timestamp_last_frame_) << " (last)";
+    LOG(WARNING) << "Dropping frame: "
+                 << UtilsNumerical::NsecToSec(left_frame_payload->timestamp_)
+                 << " (curr) <= "
+                 << UtilsNumerical::NsecToSec(timestamp_last_frame_)
+                 << " (last)";
     return nullptr;
   }
 

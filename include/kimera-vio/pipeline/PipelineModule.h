@@ -214,7 +214,7 @@ class PipelineModule : public PipelineModuleBase {
         auto spin_duration = utils::Timer::toc(tic).count();
         timing_stats.AddSample(spin_duration);
       } else {
-        LOG_IF(WARNING, VLOG_IS_ON(1)) << "Module: " << name_id_
+        LOG_IF(WARNING, VLOG_IS_ON(2)) << "Module: " << name_id_
                                        << " - No Input received.";
       }
 
