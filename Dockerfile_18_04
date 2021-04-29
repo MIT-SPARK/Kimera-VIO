@@ -45,7 +45,7 @@ RUN cd opencv/build && \
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
-ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
+ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/develop version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
@@ -89,22 +89,22 @@ RUN apt-get update && \
 RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get update && \
-    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
-RUN python3.5 -m pip install PyQt5==5.14
+    apt-get install -y python3.6 python3.6-dev python-pip python3-pip python-tk python3-tk
+RUN python3.6 -m pip install PyQt5==5.14
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
 ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/evo-1.git
-RUN cd evo-1 && python3.5 $(which pip3) install .
+RUN cd evo-1 && python3.6 $(which pip3) install .
 
 # Install Kimera VIO Evaluation
-RUN python3.5 $(which pip3) install ipython prompt_toolkit
+RUN python3.6 $(which pip3) install ipython prompt_toolkit
 # Hack to avoid Docker's cache when Kimera VIO Evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
-RUN cd Kimera-VIO-Evaluation && git fetch && git checkout feature/mono_slam/base && python3.5 $(which pip3) install -e .
+RUN cd Kimera-VIO-Evaluation && git fetch && git checkout master && python3.6 $(which pip3) install -e .
 
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
