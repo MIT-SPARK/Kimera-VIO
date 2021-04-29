@@ -76,6 +76,12 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
       const ImuAccGyrS& imu_acc_gyrs,
       FrontendLogger* logger = nullptr) override;
 
+  /**
+   * @brief Allocate buffers once we have access to both the camera and IMU
+   * rates
+   */
+  void doFirstFrameSetup(const Frame& frame) override;
+
  private:
   size_t addNewImuDataImuRate(const std::vector<Timestamp>& image_stamps,
                               const ImuStampS& imu_stamps,
@@ -106,8 +112,9 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
   bool do_imu_rate_estimation_;
   double imu_period_s_;
   double imu_variance_threshold_;
-  Buffer imu_buffer_;
-  Buffer vision_buffer_;
+  double window_size_s_;
+  std::unique_ptr<Buffer> imu_buffer_;
+  std::unique_ptr<Buffer> vision_buffer_;
 };
 
 }  // namespace VIO

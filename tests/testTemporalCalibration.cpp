@@ -68,8 +68,10 @@ class ReturnHelper {
 
 FrontendOutputPacketBase::Ptr makeOutput(
     Timestamp timestamp,
+    double frame_period = 1.0e-9,
     FrontendType frontend_type = FrontendType::kStereoImu) {
   Frame fake_frame(1, timestamp, CameraParams(), cv::Mat());
+  fake_frame.cam_param_.frame_rate_ = frame_period;
   if (frontend_type == FrontendType::kMonoImu) {
     return std::make_shared<MonoFrontendOutput>(
         false,
@@ -183,8 +185,8 @@ TestData makeTestData(size_t num_frames = 10,
   // set up some important data
   to_return.params.gyro_noise_density_ = 0.0;
   to_return.params.do_imu_rate_time_alignment_ = imu_rate;
-  to_return.params.time_alignment_window_size_ =
-      imu_rate ? num_frames * num_imu_per : num_frames;
+  to_return.params.time_alignment_window_size_s_ =
+      (imu_rate ? num_frames * num_imu_per : num_frames) * 1.0e-9;
   to_return.params.nominal_sampling_time_s_ = 1.0e-9;
 
   // correlation should ideally produce this
@@ -211,7 +213,8 @@ TestData makeTestData(size_t num_frames = 10,
     gtsam::Pose3 pose(gtsam::Rot3::Rz(signal.vision_angles[i]),
                       Eigen::Vector3d::Zero());
     to_return.results.emplace_back(TrackingStatus::VALID, pose);
-    to_return.outputs.emplace_back(makeOutput(signal.vision_times[i]));
+    to_return.outputs.emplace_back(
+        makeOutput(signal.vision_times[i], num_imu_per * 1.0e-9));
   }
 
   Timestamp first_imu_time =
@@ -248,6 +251,8 @@ class MockTimeAligner : public TimeAlignerBase {
   }
 
  protected:
+  void doFirstFrameSetup(const Frame& frame) override {}
+
   TimeAlignerBase::Result attemptEstimation(
       const std::vector<Timestamp>& image_stamps,
       const gtsam::Pose3& T_ref_cur,
@@ -381,8 +386,8 @@ TEST(temporalCalibration, testLessThanWindow) {
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
   ImuParams params;
-  params.nominal_sampling_time_s_ = 1.0;
-  params.time_alignment_window_size_ = 10;
+  params.nominal_sampling_time_s_ = 1.0e-9;
+  params.time_alignment_window_size_s_ = 10.0e-9;
   CrossCorrTimeAligner aligner(params);
 
   for (size_t i = 0; i <= results.size(); ++i) {
@@ -413,9 +418,9 @@ TEST(temporalCalibration, testLessThanWindowFrameRate) {
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
   ImuParams params;
-  params.time_alignment_window_size_ = 10;
+  params.time_alignment_window_size_s_ = 10.0e-9;
   params.do_imu_rate_time_alignment_ = false;
-  params.nominal_sampling_time_s_ = 1.0;
+  params.nominal_sampling_time_s_ = 1.0e-9;
   CrossCorrTimeAligner aligner(params);
 
   for (size_t i = 0; i <= results.size(); ++i) {
@@ -436,13 +441,13 @@ TEST(temporalCalibration, testLowVariance) {
 
   ImuParams params;
   params.gyro_noise_density_ = 1.0;
-  params.time_alignment_window_size_ = 3;
+  params.time_alignment_window_size_s_ = 3.0e-9;
   params.do_imu_rate_time_alignment_ = false;
-  params.nominal_sampling_time_s_ = 1.0;
+  params.nominal_sampling_time_s_ = 1.0e-9;
   CrossCorrTimeAligner aligner(params);
 
   std::vector<RansacResult> results;
-  for (size_t i = 0; i < params.time_alignment_window_size_; ++i) {
+  for (size_t i = 0; i < 3; ++i) {
     results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
   }
 
@@ -472,13 +477,13 @@ TEST(temporalCalibration, testEnoughVariance) {
 
   ImuParams params;
   params.gyro_noise_density_ = 0.0;
-  params.time_alignment_window_size_ = 3;
+  params.time_alignment_window_size_s_ = 3.0e-9;
   params.do_imu_rate_time_alignment_ = false;
-  params.nominal_sampling_time_s_ = 1.0;
+  params.nominal_sampling_time_s_ = 1.0e-9;
   CrossCorrTimeAligner aligner(params);
 
   std::vector<RansacResult> results;
-  for (size_t i = 0; i < params.time_alignment_window_size_; ++i) {
+  for (size_t i = 0; i < 3; ++i) {
     results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
   }
 

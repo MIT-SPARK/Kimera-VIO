@@ -92,6 +92,7 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
 
   if (!last_frame_) {
     VLOG(1) << "Initializing first frame for temporal calibration";
+    doFirstFrameSetup(*curr_frame);
     last_frame_ = std::move(curr_frame);
     return {false, 0.0};
   }

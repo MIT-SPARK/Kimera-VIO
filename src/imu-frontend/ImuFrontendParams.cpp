@@ -64,12 +64,10 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("imu_time_shift", &imu_time_shift_);
   yaml_parser.getYamlParam("do_imu_rate_time_alignment",
                            &do_imu_rate_time_alignment_);
-  int time_alignment_window_size;
-  yaml_parser.getYamlParam("time_alignment_window_size",
-                           &time_alignment_window_size);
+  yaml_parser.getYamlParam("time_alignment_window_size_s",
+                           &time_alignment_window_size_s_);
   yaml_parser.getYamlParam("time_alignment_variance_threshold_scaling",
                            &time_alignment_variance_threshold_scaling_);
-  time_alignment_window_size_ = static_cast<size_t>(time_alignment_window_size);
 
   std::vector<double> n_gravity;
   yaml_parser.getYamlParam("n_gravity", &n_gravity);

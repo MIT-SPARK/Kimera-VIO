@@ -60,6 +60,11 @@ class TimeAlignerBase {
                                        const ImuAccGyrS& imu_accgyrs,
                                        FrontendLogger* logger = nullptr);
 
+  /**
+   * @brief Perform setup in the derived class when we get the first frame
+   */
+  virtual void doFirstFrameSetup(const Frame& frame) = 0;
+
  protected:
   void mergeImuData(const ImuStampS& latest_stamps,
                     const ImuAccGyrS& latest_accgyrs,
