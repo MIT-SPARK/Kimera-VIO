@@ -1,11 +1,11 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.5
+alpha: 0.1
 min_temporal_matches: 3
-recent_frames_window: 20
+recent_frames_window: 60
 max_db_results: 50
-min_nss_factor: 0.005
+min_nss_factor: 0.05
 min_matches_per_island: 1
 max_intraisland_gap: 3
 max_nrFrames_between_islands: 3
@@ -17,7 +17,7 @@ max_ransac_iterations_mono: 500
 ransac_probability_mono: 0.995
 ransac_threshold_mono: 1e-5
 ransac_randomize_mono: 0
-ransac_inlier_threshold_mono: 0.1
+ransac_inlier_threshold_mono: 0.01
 
 pose_recovery_option_id: 0
 max_ransac_iterations_stereo: 500
@@ -28,11 +28,10 @@ ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
 refine_pose: 1
 
-lowe_ratio: 0.3
+lowe_ratio: 0.9  # TODO(marcus): get rid, not used
 matcher_type: 3
-refine_pose: 1
 
-nfeatures: 500
+nfeatures: 1000
 scale_factor: 1.2
 nlevels: 8
 edge_threshold: 31
@@ -42,13 +41,11 @@ score_type_id: 0
 patch_sze: 31
 fast_threshold: 20
 
-pgo_rot_threshold: 0.0
-pgo_trans_threshold: 0.0
 betweenRotationPrecision: 10000 # 1/(0.01*0.01)
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
-pgo_rot_threshold: 0.01
-pgo_trans_threshold: 0.05
+pgo_rot_threshold: 0.001
+pgo_trans_threshold: 0.001
 gnc_alpha: 0.7
 
 # geom_check_id options:
