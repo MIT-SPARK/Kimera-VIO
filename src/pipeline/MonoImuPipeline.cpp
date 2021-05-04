@@ -69,7 +69,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           params.frontend_params_,
           camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
   vio_frontend_module_->registerImuTimeShiftUpdateCallback(
       [&](double imu_time_shift_s) {
         data_provider_module_->setImuTimeShift(imu_time_shift_s);
@@ -80,7 +81,6 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
       [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
         MonoFrontendOutput::Ptr converted_output =
             VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
-
         if (converted_output->is_keyframe_) {
           //! Only push to Backend input queue if it is a keyframe!
           backend_input_queue.push(VIO::make_unique<BackendInput>(
@@ -89,7 +89,10 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
               converted_output->tracker_status_,
               converted_output->pim_,
               converted_output->imu_acc_gyrs_,
-              boost::none));  // don't pass stereo pose to Backend!
+              boost::none,  // don't pass stereo
+                            // pose to Backend!
+              converted_output->lkf_body_Pose_kf_body_,
+              converted_output->body_world_Vel_body_));
         } else {
           VLOG(5)
               << "Frontend did not output a keyframe, skipping Backend input.";
@@ -122,7 +125,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           *backend_params_,
           imu_params_,
           backend_output_params,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
 
   vio_backend_module_->registerOnFailureCallback(
       std::bind(&MonoImuPipeline::signalBackendFailure, this));

@@ -29,18 +29,23 @@ class FrontendOutputPacketBase : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendOutputPacketBase);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  FrontendOutputPacketBase(const Timestamp& timestamp,
-                           const bool is_keyframe,
-                           const FrontendType frontend_type,
-                           const ImuFrontend::PimPtr& pim,
-                           const ImuAccGyrS& imu_acc_gyrs,
-                           const DebugTrackerInfo& debug_tracker_info)
+  FrontendOutputPacketBase(
+      const Timestamp& timestamp,
+      const bool is_keyframe,
+      const FrontendType frontend_type,
+      const ImuFrontend::PimPtr& pim,
+      const ImuAccGyrS& imu_acc_gyrs,
+      const DebugTrackerInfo& debug_tracker_info,
+      boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body = boost::none,
+      boost::optional<gtsam::Velocity3> body_world_Vel_body = boost::none)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
         frontend_type_(frontend_type),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        debug_tracker_info_(debug_tracker_info) {}
+        debug_tracker_info_(debug_tracker_info),
+        lkf_body_Pose_kf_body_(lkf_body_Pose_kf_body),
+        body_world_Vel_body_(body_world_Vel_body) {}
 
   virtual ~FrontendOutputPacketBase() = default;
 
@@ -50,6 +55,9 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const ImuFrontend::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
+  boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body_;
+  // velocity of the current body frame w.r.t. world frame in the body frame
+  boost::optional<gtsam::Velocity3> body_world_Vel_body_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };

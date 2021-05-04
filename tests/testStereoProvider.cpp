@@ -53,17 +53,17 @@ class TestStereoProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     Frame::UniquePtr rframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillRightFrameQueue(std::move(rframe));
     last_id_++;
   }
 
   void addLeftFrame(Timestamp timestamp, bool increment = false) {
     Frame::UniquePtr lframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     if (increment) {
       last_id_++;
@@ -72,7 +72,7 @@ class TestStereoProvider : public ::testing::Test {
 
   void addRightFrame(Timestamp timestamp, bool increment = false) {
     Frame::UniquePtr rframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillRightFrameQueue(std::move(rframe));
     if (increment) {
       last_id_++;

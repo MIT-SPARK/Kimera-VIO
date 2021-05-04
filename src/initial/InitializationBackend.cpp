@@ -244,7 +244,11 @@ void InitializationBackend::addInitialVisualState(
   if (stereo_ransac_body_pose && curr_kf_id_ != 0) {
     VLOG(10) << "Initialization: adding between ";
     if (VLOG_IS_ON(10)) (*stereo_ransac_body_pose).print();
-    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
+    addBetweenFactor(last_kf_id_,
+                     curr_kf_id_,
+                     *stereo_ransac_body_pose,
+                     backend_params_.betweenRotationPrecision_,
+                     backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////

@@ -57,7 +57,7 @@ class TestParallelMonoProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
-        make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     last_id_++;
   }
