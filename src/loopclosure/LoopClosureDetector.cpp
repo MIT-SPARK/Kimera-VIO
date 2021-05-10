@@ -1119,8 +1119,12 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
                                              factor.ref_Pose_cur_,
                                              factor.noise_));
 
+  // Only optimize if we don't have other potential loop closures to process.
+  CHECK(queue_check_cb_);
+  bool do_optimize = queue_check_cb_();
+
   CHECK(pgo_);
-  pgo_->update(nfg);
+  pgo_->update(nfg, gtsam::Values(), do_optimize);
 }
 
 }  // namespace VIO

@@ -155,7 +155,6 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
 
-    auto& lcd_module = lcd_module_;
     vio_frontend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
