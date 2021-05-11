@@ -1121,7 +1121,8 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
 
   // Only optimize if we don't have other potential loop closures to process.
   CHECK(queue_check_cb_);
-  bool do_optimize = queue_check_cb_();
+  bool do_optimize =
+      !queue_check_cb_();  // true if backend input queue is empty
 
   CHECK(pgo_);
   pgo_->update(nfg, gtsam::Values(), do_optimize);
