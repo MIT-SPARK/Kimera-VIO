@@ -70,7 +70,7 @@ struct RingBufferIter {
 template <typename T>
 class RingBuffer {
  public:
-  typedef RingBufferIter<T> iterator;
+  using Iterator = RingBufferIter<T>;
   using value_type = T;
 
   explicit RingBuffer(size_t buffer_size)
@@ -79,13 +79,22 @@ class RingBuffer {
         curr_index_(0),
         values_(buffer_size + 1) {}
 
-  inline void clear() {
+  /**
+   * @brief reset the buffer to be empty
+   */
+  void clear() {
     values_ = std::vector<T>(size_ + 1);
     num_values_ = 0;
     curr_index_ = 0;
   }
 
-  inline T operator[](size_t index) const {
+  /**
+   * @brief get the element at the index specified.
+   *
+   * @note no specific bounds checking is performed,
+   *       but all memory accesses are safe
+   */
+  T operator[](size_t index) const {
     if (num_values_ < size_) {
       return values_.at(index);
     }
@@ -97,13 +106,27 @@ class RingBuffer {
     return values_.at(index - (size_ - curr_index_));
   }
 
+  /**
+   * @brief get the current number of elements in the buffer
+   */
   inline size_t size() const { return num_values_; }
 
+  /**
+   * @brief get whether the buffer is fulll
+   */
   inline bool full() const { return size_ == num_values_; }
 
+  /**
+   * @brief get whether the buffer is empty
+   */
   inline bool empty() const { return num_values_ == 0; }
 
-  inline void push(const T& value) {
+  /**
+   * @brief add a new value at the end of the buffer.
+   * @note will drop the earliest value if the buffer
+   *       is full
+   */
+  void push(const T& value) {
     values_[curr_index_] = value;
     if (curr_index_ == size_) {
       curr_index_ = 0;
@@ -115,22 +138,35 @@ class RingBuffer {
     }
   }
 
-  inline iterator begin() const {
-    return iterator(values_,
-                    num_values_,
-                    curr_index_,
-                    &(values_.data()[get_begin_index_()]));
+  /**
+   * @brief get an iterator at the first element
+   */
+  inline Iterator begin() const {
+    return Iterator(
+        values_, num_values_, curr_index_, &(values_.data()[getBeginIndex()]));
   }
 
-  inline iterator end() const {
-    return iterator(
-        values_, num_values_, curr_index_, &(values_.data()[get_end_index_()]));
+  /**
+   * @brief get an iterator at the last element
+   */
+  inline Iterator end() const {
+    return Iterator(
+        values_, num_values_, curr_index_, &(values_.data()[getEndIndex()]));
   }
 
-  inline T front() const { return values_[get_begin_index_()]; }
+  /**
+   * @brief get the first element (undefined behavior when empty)
+   */
+  inline T front() const { return values_[getBeginIndex()]; }
 
-  inline T back() const { return values_[get_newest_index_()]; }
+  /**
+   * @brief get the last element (undefined behavior when empty)
+   */
+  inline T back() const { return values_[getNewestIndex()]; }
 
+  /**
+   * @brief display buffer statistics
+   */
   friend std::ostream& operator<<(std::ostream& out, const RingBuffer& buffer) {
     out << "buffer<(curr=" << buffer.curr_index_
         << ", size=" << buffer.num_values_ << ", max_size=" << buffer.size_
@@ -140,7 +176,7 @@ class RingBuffer {
 
  private:
   // oldest message in buffer
-  inline size_t get_begin_index_() const {
+  size_t getBeginIndex() const {
     if (num_values_ < size_) {
       return 0;
     }
@@ -149,7 +185,7 @@ class RingBuffer {
   }
 
   // newest message in buffer
-  inline size_t get_newest_index_() const {
+  size_t getNewestIndex() const {
     if (num_values_ == 0) {
       return 0;
     }
@@ -157,7 +193,7 @@ class RingBuffer {
   }
 
   // index to stop iteration on
-  inline size_t get_end_index_() const {
+  size_t getEndIndex() const {
     if (num_values_ == 0) {
       return 0;
     }
@@ -172,6 +208,11 @@ class RingBuffer {
 
 namespace utils {
 
+/**
+ * @brief get the mean of a iterable sequence
+ * @param seq input sequence
+ * @param accessor function to map T to a double
+ */
 template <typename T>
 double mean(const T& seq,
             std::function<double(const typename T::value_type&)> accessor) {
@@ -188,6 +229,11 @@ double mean(const T& seq,
   return total / seq.size();
 }
 
+/**
+ * @brief get the variance of a iterable sequence
+ * @param seq input sequence
+ * @param accessor function to map T to a double
+ */
 template <typename T>
 double variance(const T& seq,
                 std::function<double(const typename T::value_type&)> accessor) {
@@ -203,6 +249,18 @@ double variance(const T& seq,
   return (x_squared / seq.size()) - (x_bar * x_bar);
 }
 
+/**
+ * @brief get the full cross-correlation between two sequences
+ * @param seq_a first input sequence
+ * @param seq_b second input sequence
+ * @param accessor function to map T to a double
+ *
+ * We follow the same convention as
+ * https://numpy.org/doc/stable/reference/generated/numpy.correlate.html,
+ * except that we use the 'full' mode
+ *
+ * @return correlation between seq_a and seq_b
+ */
 template <typename T>
 std::vector<double> crossCorrelation(
     const T& seq_a,
@@ -226,7 +284,8 @@ std::vector<double> crossCorrelation(
 
     double corr = 0.0;
     for (size_t n = start; n < end; ++n) {
-      // Note that the mean removal doesn't do anything
+      // Note that mean_a and mean_b are 0 when mean_removal is false,
+      // which doesn't affect the computation here
       corr += (accessor(seq_a[n + offset]) - mean_a) *
               (accessor(seq_b[n]) - mean_b);
     }
