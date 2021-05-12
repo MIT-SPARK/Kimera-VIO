@@ -29,3 +29,7 @@ common
 
 % Ignore large vocabulary files
 /vocabulary/*
+
+% Ignore objects
+*.dbg.so
+*.opt.so

@@ -468,8 +468,7 @@ private:
         nuke(start.right);
 
         if (!isptypooled(start.ypoints))
-            delete start.ypoints;
-            //free(start.ypoints);
+            free(start.ypoints);
 	}
 
 	void nuke(node * const n) {
@@ -480,8 +479,7 @@ private:
 		nuke(n->right);
 
         if (!isptypooled(n->ypoints))
-            delete n->ypoints;
-            //free(n->ypoints);
+            free(n->ypoints);
 
 
         if (!isnodepooled(n))

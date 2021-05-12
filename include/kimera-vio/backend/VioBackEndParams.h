@@ -24,6 +24,7 @@
 
 #include <gtsam/base/Vector.h>
 #include <gtsam/slam/SmartFactorParams.h>
+#include <gtsam/linear/HessianFactor.h>
 
 #include <glog/logging.h>
 
