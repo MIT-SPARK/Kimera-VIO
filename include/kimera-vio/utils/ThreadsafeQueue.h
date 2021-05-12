@@ -102,7 +102,7 @@ class ThreadsafeQueueBase {
    * @param[in] timeout time to wait for a new value
    * @return true if there was a valid value at the front of the queue
    */
-  virtual bool peekBlockingWithTimeout(T*& value, size_t duration_ms) = 0;
+  virtual std::shared_ptr<T> peekBlockingWithTimeout(size_t duration_ms) = 0;
 
   void shutdown() {
     VLOG(1) << "Shutting down queue: " << queue_id_;
@@ -233,7 +233,7 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
    * @param[in] timeout time to wait for a new value
    * @return true if there was a valid value at the front of the queue
    */
-  virtual bool peekBlockingWithTimeout(T*& value, size_t duration_ms) override;
+  virtual std::shared_ptr<T> peekBlockingWithTimeout(size_t duration_ms) override;
 
  public:
   using TQB::queue_id_;
@@ -269,8 +269,8 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
   virtual std::shared_ptr<T> popBlocking() override { return nullptr; }
   virtual bool pop(T&) override { return true; }
   virtual std::shared_ptr<T> pop() override { return nullptr; }
-  virtual bool peekBlockingWithTimeout(T*& value, size_t duration_ms) override {
-    return false;
+  virtual std::shared_ptr<T> peekBlockingWithTimeout(size_t duration_ms) override {
+    return nullptr;
   }
 };
 
@@ -413,8 +413,7 @@ bool ThreadsafeQueue<T>::batchPop(typename TQB::InternalQueue* output_queue) {
 }
 
 template <typename T>
-bool ThreadsafeQueue<T>::peekBlockingWithTimeout(T*& value,
-                                                 size_t duration_ms) {
+std::shared_ptr<T> ThreadsafeQueue<T>::peekBlockingWithTimeout(size_t duration_ms) {
   std::unique_lock<std::mutex> lk(mutex_);
   // Wait until there is data in the queue, shutdown is requested, or
   // the given time is elapsed...
@@ -422,11 +421,10 @@ bool ThreadsafeQueue<T>::peekBlockingWithTimeout(T*& value,
     return !data_queue_.empty() || shutdown_;
   });
   if (shutdown_ || data_queue_.empty()) {
-    return false;
+    return nullptr;
   }
 
-  value = data_queue_.front().get();
-  return true;
+  return data_queue_.front();
 }
 
 }  // namespace VIO
