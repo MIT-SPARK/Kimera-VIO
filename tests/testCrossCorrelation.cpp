@@ -48,6 +48,7 @@ TEST(testCrossCorrelation, ringBufferSimpleTest) {
   buffer.push(3);
 
   std::vector<int> values(buffer.begin(), buffer.end());
+
   EXPECT_FALSE(buffer.full());
   ASSERT_EQ(values.size(), 3u);
   EXPECT_EQ(values[0], 1);

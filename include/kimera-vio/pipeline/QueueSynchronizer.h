@@ -156,13 +156,13 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     }
 
     // TODO(nathan) consider a more graceful failure here
-    CHECK(false) << "Syncing queue " << queue->queue_id_ << " in module "
-                 << name_id
-                 << " failed;\n Could not retrieve timestamp requested after "
-                 << max_iterations << " iterations: \n"
-                 << " - Requested timestamp: " << timestamp << '\n'
-                 << " - Best payload timestamp:    " << payload_timestamp
-                 << '\n';
+    LOG(FATAL) << "Syncing queue " << queue->queue_id_ << " in module "
+               << name_id
+               << " failed;\n Could not retrieve timestamp requested after "
+               << max_iterations << " iterations: \n"
+               << " - Requested timestamp: " << timestamp << '\n'
+               << " - Best payload timestamp:    " << payload_timestamp
+               << '\n';
     return false;
   }
 

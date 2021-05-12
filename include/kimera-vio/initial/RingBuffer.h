@@ -11,30 +11,53 @@ namespace VIO {
 // https://internalpointers.com/post/writing-custom-iterators-modern-cpp
 template <typename Value>
 struct RingBufferIter {
-  using iterator_category = std::bidirectional_iterator_tag;
+  using iterator_category = std::forward_iterator_tag;
   using difference_type = std::ptrdiff_t;
   using value_type = Value;
   using pointer = value_type*;
   using reference = value_type&;
 
+  /**
+   * @brief make an iterator bounded by the start and end of a non-zero sized
+   * buffer
+   * @param buffer non-zero sized buffer to iterate over
+   * @param num_measurements number of valid measurements in the buffer
+   * @param curr_index current index of the ring buffer head
+   * @param ptr pointer to element in the buffer
+   */
   RingBufferIter(const std::vector<Value>& buffer,
                  size_t num_measurements,
                  size_t curr_index,
-                 value_type const* ptr)
-      : m_ptr_(ptr),
-        curr_index_(curr_index),
-        num_values_(num_measurements),
-        begin_ptr_(&(buffer.data()[0])),
-        end_ptr_(&(buffer.data()[buffer.size() - 1])) {}
+                 Value const* ptr)
+      : m_ptr_(ptr), curr_index_(curr_index), num_values_(num_measurements) {
+    CHECK(ptr != nullptr);
+    CHECK_GE(buffer.size(), 1u);
+    begin_ptr_ = &(buffer.data()[0]);
+    end_ptr_ = &(buffer.data()[buffer.size() - 1]);
+    CHECK_GE(m_ptr_, begin_ptr_);
+    CHECK_LE(m_ptr_, end_ptr_);
+  }
 
-  const value_type& operator*() const {
+  /**
+   * @brief de-reference the iterator
+   * @return the value the iterator is pointing to
+   */
+  const Value& operator*() const {
+    // begin and end are guaranteed to be non-null,
+    // which means that m_ptr_ is also not null
     CHECK_GE(m_ptr_, begin_ptr_);
     CHECK_LE(m_ptr_, end_ptr_);
     return *m_ptr_;
   }
 
-  pointer operator->() { return m_ptr_; }
+  /**
+   * @brief get underlying iterator address
+   */
+  Value* operator->() { return m_ptr_; }
 
+  /**
+   * @brief increment the iterator address
+   */
   RingBufferIter& operator++() {
     m_ptr_++;
     if (m_ptr_ > end_ptr_) {
@@ -43,17 +66,32 @@ struct RingBufferIter {
     return *this;
   }
 
+  /**
+   * @brief increment the iterator address
+   */
   RingBufferIter operator++(int) {
     RingBufferIter tmp = *this;
     ++(*this);
     return tmp;
   }
 
+  /**
+   * @brief check if two iterators are pointing to the same element
+   */
   inline friend bool operator==(const RingBufferIter& a,
                                 const RingBufferIter& b) {
+    // TODO(nathan) might be better to raise an exception here
+    // if the two iterators are from different buffers
+    CHECK_EQ(a.num_values_, b.num_values_);
+    CHECK_EQ(a.begin_ptr_, b.begin_ptr_);
+    CHECK_EQ(a.end_ptr_, b.end_ptr_);
+    CHECK_EQ(a.curr_index_, b.curr_index_);
     return a.m_ptr_ == b.m_ptr_;
   }
 
+  /**
+   * @brief check if two iterators are not pointing to the same element
+   */
   inline friend bool operator!=(const RingBufferIter& a,
                                 const RingBufferIter& b) {
     return !(a == b);

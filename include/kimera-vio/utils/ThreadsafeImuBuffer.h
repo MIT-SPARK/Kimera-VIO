@@ -76,7 +76,7 @@ class ThreadsafeImuBuffer {
   };
 
   explicit ThreadsafeImuBuffer(const Timestamp& buffer_length_ns)
-      : buffer_(buffer_length_ns), shutdown_(false), have_warned_user_(false) {}
+      : buffer_(buffer_length_ns), shutdown_(false) {}
 
   ~ThreadsafeImuBuffer() { shutdown(); }
 
