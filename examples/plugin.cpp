@@ -39,8 +39,6 @@ public:
         , _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
         , imu_cam_buffer{nullptr}
     {
-        _m_begin = std::chrono::system_clock::now();
-    
         // TODO: read Kimera flag file path from runner and find a better way of passing it to gflag
         kimera_pipeline.registerBackendOutputCallback(
             std::bind(
@@ -50,13 +48,11 @@ public:
             )
         );
 
-        pose_type datum_pose_tmp{
-            ILLIXR::time_type{},
+        _m_pose.put(_m_pose.allocate<pose_type>(pose_type{
+            time_point{},
             Eigen::Vector3f{0, 0, 0},
             Eigen::Quaternionf{1, 0, 0, 0}
-        };
-        switchboard::ptr<pose_type> datum_pose = _m_pose.allocate<pose_type>(std::move(datum_pose_tmp));
-        _m_pose.put(std::move(datum_pose));
+        }));
 
 #ifdef CV_HAS_METRICS
         cv::metrics::setAccount(new std::string{"-1"});
@@ -76,14 +72,13 @@ public:
     void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum) {
         // Ensures that slam doesnt start before valid IMU readings come in
         if (datum == nullptr) {
-            assert(previous_timestamp == 0);
             return;
         }
 
         // This ensures that every data point is coming in chronological order If youre failing this assert, 
         // make sure that your data folder matches the name in offline_imu_cam/plugin.cc
-        assert(datum->dataset_time > previous_timestamp);
-        previous_timestamp = datum->dataset_time;
+        assert(datum->time > previous_timestamp);
+        previous_timestamp = datum->time;
 
         // Store the datum back to our buffer
         imu_cam_buffer = datum;
@@ -93,7 +88,7 @@ public:
 
         // Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
         assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
-        kimera_pipeline.fillSingleImuQueue(VIO::ImuMeasurement(datum->dataset_time, imu_raw_vals));
+        kimera_pipeline.fillSingleImuQueue(VIO::ImuMeasurement(datum->time.time_since_epoch().count(), imu_raw_vals));
 
         // If there is not cam data this func call, break early
         if (!datum->img0.has_value() && !datum->img1.has_value()) {
@@ -117,10 +112,10 @@ public:
         VIO::CameraParams left_cam_info = kimera_pipeline_params.camera_params_.at(0);
         VIO::CameraParams right_cam_info = kimera_pipeline_params.camera_params_.at(1);
         kimera_pipeline.fillLeftFrameQueue(VIO::make_unique<VIO::Frame>(kimera_current_frame_id,
-                                                                    datum->dataset_time,
+																	datum->time.time_since_epoch().count(),
                                                                     left_cam_info, img0));
         kimera_pipeline.fillRightFrameQueue(VIO::make_unique<VIO::Frame>(kimera_current_frame_id,
-                                                                    datum->dataset_time,
+																	datum->time.time_since_epoch().count(),
                                                                     right_cam_info, img1));
 
 		// Ok this needs to be filed in a later task to dig up what sets errno in Kimera
@@ -164,19 +159,16 @@ public:
         assert(isfinite(pos[1]));
         assert(isfinite(pos[2]));
 
-        pose_type datum_pose_tmp{
+        _m_pose.put(_m_pose.allocate<pose_type>(pose_type{
             imu_cam_buffer->time,
             pos,
-            quat,
-        };
-        switchboard::ptr<pose_type> datum_pose = _m_pose.allocate<pose_type>(std::move(datum_pose_tmp));
-        _m_pose.put(std::move(datum_pose));
-        
-        imu_integrator_input datum_imu_int_tmp{
-            (static_cast<double>(imu_cam_buffer->dataset_time) / NANO_SEC),
-            -0.05,
+            quat
+        }));
 
-            {
+        _m_imu_integrator_input.put(_m_imu_integrator_input.allocate<imu_integrator_input>(imu_integrator_input{
+			imu_cam_buffer->time,
+			duration(std::chrono::milliseconds{-50}),
+            imu_params{
                 kimera_pipeline_params.imu_params_.gyro_noise_,
                 kimera_pipeline_params.imu_params_.acc_noise_,
                 kimera_pipeline_params.imu_params_.gyro_walk_,
@@ -185,16 +177,12 @@ public:
                 kimera_pipeline_params.imu_params_.imu_integration_sigma_,
                 kimera_pipeline_params.imu_params_.nominal_rate_,
             },
-
             imu_bias_acc,
             imu_bias_gyro,
             w_pose_blkf_trans,
             w_vel_blkf,
-            doub_quat,
-        };
-        switchboard::ptr<imu_integrator_input> datum_imu_int =
-            _m_imu_integrator_input.allocate<imu_integrator_input>(std::move(datum_imu_int_tmp));
-        _m_imu_integrator_input.put(std::move(datum_imu_int));
+            doub_quat
+        }));
     }
 
     virtual ~kimera_vio() override {}
@@ -203,7 +191,6 @@ private:
     const std::shared_ptr<switchboard> sb;
     switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
-    time_type _m_begin;
 
     VIO::FrameId kimera_current_frame_id;
     VIO::VioParams kimera_pipeline_params;
@@ -211,7 +198,7 @@ private:
     
     //const imu_cam_type* imu_cam_buffer;
     switchboard::ptr<const imu_cam_type> imu_cam_buffer;
-    double previous_timestamp = 0.0;
+    time_point previous_timestamp = time_point{duration{-1}};
 };
 
 PLUGIN_MAIN(kimera_vio)
