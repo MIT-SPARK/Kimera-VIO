@@ -70,7 +70,7 @@ Tracker::Tracker(const FrontendParams& tracker_params,
 
 // TODO(Toni) a pity that this function is not const just because
 // it modifies debuginfo_...
-// NOTE: you do not need R in the mono case. For stereo cameras we pass R 
+// NOTE: you do not need R in the mono case. For stereo cameras we pass R
 // to ensure we rectify the versors and 3D points of the features we detect.
 void Tracker::featureTracking(Frame* ref_frame,
                               Frame* cur_frame,

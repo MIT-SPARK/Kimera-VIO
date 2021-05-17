@@ -33,6 +33,9 @@
 #include <opengv/point_cloud/methods.hpp>
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
 
+#include <opengv/absolute_pose/CentralAbsoluteAdapter.hpp>
+#include <opengv/sac_problems/absolute_pose/AbsolutePoseSacProblem.hpp>
+
 #include "kimera-vio/common/vio_types.h"
 
 namespace VIO {
@@ -53,6 +56,20 @@ using AdapterMonoGivenRot = opengv::relative_pose::CentralRelativeAdapter;
 // Arun's problem (3-point ransac)
 using ProblemStereo = opengv::sac_problems::point_cloud::PointCloudSacProblem;
 using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+
+using ProblemPnp = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
+using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
+
+enum class PnpMethod {
+  KneipP2P = 0,
+  KneipP3P = 1,
+  GaoP3P = 2,
+  EPNP = 3,
+  UPNP = 4,
+  UP3P = 5,
+  NonlinearOptimization = 6,
+  MLPNP = 7  //! Requires OpenGV fork.
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugTrackerInfo {
