@@ -77,6 +77,7 @@ class Tracker {
    */
   inline void updateMap(const LandmarksMap& lmks_map) {
     std::lock_guard<std::mutex> lock(landmarks_map_mtx_);
+    LOG(ERROR) << "Updating Backend Map.";
     landmarks_map_ = lmks_map;
   }
 

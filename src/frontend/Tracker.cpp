@@ -1096,7 +1096,7 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
       adapter.sett(translation_prior);
       adapter.setR(rotation_prior);
       *best_absolute_pose = Eigen::MatrixXd(
-          opengv::absolute_pose::optimize_nonlinear(adapter, inliers));
+          opengv::absolute_pose::optimize_nonlinear(adapter, *inliers));
       break;
     }
     case PnpMethod::MLPNP: {
