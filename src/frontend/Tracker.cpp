@@ -42,6 +42,7 @@ Tracker::Tracker(const FrontendParams& tracker_params,
       camera_(camera),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
+      pnp_method_(tracker_params.pnp_method_),
       display_queue_(display_queue),
       output_images_path_("./outputImages/") {
   // Create the optical flow prediction module

@@ -91,6 +91,9 @@ protected:
 
   OpticalFlowPredictorType optical_flow_predictor_type_ =
       OpticalFlowPredictorType::kNoPrediction;
+
+  // Tracker's PnP method to estimate pose from 2D-3D correspondences.
+  PnpMethod pnp_method_ = PnpMethod::EPNP;
 };
 
 }  // namespace VIO

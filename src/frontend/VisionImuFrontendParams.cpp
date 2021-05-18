@@ -42,6 +42,8 @@ void FrontendParams::print() const {
                         maxFeatureAge_,
                         "Optical Flow Predictor Type",
                         VIO::to_underlying(optical_flow_predictor_type_),
+                        "PnP Method",
+                        VIO::to_underlying(pnp_method_),
                         // RANSAC params
                         "useRANSAC_: ",
                         useRANSAC_,
@@ -136,6 +138,40 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
     }
   }
 
+  int pnp_method;
+  yaml_parser.getYamlParam("pnp_method", &pnp_method);
+  switch (pnp_method) {
+    case VIO::to_underlying(PnpMethod::KneipP2P): {
+      pnp_method_ = PnpMethod::KneipP2P;
+      break;
+    }
+    case VIO::to_underlying(PnpMethod::KneipP3P): {
+      pnp_method_ = PnpMethod::KneipP3P;
+      break;
+    }
+    case VIO::to_underlying(PnpMethod::GaoP3P): {
+      pnp_method_ = PnpMethod::GaoP3P;
+      break;
+    }
+    case VIO::to_underlying(PnpMethod::EPNP): {
+      pnp_method_ = PnpMethod::EPNP;
+      break;
+    }
+    case VIO::to_underlying(PnpMethod::UPNP): {
+      pnp_method_ = PnpMethod::UPNP;
+      break;
+    }
+    case VIO::to_underlying(PnpMethod::UP3P): {
+      pnp_method_ = PnpMethod::UP3P;
+      break;
+    }
+    case VIO::to_underlying(PnpMethod::NonlinearOptimization): {
+      pnp_method_ = PnpMethod::NonlinearOptimization;
+      break;
+    }
+    default: { LOG(FATAL) << "Unknown PnP Method: " << pnp_method; }
+  }
+
   return true;
 }
 
@@ -165,6 +201,7 @@ bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
          (useStereoTracking_ == tp2.useStereoTracking_) &&
          // others:
          (optical_flow_predictor_type_ == tp2.optical_flow_predictor_type_) &&
+         (pnp_method_ == tp2.pnp_method_) &&
          (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
 }
 
