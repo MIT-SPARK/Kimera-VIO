@@ -130,34 +130,51 @@ typedef std::pair<TrackingStatus, gtsam::Pose3> TrackingStatusPose;
 ////////////////////////////////////////////////////////////////////////////////
 class TrackerStatusSummary {
 public:
-  TrackerStatusSummary() :
-    kfTrackingStatus_mono_(TrackingStatus::INVALID),
-    kfTrackingStatus_stereo_(TrackingStatus::INVALID),
-    lkf_T_k_mono_(gtsam::Pose3::identity()),
-    lkf_T_k_stereo_(gtsam::Pose3::identity()),
-    infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
+ TrackerStatusSummary()
+     : kfTrackingStatus_mono_(TrackingStatus::INVALID),
+       kfTrackingStatus_stereo_(TrackingStatus::INVALID),
+       tracking_status_pnp_(TrackingStatus::INVALID),
+       lkf_T_k_mono_(gtsam::Pose3::identity()),
+       lkf_T_k_stereo_(gtsam::Pose3::identity()),
+       lkf_T_k_pnp_(gtsam::Pose3::identity()),
+       infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 
-
-  /* ------------------------------------------------------------------------ */
-  // Returns the tracking status as a string for debugging
-  static std::string asString(
-      const TrackingStatus& status) {
-    std::string status_str = "";
-    switch(status) {
-    case TrackingStatus::VALID: {status_str = "VALID"; break;}
-    case TrackingStatus::INVALID: {status_str = "INVALID"; break;}
-    case TrackingStatus::DISABLED: {status_str = "DISABLED"; break;}
-    case TrackingStatus::FEW_MATCHES: {status_str = "FEW_MATCHES"; break;}
-    case TrackingStatus::LOW_DISPARITY: {status_str = "LOW_DISPARITY"; break;}
-    }
-    return status_str;
+ /* ------------------------------------------------------------------------ */
+ // Returns the tracking status as a string for debugging
+ static std::string asString(const TrackingStatus& status) {
+   std::string status_str = "";
+   switch (status) {
+     case TrackingStatus::VALID: {
+       status_str = "VALID";
+       break;
+     }
+     case TrackingStatus::INVALID: {
+       status_str = "INVALID";
+       break;
+     }
+     case TrackingStatus::DISABLED: {
+       status_str = "DISABLED";
+       break;
+     }
+     case TrackingStatus::FEW_MATCHES: {
+       status_str = "FEW_MATCHES";
+       break;
+     }
+     case TrackingStatus::LOW_DISPARITY: {
+       status_str = "LOW_DISPARITY";
+       break;
+     }
+   }
+   return status_str;
   }
 
 public:
   TrackingStatus kfTrackingStatus_mono_;
   TrackingStatus kfTrackingStatus_stereo_;
+  TrackingStatus tracking_status_pnp_;
   gtsam::Pose3 lkf_T_k_mono_;
   gtsam::Pose3 lkf_T_k_stereo_;
+  gtsam::Pose3 lkf_T_k_pnp_;
   gtsam::Matrix3 infoMatStereoTranslation_;
 };
 

@@ -42,8 +42,6 @@ void FrontendParams::print() const {
                         maxFeatureAge_,
                         "Optical Flow Predictor Type",
                         VIO::to_underlying(optical_flow_predictor_type_),
-                        "PnP Method",
-                        VIO::to_underlying(pnp_method_),
                         // RANSAC params
                         "useRANSAC_: ",
                         useRANSAC_,
@@ -51,10 +49,14 @@ void FrontendParams::print() const {
                         minNrMonoInliers_,
                         "minNrStereoInliers_: ",
                         minNrStereoInliers_,
+                        "Min PnP inliers count: ",
+                        min_pnp_inliers_,
                         "ransac_threshold_mono_: ",
                         ransac_threshold_mono_,
                         "ransac_threshold_stereo_: ",
                         ransac_threshold_stereo_,
+                        "Ransac threshold PnP: ",
+                        ransac_threshold_pnp_,
                         "ransac_use_1point_stereo_: ",
                         ransac_use_1point_stereo_,
                         "ransac_use_2point_mono_: ",
@@ -72,6 +74,10 @@ void FrontendParams::print() const {
                         min_number_features_,
                         "useStereoTracking_: ",
                         useStereoTracking_,
+                        "Use PnP Tracking",
+                        use_pnp_tracking_,
+                        "PnP Method",
+                        VIO::to_underlying(pnp_method_),
                         // OTHER parameters
                         "disparityThreshold_: ",
                         disparityThreshold_);
@@ -98,9 +104,11 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("useRANSAC", &useRANSAC_);
   yaml_parser.getYamlParam("minNrMonoInliers", &minNrMonoInliers_);
   yaml_parser.getYamlParam("minNrStereoInliers", &minNrStereoInliers_);
+  yaml_parser.getYamlParam("Min PnP inliers count", &min_pnp_inliers_);
   yaml_parser.getYamlParam("ransac_threshold_mono", &ransac_threshold_mono_);
   yaml_parser.getYamlParam("ransac_threshold_stereo",
                            &ransac_threshold_stereo_);
+  yaml_parser.getYamlParam("ransac_threshold_pnp", &ransac_threshold_pnp_);
   yaml_parser.getYamlParam("ransac_use_1point_stereo",
                            &ransac_use_1point_stereo_);
   yaml_parser.getYamlParam("ransac_use_2point_mono", &ransac_use_2point_mono_);
@@ -138,6 +146,7 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
     }
   }
 
+  yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
   int pnp_method;
   yaml_parser.getYamlParam("pnp_method", &pnp_method);
   switch (pnp_method) {

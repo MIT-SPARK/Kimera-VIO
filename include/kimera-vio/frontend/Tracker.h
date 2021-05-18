@@ -77,7 +77,15 @@ class Tracker {
    */
   inline void updateMap(const LandmarksMap& lmks_map) {
     std::lock_guard<std::mutex> lock(landmarks_map_mtx_);
-    LOG(ERROR) << "Updating Backend Map.";
+    // std::stringstream out;
+    // out << std::setw(6) << "Lmk Id"
+    //     << " | " << std::setw(20) << "Lmk 3D" << '\n';
+    // for (const auto& it : lmks_map) {
+    //   out << std::setw(6) << it.first << ": " << std::setw(20) <<
+    //   it.second[0]
+    //       << ", " << it.second[1] << ", " << it.second[2] << '\n';
+    // }
+    // LOG(ERROR) << "Updating Backend Map:\n " << out.str();
     landmarks_map_ = lmks_map;
   }
 
@@ -117,6 +125,20 @@ class Tracker {
                             StereoFrame* ref_stereoFrame,
                             StereoFrame* cur_stereoFrame,
                             KeypointMatches* matches_ref_cur);
+
+  /**
+   * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
+   * @param cur_stereo_frame
+   * @param camLrectlkf_R_camLrectkf
+   * @param camLrectlkf_t_camLrectkf
+   * @param best_absolute_pose
+   * @param[in/out] inliers
+   */
+  void pnp(const StereoFrame& cur_stereo_frame,
+           const gtsam::Rot3& camLrectlkf_R_camLrectkf,
+           const gtsam::Point3& camLrectlkf_t_camLrectkf,
+           gtsam::Pose3* best_absolute_pose,
+           std::vector<int>* inliers);
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers
@@ -159,20 +181,6 @@ class Tracker {
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
  private:
-  /**
-   * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
-   * @param cur_stereo_frame
-   * @param camLrectlkf_R_camLrectkf
-   * @param camLrectlkf_t_camLrectkf
-   * @param best_absolute_pose
-   * @param[in/out] inliers
-   */
-  void pnp(const StereoFrame& cur_stereo_frame,
-           const gtsam::Rot3& camLrectlkf_R_camLrectkf,
-           const gtsam::Point3& camLrectlkf_t_camLrectkf,
-           gtsam::Pose3* best_absolute_pose,
-           std::vector<int>* inliers);
-
   /**
    * @brief runPnpRansac
    * @param absolute_pose_problem_ptr
