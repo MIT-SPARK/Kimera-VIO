@@ -70,6 +70,7 @@ class VioBackend {
   KIMERA_POINTER_TYPEDEFS(VioBackend);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef std::function<void(const ImuBias& imu_bias)> ImuBiasCallback;
+  typedef std::function<void(const LandmarksMap& map)> MapCallback;
 
   /**
    * @brief VioBackend Constructor. Initialization must be done separately.
@@ -104,6 +105,14 @@ class VioBackend {
   // the callee of this function.
   void registerImuBiasUpdateCallback(
       const ImuBiasCallback& imu_bias_update_callback);
+
+  /**
+   * @brief registerMapUpdateCallback Register callback that will be called as
+   * soon as the Backend optimizes the 3D landmarks.
+   * @param map_update_callback Callback to call once backend finishes
+   * optimizing.
+   */
+  void registerMapUpdateCallback(const MapCallback& map_update_callback);
 
   // Get valid 3D points - TODO: this copies the graph.
   void get3DPoints(std::vector<gtsam::Point3>* points_3d) const;
@@ -179,7 +188,7 @@ class VioBackend {
   }
 
   inline void saveGraph(const std::string& filepath) const {
-    OfstreamWrapper ofstream_wrapper (filepath);
+    OfstreamWrapper ofstream_wrapper(filepath);
     smoother_->getFactors().saveGraph(ofstream_wrapper.ofstream_);
   }
 
@@ -486,6 +495,9 @@ class VioBackend {
   // Imu Bias update callback. To be called as soon as we have a new IMU bias
   // update so that the Frontend performs preintegration with the newest bias.
   ImuBiasCallback imu_bias_update_callback_;
+
+  //! Map update callback for the frontend PnP tracker.
+  MapCallback map_update_callback_;
 
   // Debug info.
   DebugVioInfo debug_info_;

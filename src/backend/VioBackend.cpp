@@ -184,6 +184,12 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
               kMinLmkObs);
     }
 
+    CHECK(map_update_callback_) << "Did you forget to register the Map"
+                                   "update callback for at least the "
+                                   "Frontend? Do so by using "
+                                   "registerMapUpdateCallback function.";
+    map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
+
     // Create Backend Output Payload.
     output_payload = VIO::make_unique<BackendOutput>(
         VioNavStateTimestamped(
@@ -219,6 +225,11 @@ void VioBackend::registerImuBiasUpdateCallback(
     CHECK(imu_bias_update_callback_);
     imu_bias_update_callback_(imu_bias_lkf_);
   }
+}
+
+void VioBackend::registerMapUpdateCallback(
+    const MapCallback& map_update_callback) {
+  map_update_callback_ = map_update_callback;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -358,9 +369,10 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
       input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
-  LOG_IF(WARNING, use_stereo_btw_factor && 
-                  input.stereo_ransac_body_pose_ == boost::none)
-      << "User set useStereoBetweenFactor = true, but stereo_ransac_body_pose_ not available!"; 
+  LOG_IF(WARNING,
+         use_stereo_btw_factor && input.stereo_ransac_body_pose_ == boost::none)
+      << "User set useStereoBetweenFactor = true, but stereo_ransac_body_pose_ "
+         "not available!";
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
   bool is_smoother_ok = addVisualInertialStateAndOptimize(

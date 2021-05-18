@@ -116,6 +116,10 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                 // Send a cref: constant reference bcs updateImuBias is const
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
+  vio_backend_module_->registerMapUpdateCallback(
+      std::bind(&VisionImuFrontendModule::updateMap,
+                std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
+                std::placeholders::_1));
 
   if (static_cast<VisualizationType>(FLAGS_viz_type) ==
       VisualizationType::kMesh2dTo3dSparse) {

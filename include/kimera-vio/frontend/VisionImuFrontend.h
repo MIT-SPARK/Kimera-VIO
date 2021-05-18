@@ -45,7 +45,7 @@ class VisionImuFrontend {
   KIMERA_POINTER_TYPEDEFS(VisionImuFrontend);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisionImuFrontend);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  
+
  public:
   VisionImuFrontend(const ImuParams& imu_params,
                  const ImuBias& imu_initial_bias,
@@ -63,6 +63,15 @@ class VisionImuFrontend {
   // thread-safe.
   inline void updateImuBias(const ImuBias& imu_bias) const {
     imu_frontend_->updateBias(imu_bias);
+  }
+
+  /**
+   * @brief updateMap Update landmarks map with most recent backend optimized
+   * landmarks in the time-horizon.
+   * @param map
+   */
+  inline void updateMap(const LandmarksMap& map) const {
+    tracker_->updateMap(map);
   }
 
   /* ------------------------------------------------------------------------ */

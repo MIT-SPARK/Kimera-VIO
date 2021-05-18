@@ -43,4 +43,10 @@ void VioBackendModule::registerImuBiasUpdateCallback(
   vio_backend_->registerImuBiasUpdateCallback(imu_bias_update_callback);
 }
 
+void VioBackendModule::registerMapUpdateCallback(
+    const VioBackend::MapCallback& map_update_callback) {
+  CHECK(vio_backend_);
+  vio_backend_->registerMapUpdateCallback(map_update_callback);
+}
+
 }  // namespace VIO

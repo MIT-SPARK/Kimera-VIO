@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <utility>  // for forward
 #include <vector>
 
@@ -108,7 +109,7 @@ inline Derived safeCast(const Base& base) {
 }
 
 // Safely downcast shared pointers. Will not create copies of underlying data,
-// but returns a new pointer. 
+// but returns a new pointer.
 template <typename Base, typename Derived>
 inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
   CHECK(base_ptr);
@@ -124,7 +125,7 @@ inline std::shared_ptr<Derived> safeCast(std::shared_ptr<Base> base_ptr) {
 }
 
 // Safely downcast unique pointers.
-// NOTE: pass by rvalue because this prevents the copy of the pointer and 
+// NOTE: pass by rvalue because this prevents the copy of the pointer and
 // is faster. All others don't transfer ownership (aren't using move types)
 // and so don't need to pass by rvalue.
 template <typename Base, typename Derived>
@@ -145,5 +146,7 @@ inline std::unique_ptr<Derived> safeCast(std::unique_ptr<Base>&& base_ptr) {
   derived_ptr.reset(tmp);
   return derived_ptr;
 }
+
+using LandmarksMap = std::unordered_map<LandmarkId, gtsam::Point3>;
 
 }  // namespace VIO

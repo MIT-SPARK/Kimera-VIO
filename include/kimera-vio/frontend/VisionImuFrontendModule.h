@@ -19,8 +19,9 @@
 
 namespace VIO {
 
-class VisionImuFrontendModule : public 
-    SIMOPipelineModule<FrontendInputPacketBase, FrontendOutputPacketBase> {
+class VisionImuFrontendModule
+    : public SIMOPipelineModule<FrontendInputPacketBase,
+                                FrontendOutputPacketBase> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisionImuFrontendModule);
   KIMERA_POINTER_TYPEDEFS(VisionImuFrontendModule);
@@ -64,6 +65,10 @@ class VisionImuFrontendModule : public
   //! Callbacks
   inline void updateImuBias(const ImuBias& imu_bias) const {
     vio_frontend_->updateImuBias(imu_bias);
+  }
+
+  inline void updateMap(const LandmarksMap& map) const {
+    vio_frontend_->updateMap(map);
   }
 
  private:

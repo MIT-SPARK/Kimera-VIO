@@ -73,6 +73,8 @@ using Landmark = gtsam::Point3;
 using Landmarks = std::vector<Landmark>;
 using PointWithId = std::pair<LandmarkId, Landmark>;
 using PointsWithId = std::vector<PointWithId>;
+// TODO(Toni):  there is the same in vio_types.cpp, replace by that one, since
+// now the frontend also has such concept.
 using PointsWithIdMap = std::unordered_map<LandmarkId, Landmark>;
 using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
