@@ -158,18 +158,35 @@ class Tracker {
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
  private:
+  /**
+   * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
+   * @param cur_stereo_frame
+   * @param camLrectlkf_R_camLrectkf
+   * @param camLrectlkf_t_camLrectkf
+   * @param best_absolute_pose
+   * @param[in/out] inliers
+   */
   void pnp(const StereoFrame& cur_stereo_frame,
-           const StereoCamera::ConstPtr& stereo_camera,
            const gtsam::Rot3& camLrectlkf_R_camLrectkf,
            const gtsam::Point3& camLrectlkf_t_camLrectkf,
-           gtsam::Pose3* best_absolute_pose);
+           gtsam::Pose3* best_absolute_pose,
+           std::vector<int>* inliers);
 
+  /**
+   * @brief runPnpRansac
+   * @param absolute_pose_problem_ptr
+   * @param threshold Quality threshold to stop
+   * @param max_iterations
+   * @param inliers The inliers from the input data
+   * @return The best pose estimate
+   */
   gtsam::Pose3 runPnpRansac(
       std::shared_ptr<
           opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
           absolute_pose_problem_ptr,
       const int& threshold,
-      const int& max_iterations);
+      const int& max_iterations,
+      std::vector<int>* inliers);
 
  public:
   //! Debug info (its public to allow stereo frames to populate it).
