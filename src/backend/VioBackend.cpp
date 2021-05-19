@@ -301,6 +301,7 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     addBetweenFactor(
         last_kf_id_,
         curr_kf_id_,
+        // I think this should be B_Pose_leftCamRect_...
         B_Pose_leftCam_ *
             status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
             B_Pose_leftCam_.inverse());

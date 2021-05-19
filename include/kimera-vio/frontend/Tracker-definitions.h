@@ -136,7 +136,7 @@ public:
        tracking_status_pnp_(TrackingStatus::INVALID),
        lkf_T_k_mono_(gtsam::Pose3::identity()),
        lkf_T_k_stereo_(gtsam::Pose3::identity()),
-       lkf_T_k_pnp_(gtsam::Pose3::identity()),
+       W_T_k_pnp_(gtsam::Pose3::identity()),
        infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 
  /* ------------------------------------------------------------------------ */
@@ -174,7 +174,7 @@ public:
   TrackingStatus tracking_status_pnp_;
   gtsam::Pose3 lkf_T_k_mono_;
   gtsam::Pose3 lkf_T_k_stereo_;
-  gtsam::Pose3 lkf_T_k_pnp_;
+  gtsam::Pose3 W_T_k_pnp_;
   gtsam::Matrix3 infoMatStereoTranslation_;
 };
 

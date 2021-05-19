@@ -383,11 +383,11 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
           tracker_status_summary_.tracking_status_pnp_ =
               TrackingStatus::FEW_MATCHES;
         }
-        tracker_status_summary_.lkf_T_k_pnp_ = best_absolute_pose;
+        tracker_status_summary_.W_T_k_pnp_ = best_absolute_pose;
         // TODO(Toni): remove outliers from the tracking?
       } else {
         tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::INVALID;
-        tracker_status_summary_.lkf_T_k_pnp_ = gtsam::Pose3::identity();
+        tracker_status_summary_.W_T_k_pnp_ = gtsam::Pose3::identity();
       }
 
     } else {

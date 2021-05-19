@@ -30,6 +30,8 @@
 #include <opencv2/viz/types.hpp>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Macros.h"
@@ -114,15 +116,15 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                        const size_t& n_last_frustums = 10u);
 
   /**
- * @brief visualizePoseWithImgInFrustum
- * Visualize a single camera pose with an image inside its frustum.
+   * @brief visualizePoseWithImgInFrustum
+   * Visualize a single camera pose with an image inside its frustum.
    * Adds an image to the frustum of the last pose if cv::Mat is not empty.
- * @param frustum_image
- * @param frustum_pose
- * @param widgets_map
- * @param widget_id Keep this id the same if you want to update the widget pose
- * and image, instead of adding a different instance.
- */
+   * @param frustum_image
+   * @param frustum_pose
+   * @param widgets_map
+   * @param widget_id Keep this id the same if you want to update the widget
+   * pose and image, instead of adding a different instance.
+   */
   void visualizePoseWithImgInFrustum(
       const cv::Mat& frustum_image,
       const cv::Affine3d& frustum_pose,
@@ -272,6 +274,18 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                  const gtsam::Point3& point,
                                  WidgetsMap* widgets);
 
+  void visualizeFrontend(const FrontendOutputPacketBase::Ptr& frontend_output,
+                         const gtsam::Pose3& W_Pose_Blkf,
+                         WidgetsMap* widgets);
+  void visualizeMonoFrontend(
+      const MonoFrontendOutput::Ptr& mono_frontend_output,
+      const gtsam::Pose3& W_Pose_Blkf,
+      WidgetsMap* widgets);
+  void visualizeStereoFrontend(
+      const StereoFrontendOutput::Ptr& stereo_frontend_output,
+      const gtsam::Pose3& W_Pose_Blkf,
+      WidgetsMap* widgets);
+
   void visualizeFactorGraph(const gtsam::Values& state,
                             const gtsam::NonlinearFactorGraph& factor_graph,
                             const gtsam::Pose3& body_pose_camLrect,
@@ -386,6 +400,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   void drawImuFactor(const gtsam::ImuFactor& imu_factor,
                      const gtsam::Values& state,
                      const gtsam::Pose3& body_pose_camLrect,
+                     const bool& draw_velocity,
                      WidgetsMap* widgets_map);
 
  private:
@@ -426,6 +441,13 @@ class OpenCvVisualizer3D : public Visualizer3D {
   double right_cam_active_frustum_scale_ = 0.11;
   cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
   cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::green();
+
+  double pnp_cam_active_frustum_scale_ = 0.20;
+  cv::viz::Color pnp_cam_active_frustum_color_ = cv::viz::Color::navy();
+  double stereo_cam_active_frustum_scale_ = 0.20;
+  cv::viz::Color stereo_cam_active_frustum_color_ = cv::viz::Color::gold();
+  double mono_cam_active_frustum_scale_ = 0.20;
+  cv::viz::Color mono_cam_active_frustum_color_ = cv::viz::Color::lime();
 
   double inactive_frustum_scale_ = 0.06;
 
