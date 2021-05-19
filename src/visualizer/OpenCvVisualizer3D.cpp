@@ -428,7 +428,7 @@ void OpenCvVisualizer3D::visualizeFrontend(
     const FrontendOutputPacketBase::Ptr& frontend_output,
     const gtsam::Pose3& W_Pose_Bllkf,
     WidgetsMap* widgets) {
-  CHECK_NOTNULL(frontend_output);
+  CHECK(frontend_output);
   if (frontend_output->frontend_type_ == FrontendType::kStereoImu) {
     visualizeStereoFrontend(
         VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
@@ -1081,12 +1081,14 @@ void OpenCvVisualizer3D::drawBtwFactor(
   }
 }
 
-void OpenCvVisualizer3D::drawImuFactor(const gtsam::ImuFactor& imu_factor,
-                                       const gtsam::Values& state,
-                                       const gtsam::Pose3& body_pose_camLrect,
-                                       const bool& draw_only_last,
-                                       const bool& draw_velocity,
-                                       WidgetsMap* widgets_map) {
+void OpenCvVisualizer3D::drawImuFactor(
+    const gtsam::ImuFactor& imu_factor,
+    const gtsam::Values& state,
+    const gtsam::Pose3& body_pose_camLrect,
+    // TODO(TONI): this assumes imu factors are drawn in temporal order...
+    const bool& draw_only_last,
+    const bool& draw_velocity,
+    WidgetsMap* widgets_map) {
   CHECK_NOTNULL(widgets_map);
   const gtsam::Symbol& pose_symbol_1(imu_factor.key1());
   const gtsam::Symbol& vel_symbol_1(imu_factor.key2());
@@ -1113,18 +1115,37 @@ void OpenCvVisualizer3D::drawImuFactor(const gtsam::ImuFactor& imu_factor,
       imu_factor.preintegratedMeasurements().predict(navstate_1, imu_bias_1);
   const gtsam::Pose3& meas_pose_2 = navstate_2.pose();
   const gtsam::Vector3& meas_vel_2 = navstate_2.velocity();
+
+  // Check whether we should draw this IMU factor or not.
+  std::string imu_factor_pose_guess_id =
+      "IMU factor pose guess " + std::to_string(pose_symbol_2.index());
+  bool draw_imu_pose = false;
+  if (!draw_only_last) {
+    draw_imu_pose = true;
+  } else {
+    static int64_t max_last_key = std::numeric_limits<int64_t>::min();
+    const int64_t& last_key = pose_symbol_2.index();
+    if (last_key > max_last_key) {
+      // This assumes keys are increasing.
+      draw_imu_pose = true;
+      max_last_key = last_key;
+    } else {
+      draw_imu_pose = false;
+    }
+  }
+
   // Draw estimated IMU pose as a frustum for the left cam to be able to
   // compare with the estimate from stereo RANSAC
-  std::string imu_factor_pose_guess_id =
-      "IMU factor pose guess " +
-      (draw_only_last ? "(last)" : std::to_string(pose_symbol_2.index()));
-  (*widgets_map)[imu_factor_pose_guess_id] =
-      VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, imu_factor_to_guess_pose_scale_, imu_factor_to_guess_pose_color_);
-  const cv::Affine3d& left_cam_pose_guess = UtilsOpenCV::gtsamPose3ToCvAffine3d(
-      meas_pose_2.compose(body_pose_camLrect));
-  (*widgets_map)[imu_factor_pose_guess_id]->setPose(left_cam_pose_guess);
-  if (!draw_only_last) {
+  if (draw_imu_pose) {
+    (*widgets_map)[imu_factor_pose_guess_id] =
+        VIO::make_unique<cv::viz::WCameraPosition>(
+            K_,
+            imu_factor_to_guess_pose_scale_,
+            imu_factor_to_guess_pose_color_);
+    const cv::Affine3d& left_cam_pose_guess =
+        UtilsOpenCV::gtsamPose3ToCvAffine3d(
+            meas_pose_2.compose(body_pose_camLrect));
+    (*widgets_map)[imu_factor_pose_guess_id]->setPose(left_cam_pose_guess);
     widget_ids_to_remove_in_next_iter_.push_back(imu_factor_pose_guess_id);
   }
 
