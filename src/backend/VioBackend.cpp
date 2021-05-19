@@ -295,8 +295,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
   // Add between factor from RANSAC: first PnP, then Stereo, then Mono
-  if (status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
-      TrackingStatus::VALID) {
+  if (backend_params_.addBetweenStereoFactors_ &&
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID) {
     addBetweenFactor(
         last_kf_id_,
         curr_kf_id_,
@@ -364,12 +365,7 @@ bool VioBackend::addVisualInertialStateAndOptimize(
 }
 
 bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
-  bool use_stereo_btw_factor =
-      backend_params_.addBetweenStereoFactors_ &&
-      input.status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_ ==
-          TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
-  VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
   bool is_smoother_ok = addVisualInertialStateAndOptimize(

@@ -79,8 +79,7 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
           converted_output->stereo_frame_lkf_.timestamp_,
           converted_output->status_stereo_measurements_,
           converted_output->pim_,
-          converted_output->imu_acc_gyrs_,
-          converted_output->relative_pose_body_stereo_));
+          converted_output->imu_acc_gyrs_));
     } else {
       VLOG(5) << "Frontend did not output a keyframe, skipping Backend input.";
     }

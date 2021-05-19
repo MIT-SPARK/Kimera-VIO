@@ -92,9 +92,9 @@ class LCDFixture : public ::testing::Test {
         std::string("/ForLoopClosureDetector/small_voc.yml.gz");
 
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
-        params, 
-        stereo_camera_, 
-        frontend_params_.stereo_matching_params_, 
+        params,
+        stereo_camera_,
+        frontend_params_.stereo_matching_params_,
         false);
 
     // Euroc V1_01_easy ts: 1403715386762142976
@@ -152,13 +152,13 @@ class LCDFixture : public ::testing::Test {
               timestamp_match1_,
               cam_params_left_,
               UtilsOpenCV::ReadAndConvertToGrayScale(
-                  img_name_match1_left, 
+                  img_name_match1_left,
                   tp.stereo_matching_params_.equalize_image_)),
         Frame(id_match1_,
               timestamp_match1_,
               cam_params_right_,
               UtilsOpenCV::ReadAndConvertToGrayScale(
-                  img_name_match1_right, 
+                  img_name_match1_right,
                   tp.stereo_matching_params_.equalize_image_)));
 
     feature_detector.featureDetection(
@@ -580,8 +580,6 @@ TEST_F(LCDFixture, spinOnce) {
   StereoFrontendOutput::Ptr stereo_frontend_output =
       std::make_shared<StereoFrontendOutput>(match1_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
-                                             TrackingStatus(),
-                                             gtsam::Pose3::identity(),
                                              gtsam::Pose3::identity(),
                                              gtsam::Pose3::identity(),
                                              *match1_stereo_frame_,
@@ -602,8 +600,6 @@ TEST_F(LCDFixture, spinOnce) {
   stereo_frontend_output =
       std::make_shared<StereoFrontendOutput>(match2_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
-                                             TrackingStatus(),
-                                             gtsam::Pose3::identity(),
                                              gtsam::Pose3::identity(),
                                              gtsam::Pose3::identity(),
                                              *match2_stereo_frame_,
@@ -624,8 +620,6 @@ TEST_F(LCDFixture, spinOnce) {
   stereo_frontend_output =
       std::make_shared<StereoFrontendOutput>(query1_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
-                                             TrackingStatus(),
-                                             gtsam::Pose3::identity(),
                                              gtsam::Pose3::identity(),
                                              gtsam::Pose3::identity(),
                                              *query1_stereo_frame_,

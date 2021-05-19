@@ -67,8 +67,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   CHECK(mono_camera_);
   return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
                                               nullptr,
-                                              TrackingStatus::DISABLED,
-                                              gtsam::Pose3::identity(),  // no stereo!
                                               mono_camera_->getBodyPoseCam(),
                                               *mono_frame_lkf_,
                                               nullptr,
@@ -97,10 +95,9 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
   const ImuFrontend::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
       input->getImuStamps(), input->getImuAccGyrs());
   CHECK(pim);
-  const gtsam::Rot3 body_R_cam = 
-      mono_camera_->getBodyPoseCam().rotation();
+  const gtsam::Rot3 body_R_cam = mono_camera_->getBodyPoseCam().rotation();
   const gtsam::Rot3 cam_R_body = body_R_cam.inverse();
-  gtsam::Rot3 camLrectLkf_R_camLrectK_imu = 
+  gtsam::Rot3 camLrectLkf_R_camLrectK_imu =
       cam_R_body * pim->deltaRij() * body_R_cam;
 
   if (VLOG_IS_ON(10)) {
@@ -155,8 +152,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     return VIO::make_unique<MonoFrontendOutput>(
         true,
         status_mono_measurements,
-        TrackingStatus::DISABLED,  // This is a stereo status only
-        gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -171,8 +166,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     return VIO::make_unique<MonoFrontendOutput>(
         false,
         status_mono_measurements,
-        TrackingStatus::DISABLED,  // This is a stereo status only
-        gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -241,18 +234,18 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
 
   MonoMeasurements smart_mono_measurements;
 
-  const bool max_time_elapsed = 
+  const bool max_time_elapsed =
       mono_frame_k_->timestamp_ - last_keyframe_timestamp_ >=
       tracker_->tracker_params_.intra_keyframe_time_ns_;
   const size_t& nr_valid_features = mono_frame_k_->getNrValidKeypoints();
-  const bool nr_features_low = 
+  const bool nr_features_low =
       nr_valid_features <= tracker_->tracker_params_.min_number_features_;
-  
+
   LOG_IF(WARNING, mono_frame_k_->isKeyframe_) << "User enforced keyframe!";
 
   if (max_time_elapsed || nr_features_low || mono_frame_k_->isKeyframe_) {
     VLOG(2) << "Keframe after [s]: "
-            << UtilsNumerical::NsecToSec(mono_frame_k_->timestamp_ - 
+            << UtilsNumerical::NsecToSec(mono_frame_k_->timestamp_ -
                                          last_keyframe_timestamp_);
     ++keyframe_count_;
 

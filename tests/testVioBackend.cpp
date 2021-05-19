@@ -295,7 +295,6 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
     BackendOutput::Ptr backend_output = vio_backend->spinOnce(
         BackendInput(timestamp_k,
                      all_measurements[k],
-                     tracker_status_valid.kfTrackingStatus_stereo_,
                      pim,
                      imu_accgyr));
     CHECK(backend_output);

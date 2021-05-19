@@ -48,7 +48,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   data_provider_module_->registerVioPipelineCallback(
     std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));
 
-  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_) 
+  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_)
       << "useStereoTracking is set to true, but this is a mono pipeline!";
   vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,
@@ -63,24 +63,23 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           FLAGS_log_output));
 
   auto& backend_input_queue = backend_input_queue_;
-  vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const FrontendOutputPacketBase::Ptr& output) {
-    MonoFrontendOutput::Ptr converted_output = 
-        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
+  vio_frontend_module_->registerOutputCallback(
+      [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
+        MonoFrontendOutput::Ptr converted_output =
+            VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
 
-    if (converted_output->is_keyframe_) {
-      //! Only push to Backend input queue if it is a keyframe!
-      backend_input_queue.push(VIO::make_unique<BackendInput>(
-          converted_output->frame_lkf_.timestamp_,
-          converted_output->status_mono_measurements_,
-          converted_output->tracker_status_,
-          converted_output->pim_,
-          converted_output->imu_acc_gyrs_,
-          boost::none));  // don't pass stereo pose to Backend!
-    } else {
-      VLOG(5) << "Frontend did not output a keyframe, skipping Backend input.";
-    }
-  });
+        if (converted_output->is_keyframe_) {
+          //! Only push to Backend input queue if it is a keyframe!
+          backend_input_queue.push(VIO::make_unique<BackendInput>(
+              converted_output->frame_lkf_.timestamp_,
+              converted_output->status_mono_measurements_,
+              converted_output->pim_,
+              converted_output->imu_acc_gyrs_));
+        } else {
+          VLOG(5)
+              << "Frontend did not output a keyframe, skipping Backend input.";
+        }
+      });
 
   //! Params for what the Backend outputs.
   // TODO(Toni): put this into Backend params.

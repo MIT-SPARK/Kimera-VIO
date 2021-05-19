@@ -77,7 +77,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   return VIO::make_unique<StereoFrontendOutput>(
       stereoFrame_lkf_->isKeyframe(),
       nullptr,
-      getRelativePoseBodyStereo(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_->getBodyPoseRightCamRect(),
       *stereoFrame_lkf_,
@@ -196,9 +195,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     return VIO::make_unique<StereoFrontendOutput>(
         true,
         status_stereo_measurements,
-        tracker_->tracker_params_.useStereoTracking_
-            ? getRelativePoseBodyStereo()
-            : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
@@ -215,9 +211,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     return VIO::make_unique<StereoFrontendOutput>(
         false,
         status_stereo_measurements,
-        tracker_->tracker_params_.useStereoTracking_
-            ? getRelativePoseBodyStereo()
-            : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,

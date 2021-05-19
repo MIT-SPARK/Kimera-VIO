@@ -49,14 +49,10 @@ void FrontendParams::print() const {
                         minNrMonoInliers_,
                         "minNrStereoInliers_: ",
                         minNrStereoInliers_,
-                        "Min PnP inliers count: ",
-                        min_pnp_inliers_,
                         "ransac_threshold_mono_: ",
                         ransac_threshold_mono_,
                         "ransac_threshold_stereo_: ",
                         ransac_threshold_stereo_,
-                        "Ransac threshold PnP: ",
-                        ransac_threshold_pnp_,
                         "ransac_use_1point_stereo_: ",
                         ransac_use_1point_stereo_,
                         "ransac_use_2point_mono_: ",
@@ -108,7 +104,7 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("useRANSAC", &useRANSAC_);
   yaml_parser.getYamlParam("minNrMonoInliers", &minNrMonoInliers_);
   yaml_parser.getYamlParam("minNrStereoInliers", &minNrStereoInliers_);
-  yaml_parser.getYamlParam("Min PnP inliers count", &min_pnp_inliers_);
+  yaml_parser.getYamlParam("min_pnp_inliers", &min_pnp_inliers_);
   yaml_parser.getYamlParam("ransac_threshold_mono", &ransac_threshold_mono_);
   yaml_parser.getYamlParam("ransac_threshold_stereo",
                            &ransac_threshold_stereo_);
