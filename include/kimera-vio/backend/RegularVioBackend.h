@@ -44,9 +44,7 @@ class RegularVioBackend : public VioBackend {
   bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-      const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose =
-          boost::none) override;
+      const gtsam::PreintegrationType& pim) override;
 
  private:
   typedef size_t Slot;

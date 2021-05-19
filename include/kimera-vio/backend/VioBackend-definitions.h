@@ -235,28 +235,20 @@ struct BackendInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(BackendInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  BackendInput(
-      const Timestamp& timestamp_kf_nsec,
-      const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
-      const TrackingStatus& stereo_tracking_status,
-      const ImuFrontend::PimPtr& pim,
-      //! Raw imu msgs for Backend init only
-      const ImuAccGyrS& imu_acc_gyrs,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+  BackendInput(const Timestamp& timestamp_kf_nsec,
+               const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
+               const ImuFrontend::PimPtr& pim,
+               //! Raw imu msgs for Backend init only
+               const ImuAccGyrS& imu_acc_gyrs)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
-        stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
-        imu_acc_gyrs_(imu_acc_gyrs),
-        stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+        imu_acc_gyrs_(imu_acc_gyrs) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
-  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-  const TrackingStatus stereo_tracking_status_;
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
-  boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 
  public:
   void print() const {
@@ -279,13 +271,8 @@ struct BackendInput : public PipelinePayload {
                            .kfTrackingStatus_stereo_);
       status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
           "\n\t Tracker Pose (stereo): ");
-
-      LOG(INFO) << "Stereo Tracking Status: "
-                << TrackerStatusSummary::asString(stereo_tracking_status_);
     }
     if (pim_) pim_->print("PIM : ");
-    LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: "
-                                           << *stereo_ransac_body_pose_;
   }
 };
 

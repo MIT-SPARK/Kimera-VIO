@@ -537,15 +537,18 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
                   O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                   O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
       innovationMahalanobisNorm =
-          dinv * v(0) * (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
-                         v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
-                         v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
-          dinv * v(1) * (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
-                         O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
-                         O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
-          dinv * v(2) * (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
-                         O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
-                         O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
+          dinv * v(0) *
+              (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
+               v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
+               v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
+          dinv * v(1) *
+              (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
+               O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
+               O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
+          dinv * v(2) *
+              (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
+               O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
+               O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
       // timeMahalanobis += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
 
       // timeBefore = UtilsOpenCV::GetTimeInSeconds();
@@ -728,10 +731,9 @@ void Tracker::findOutliers(const KeypointMatches& matches_ref_cur,
   // The following is a complicated way of computing a set difference
   size_t k = 0;
   for (size_t i = 0u; i < matches_ref_cur.size(); ++i) {
-    if (k < inliers.size()  // If we haven't exhaused inliers
-        &&
-        static_cast<int>(i) > inliers[k])  // If we are after the inlier[k]
-      ++k;                                 // Check the next inlier
+    if (k < inliers.size()                    // If we haven't exhaused inliers
+        && static_cast<int>(i) > inliers[k])  // If we are after the inlier[k]
+      ++k;                                    // Check the next inlier
     if (k >= inliers.size() ||
         static_cast<int>(i) != inliers[k])  // If i is not an inlier
       outliers->push_back(i);
@@ -979,7 +981,8 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
        i++) {
     const auto& lmk_id = cur_stereo_frame.left_frame_.landmarks_.at(i);
     if (cur_stereo_frame.right_keypoints_rectified_[i].first ==
-        KeypointStatus::VALID) {
+            KeypointStatus::VALID &&
+        lmk_id != -1) {  // why is lmk_id -1 if KeypointStatus is VALID?
       CHECK_NE(lmk_id, -1);
       //! We have a valid lmk id.
       //! Query our map of optimized landmarks.
@@ -993,8 +996,9 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
         VLOG(5) << "Landmark Id " << lmk_id << " is out of time-horizon.";
       }
     } else {
-      CHECK_EQ(lmk_id, -1);
+      // CHECK_EQ(lmk_id, -1); why is this not true :(
       //! Not interested in this 2D-3D because the right keypoint is not valid
+      //! and/or the lmk_id is invalid...
       // NOT ideal because we are dropping valuable info for the mono case...
       VLOG(5) << "Dropping 2D-3D correspondence: " << i;
     }

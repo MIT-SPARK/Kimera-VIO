@@ -78,6 +78,10 @@ void FrontendParams::print() const {
                         use_pnp_tracking_,
                         "PnP Method",
                         VIO::to_underlying(pnp_method_),
+                        "Min PnP inliers count: ",
+                        min_pnp_inliers_,
+                        "Ransac threshold PnP: ",
+                        ransac_threshold_pnp_,
                         // OTHER parameters
                         "disparityThreshold_: ",
                         disparityThreshold_);
@@ -180,6 +184,8 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
     }
     default: { LOG(FATAL) << "Unknown PnP Method: " << pnp_method; }
   }
+  yaml_parser.getYamlParam("min_pnp_inliers", &min_pnp_inliers_);
+  yaml_parser.getYamlParam("ransac_threshold_pnp", &ransac_threshold_pnp_);
 
   return true;
 }
@@ -210,7 +216,10 @@ bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
          (useStereoTracking_ == tp2.useStereoTracking_) &&
          // others:
          (optical_flow_predictor_type_ == tp2.optical_flow_predictor_type_) &&
+         (use_pnp_tracking_ == tp2.use_pnp_tracking_) &&
          (pnp_method_ == tp2.pnp_method_) &&
+         (min_pnp_inliers_ == tp2.min_pnp_inliers_) &&
+         (ransac_threshold_pnp_ == tp2.ransac_threshold_pnp_) &&
          (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
 }
 

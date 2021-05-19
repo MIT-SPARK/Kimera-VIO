@@ -77,7 +77,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   return VIO::make_unique<StereoFrontendOutput>(
       stereoFrame_lkf_->isKeyframe(),
       nullptr,
-      TrackingStatus::DISABLED,
       getRelativePoseBodyStereo(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_->getBodyPoseRightCamRect(),
@@ -197,7 +196,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     return VIO::make_unique<StereoFrontendOutput>(
         true,
         status_stereo_measurements,
-        tracker_status_summary_.kfTrackingStatus_stereo_,
         tracker_->tracker_params_.useStereoTracking_
             ? getRelativePoseBodyStereo()
             : gtsam::Pose3::identity(),
@@ -217,7 +215,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     return VIO::make_unique<StereoFrontendOutput>(
         false,
         status_stereo_measurements,
-        TrackingStatus::INVALID,
         tracker_->tracker_params_.useStereoTracking_
             ? getRelativePoseBodyStereo()
             : gtsam::Pose3::identity(),
@@ -377,6 +374,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
             TrackingStatus::INVALID;
       }
 
+      // TODO(Toni): add this to Mono, or even base class VisionImuFrontend
       if (tracker_->tracker_params_.use_pnp_tracking_) {
         gtsam::Pose3 best_absolute_pose;
         std::vector<int> inliers;
@@ -388,10 +386,12 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         if (inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
           tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::VALID;
         } else {
+          LOG(ERROR) << "PnP tracking failed... # inliers: " << inliers.size();
           tracker_status_summary_.tracking_status_pnp_ =
               TrackingStatus::FEW_MATCHES;
         }
         tracker_status_summary_.lkf_T_k_pnp_ = best_absolute_pose;
+        // TODO(Toni): remove outliers from the tracking?
       } else {
         tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::INVALID;
         tracker_status_summary_.lkf_T_k_pnp_ = gtsam::Pose3::identity();

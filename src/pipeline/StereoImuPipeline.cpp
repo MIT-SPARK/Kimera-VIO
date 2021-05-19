@@ -78,7 +78,6 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
       backend_input_queue.push(VIO::make_unique<BackendInput>(
           converted_output->stereo_frame_lkf_.timestamp_,
           converted_output->status_stereo_measurements_,
-          converted_output->tracker_status_,
           converted_output->pim_,
           converted_output->imu_acc_gyrs_,
           converted_output->relative_pose_body_stereo_));

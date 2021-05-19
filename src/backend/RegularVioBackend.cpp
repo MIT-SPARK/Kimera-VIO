@@ -149,14 +149,8 @@ RegularVioBackend::RegularVioBackend(
 bool RegularVioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
+    const gtsam::PreintegrationType& pim) {
   debug_info_.resetAddedFactorsStatistics();
-
-  // if (VLOG_IS_ON(20)) {
-  //  StereoVisionImuFrontend::PrintStatusStereoMeasurements(
-  //                                        status_smart_stereo_measurements_kf);
-  //}
 
   // Features and IMU line up --> do iSAM update.
   last_kf_id_ = curr_kf_id_;
@@ -176,14 +170,15 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
-  // Add between factor from RANSAC.
-  if (stereo_ransac_body_pose) {
-    VLOG(10) << "Adding RANSAC factor between pose id: " << last_kf_id_
-             << " and pose id: " << curr_kf_id_;
-    if (VLOG_IS_ON(20)) {
-      stereo_ransac_body_pose->print();
-    }
-    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
+  // Add between factor from RANSAC
+  if (status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+      TrackingStatus::VALID) {
+    addBetweenFactor(
+        last_kf_id_,
+        curr_kf_id_,
+        B_Pose_leftCam_ *
+            status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+            B_Pose_leftCam_.inverse());
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////

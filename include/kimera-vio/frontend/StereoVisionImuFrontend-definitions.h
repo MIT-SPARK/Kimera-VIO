@@ -28,7 +28,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
   StereoFrontendOutput(
       const bool is_keyframe,
       const StatusStereoMeasurementsPtr& status_stereo_measurements,
-      const TrackingStatus& tracker_status,
       const gtsam::Pose3& relative_pose_body_stereo,
       const gtsam::Pose3& b_Pose_camL_rect,
       const gtsam::Pose3& b_Pose_camR_rect,
@@ -45,7 +44,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
                                  imu_acc_gyrs,
                                  debug_tracker_info),
         status_stereo_measurements_(status_stereo_measurements),
-        tracker_status_(tracker_status),
         relative_pose_body_stereo_(relative_pose_body_stereo),
         b_Pose_camL_rect_(b_Pose_camL_rect),
         b_Pose_camR_rect_(b_Pose_camR_rect),
@@ -56,7 +54,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
-  const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
   const gtsam::Pose3 b_Pose_camL_rect_;
   const gtsam::Pose3 b_Pose_camR_rect_;

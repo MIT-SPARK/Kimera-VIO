@@ -65,7 +65,7 @@ DEFINE_bool(compute_state_covariance,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
+VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCam,
                        const StereoCalibPtr& stereo_calibration,
                        const BackendParams& backend_params,
                        const ImuParams& imu_params,
@@ -273,12 +273,10 @@ bool VioBackend::initStateAndSetPriors(
 // Workhorse that stores data and optimizes at each keyframe.
 // [in] timestamp_kf_nsec, keyframe timestamp.
 // [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
 bool VioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
+    const gtsam::PreintegrationType& pim) {
   debug_info_.resetAddedFactorsStatistics();
 
   // Features and IMU line up --> do iSAM update
@@ -296,13 +294,15 @@ bool VioBackend::addVisualInertialStateAndOptimize(
   // Add imu factors between consecutive keyframe states
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
-  // Add between factor from RANSAC
-  if (stereo_ransac_body_pose) {
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "VIO: adding between ";
-      stereo_ransac_body_pose->print();
-    }
-    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
+  // Add between factor from RANSAC: first PnP, then Stereo, then Mono
+  if (status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+      TrackingStatus::VALID) {
+    addBetweenFactor(
+        last_kf_id_,
+        curr_kf_id_,
+        B_Pose_leftCam_ *
+            status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+            B_Pose_leftCam_.inverse());
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
@@ -366,29 +366,23 @@ bool VioBackend::addVisualInertialStateAndOptimize(
 bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
   bool use_stereo_btw_factor =
       backend_params_.addBetweenStereoFactors_ &&
-      input.stereo_tracking_status_ == TrackingStatus::VALID;
+      input.status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
-  LOG_IF(WARNING,
-         use_stereo_btw_factor && input.stereo_ransac_body_pose_ == boost::none)
-      << "User set useStereoBetweenFactor = true, but stereo_ransac_body_pose_ "
-         "not available!";
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
   bool is_smoother_ok = addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
       *input.status_stereo_measurements_kf_,  // Vision data.
-      *input.pim_,                            // Imu preintegrated data.
-      use_stereo_btw_factor
-          ? input.stereo_ransac_body_pose_
-          : boost::none);  // optional: pose estimate from stereo ransac
+      *input.pim_);                           // Imu preintegrated data.
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;
 }
 
 // TODO(Toni): no need to pass landmarks_kf, can iterate directly over feature
-// tracks...
+// tracks..
 // Uses landmark table to add factors in graph.
 void VioBackend::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   // Add selected landmarks to graph:

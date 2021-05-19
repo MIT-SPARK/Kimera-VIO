@@ -80,7 +80,7 @@ class VioBackend {
    * @param backend_params Parameters for Backend.
    * @param log_output Whether to log to CSV files the Backend output.
    */
-  VioBackend(const Pose3& B_Pose_leftCam,
+  VioBackend(const gtsam::Pose3& B_Pose_leftCam,
              const StereoCalibPtr& stereo_calibration,
              const BackendParams& backend_params,
              const ImuParams& imu_params,
@@ -213,8 +213,7 @@ class VioBackend {
   virtual bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-      const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+      const gtsam::PreintegrationType& pim);
 
   // Uses landmark table to add factors in graph.
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);

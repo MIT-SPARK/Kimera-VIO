@@ -64,7 +64,6 @@ bool InitializationBackend::bundleAdjustmentAndGravityAlignment(
     inputs_backend.push_back(VIO::make_unique<BackendInput>(
         init_input_payload.stereo_frame_lkf_.timestamp_,
         init_input_payload.status_stereo_measurements_,
-        init_input_payload.tracker_status_,
         init_input_payload.pim_,
         init_input_payload.imu_acc_gyrs_,
         init_input_payload.relative_pose_body_stereo_));
@@ -161,7 +160,8 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
     const BackendInput& input_iter = *input[i];
     bool use_stereo_btw_factor =
         backend_params_.addBetweenStereoFactors_ == true &&
-        input_iter.stereo_tracking_status_ == TrackingStatus::VALID;
+        input_iter.status_stereo_measurements_kf_->first
+                .kfTrackingStatus_stereo_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
