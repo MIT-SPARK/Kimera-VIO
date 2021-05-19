@@ -257,14 +257,8 @@ bool VioBackend::initStateAndSetPriors(
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
 
-  // TODO encapsulate this in a function, code duplicated in addImuValues.
   // Add initial state seed
-  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_),
-                     W_Pose_B_lkf_);
-  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, curr_kf_id_),
-                     W_Vel_B_lkf_);
-  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, curr_kf_id_),
-                     imu_bias_lkf_);
+  addStateValues(curr_kf_id_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
   return optimize(vio_nav_state_initial_seed.timestamp_,
@@ -290,10 +284,10 @@ bool VioBackend::addVisualInertialStateAndOptimize(
           << " at timestamp:" << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec).";
 
-  /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
-  // Predict next step, add initial guess
-  addImuValues(curr_kf_id_, pim);
+  // Add initial guess.
+  addStateValues(curr_kf_id_, status_smart_stereo_measurements_kf.first, pim);
 
+  /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Add imu factors between consecutive keyframe states
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
@@ -736,18 +730,75 @@ void VioBackend::addStereoMeasurementsToFeatureTracks(
 
 /// Value adders.
 /* -------------------------------------------------------------------------- */
-void VioBackend::addImuValues(const FrameId& cur_id,
-                              const gtsam::PreintegrationType& pim) {
+void VioBackend::addStateValues(const FrameId& frame_id,
+                                const TrackerStatusSummary& tracker_status,
+                                const gtsam::PreintegrationType& pim) {
   gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
-  gtsam::NavState navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
-
+  const gtsam::NavState& navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
   debug_info_.navstate_k_ = navstate_k;
 
-  // Update state with initial guess
-  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), navstate_k.pose());
-  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id),
-                     navstate_k.velocity());
-  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias_lkf_);
+  switch (backend_params_.pose_guess_source_) {
+    case PoseGuessSource::IMU: {
+      addStateValuesFromNavState(frame_id, navstate_k);
+      break;
+    }
+    case PoseGuessSource::MONO: {
+      if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
+        addStateValues(frame_id,
+                       tracker_status.lkf_T_k_mono_,
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "Mono tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::STEREO: {
+      if (tracker_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
+        addStateValues(frame_id,
+                       tracker_status.lkf_T_k_stereo_,
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "Stereo tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::PNP: {
+      if (tracker_status.tracking_status_pnp_ == TrackingStatus::VALID) {
+        addStateValues(frame_id,
+                       tracker_status.W_T_k_pnp_,
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "PNP tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unrecognized Initial Pose Guess source: "
+                 << VIO::to_underlying(backend_params_.pose_guess_source_);
+      break;
+    }
+  }
+}
+
+void VioBackend::addStateValuesFromNavState(const FrameId& frame_id,
+                                            const gtsam::NavState& nav_state) {
+  addStateValues(
+      frame_id, nav_state.pose(), nav_state.velocity(), imu_bias_lkf_);
+}
+
+void VioBackend::addStateValues(const FrameId& cur_id,
+                                const gtsam::Pose3& pose,
+                                const gtsam::Velocity3& velocity,
+                                const ImuBias& imu_bias) {
+  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), pose);
+  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id), velocity);
+  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias);
 }
 
 /// Factor adders.

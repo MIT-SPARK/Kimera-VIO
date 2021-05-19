@@ -441,10 +441,10 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
   double imu_to_left_cam_vector_scale_ = 0.01;
 
-  double left_cam_active_frustum_scale_ = 0.11;
-  double right_cam_active_frustum_scale_ = 0.11;
-  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
-  cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::green();
+  double left_cam_active_frustum_scale_ = 0.02;
+  double right_cam_active_frustum_scale_ = 0.02;
+  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::lime();
+  cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::lime();
 
   double pnp_guess_frustum_scale_ = 0.05;
   cv::viz::Color pnp_guess_frustum_color_ = cv::viz::Color::navy();

@@ -160,10 +160,10 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
           << " at timestamp: " << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec)\n";
 
-  /////////////////// IMU FACTORS //////////////////////////////////////////////
-  // Predict next step, add initial guess.
-  addImuValues(curr_kf_id_, pim);
+  // Add initial guess.
+  addStateValues(curr_kf_id_, status_smart_stereo_measurements_kf.first, pim);
 
+  /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Add imu factors between consecutive keyframe states.
   VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
            << " and pose id: " << curr_kf_id_;
@@ -171,8 +171,9 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC
-  if (status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
-      TrackingStatus::VALID) {
+  if (backend_params_.addBetweenStereoFactors_ &&
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID) {
     addBetweenFactor(
         last_kf_id_,
         curr_kf_id_,
@@ -873,8 +874,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
-                                         "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to stay as it is since it is "
+                "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -887,8 +889,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
-                                         "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to be a proj. factor, as it "
+                "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,

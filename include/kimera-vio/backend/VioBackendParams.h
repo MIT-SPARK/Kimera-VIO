@@ -64,6 +64,12 @@ struct BackendOutputParams {
   bool output_lmk_id_to_lmk_type_map_ = false;
 };
 
+/**
+ * @brief The PoseGuessSource enum determines which pose is used as initial
+ * guess for the keyframe pose.
+ */
+enum class PoseGuessSource { IMU = 0, MONO = 1, STEREO = 2, PNP = 3 };
+
 class BackendParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(BackendParams);
@@ -135,6 +141,9 @@ class BackendParams : public PipelineParams {
   double noMotionPositionSigma_ = 1.0e-3;
   double noMotionRotationSigma_ = 1.0e-4;
   double constantVelSigma_ = 1.0e-2;
+
+  //! Source of the initial guess for the keyframe pose
+  PoseGuessSource pose_guess_source_ = PoseGuessSource::IMU;
 };
 
 }  // namespace VIO

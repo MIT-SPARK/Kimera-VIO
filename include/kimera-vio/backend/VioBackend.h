@@ -225,11 +225,24 @@ class VioBackend {
       const LandmarkId& lmk_id,
       const std::pair<FrameId, StereoPoint2>& new_measurement);
 
-  // Set initial guess at current state.
-  void addImuValues(const FrameId& cur_id,
-                    const gtsam::PreintegrationType& pim);
+  /**
+   * @brief addStateValues Add values for the state: pose, velocity, and imu
+   * bias.
+   * @param cur_id
+   * @param pose
+   * @param velocity
+   * @param imu_bias
+   */
+  void addStateValues(const FrameId& cur_id,
+                      const gtsam::Pose3& pose,
+                      const gtsam::Velocity3& velocity,
+                      const ImuBias& imu_bias);
+  void addStateValues(const FrameId& frame_id,
+                      const TrackerStatusSummary& tracker_status,
+                      const gtsam::PreintegrationType& pim);
+  void addStateValuesFromNavState(const FrameId& frame_id,
+                                  const gtsam::NavState& nav_state);
 
-  // Add imu factors:
   void addImuFactor(const FrameId& from_id,
                     const FrameId& to_id,
                     const gtsam::PreintegrationType& pim);

@@ -81,3 +81,6 @@ useDogLeg: 0
 #   * flagged as degenerate.
 #   */
 #  double dynamicOutlierRejectionThreshold;
+
+# Method used to generate the initial guess for the pose of the keyframe
+pose_guess_source: 0
