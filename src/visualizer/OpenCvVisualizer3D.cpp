@@ -412,50 +412,51 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
       &output->widgets_);
 
   // Visualize frontend data
-  visualizeFrontend(input.frontend_output_,
-                    input.backend_output_->W_State_Blkf_.pose_,
-                    &output->widgets_);
+  visualizeFrontend(input.frontend_output_, W_Pose_Bllkf_, &output->widgets_);
 
   // Add widgets to remove
   output->widget_ids_to_remove_ = widget_ids_to_remove_;
   widget_ids_to_remove_.clear();
+
+  // Buffer last pose estimate.
+  W_Pose_Bllkf_ = input.backend_output_->W_State_Blkf_.pose_;
 
   return output;
 }
 
 void OpenCvVisualizer3D::visualizeFrontend(
     const FrontendOutputPacketBase::Ptr& frontend_output,
-    const gtsam::Pose3& W_Pose_Blkf,
+    const gtsam::Pose3& W_Pose_Bllkf,
     WidgetsMap* widgets) {
   CHECK_NOTNULL(frontend_output);
   if (frontend_output->frontend_type_ == FrontendType::kStereoImu) {
     visualizeStereoFrontend(
         VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
             frontend_output),
-        W_Pose_Blkf,
+        W_Pose_Bllkf,
         widgets);
   } else {
     visualizeMonoFrontend(
         VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
             frontend_output),
-        W_Pose_Blkf,
+        W_Pose_Bllkf,
         widgets);
   }
 }
 
 void OpenCvVisualizer3D::visualizeMonoFrontend(
     const MonoFrontendOutput::Ptr& mono_frontend_output,
-    const gtsam::Pose3& W_Pose_Blkf,
+    const gtsam::Pose3& W_Pose_Bllkf,
     WidgetsMap* widgets) {
-  CHECK_NOTNULL(mono_frontend_output);
+  CHECK(mono_frontend_output);
   CHECK_NOTNULL(widgets);
 }
 
 void OpenCvVisualizer3D::visualizeStereoFrontend(
     const StereoFrontendOutput::Ptr& stereo_frontend_output,
-    const gtsam::Pose3& W_Pose_Blkf,
+    const gtsam::Pose3& W_Pose_Bllkf,
     WidgetsMap* widgets) {
-  CHECK_NOTNULL(stereo_frontend_output);
+  CHECK(stereo_frontend_output);
   CHECK_NOTNULL(widgets);
   //! Draw initial guesses from mono, stereo, and pnp.
   const StatusStereoMeasurementsPtr& status_stereo_measurements =
@@ -469,7 +470,7 @@ void OpenCvVisualizer3D::visualizeStereoFrontend(
       std::string pnp_cam_id =
           "pnp pose " + std::to_string(stereo_frontend_output->timestamp_);
       (*widgets)[pnp_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, pnp_cam_active_frustum_scale_, pnp_cam_active_frustum_color_);
+          K_, pnp_guess_frustum_scale_, pnp_guess_frustum_color_);
       (*widgets)[pnp_cam_id]->setPose(
           UtilsOpenCV::gtsamPose3ToCvAffine3d(tracking_status.W_T_k_pnp_));
       widget_ids_to_remove_in_next_iter_.push_back(pnp_cam_id);
@@ -480,11 +481,9 @@ void OpenCvVisualizer3D::visualizeStereoFrontend(
       std::string stereo_cam_id =
           "stereo pose " + std::to_string(stereo_frontend_output->timestamp_);
       (*widgets)[stereo_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_,
-          stereo_cam_active_frustum_scale_,
-          stereo_cam_active_frustum_color_);
+          K_, stereo_guess_frustum_scale_, stereo_guess_frustum_color_);
       (*widgets)[stereo_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-          W_Pose_Blkf * stereo_frontend_output->b_Pose_camL_rect_ *
+          W_Pose_Bllkf * stereo_frontend_output->b_Pose_camL_rect_ *
           tracking_status.lkf_T_k_stereo_));
       widget_ids_to_remove_in_next_iter_.push_back(stereo_cam_id);
     }
@@ -494,9 +493,9 @@ void OpenCvVisualizer3D::visualizeStereoFrontend(
       std::string mono_cam_id =
           "mono pose " + std::to_string(stereo_frontend_output->timestamp_);
       (*widgets)[mono_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, mono_cam_active_frustum_scale_, mono_cam_active_frustum_color_);
+          K_, mono_guess_frustum_scale_, mono_guess_frustum_color_);
       (*widgets)[mono_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-          W_Pose_Blkf * stereo_frontend_output->b_Pose_camL_rect_ *
+          W_Pose_Bllkf * stereo_frontend_output->b_Pose_camL_rect_ *
           tracking_status.lkf_T_k_mono_));
       widget_ids_to_remove_in_next_iter_.push_back(mono_cam_id);
     }
@@ -516,14 +515,17 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
 
   // First, recolor all previous poses as inactive (white color) by re-drawing
   // them, the active ones will be colored later.
-  for (const std::pair<std::string, cv::Affine3d>& widget_id_pose_pair :
-       widget_id_to_pose_map_) {
-    const auto& widget_id = widget_id_pose_pair.first;
-    (*widgets_map)[widget_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-        K_, inactive_frustum_scale_, cv::viz::Color::white());
-    (*widgets_map)[widget_id]->setPose(widget_id_pose_pair.second);
+  static constexpr bool draw_inactive_poses = false;
+  if (draw_inactive_poses) {
+    for (const std::pair<std::string, cv::Affine3d>& widget_id_pose_pair :
+         widget_id_to_pose_map_) {
+      const auto& widget_id = widget_id_pose_pair.first;
+      (*widgets_map)[widget_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+          K_, inactive_frustum_scale_, cv::viz::Color::white());
+      (*widgets_map)[widget_id]->setPose(widget_id_pose_pair.second);
+    }
+    widget_id_to_pose_map_.clear();
   }
-  widget_id_to_pose_map_.clear();
 
   for (const std::string& line_id : widget_ids_to_remove_in_next_iter_) {
     // Remove lmk to pose lines
@@ -609,9 +611,10 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   static constexpr bool draw_pose_priors = true;
   static constexpr bool draw_plane_priors = false;
   static constexpr bool draw_point_plane_factors = false;
-  static constexpr bool draw_linear_container_factors = true;
-  static constexpr bool draw_preintegrated_imu_factors = true;
-  static constexpr bool draw_imu_constant_bias_factors = true;
+  static constexpr bool draw_linear_container_factors = false;
+  static constexpr bool draw_imu_factors = true;
+  static constexpr bool draw_only_last_imu_factor = true;
+  static constexpr bool draw_imu_constant_bias_factors = false;
   static constexpr bool draw_between_factors = true;
   for (const boost::shared_ptr<gtsam::NonlinearFactor>& factor : factor_graph) {
     if (draw_smart_stereo_factors) {
@@ -679,12 +682,16 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       }
     }
 
-    if (draw_preintegrated_imu_factors) {
+    if (draw_imu_factors) {
       const auto& imu_factor =
           boost::dynamic_pointer_cast<gtsam::ImuFactor>(factor);
       if (imu_factor) {
-        drawImuFactor(
-            *imu_factor, state, body_pose_camLrect, draw_velocity, widgets_map);
+        drawImuFactor(*imu_factor,
+                      state,
+                      body_pose_camLrect,
+                      draw_only_last_imu_factor,
+                      draw_velocity,
+                      widgets_map);
         continue;
       }
     }
@@ -880,6 +887,7 @@ void OpenCvVisualizer3D::drawLinearContainerFactor(
       (*widgets_map)[left_cam_id]->setPose(
           UtilsOpenCV::gtsamPose3ToCvAffine3d(world_pose_camLrect));
       widget_id_to_pose_map_[left_cam_id] = left_cam_with_prior_pose;
+      widget_ids_to_remove_in_next_iter_.push_back(left_cam_id);
       // PERHAPS COLOR AGAIN THE LMK TO POSE RAYS IN RED, as in
       // the factor that connects all together!
     } else if (symbol.chr() == kLandmarkSymbolChar) {
@@ -1076,6 +1084,7 @@ void OpenCvVisualizer3D::drawBtwFactor(
 void OpenCvVisualizer3D::drawImuFactor(const gtsam::ImuFactor& imu_factor,
                                        const gtsam::Values& state,
                                        const gtsam::Pose3& body_pose_camLrect,
+                                       const bool& draw_only_last,
                                        const bool& draw_velocity,
                                        WidgetsMap* widgets_map) {
   CHECK_NOTNULL(widgets_map);
@@ -1107,14 +1116,17 @@ void OpenCvVisualizer3D::drawImuFactor(const gtsam::ImuFactor& imu_factor,
   // Draw estimated IMU pose as a frustum for the left cam to be able to
   // compare with the estimate from stereo RANSAC
   std::string imu_factor_pose_guess_id =
-      "IMU factor pose guess" + std::to_string(pose_symbol_2.index());
+      "IMU factor pose guess " +
+      (draw_only_last ? "(last)" : std::to_string(pose_symbol_2.index()));
   (*widgets_map)[imu_factor_pose_guess_id] =
       VIO::make_unique<cv::viz::WCameraPosition>(
           K_, imu_factor_to_guess_pose_scale_, imu_factor_to_guess_pose_color_);
   const cv::Affine3d& left_cam_pose_guess = UtilsOpenCV::gtsamPose3ToCvAffine3d(
       meas_pose_2.compose(body_pose_camLrect));
   (*widgets_map)[imu_factor_pose_guess_id]->setPose(left_cam_pose_guess);
-  widget_ids_to_remove_in_next_iter_.push_back(imu_factor_pose_guess_id);
+  if (!draw_only_last) {
+    widget_ids_to_remove_in_next_iter_.push_back(imu_factor_pose_guess_id);
+  }
 
   // Draw estimated IMU velocity as an arrow
   if (draw_velocity) {
@@ -1122,10 +1134,13 @@ void OpenCvVisualizer3D::drawImuFactor(const gtsam::ImuFactor& imu_factor,
     cv::Point3d arrow_start(pose_2.x(), pose_2.y(), pose_2.z());
     cv::Point3d arrow_end(end.x(), end.y(), end.z());
     std::string imu_velocity_guess_id =
-        "IMU vel guess " + std::to_string(vel_symbol_2.index());
+        "IMU vel guess " +
+        (draw_only_last ? "(last)" : std::to_string(vel_symbol_2.index()));
     (*widgets_map)[imu_velocity_guess_id] = VIO::make_unique<cv::viz::WArrow>(
         arrow_start, arrow_end, 0.001, imu_factor_guess_velocity_color_);
-    widget_ids_to_remove_in_next_iter_.push_back(imu_velocity_guess_id);
+    if (!draw_only_last) {
+      widget_ids_to_remove_in_next_iter_.push_back(imu_velocity_guess_id);
+    }
   }
 }
 
@@ -1606,7 +1621,7 @@ void OpenCvVisualizer3D::visualizeTrajectory3D(WidgetsMap* widgets_map) {
     trajectory.push_back(pose);
   }
   (*widgets_map)["Trajectory"] = VIO::make_unique<cv::viz::WTrajectory>(
-      trajectory, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
+      trajectory, cv::viz::WTrajectory::PATH, 1.0, trajectory_color_);
 }
 
 void OpenCvVisualizer3D::visualizeTrajectoryWithFrustums(
@@ -1623,7 +1638,7 @@ void OpenCvVisualizer3D::visualizeTrajectoryWithFrustums(
   }
   (*widgets_map)["Trajectory Frustums"] =
       VIO::make_unique<cv::viz::WTrajectoryFrustums>(
-          trajectory_frustums, K_, 0.2, cv::viz::Color::red());
+          trajectory_frustums, K_, 0.2, trajectory_frustums_color_);
 }
 
 void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(

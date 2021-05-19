@@ -275,15 +275,15 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                  WidgetsMap* widgets);
 
   void visualizeFrontend(const FrontendOutputPacketBase::Ptr& frontend_output,
-                         const gtsam::Pose3& W_Pose_Blkf,
+                         const gtsam::Pose3& W_Pose_Bllkf,
                          WidgetsMap* widgets);
   void visualizeMonoFrontend(
       const MonoFrontendOutput::Ptr& mono_frontend_output,
-      const gtsam::Pose3& W_Pose_Blkf,
+      const gtsam::Pose3& W_Pose_Bllkf,
       WidgetsMap* widgets);
   void visualizeStereoFrontend(
       const StereoFrontendOutput::Ptr& stereo_frontend_output,
-      const gtsam::Pose3& W_Pose_Blkf,
+      const gtsam::Pose3& W_Pose_Bllkf,
       WidgetsMap* widgets);
 
   void visualizeFactorGraph(const gtsam::Values& state,
@@ -400,6 +400,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   void drawImuFactor(const gtsam::ImuFactor& imu_factor,
                      const gtsam::Values& state,
                      const gtsam::Pose3& body_pose_camLrect,
+                     const bool& draw_only_last,
                      const bool& draw_velocity,
                      WidgetsMap* widgets_map);
 
@@ -430,6 +431,9 @@ class OpenCvVisualizer3D : public Visualizer3D {
   //! Colors & Scales
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
 
+  cv::viz::Color trajectory_color_ = cv::viz::Color::red();
+  cv::viz::Color trajectory_frustums_color_ = cv::viz::Color::red();
+
   cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
   cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
   cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
@@ -442,12 +446,12 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
   cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::green();
 
-  double pnp_cam_active_frustum_scale_ = 0.20;
-  cv::viz::Color pnp_cam_active_frustum_color_ = cv::viz::Color::navy();
-  double stereo_cam_active_frustum_scale_ = 0.20;
-  cv::viz::Color stereo_cam_active_frustum_color_ = cv::viz::Color::gold();
-  double mono_cam_active_frustum_scale_ = 0.20;
-  cv::viz::Color mono_cam_active_frustum_color_ = cv::viz::Color::lime();
+  double pnp_guess_frustum_scale_ = 0.05;
+  cv::viz::Color pnp_guess_frustum_color_ = cv::viz::Color::navy();
+  double stereo_guess_frustum_scale_ = 0.05;
+  cv::viz::Color stereo_guess_frustum_color_ = cv::viz::Color::gold();
+  double mono_guess_frustum_scale_ = 0.05;
+  cv::viz::Color mono_guess_frustum_color_ = cv::viz::Color::orange();
 
   double inactive_frustum_scale_ = 0.06;
 
@@ -457,19 +461,25 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
 
   cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
-  double btw_factor_pose_guess_active_frustum_scale_ = 0.08;
+  double btw_factor_pose_guess_active_frustum_scale_ = 0.05;
   cv::viz::Color btw_factor_pose_guess_active_frustum_color_ =
-      cv::viz::Color::amethyst();
+      cv::viz::Color::celestial_blue();
   double btw_factor_to_guess_pose_vector_scale_ = 0.01;
   cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
-      cv::viz::Color::amethyst();
+      cv::viz::Color::celestial_blue();
 
-  double imu_factor_to_guess_pose_scale_ = 0.08;
-  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::cherry();
-  cv::viz::Color imu_factor_guess_velocity_color_ = cv::viz::Color::cherry();
+  double imu_factor_to_guess_pose_scale_ = 0.05;
+  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::amethyst();
+  cv::viz::Color imu_factor_guess_velocity_color_ = cv::viz::Color::amethyst();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
+
+  // TODO(Toni): maybe just use the trajectory_poses_3d_ as it has this info
+  //! Pose of the last last keyframe (Bllkf), ie previous to the current
+  //! keyframe (Blkf). This is for the frontendVisualizer to plot the
+  //! mono, stereo guesses correctly.
+  gtsam::Pose3 W_Pose_Bllkf_;
 };
 
 }  // namespace VIO

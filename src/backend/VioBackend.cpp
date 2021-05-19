@@ -184,11 +184,14 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
               kMinLmkObs);
     }
 
-    CHECK(map_update_callback_) << "Did you forget to register the Map"
-                                   "update callback for at least the "
-                                   "Frontend? Do so by using "
-                                   "registerMapUpdateCallback function.";
-    map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
+    if (map_update_callback_) {
+      map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
+    } else {
+      LOG_FIRST_N(INFO, 1) << "Did you forget to register the Map"
+                              "update callback for at least the "
+                              "Frontend? Do so by using "
+                              "registerMapUpdateCallback function.";
+    }
 
     // Create Backend Output Payload.
     output_payload = VIO::make_unique<BackendOutput>(
