@@ -30,3 +30,6 @@ numOptimize: 0
 horizon: 2
 wildfire_threshold: 0.001
 useDogLeg: 1
+
+# Method used to generate the initial guess for the pose of the keyframe
+pose_guess_source: 0
