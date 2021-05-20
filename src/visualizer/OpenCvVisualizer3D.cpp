@@ -713,7 +713,7 @@ void OpenCvVisualizer3D::drawImuPose(const gtsam::Pose3& imu_pose,
   // Visualize IMU pose as a coordinate frame
   std::string imu_pose_id = "IMU pose " + std::to_string(variable_index);
   (*widgets_map)[imu_pose_id] =
-      VIO::make_unique<cv::viz::WCoordinateSystem>(0.1);
+      VIO::make_unique<cv::viz::WCoordinateSystem>(imu_pose_scale_);
   (*widgets_map)[imu_pose_id]->setPose(
       UtilsOpenCV::gtsamPose3ToCvAffine3d(imu_pose));
   widget_ids_to_remove_in_next_iter_.push_back(imu_pose_id);

@@ -378,8 +378,19 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                       &inliers);
         if (inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
           tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::VALID;
+          LOG(WARNING) << "PnP tracking success:\n"
+                       << "- # inliers: " << inliers.size() << '\n'
+                       << "- # outliers: "
+                       << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
+                       << '\n'
+                       << "Total: " << stereoFrame_k_->keypoints_3d_.size();
         } else {
-          LOG(ERROR) << "PnP tracking failed... # inliers: " << inliers.size();
+          LOG(ERROR) << "PnP tracking failed...\n"
+                     << "- # inliers: " << inliers.size() << '\n'
+                     << "- # outliers: "
+                     << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
+                     << '\n'
+                     << "Total: " << stereoFrame_k_->keypoints_3d_.size();
           tracker_status_summary_.tracking_status_pnp_ =
               TrackingStatus::FEW_MATCHES;
         }

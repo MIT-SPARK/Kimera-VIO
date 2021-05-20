@@ -63,6 +63,7 @@ void Camera::project(const LandmarkCV& lmk, KeypointCV* kpt) const {
   CHECK(camera_impl_);
   const gtsam::Point2& kp =
       camera_impl_->project2(gtsam::Point3(lmk.x, lmk.y, lmk.z));
+  // What if the keypoint is out of the image bounds?
   *kpt = KeypointCV(kp.x(), kp.y());
 }
 

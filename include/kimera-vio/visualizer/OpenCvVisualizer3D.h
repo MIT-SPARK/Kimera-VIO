@@ -178,7 +178,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat(),
-                       const std::string& mesh_id = "Mesh ID");
+                       //! This has to be the same than the id in OpenCvDisplay
+                       const std::string& mesh_id = "Mesh");
 
   //! Draw a line in opencv.
   void drawLine(const std::string& line_id,
@@ -437,6 +438,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
   cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
   cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
+
+  double imu_pose_scale_ = 0.05;
 
   cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
   double imu_to_left_cam_vector_scale_ = 0.01;

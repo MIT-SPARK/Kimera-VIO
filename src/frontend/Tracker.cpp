@@ -975,12 +975,12 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
   // This is horrible, because we are weirdly looping over right_keypoints_rect
   // to know what landmarks are valid and tracked... Re-do this after PR #420...
   // How it should be done: loop over feature tracks alone.
-  CHECK_EQ(cur_stereo_frame.right_keypoints_rectified_.size(),
+  CHECK_EQ(cur_stereo_frame.left_keypoints_rectified_.size(),
            cur_stereo_frame.left_frame_.landmarks_.size());
-  for (size_t i = 0; i < cur_stereo_frame.right_keypoints_rectified_.size();
+  for (size_t i = 0; i < cur_stereo_frame.left_keypoints_rectified_.size();
        i++) {
     const auto& lmk_id = cur_stereo_frame.left_frame_.landmarks_.at(i);
-    if (cur_stereo_frame.right_keypoints_rectified_[i].first ==
+    if (cur_stereo_frame.left_keypoints_rectified_[i].first ==
             KeypointStatus::VALID &&
         lmk_id != -1) {  // why is lmk_id -1 if KeypointStatus is VALID?
       CHECK_NE(lmk_id, -1);
