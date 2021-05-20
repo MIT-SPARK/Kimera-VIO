@@ -1010,8 +1010,9 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
 
   // TODO(Toni): parametrize
   static constexpr int max_iterations = 100;
-  static constexpr float reprojection_error =
-      0.5f;  // should be similar to current klt_eps, but keep it separate.
+  static constexpr float probability = 0.99;
+  // Should be similar to current klt_eps, but keep it separate.
+  const float& reprojection_error = tracker_params_.ransac_threshold_pnp_;
   const float avg_focal_length =
       0.5f * static_cast<float>(camera_->getCamParams().intrinsics_[0] +
                                 camera_->getCamParams().intrinsics_[1]);
@@ -1031,6 +1032,7 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
                   TWOPT),
           threshold,
           max_iterations,
+          probability,
           inliers);
       break;
     }
@@ -1043,6 +1045,7 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
                   KNEIP),
           threshold,
           max_iterations,
+          probability,
           inliers);
       break;
     }
@@ -1055,6 +1058,7 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
               opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::GAO),
           threshold,
           max_iterations,
+          probability,
           inliers);
       break;
     }
@@ -1068,6 +1072,7 @@ void Tracker::pnp(const StereoFrame& cur_stereo_frame,
                   EPNP),
           threshold,
           max_iterations,
+          probability,
           inliers);
       break;
     }
@@ -1122,6 +1127,7 @@ gtsam::Pose3 Tracker::runPnpRansac(
         absolute_pose_problem_ptr,
     const int& threshold,
     const int& max_iterations,
+    const int& probability,
     std::vector<int>* inliers) {
   //! Create a Ransac object
   opengv::sac::Ransac<
@@ -1132,6 +1138,7 @@ gtsam::Pose3 Tracker::runPnpRansac(
   pnp_ransac.sac_model_ = absolute_pose_problem_ptr;
   pnp_ransac.threshold_ = threshold;
   pnp_ransac.max_iterations_ = max_iterations;
+  pnp_ransac.probability_ = probability;
 
   //! Run pnp ransac
   pnp_ransac.computeModel();

@@ -773,7 +773,7 @@ void VioBackend::addStateValues(const FrameId& frame_id,
                        navstate_k.velocity(),
                        imu_bias_lkf_);
       } else {
-        LOG(WARNING) << "PNP tracking failure... Using IMU for pose guess.";
+        LOG(WARNING) << "PnP tracking failure... Using IMU for pose guess.";
         addStateValuesFromNavState(frame_id, navstate_k);
       }
       break;
