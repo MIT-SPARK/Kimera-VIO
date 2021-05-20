@@ -69,10 +69,8 @@ protected:
   bool useRANSAC_ = true;
   int minNrMonoInliers_ = 10;
   int minNrStereoInliers_ = 5;  // TODO should be size_t
-  int min_pnp_inliers_ = 5;     // TODO should be size_t
   double ransac_threshold_mono_ = 1.0e-6;
   double ransac_threshold_stereo_ = 1.0;
-  double ransac_threshold_pnp_ = 1.0;
   int ransac_max_iterations_ = 100;    // TODO (minor) : should we split this in
                                        // mono and stereo?
   double ransac_probability_ = 0.995;  // TODO (minor) : should we split this in
@@ -86,8 +84,12 @@ protected:
   size_t min_number_features_ = 0u;
   //! If set to false, pipeline reduces to monocular tracking.
   bool useStereoTracking_ = true;
+
+  // PnP tracking parameters
   bool use_pnp_tracking_ = true;
   PnpMethod pnp_method_ = PnpMethod::EPNP;
+  int min_pnp_inliers_ = 10;
+  double ransac_threshold_pnp_ = 1.0;  //! Max reprojection error for inliers
 
   // others:
   // max disparity under which we consider the vehicle steady

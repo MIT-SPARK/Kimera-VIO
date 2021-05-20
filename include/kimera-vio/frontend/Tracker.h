@@ -195,6 +195,7 @@ class Tracker {
           absolute_pose_problem_ptr,
       const int& threshold,
       const int& max_iterations,
+      const int& probability,
       std::vector<int>* inliers);
 
  public:
