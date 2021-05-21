@@ -97,6 +97,9 @@ class LCDFixture : public ::testing::Test {
         frontend_params_.stereo_matching_params_, 
         false);
 
+    lcd_detector_->registerInputQueueCheckCallback(
+        std::bind(&LCDFixture::lcdInputQueueCb, this));
+
     // Euroc V1_01_easy ts: 1403715386762142976
     world_T_match1_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),
@@ -232,6 +235,11 @@ class LCDFixture : public ::testing::Test {
     CHECK(query2_stereo_frame_);
     query2_stereo_frame_->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(query2_stereo_frame_.get());
+  }
+
+  // Just to prevent a CHECK from failing.
+  bool lcdInputQueueCb() {
+    return true;
   }
 
   // Standard gtest methods, unnecessary for now
