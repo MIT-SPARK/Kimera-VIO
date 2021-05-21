@@ -34,6 +34,7 @@
 #include "kimera-vio/utils/Timer.h"
 
 DECLARE_string(test_data_path);
+DECLARE_bool(display);
 
 using namespace gtsam;
 using namespace std;
@@ -57,6 +58,11 @@ class TestTracker : public ::testing::Test {
     // Fix randomization seed (we use monte carlo runs here).
     srand(3);
     InitializeData();
+
+    if (FLAGS_display) {
+      window_ = VIO::make_unique<cv::viz::Viz3d>("Test Tracker");
+      window_->setBackgroundColor(cv::viz::Color::black());
+    }
   }
 
  protected:
@@ -553,6 +559,136 @@ class TestTracker : public ::testing::Test {
     return make_pair(sampleMean, sampleCovariance);
   }
 
+  // THIS IS COPIED FROM testOpticalFlow
+  /** Visualization **/
+  void drawPixelOnImg(const cv::Point2f& pixel,
+                      cv::Mat& img,
+                      const cv::viz::Color& color = cv::viz::Color::red(),
+                      const size_t& pixel_size = 5u,
+                      const uint8_t& alpha = 255u) {
+    // Draw the pixel on the image
+    cv::Scalar color_with_alpha =
+        cv::Scalar(color[0], color[1], color[2], alpha);
+    cv::circle(img, pixel, pixel_size, color_with_alpha, -1);
+  }
+
+  void drawPixelsOnImg(const std::vector<cv::Point2f>& pixels,
+                       cv::Mat& img,
+                       const cv::viz::Color& color = cv::viz::Color::red(),
+                       const size_t& pixel_size = 5u,
+                       const uint8_t& alpha = 255u) {
+    // Draw the pixel on the image
+    for (const auto& pixel : pixels) {
+      drawPixelOnImg(pixel, img, color, pixel_size, alpha);
+    }
+  }
+
+  void visualizeRay(const cv::Point3f& lmk,
+                    const std::string& id,
+                    const cv::Point3f& cam_world_origin,
+                    const double& text_thickness = 0.2,
+                    const cv::viz::Color& color = cv::viz::Color::blue(),
+                    const bool& display_text = false) {
+    CHECK(window_);
+    // Display 3D rays from cam origin to lmks.
+    if (display_text) {
+      window_->showWidget(
+          "Ray Label " + id,
+          cv::viz::WText3D(id, lmk, text_thickness, true, color));
+    }
+    window_->showWidget("Ray " + id,
+                        cv::viz::WLine(cam_world_origin, lmk, color));
+  }
+
+  void visualizePointCloud(const std::string& id, const cv::Mat& pointcloud) {
+    CHECK(window_);
+    cv::viz::WCloud cloud(pointcloud, cv::viz::Color::red());
+    cloud.setRenderingProperty(cv::viz::POINT_SIZE, 6);
+    window_->showWidget(id, cloud);
+  }
+
+  void visualizeScene(const CameraParams& camera_1_params,
+                      const CameraParams& camera_2_params,
+                      const KeypointsCV& cam_1_kpts,
+                      const KeypointsCV& cam_2_kpts,
+                      const LandmarksCV& lmks) {
+    if (FLAGS_display) {
+      const cv::Matx33d& K_1 = camera_1_params.K_;
+      const cv::Matx33d& K_2 = camera_2_params.K_;
+      const gtsam::Pose3& cam_1_pose = camera_1_params.body_Pose_cam_;
+      const gtsam::Pose3& cam_2_pose = camera_2_params.body_Pose_cam_;
+
+      // Visualize world coords.
+      window_->showWidget("World Coordinates", cv::viz::WCoordinateSystem(0.5));
+
+      // Visualize left/right cameras
+      const auto& cam_1_cv_pose =
+          UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_1_pose);
+      const auto& cam_2_cv_pose =
+          UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_2_pose);
+      // Camera Coordinate axes
+      cv::viz::WCameraPosition cpw1(0.2);
+      cv::viz::WCameraPosition cpw2(0.1);  // Second camera a bit smaller
+      window_->showWidget("Cam 1 Coordinates", cpw1, cam_1_cv_pose);
+      window_->showWidget("Cam 2 Coordinates", cpw2, cam_2_cv_pose);
+
+      // Visualize landmarks
+      cv::Mat pointcloud = cv::Mat(0, 3, CV_64FC1);
+      cv::Point3f cam_1_position =
+          UtilsOpenCV::gtsamVector3ToCvPoint3(cam_1_pose.translation());
+      cv::Point3f cam_2_position =
+          UtilsOpenCV::gtsamVector3ToCvPoint3(cam_2_pose.translation());
+      for (size_t i = 0u; i < lmks.size(); i++) {
+        cv::Point3f lmk_cv = lmks[i];
+        visualizeRay(lmk_cv, "lmk-cam1" + std::to_string(i), cam_1_position);
+        visualizeRay(lmk_cv,
+                     "lmk-cam2" + std::to_string(i),
+                     cam_2_position,
+                     0.2,
+                     cv::viz::Color::red());
+        pointcloud.push_back(cv::Mat(lmk_cv).reshape(1).t());
+      }
+      pointcloud = pointcloud.reshape(3, lmks.size());
+      visualizePointCloud("Scene Landmarks", pointcloud);
+
+      cv::Mat cam_1_img = cv::Mat(
+          camera_1_params.image_size_, CV_8UC3, cv::Scalar(255u, 0u, 0u));
+      cv::Mat cam_2_img = cv::Mat(
+          camera_2_params.image_size_, CV_8UC3, cv::Scalar(255u, 0u, 0u));
+
+      // Color image 1 with pixel projections
+      drawPixelsOnImg(cam_1_kpts, cam_1_img, cv::viz::Color::brown(), 6u, 225u);
+
+      // Color image 2 with pixel reprojections
+      drawPixelsOnImg(cam_2_kpts, cam_2_img, cv::viz::Color::green(), 3u, 125u);
+
+      cv::imshow("AHA1", cam_1_img);
+      cv::imshow("AHA2", cam_2_img);
+      cv::waitKey(0);
+
+      // Camera frustums
+      // cv::viz::WCameraPosition cpw_1_frustum(K, cam_1_img, 2.0);
+      cv::viz::WCameraPosition cpw_1_frustum(
+          K_1, cam_1_img, 1.0, cv::viz::Color::red());
+      cv::viz::WCameraPosition cpw_2_frustum(
+          K_2, cam_2_img, 1.0, cv::viz::Color::green());
+      window_->showWidget("Cam 1 Frustum", cpw_1_frustum, cam_1_cv_pose);
+      window_->showWidget("Cam 2 Frustum", cpw_2_frustum, cam_2_cv_pose);
+
+      // Finally, spin
+      spinDisplay();
+    } else {
+      LOG(WARNING) << "Requested scene visualization but display gflag is "
+                   << "set to false.";
+    }
+  }
+
+  // Display 3D window
+  void spinDisplay() {
+    CHECK(window_);
+    window_->spin();
+  }
+
  protected:
   // Perform Ransac
   FrontendParams tracker_params_;
@@ -563,6 +699,9 @@ class TestTracker : public ::testing::Test {
   StereoFrame::Ptr ref_stereo_frame, cur_stereo_frame;
   VIO::StereoCamera::ConstPtr stereo_camera_;
   VIO::StereoMatcher::UniquePtr stereo_matcher_;
+
+ private:
+  std::unique_ptr<cv::viz::Viz3d> window_;
 };
 
 /* ************************************************************************* */
@@ -1449,13 +1588,13 @@ TEST_F(TestTracker,
 // TODO(Toni): copy of the function from PR 420
 void getBearingVectorFromUndistortedKeypoint(
     const KeypointCV& undistorted_keypoint,
-    const CameraParams& cam_params_,
+    const cv::Mat& P,
     gtsam::Vector3* bearing_vector) {
   CHECK_NOTNULL(bearing_vector);
-  cv::Mat K_inv = cam_params_.K_.inv();
-  CHECK(!K_inv.empty());
-  DCHECK_EQ(K_inv.rows, 3);
-  DCHECK_EQ(K_inv.cols, 3);
+  CHECK(!P.empty());
+  CHECK_EQ(P.rows, 3);
+  CHECK_EQ(P.cols, 4);
+  cv::Mat K_inv = P.colRange(0, 3).inv();
   // Has to be a double because K is a matrix of doubles.
   cv::Vec3d homogeneous_keypoint(
       undistorted_keypoint.x, undistorted_keypoint.y, 1.0);
@@ -1463,6 +1602,7 @@ void getBearingVectorFromUndistortedKeypoint(
       UtilsOpenCV::cvMatToGtsamPoint3(K_inv * cv::Mat(homogeneous_keypoint));
   // Bearing vectors have unit norm.
   bearing_vector->normalize();
+  CHECK_DOUBLE_EQ(bearing_vector->norm(), 1.0);
 }
 
 TEST_F(TestTracker, PnPTracking) {
@@ -1473,10 +1613,10 @@ TEST_F(TestTracker, PnPTracking) {
   //! Set camera looking at the unitary cube of landmarks (see below), and
   //! put it a bit back in x axis to avoid cheirality exception.
   gtsam::Pose3 W_Pose_body =
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Vector3(0.0, 0.0, -1.0));
+      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Vector3(0.0, 0.0, -2.0));
   cam_params_left.body_Pose_cam_ = W_Pose_body;
   cam_params_right.body_Pose_cam_ =
-      gtsam::Pose3(gtsam::Rot3::identity(), {1.0, .0, -1.0});
+      gtsam::Pose3(gtsam::Rot3::identity(), {1.0, .0, -2.0});
   // W_Pose_body.compose(cam_params_right.body_Pose_cam_);
 
   //! Setup stereo camera
@@ -1486,8 +1626,8 @@ TEST_F(TestTracker, PnPTracking) {
   //! Setup tracker to use pnp
   tracker_params_.use_pnp_tracking_ = true;
   tracker_params_.pnp_method_ = PnpMethod::EPNP;
-  tracker_params_.min_pnp_inliers_ = 6;
-  tracker_params_.ransac_threshold_pnp_ = 1.5;
+  tracker_params_.min_pnp_inliers_ = 10;
+  tracker_params_.ransac_threshold_pnp_ = 10000000000.5;
 
   //! Create pnp tracker
   tracker_ = VIO::make_unique<Tracker>(tracker_params_,
@@ -1513,13 +1653,13 @@ TEST_F(TestTracker, PnPTracking) {
       kCubeSideSize * LandmarkCV(0.2, 0.1, 0.8),
       kCubeSideSize * LandmarkCV(0.4, 0.2, 0.2),
       kCubeSideSize * LandmarkCV(0.4, 0.3, 0.9),
-      kCubeSideSize * LandmarkCV(0.8, 0.3, 0.9),
-      kCubeSideSize * LandmarkCV(0.8, 0.1, 0.3),
-      kCubeSideSize * LandmarkCV(0.8, 0.7, 0.3),
-      kCubeSideSize * LandmarkCV(0.2, 0.1, 0.3),
-      kCubeSideSize * LandmarkCV(0.1, 0.2, 0.3),
-      kCubeSideSize * LandmarkCV(0.4, 0.3, 0.3),
-      kCubeSideSize * LandmarkCV(0.3, 0.1, 0.3),
+      kCubeSideSize * LandmarkCV(-0.3, 0.3, 0.9),
+      kCubeSideSize * LandmarkCV(0.8, -0.1, 0.3),
+      kCubeSideSize * LandmarkCV(-0.8, -0.7, 0.3),
+      kCubeSideSize * LandmarkCV(-0.2, 0.1, 0.3),
+      kCubeSideSize * LandmarkCV(0.1, -0.2, 0.3),
+      kCubeSideSize * LandmarkCV(-0.4, 0.3, 0.3),
+      kCubeSideSize * LandmarkCV(0.3, -0.1, 0.3),
       kCubeSideSize * LandmarkCV(-0.3, -0.3, -0.2),
       kCubeSideSize * LandmarkCV(-0.6, -0.2, -0.3),
       kCubeSideSize * LandmarkCV(-0.7, -0.0, -0.1),
@@ -1548,7 +1688,7 @@ TEST_F(TestTracker, PnPTracking) {
     gtsam::Vector3 bearing_vector;
     // TODO(Toni): use the function from PR 420
     getBearingVectorFromUndistortedKeypoint(
-        kpt, stereo_camera_->getLeftCamParams(), &bearing_vector);
+        kpt, stereo_camera_->getP1(), &bearing_vector);
     bearing_vectors.push_back(bearing_vector);
   }
   cur_stereo_frame->left_frame_.landmarks_ = lmk_ids;
@@ -1559,9 +1699,9 @@ TEST_F(TestTracker, PnPTracking) {
   //!   a) Generate random 3D landmarks
   //!   b) Associate to random keypoints
   LandmarksCV outlier_lmks = {
-      LandmarkCV(1.0, 0.3, 0.4),
+      LandmarkCV(1.0, 2.3, 0.4),
       LandmarkCV(0.3, 0.3, 0.4),
-      LandmarkCV(0.5, 1.3, 0.4),
+      LandmarkCV(1.5, 1.3, 0.4),
   };
   KeypointsCV left_outlier_kpts = {
       KeypointCV(100, 23),
@@ -1576,9 +1716,8 @@ TEST_F(TestTracker, PnPTracking) {
         std::make_pair(KeypointStatus::VALID, left_outlier_kpts[i]));
     gtsam::Vector3 bearing_vector;
     // TODO(Toni): use the function from PR 420
-    getBearingVectorFromUndistortedKeypoint(left_outlier_kpts[i],
-                                            stereo_camera_->getLeftCamParams(),
-                                            &bearing_vector);
+    getBearingVectorFromUndistortedKeypoint(
+        left_outlier_kpts[i], stereo_camera_->getP1(), &bearing_vector);
     cur_stereo_frame->keypoints_3d_.push_back(bearing_vector);
   }
 
@@ -1590,27 +1729,49 @@ TEST_F(TestTracker, PnPTracking) {
         gtsam::Point3(inlier_lmks[i].x, inlier_lmks[i].y, inlier_lmks[i].z);
   }
   //! outlier lmks
-  for (size_t i = 0; i < outlier_lmks.size(); i++) {
-    landmarks_map[lmk_ids[inlier_lmks.size() + i]] =
-        gtsam::Point3(outlier_lmks[i].x, outlier_lmks[i].y, outlier_lmks[i].z);
-  }
+  // for (size_t i = 0; i < outlier_lmks.size(); i++) {
+  //   landmarks_map[lmk_ids[inlier_lmks.size() + i]] =
+  //       gtsam::Point3(outlier_lmks[i].x, outlier_lmks[i].y,
+  //       outlier_lmks[i].z);
+  // }
   tracker_->updateMap(landmarks_map);
 
   LOG(ERROR) << "Landmarks Map \n";
   for (const auto& lmk_id : landmarks_map) {
-    LOG(ERROR) << lmk_id.first << ", " << lmk_id.second;
+    LOG(ERROR) << lmk_id.first << ", (" << lmk_id.second.x() << ", "
+               << lmk_id.second.y() << ", " << lmk_id.second.z() << ")";
   }
 
   //! Estimate pose with PnP
   gtsam::Pose3 best_absolute_pose = gtsam::Pose3::identity();
   std::vector<int> inliers;
-  tracker_->pnp(*cur_stereo_frame,
-                gtsam::Rot3::identity(),
-                gtsam::Point3::Identity(),
-                &best_absolute_pose,
-                &inliers);
+  EXPECT_TRUE(tracker_->pnp(*cur_stereo_frame,
+                            gtsam::Rot3::identity(),
+                            gtsam::Point3::Identity(),
+                            &best_absolute_pose,
+                            &inliers));
   //! Check inliers/outliers
   EXPECT_EQ(inliers.size(), inlier_lmks.size());
+
+  size_t k = 0;
+  for (const auto& bearing_vector : cur_stereo_frame->keypoints_3d_) {
+    const gtsam::Pose3& left_cam_pose =
+        stereo_camera_->getBodyPoseLeftCamRect();
+    gtsam::Point3 bearing_tip =
+        left_cam_pose.translation() + gtsam::Point3(bearing_vector);
+    visualizeRay(
+        UtilsOpenCV::gtsamVector3ToCvPoint3(bearing_tip),
+        "bearing-cam1" + std::to_string(k++),
+        UtilsOpenCV::gtsamVector3ToCvPoint3(left_cam_pose.translation()),
+        0.2,
+        cv::viz::Color::red());
+  }
+
+  visualizeScene(cam_params_left,
+                 cam_params_right,
+                 left_inlier_kpts,
+                 right_inlier_kpts,
+                 inlier_lmks);
 
   //! Check returned 3D pose
   gtsam::Pose3 expected = stereo_camera_->getBodyPoseLeftCamRect();
@@ -1618,7 +1779,7 @@ TEST_F(TestTracker, PnPTracking) {
   gtsam::Point3 expected_t = expected.translation();
   gtsam::Rot3 actual_rot = best_absolute_pose.rotation();
   gtsam::Point3 actual_t = best_absolute_pose.translation();
-  static constexpr double tol = 0.2;
+  static constexpr double tol = 0.00001;
   EXPECT_NEAR(expected.x(), best_absolute_pose.x(), tol);
   EXPECT_NEAR(expected.y(), best_absolute_pose.y(), tol);
   EXPECT_NEAR(expected.z(), best_absolute_pose.z(), tol);

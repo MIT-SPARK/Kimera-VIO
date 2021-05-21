@@ -134,7 +134,7 @@ class Tracker {
    * @param best_absolute_pose
    * @param[in/out] inliers
    */
-  void pnp(const StereoFrame& cur_stereo_frame,
+  bool pnp(const StereoFrame& cur_stereo_frame,
            const gtsam::Rot3& camLrectlkf_R_camLrectkf,
            const gtsam::Point3& camLrectlkf_t_camLrectkf,
            gtsam::Pose3* best_absolute_pose,
@@ -186,16 +186,18 @@ class Tracker {
    * @param absolute_pose_problem_ptr
    * @param threshold Quality threshold to stop
    * @param max_iterations
+   * @param [out] The best pose estimate
    * @param inliers The inliers from the input data
-   * @return The best pose estimate
+   * @return true on success, false on failure.
    */
-  gtsam::Pose3 runPnpRansac(
+  bool runPnpRansac(
       std::shared_ptr<
           opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
           absolute_pose_problem_ptr,
-      const int& threshold,
+      const float& threshold,
       const int& max_iterations,
-      const int& probability,
+      const float& probability,
+      gtsam::Pose3* best_pose,
       std::vector<int>* inliers);
 
  public:
