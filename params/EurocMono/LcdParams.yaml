@@ -46,6 +46,7 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
 pgo_rot_threshold: 0.001
 pgo_trans_threshold: 0.01
+max_lc_cached_before_optimize: 10
 
 # geom_check_id options:
 #   0: NISTER

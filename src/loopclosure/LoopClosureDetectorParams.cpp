@@ -229,8 +229,10 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("betweenTranslationPrecision", &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
+  yaml_parser.getYamlParam("max_lc_cached_before_optimize",
+                           &max_lc_cached_before_optimize_);
 
-  return true;
+      return true;
 }
 
 void LoopClosureDetectorParams::print() const {
