@@ -1473,10 +1473,10 @@ TEST_F(TestTracker, PnPTracking) {
   //! Set camera looking at the unitary cube of landmarks (see below), and
   //! put it a bit back in x axis to avoid cheirality exception.
   gtsam::Pose3 W_Pose_body =
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Vector3(0.0, 0.0, -4.0));
+      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Vector3(0.0, 0.0, -1.0));
   cam_params_left.body_Pose_cam_ = W_Pose_body;
   cam_params_right.body_Pose_cam_ =
-      gtsam::Pose3(gtsam::Rot3::identity(), {.0, .5, -4.0});
+      gtsam::Pose3(gtsam::Rot3::identity(), {1.0, .0, -1.0});
   // W_Pose_body.compose(cam_params_right.body_Pose_cam_);
 
   //! Setup stereo camera
@@ -1486,8 +1486,8 @@ TEST_F(TestTracker, PnPTracking) {
   //! Setup tracker to use pnp
   tracker_params_.use_pnp_tracking_ = true;
   tracker_params_.pnp_method_ = PnpMethod::EPNP;
-  tracker_params_.min_pnp_inliers_ = 10;
-  tracker_params_.ransac_threshold_pnp_ = 0.5;
+  tracker_params_.min_pnp_inliers_ = 6;
+  tracker_params_.ransac_threshold_pnp_ = 1.5;
 
   //! Create pnp tracker
   tracker_ = VIO::make_unique<Tracker>(tracker_params_,
@@ -1498,22 +1498,41 @@ TEST_F(TestTracker, PnPTracking) {
   //!   a) Generate 3D landmarks in non-planar configuration
   //!   b) Project these to stereo_camera_ to generate inlier 2D keypoints.
   // USE buildSceneLandmarks from testOpticalFlowPredictor...
-  static constexpr double kCubeSideSize = 0.1;
+  static constexpr double kCubeSideSize = 1.0;
   LandmarksCV inlier_lmks = {
-      kCubeSideSize * LandmarkCV(0, 0, 0),
-      kCubeSideSize * LandmarkCV(0, 0, 1),
-      kCubeSideSize * LandmarkCV(0, 1, 0),
-      kCubeSideSize * LandmarkCV(0, 1, 1),
-      kCubeSideSize * LandmarkCV(1, 0, 0),
-      kCubeSideSize * LandmarkCV(1, 0, 1),
-      kCubeSideSize * LandmarkCV(1, 1, 0),
-      kCubeSideSize * LandmarkCV(1, 1, 1),
+      kCubeSideSize * LandmarkCV(0.0, 0.0, 0.0),
+      kCubeSideSize * LandmarkCV(0.0, 0.0, 1.0),
+      kCubeSideSize * LandmarkCV(0.0, 1.0, 0.0),
+      kCubeSideSize * LandmarkCV(0.0, 1.0, 1.0),
+      kCubeSideSize * LandmarkCV(1.0, 0.0, 0.0),
+      kCubeSideSize * LandmarkCV(1.0, 0.0, 1.0),
+      kCubeSideSize * LandmarkCV(1.0, 1.0, 0.0),
+      kCubeSideSize * LandmarkCV(1.0, 1.0, 1.0),
+      //! Some random ones
+      kCubeSideSize * LandmarkCV(0.3, 0.2, 0.2),
+      kCubeSideSize * LandmarkCV(0.2, 0.1, 0.8),
+      kCubeSideSize * LandmarkCV(0.4, 0.2, 0.2),
+      kCubeSideSize * LandmarkCV(0.4, 0.3, 0.9),
+      kCubeSideSize * LandmarkCV(0.8, 0.3, 0.9),
+      kCubeSideSize * LandmarkCV(0.8, 0.1, 0.3),
+      kCubeSideSize * LandmarkCV(0.8, 0.7, 0.3),
+      kCubeSideSize * LandmarkCV(0.2, 0.1, 0.3),
+      kCubeSideSize * LandmarkCV(0.1, 0.2, 0.3),
+      kCubeSideSize * LandmarkCV(0.4, 0.3, 0.3),
+      kCubeSideSize * LandmarkCV(0.3, 0.1, 0.3),
+      kCubeSideSize * LandmarkCV(-0.3, -0.3, -0.2),
+      kCubeSideSize * LandmarkCV(-0.6, -0.2, -0.3),
+      kCubeSideSize * LandmarkCV(-0.7, -0.0, -0.1),
   };
   KeypointsCV left_inlier_kpts, right_inlier_kpts;
   stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().print("CAM POSE: ");
   LOG(ERROR) << "Left Camera Body Pose: " << cam_params_left.body_Pose_cam_;
   LOG(ERROR) << "Left Rectified Camera Body Pose: "
              << stereo_camera_->getBodyPoseLeftCamRect();
+  gtsam::Pose3 camL_Pose_camR =
+      (cam_params_left.body_Pose_cam_).between(cam_params_right.body_Pose_cam_);
+  LOG(ERROR) << "camL_Pose_camR: " << camL_Pose_camR;
+
   stereo_camera_->project(inlier_lmks, &left_inlier_kpts, &right_inlier_kpts);
   //!   c) Add them to stereo frame
   size_t lmk_id = 0;
@@ -1594,6 +1613,26 @@ TEST_F(TestTracker, PnPTracking) {
   EXPECT_EQ(inliers.size(), inlier_lmks.size());
 
   //! Check returned 3D pose
-  EXPECT_TRUE(gtsam::assert_equal(
-      stereo_camera_->getLeftCamParams().body_Pose_cam_, best_absolute_pose));
+  gtsam::Pose3 expected = stereo_camera_->getBodyPoseLeftCamRect();
+  gtsam::Rot3 expected_rot = expected.rotation();
+  gtsam::Point3 expected_t = expected.translation();
+  gtsam::Rot3 actual_rot = best_absolute_pose.rotation();
+  gtsam::Point3 actual_t = best_absolute_pose.translation();
+  static constexpr double tol = 0.2;
+  EXPECT_NEAR(expected.x(), best_absolute_pose.x(), tol);
+  EXPECT_NEAR(expected.y(), best_absolute_pose.y(), tol);
+  EXPECT_NEAR(expected.z(), best_absolute_pose.z(), tol);
+
+  EXPECT_NEAR(expected_rot.quaternion().x(),
+              best_absolute_pose.rotation().quaternion().x(),
+              tol);
+  EXPECT_NEAR(expected_rot.quaternion().y(),
+              best_absolute_pose.rotation().quaternion().y(),
+              tol);
+  EXPECT_NEAR(expected_rot.quaternion().z(),
+              best_absolute_pose.rotation().quaternion().z(),
+              tol);
+  EXPECT_NEAR(expected_rot.quaternion().w(),
+              best_absolute_pose.rotation().quaternion().w(),
+              tol);
 }
