@@ -194,9 +194,9 @@ class Tracker {
       std::shared_ptr<
           opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
           absolute_pose_problem_ptr,
-      const float& threshold,
+      const double& threshold,
       const int& max_iterations,
-      const float& probability,
+      const double& probability,
       gtsam::Pose3* best_pose,
       std::vector<int>* inliers);
 

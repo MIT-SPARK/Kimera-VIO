@@ -1010,15 +1010,15 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
 
   // TODO(Toni): parametrize
   static constexpr int max_iterations = 100;
-  static constexpr float probability = 0.99;
+  static constexpr double probability = 0.99;
   // Should be similar to current klt_eps, but keep it separate.
-  const float& reprojection_error = tracker_params_.ransac_threshold_pnp_;
-  const float avg_focal_length =
-      0.5f * static_cast<float>(camera_->getCamParams().intrinsics_[0] +
+  const double& reprojection_error = tracker_params_.ransac_threshold_pnp_;
+  const double avg_focal_length =
+      0.5 * static_cast<double>(camera_->getCamParams().intrinsics_[0] +
                                 camera_->getCamParams().intrinsics_[1]);
-  const float threshold =
-      1.0f - std::cos(std::atan(std::sqrt(2.0f) * reprojection_error /
-                                avg_focal_length));
+  const double threshold =
+      1.0 - std::cos(std::atan(std::sqrt(2.0) * reprojection_error /
+                               avg_focal_length));
   LOG(ERROR) << "Repro error: " << reprojection_error;
   LOG(ERROR) << "Focal Length: " << avg_focal_length;
   LOG(ERROR) << "Threshold: " << threshold;
@@ -1129,9 +1129,9 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
 bool Tracker::runPnpRansac(
     std::shared_ptr<opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
         absolute_pose_problem_ptr,
-    const float& threshold,
+    const double& threshold,
     const int& max_iterations,
-    const float& probability,
+    const double& probability,
     gtsam::Pose3* best_pose,
     std::vector<int>* inliers) {
   CHECK_NOTNULL(best_pose);
@@ -1141,8 +1141,6 @@ bool Tracker::runPnpRansac(
   opengv::sac::Ransac<
       opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
       pnp_ransac(max_iterations, threshold, probability);
-
-  LOG(ERROR) << "Max iterations: " << max_iterations;
 
   //! Setup pnp ransac
   pnp_ransac.sac_model_ = absolute_pose_problem_ptr;
