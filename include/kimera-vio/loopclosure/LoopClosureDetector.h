@@ -401,6 +401,7 @@ class LoopClosureDetector {
 
   // Queue-checking callback
   InputQueueCheckCallback queue_check_cb_;
+  size_t num_lc_unoptimized_;
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;

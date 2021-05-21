@@ -69,6 +69,7 @@ LoopClosureDetector::LoopClosureDetector(
       stereo_matcher_(nullptr),
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
+      num_lc_unoptimized_(0),
       logger_(nullptr) {
   // TODO(marcus): This should come in with every input payload, not be
   // constant.
@@ -1121,8 +1122,16 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
 
   // Only optimize if we don't have other potential loop closures to process.
   CHECK(queue_check_cb_);
+  // True if backend input queue is empty or we have cached enough LCs.
   bool do_optimize =
-      !queue_check_cb_();  // true if backend input queue is empty
+      !queue_check_cb_() ||
+      num_lc_unoptimized_ >= lcd_params_.max_lc_cached_before_optimize_;
+
+  if (!do_optimize) {
+    num_lc_unoptimized_++;
+  } else {
+    num_lc_unoptimized_ = 0;
+  }
 
   CHECK(pgo_);
   pgo_->update(nfg, gtsam::Values(), do_optimize);
