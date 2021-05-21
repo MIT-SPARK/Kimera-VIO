@@ -70,4 +70,4 @@ optical_flow_predictor_type: 1
 use_pnp_tracking: true
 pnp_method: 3 # EPNP
 min_pnp_inliers: 20 #TODO
-ransac_threshold_pnp: 2 #TODO
+ransac_threshold_pnp: 1.0 #TODO
