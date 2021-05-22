@@ -264,8 +264,9 @@ class TestTracker : public ::testing::Test {
           pt_ref, f_ref->cam_param_);
 
       // Randomly generate the depth
-      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                          ((double)rand() / RAND_MAX);
+      double depth =
+          depth_range[0] +
+          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
 
       // project to the current frame!
       Vector3 versor_cur =
@@ -408,8 +409,9 @@ class TestTracker : public ::testing::Test {
       Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(
           pt_ref, sf_ref->left_frame_.cam_param_);
       // Randomly generate the depth
-      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                          ((double)rand() / RAND_MAX);
+      double depth =
+          depth_range[0] +
+          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
 
       versor_ref = versor_ref * depth;
 
@@ -458,12 +460,12 @@ class TestTracker : public ::testing::Test {
                 pt_cur, sf_cur->left_frame_.cam_param_);
 
         // Check that they are indeed outliers!
-        double depth_ref =
-            depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                 (((double)rand()) / ((double)RAND_MAX));
-        double depth_cur =
-            depth_range[0] + (depth_range[1] - depth_range[0]) *
-                                 (((double)rand()) / ((double)RAND_MAX));
+        double depth_ref = depth_range[0] +
+                           (depth_range[1] - depth_range[0]) *
+                               (((double)rand()) / ((double)RAND_MAX));
+        double depth_cur = depth_range[0] +
+                           (depth_range[1] - depth_range[0]) *
+                               (((double)rand()) / ((double)RAND_MAX));
 
         versor_ref = versor_ref * depth_ref;
         versor_cur = versor_cur * depth_cur;
@@ -1500,18 +1502,15 @@ TEST_F(TestTracker, MahalanobisDistance) {
                       O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                       O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
     float innovationMahalanobisNorm3 =
-        dinv * v(0) *
-            (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
-             v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
-             v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
-        dinv * v(1) *
-            (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
-             O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
-             O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
-        dinv * v(2) *
-            (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
-             O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
-             O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
+        dinv * v(0) * (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
+                       v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
+                       v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
+        dinv * v(1) * (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
+                       O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
+                       O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
+        dinv * v(2) * (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
+                       O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
+                       O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
     time3 += VIO::utils::Timer::toc(timeBefore).count();
 
     EXPECT_NEAR(double(innovationMahalanobisNorm1),
@@ -1704,9 +1703,7 @@ TEST_F(TestTracker, PnPTracking) {
       LandmarkCV(1.5, 1.3, 0.4),
   };
   KeypointsCV left_outlier_kpts = {
-      KeypointCV(100, 23),
-      KeypointCV(234, 223),
-      KeypointCV(400, 543),
+      KeypointCV(100, 23), KeypointCV(234, 223), KeypointCV(400, 543),
   };
   //!   c) Add them to stereo frame
   for (size_t i = 0; i < outlier_lmks.size(); i++) {
@@ -1753,25 +1750,27 @@ TEST_F(TestTracker, PnPTracking) {
   //! Check inliers/outliers
   EXPECT_EQ(inliers.size(), inlier_lmks.size());
 
-  size_t k = 0;
-  for (const auto& bearing_vector : cur_stereo_frame->keypoints_3d_) {
-    const gtsam::Pose3& left_cam_pose =
-        stereo_camera_->getBodyPoseLeftCamRect();
-    gtsam::Point3 bearing_tip =
-        left_cam_pose.translation() + gtsam::Point3(bearing_vector);
-    visualizeRay(
-        UtilsOpenCV::gtsamVector3ToCvPoint3(bearing_tip),
-        "bearing-cam1" + std::to_string(k++),
-        UtilsOpenCV::gtsamVector3ToCvPoint3(left_cam_pose.translation()),
-        0.2,
-        cv::viz::Color::red());
-  }
+  if (FLAGS_display) {
+    size_t k = 0;
+    for (const auto& bearing_vector : cur_stereo_frame->keypoints_3d_) {
+      const gtsam::Pose3& left_cam_pose =
+          stereo_camera_->getBodyPoseLeftCamRect();
+      gtsam::Point3 bearing_tip =
+          left_cam_pose.translation() + gtsam::Point3(bearing_vector);
+      visualizeRay(
+          UtilsOpenCV::gtsamVector3ToCvPoint3(bearing_tip),
+          "bearing-cam1" + std::to_string(k++),
+          UtilsOpenCV::gtsamVector3ToCvPoint3(left_cam_pose.translation()),
+          0.2,
+          cv::viz::Color::red());
+    }
 
-  visualizeScene(cam_params_left,
-                 cam_params_right,
-                 left_inlier_kpts,
-                 right_inlier_kpts,
-                 inlier_lmks);
+    visualizeScene(cam_params_left,
+                   cam_params_right,
+                   left_inlier_kpts,
+                   right_inlier_kpts,
+                   inlier_lmks);
+  }
 
   //! Check returned 3D pose
   gtsam::Pose3 expected = stereo_camera_->getBodyPoseLeftCamRect();
