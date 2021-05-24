@@ -1665,7 +1665,6 @@ TEST_F(TestTracker, PnPTracking) {
       kCubeSideSize * LandmarkCV(-0.7, -0.0, -0.1),
   };
   KeypointsCV left_inlier_kpts, right_inlier_kpts;
-  stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().print("CAM POSE: ");
   gtsam::Pose3 camL_Pose_camR =
       (cam_params_left.body_Pose_cam_).between(cam_params_right.body_Pose_cam_);
 

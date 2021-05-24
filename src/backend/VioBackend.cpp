@@ -187,8 +187,8 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
     if (map_update_callback_) {
       map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
     } else {
-      LOG_FIRST_N(INFO, 1) << "Did you forget to register the Map"
-                              "update callback for at least the "
+      LOG_FIRST_N(INFO, 1) << "Did you forget to register the Map "
+                              "Update callback for at least the "
                               "Frontend? Do so by using "
                               "registerMapUpdateCallback function.";
     }
