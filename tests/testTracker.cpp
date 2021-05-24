@@ -264,9 +264,8 @@ class TestTracker : public ::testing::Test {
           pt_ref, f_ref->cam_param_);
 
       // Randomly generate the depth
-      double depth =
-          depth_range[0] +
-          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
+      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
+                                          ((double)rand() / RAND_MAX);
 
       // project to the current frame!
       Vector3 versor_cur =
@@ -409,9 +408,8 @@ class TestTracker : public ::testing::Test {
       Vector3 versor_ref = UndistorterRectifier::UndistortKeypointAndGetVersor(
           pt_ref, sf_ref->left_frame_.cam_param_);
       // Randomly generate the depth
-      double depth =
-          depth_range[0] +
-          (depth_range[1] - depth_range[0]) * ((double)rand() / RAND_MAX);
+      double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
+                                          ((double)rand() / RAND_MAX);
 
       versor_ref = versor_ref * depth;
 
@@ -460,12 +458,12 @@ class TestTracker : public ::testing::Test {
                 pt_cur, sf_cur->left_frame_.cam_param_);
 
         // Check that they are indeed outliers!
-        double depth_ref = depth_range[0] +
-                           (depth_range[1] - depth_range[0]) *
-                               (((double)rand()) / ((double)RAND_MAX));
-        double depth_cur = depth_range[0] +
-                           (depth_range[1] - depth_range[0]) *
-                               (((double)rand()) / ((double)RAND_MAX));
+        double depth_ref =
+            depth_range[0] + (depth_range[1] - depth_range[0]) *
+                                 (((double)rand()) / ((double)RAND_MAX));
+        double depth_cur =
+            depth_range[0] + (depth_range[1] - depth_range[0]) *
+                                 (((double)rand()) / ((double)RAND_MAX));
 
         versor_ref = versor_ref * depth_ref;
         versor_cur = versor_cur * depth_cur;
@@ -1502,15 +1500,18 @@ TEST_F(TestTracker, MahalanobisDistance) {
                       O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                       O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
     float innovationMahalanobisNorm3 =
-        dinv * v(0) * (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
-                       v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
-                       v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
-        dinv * v(1) * (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
-                       O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
-                       O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
-        dinv * v(2) * (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
-                       O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
-                       O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
+        dinv * v(0) *
+            (v(0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
+             v(1) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
+             v(2) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2))) +
+        dinv * v(1) *
+            (O(0, 0) * (v(1) * O(2, 2) - O(1, 2) * v(2)) -
+             O(1, 0) * (v(0) * O(2, 2) - O(0, 2) * v(2)) +
+             O(2, 0) * (v(0) * O(1, 2) - v(1) * O(0, 2))) +
+        dinv * v(2) *
+            (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
+             O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
+             O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
     time3 += VIO::utils::Timer::toc(timeBefore).count();
 
     EXPECT_NEAR(double(innovationMahalanobisNorm1),
@@ -1703,7 +1704,9 @@ TEST_F(TestTracker, PnPTracking) {
       LandmarkCV(1.5, 1.3, 0.4),
   };
   KeypointsCV left_outlier_kpts = {
-      KeypointCV(100, 23), KeypointCV(234, 223), KeypointCV(400, 543),
+      KeypointCV(100, 23),
+      KeypointCV(234, 223),
+      KeypointCV(400, 543),
   };
   //!   c) Add them to stereo frame
   for (size_t i = 0; i < outlier_lmks.size(); i++) {
@@ -1726,11 +1729,10 @@ TEST_F(TestTracker, PnPTracking) {
         gtsam::Point3(inlier_lmks[i].x, inlier_lmks[i].y, inlier_lmks[i].z);
   }
   //! outlier lmks
-  // for (size_t i = 0; i < outlier_lmks.size(); i++) {
-  //   landmarks_map[lmk_ids[inlier_lmks.size() + i]] =
-  //       gtsam::Point3(outlier_lmks[i].x, outlier_lmks[i].y,
-  //       outlier_lmks[i].z);
-  // }
+  for (size_t i = 0; i < outlier_lmks.size(); i++) {
+    landmarks_map[lmk_ids[inlier_lmks.size() + i]] =
+        gtsam::Point3(outlier_lmks[i].x, outlier_lmks[i].y, outlier_lmks[i].z);
+  }
   tracker_->updateMap(landmarks_map);
 
   LOG(ERROR) << "Landmarks Map \n";
