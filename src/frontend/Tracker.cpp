@@ -1019,9 +1019,10 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
   const double threshold =
       1.0 - std::cos(std::atan(std::sqrt(2.0) * reprojection_error /
                                avg_focal_length));
-  LOG(ERROR) << "Repro error: " << reprojection_error;
-  LOG(ERROR) << "Focal Length: " << avg_focal_length;
-  LOG(ERROR) << "Threshold: " << threshold;
+  VLOG(5) << "PnP params:\n"
+          << "- Reprojection error: " << reprojection_error << '\n'
+          << "- Focal Length: " << avg_focal_length << '\n'
+          << "- Threshold: " << threshold;
 
   switch (tracker_params_.pnp_method_) {
     case PnpMethod::KneipP2P: {

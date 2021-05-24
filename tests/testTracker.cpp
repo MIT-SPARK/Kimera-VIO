@@ -1627,7 +1627,7 @@ TEST_F(TestTracker, PnPTracking) {
   tracker_params_.use_pnp_tracking_ = true;
   tracker_params_.pnp_method_ = PnpMethod::EPNP;
   tracker_params_.min_pnp_inliers_ = 10;
-  tracker_params_.ransac_threshold_pnp_ = 10000000000.5;
+  tracker_params_.ransac_threshold_pnp_ = 0.5;
 
   //! Create pnp tracker
   tracker_ = VIO::make_unique<Tracker>(tracker_params_,
@@ -1666,12 +1666,8 @@ TEST_F(TestTracker, PnPTracking) {
   };
   KeypointsCV left_inlier_kpts, right_inlier_kpts;
   stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().print("CAM POSE: ");
-  LOG(ERROR) << "Left Camera Body Pose: " << cam_params_left.body_Pose_cam_;
-  LOG(ERROR) << "Left Rectified Camera Body Pose: "
-             << stereo_camera_->getBodyPoseLeftCamRect();
   gtsam::Pose3 camL_Pose_camR =
       (cam_params_left.body_Pose_cam_).between(cam_params_right.body_Pose_cam_);
-  LOG(ERROR) << "camL_Pose_camR: " << camL_Pose_camR;
 
   stereo_camera_->project(inlier_lmks, &left_inlier_kpts, &right_inlier_kpts);
   //!   c) Add them to stereo frame
@@ -1680,7 +1676,7 @@ TEST_F(TestTracker, PnPTracking) {
   StatusKeypointsCV left_inlier_status_kpts;
   std::vector<gtsam::Vector3> bearing_vectors;
   for (const auto& kpt : left_inlier_kpts) {
-    LOG(ERROR) << "Keypoint: " << kpt;
+    VLOG(5) << "Keypoint: " << kpt;
     // What if the keypoint is out of image bounds?
     left_inlier_status_kpts.push_back(
         std::make_pair(KeypointStatus::VALID, kpt));
@@ -1735,10 +1731,10 @@ TEST_F(TestTracker, PnPTracking) {
   }
   tracker_->updateMap(landmarks_map);
 
-  LOG(ERROR) << "Landmarks Map \n";
+  VLOG(5) << "Landmarks Map \n";
   for (const auto& lmk_id : landmarks_map) {
-    LOG(ERROR) << lmk_id.first << ", (" << lmk_id.second.x() << ", "
-               << lmk_id.second.y() << ", " << lmk_id.second.z() << ")";
+    VLOG(5) << lmk_id.first << ", (" << lmk_id.second.x() << ", "
+            << lmk_id.second.y() << ", " << lmk_id.second.z() << ")";
   }
 
   //! Estimate pose with PnP
