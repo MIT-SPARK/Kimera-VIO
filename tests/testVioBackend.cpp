@@ -293,10 +293,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
 
     // process data with VIO
     BackendOutput::Ptr backend_output = vio_backend->spinOnce(
-        BackendInput(timestamp_k,
-                     all_measurements[k],
-                     pim,
-                     imu_accgyr));
+        BackendInput(timestamp_k, all_measurements[k], pim, imu_accgyr));
     CHECK(backend_output);
 
     // At this point the update imu bias callback should be triggered which
@@ -312,9 +309,11 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         boost::shared_ptr<SmartStereoFactor> gsf =
             boost::dynamic_pointer_cast<SmartStereoFactor>(f);
         if (gsf) {
-          EXPECT_EQ(gsf->keys().size(), k);  // each landmark is seen in every frame
+          EXPECT_EQ(gsf->keys().size(),
+                    k);  // each landmark is seen in every frame
           for (size_t j = 1; j <= gsf->keys().size(); j++) {
-            EXPECT_EQ(gtsam::Symbol(gsf->keys().at(j-1)), gtsam::Symbol('x', j));
+            EXPECT_EQ(gtsam::Symbol(gsf->keys().at(j - 1)),
+                      gtsam::Symbol('x', j));
           }
         }
       }
@@ -334,20 +333,22 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
       if (k == 0) {
         EXPECT_EQ(nr_factors_in_smoother, 3);  // 3 priors
       } else if (k == 1) {
-        EXPECT_EQ(nr_factors_in_smoother,
-                  3 + 2 * k);  // 3 priors, 1 imu + 1 between per time stamp: we
-                               // do not include smart factors of length 1
+        EXPECT_EQ(
+            nr_factors_in_smoother,
+            3 + 3 * k);  // 3 priors, 1 imu + 1 btw imu biases + 1 btw stereo
+                         // poses. We do not include smart factors of length 1
       } else {
         EXPECT_EQ(nr_factors_in_smoother,
-                  3 + 2 * k + 8);  // 3 priors, 1 imu + 1 between per time
-                                   // stamp, 8 smart factors
+                  3 + 3 * k + 8);  // 3 priors, 1 imu + 1 btw imu biases + 1 btw
+                                   // stereo poses, 8 smart factors
       }
     }
 
     // Check the results!
     const gtsam::Values& results = vio_backend->getState();
     for (FrameId f_id = 0u; f_id <= k; f_id++) {
-      gtsam::Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
+      gtsam::Pose3 W_Pose_Blkf =
+          results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
       gtsam::Vector3 W_Vel_Blkf =
           results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(gtsam::Symbol('b', f_id));
