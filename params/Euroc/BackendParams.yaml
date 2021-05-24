@@ -55,7 +55,7 @@ regularityNormType: 1
 regularityNormParam: 0.04
 
 ## Between Stereo Factors ##
-addBetweenStereoFactors: 0
+addBetweenStereoFactors: 1
 betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
@@ -66,7 +66,7 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 10
+numOptimize: 1
 horizon: 6 # In seconds.
 # ISAM2GaussNewtonParams: continue updating the linear delta only when
 # changes are above this threshold (default: 0.001)
@@ -83,4 +83,4 @@ useDogLeg: 0
 #  double dynamicOutlierRejectionThreshold;
 
 # Method used to generate the initial guess for the pose of the keyframe
-pose_guess_source: 3
+pose_guess_source: 0
