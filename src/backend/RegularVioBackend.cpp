@@ -98,14 +98,14 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 RegularVioBackend::RegularVioBackend(
-    const Pose3& B_Pose_leftCam,
+    const Pose3& B_Pose_leftCamRect,
     const StereoCalibPtr& stereo_calibration,
     const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
     const bool& log_output)
     : regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)),
-      VioBackend(B_Pose_leftCam,
+      VioBackend(B_Pose_leftCamRect,
                  stereo_calibration,
                  backend_params,
                  imu_params,
@@ -177,9 +177,9 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     addBetweenFactor(
         last_kf_id_,
         curr_kf_id_,
-        B_Pose_leftCam_ *
+        B_Pose_leftCamRect_ *
             status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
-            B_Pose_leftCam_.inverse());
+            B_Pose_leftCamRect_.inverse());
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
@@ -457,7 +457,7 @@ void RegularVioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
   // more efficient.
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(
-          smart_noise_, smart_factors_params_, B_Pose_leftCam_);
+          smart_noise_, smart_factors_params_, B_Pose_leftCamRect_);
 
   VLOG(20) << "Adding landmark with id: " << lmk_id
            << " for the first time to graph. \n"
@@ -825,7 +825,7 @@ void RegularVioBackend::addProjectionFactor(
                 stereo_cal_,
                 true,
                 true,
-                B_Pose_leftCam_));
+                B_Pose_leftCamRect_));
       } else {
         LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = " << parallax;
       }
@@ -844,7 +844,7 @@ void RegularVioBackend::addProjectionFactor(
             mono_cal_,
             true,
             true,
-            B_Pose_leftCam_));
+            B_Pose_leftCamRect_));
   }
 }
 

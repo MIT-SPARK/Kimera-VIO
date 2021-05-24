@@ -80,7 +80,7 @@ class VioBackend {
    * @param backend_params Parameters for Backend.
    * @param log_output Whether to log to CSV files the Backend output.
    */
-  VioBackend(const gtsam::Pose3& B_Pose_leftCam,
+  VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
              const StereoCalibPtr& stereo_calibration,
              const BackendParams& backend_params,
              const ImuParams& imu_params,
@@ -469,7 +469,7 @@ class VioBackend {
   gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
   // Pose of the left camera wrt body
-  const Pose3 B_Pose_leftCam_;
+  const Pose3 B_Pose_leftCamRect_;
   // Stores calibration, baseline.
   const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_;
 

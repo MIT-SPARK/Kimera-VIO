@@ -227,9 +227,9 @@ void InitializationBackend::addInitialVisualState(
     // We need to keep adding the relative poses, since we process a
     // whole batch. Otherwise we start with wrong initial guesses.
     gtsam::Pose3 B_lkf_Pose_B_k =
-        B_Pose_leftCam_ *
+        B_Pose_leftCamRect_ *
         status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
-        B_Pose_leftCam_.inverse();
+        B_Pose_leftCamRect_.inverse();
     W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(B_lkf_Pose_B_k);
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
 

@@ -65,7 +65,7 @@ DEFINE_bool(compute_state_covariance,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCam,
+VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
                        const StereoCalibPtr& stereo_calibration,
                        const BackendParams& backend_params,
                        const ImuParams& imu_params,
@@ -80,7 +80,7 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCam,
       W_Vel_B_lkf_(gtsam::Vector3::Zero()),
       W_Pose_B_lkf_(gtsam::Pose3::identity()),
       imu_bias_prev_kf_(ImuBias()),
-      B_Pose_leftCam_(B_Pose_leftCam),
+      B_Pose_leftCamRect_(B_Pose_leftCamRect),
       stereo_cal_(stereo_calibration),
       last_kf_id_(-1),
       curr_kf_id_(0),
@@ -299,9 +299,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(
         last_kf_id_,
         curr_kf_id_,
         // I think this should be B_Pose_leftCamRect_...
-        B_Pose_leftCam_ *
+        B_Pose_leftCamRect_ *
             status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
-            B_Pose_leftCam_.inverse());
+            B_Pose_leftCamRect_.inverse());
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
@@ -421,7 +421,7 @@ void VioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
   // more efficient.
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(
-          smart_noise_, smart_factors_params_, B_Pose_leftCam_);
+          smart_noise_, smart_factors_params_, B_Pose_leftCamRect_);
 
   VLOG(10) << "Adding landmark with: " << ft.obs_.size()
            << " landmarks to graph, with keys: ";
@@ -1645,7 +1645,7 @@ void VioBackend::print() const {
   }
 
   LOG(INFO) << "** Backend Initial Members: \n"
-            << "B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
+            << "B_Pose_leftCam_: " << B_Pose_leftCamRect_ << '\n'
             << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
             << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
             << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'

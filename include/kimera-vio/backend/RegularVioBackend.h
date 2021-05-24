@@ -31,7 +31,7 @@ namespace VIO {
 
 class RegularVioBackend : public VioBackend {
  public:
-  RegularVioBackend(const Pose3& B_Pose_leftCam,
+  RegularVioBackend(const Pose3& B_Pose_leftCamRect,
                     const StereoCalibPtr& stereo_calibration,
                     const BackendParams& backend_params,
                     const ImuParams& imu_params,
