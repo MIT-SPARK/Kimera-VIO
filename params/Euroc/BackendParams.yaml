@@ -55,7 +55,7 @@ regularityNormType: 1
 regularityNormParam: 0.04
 
 ## Between Stereo Factors ##
-addBetweenStereoFactors: 1
+addBetweenStereoFactors: 0
 betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
