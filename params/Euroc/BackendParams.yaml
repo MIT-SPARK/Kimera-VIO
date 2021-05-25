@@ -83,4 +83,4 @@ useDogLeg: 0
 #  double dynamicOutlierRejectionThreshold;
 
 # Method used to generate the initial guess for the pose of the keyframe
-pose_guess_source: 0
+pose_guess_source: 3
