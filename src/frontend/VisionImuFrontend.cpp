@@ -90,8 +90,8 @@ FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
     frontend_state_ = FrontendState::Nominal;
   }
 
-  // TODO(nathan) we used to return a valid output, but that messes with other modules
-  // that depend on performing backend / frontend synchronization
+  // We always return an invalid input to ensure other modules don't
+  // start until after time alignment is finished
   return nullptr;
 }
 

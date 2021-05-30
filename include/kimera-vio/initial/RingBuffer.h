@@ -80,8 +80,6 @@ struct RingBufferIter {
    */
   inline friend bool operator==(const RingBufferIter& a,
                                 const RingBufferIter& b) {
-    // TODO(nathan) might be better to raise an exception here
-    // if the two iterators are from different buffers
     CHECK_EQ(a.num_values_, b.num_values_);
     CHECK_EQ(a.begin_ptr_, b.begin_ptr_);
     CHECK_EQ(a.end_ptr_, b.end_ptr_);

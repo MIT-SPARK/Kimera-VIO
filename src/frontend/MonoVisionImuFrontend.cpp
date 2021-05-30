@@ -164,6 +164,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     timing_stats_keyframe_rate.AddSample(utils::Timer::toc(start_time).count());
 
     // Return the output of the Frontend for the others.
+    // We have a keyframe, so We fill frame_lkf_ with the newest keyframe
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<MonoFrontendOutput>(
         frontend_state_ == FrontendState::Nominal,
@@ -171,7 +172,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
-        *mono_frame_lkf_,  //! This is really the current keyframe in this if
+        *mono_frame_lkf_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
@@ -180,6 +181,9 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     // Record frame rate timing
     timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());
 
+    // TODO(nathan) unify returning output packets
+    // We don't have a keyframe, so instead we forward the newest frame in this
+    // packet for use in the temporal calibration (if enabled)
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
     return VIO::make_unique<MonoFrontendOutput>(
         false,
@@ -187,7 +191,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         TrackingStatus::DISABLED,  // This is a stereo status only
         gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
-        *mono_frame_km1_, // TODO(nathan) this used to be mono_frame_lkf_. Why???
+        *mono_frame_km1_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,

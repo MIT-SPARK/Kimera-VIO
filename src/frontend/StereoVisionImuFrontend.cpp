@@ -80,7 +80,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   CHECK(stereoFrame_lkf_);
 
   if (FLAGS_do_fine_imu_camera_temporal_sync) {
-    return nullptr; // skip adding a frame to all downstream modules
+    return nullptr;  // skip adding a frame to all downstream modules
   }
 
   return VIO::make_unique<StereoFrontendOutput>(
@@ -202,6 +202,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     timing_stats_keyframe_rate.AddSample(utils::Timer::toc(start_time).count());
 
     // Return the output of the Frontend for the others.
+    // We have a keyframe, so We fill stereo_frame_lkf_ with the newest keyframe
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<StereoFrontendOutput>(
         frontend_state_ == FrontendState::Nominal,
@@ -212,7 +213,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
             : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
-        *stereoFrame_lkf_,  //! This is really the current keyframe in this if
+        *stereoFrame_lkf_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
@@ -221,7 +222,9 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     // Record frame rate timing
     timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());
 
-    // We don't have a keyframe.
+    // TODO(nathan) unify returning output packets
+    // We don't have a keyframe, so instead we forward the newest frame in this
+    // packet for use in the temporal calibration (if enabled)
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
     return VIO::make_unique<StereoFrontendOutput>(
         false,
@@ -232,7 +235,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
             : gtsam::Pose3::identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
-        *stereoFrame_km1_, // TODO(nathan) this used to be stereoFrame_lkf_. Why???
+        *stereoFrame_km1_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,

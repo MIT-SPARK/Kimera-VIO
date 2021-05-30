@@ -115,7 +115,6 @@ size_t CrossCorrTimeAligner::addNewImuData(
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs) {
   if (imu_stamps.cols() == 0) {
-    // TODO(nathan) think about handling this better
     LOG(ERROR) << "addNewImuData called with no measurements";
     return 0;
   }
@@ -138,7 +137,7 @@ double valueAccessor(const CrossCorrTimeAligner::Measurement& m) {
 void CrossCorrTimeAligner::interpNewImageMeasurements(
     const std::vector<Timestamp>& image_stamps,
     const gtsam::Pose3& T_ref_cur,
-    size_t num_new_imu_measurements) {
+    const size_t& num_new_imu_measurements) {
   const size_t N = num_new_imu_measurements;
   CHECK_LE(N, imu_buffer_->size())
       << "IMU buffer should contain at least the number of new measurements";
@@ -214,10 +213,10 @@ double CrossCorrTimeAligner::getTimeShift() const {
 }
 
 void CrossCorrTimeAligner::logData(FrontendLogger* logger,
-                                   size_t num_imu_added,
-                                   bool not_enough_data,
-                                   bool not_enough_variance,
-                                   double result) {
+                                   const size_t& num_imu_added,
+                                   const bool& not_enough_data,
+                                   const bool& not_enough_variance,
+                                   const double& result) {
   if (!logger) {
     return;
   }

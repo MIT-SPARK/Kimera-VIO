@@ -91,7 +91,7 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    * Either used to apply the estimate of the delay between the IMU and Camera
    * or to use a manually provided value.
    */
-  inline void setImuTimeShift(double imu_time_shift_s) {
+  inline void setImuTimeShift(const double& imu_time_shift_s) {
     imu_time_shift_ns_ = UtilsNumerical::SecToNsec(imu_time_shift_s);
   }
 
