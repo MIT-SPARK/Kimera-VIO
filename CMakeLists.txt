@@ -228,10 +228,10 @@ if(KIMERA_BUILD_TESTS)
     tests/testStereoImuPipeline.cpp
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE
+    tests/testCrossCorrelation.cpp
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
-    tests/testDataProviderModule.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
@@ -245,14 +245,19 @@ if(KIMERA_BUILD_TESTS)
     tests/testMesh.cpp
     tests/testMeshUtils.cpp
     tests/testMeshOptimization.cpp
+    tests/testMonoProvider.cpp
+    tests/testParallelMonoProvider.cpp
     tests/testParallelPlaneRegularBasicFactor.cpp
     tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+    tests/testParallelStereoProvider.cpp
     tests/testPointPlaneFactor.cpp
     #tests/testRegularVioBackend.cpp # rotten
     tests/testRegularVioBackendParams.cpp
     tests/testStereoFrame.cpp # NEEDS UPDATE
-    tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
     tests/testStereoMatcher.cpp
+    tests/testStereoProvider.cpp
+    tests/testStereoVisionImuFrontend.cpp # NEEDS UPDATE
+    tests/testTemporalCalibration.cpp
     tests/testUndistortRectifier.cpp
     tests/testThreadsafeImuBuffer.cpp
     tests/testThreadsafeQueue.cpp
@@ -271,7 +276,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )
-  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
+  target_link_libraries(testKimeraVIO gtest gmock kimera_vio::kimera_vio)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
     enable_testing()

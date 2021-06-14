@@ -256,7 +256,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
       << "Median disparity calculation failed...";
   VLOG(5) << "Median disparity: " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
-    LOG(WARNING) << "LOW_DISPARITY: " << disparity;
+    VLOG(5) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;
   } else {
     // Check for rotation only case

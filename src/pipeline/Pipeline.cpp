@@ -46,6 +46,19 @@ DEFINE_int32(min_num_obs_for_mesher_points,
 DEFINE_bool(use_lcd,
             false,
             "Enable LoopClosureDetector processing in pipeline.");
+DEFINE_bool(
+    do_coarse_imu_camera_temporal_sync,
+    false,
+    "Compute the static offset between the IMU and camera timestamps. This is "
+    "only really suitable for time offsets that have no physical meaning as it "
+    "only computes the time difference between the last IMU and image "
+    "measurement, and applies that to all IMU measurements going forward.");
+DEFINE_bool(
+    do_fine_imu_camera_temporal_sync,
+    false,
+    "Estimate the delay between the IMU and the camera. This enables "
+    "estimating the time delay between the IMU and the camera (currently by "
+    "cross-correlation between relative rotation angles).");
 
 namespace VIO {
 
@@ -107,10 +120,9 @@ std::string Pipeline::printStatus() const {
      << "Backend initialized? " << vio_backend_module_->isInitialized() << '\n'
      << "Data provider is working? " << data_provider_module_->isWorking()
      << '\n'
-     << "Frontend input queue shutdown? "
-     << frontend_input_queue_.isShutdown() << '\n'
-     << "Frontend input queue empty? " << frontend_input_queue_.empty()
+     << "Frontend input queue shutdown? " << frontend_input_queue_.isShutdown()
      << '\n'
+     << "Frontend input queue empty? " << frontend_input_queue_.empty() << '\n'
      << "Frontend is working? " << vio_frontend_module_->isWorking() << '\n'
      << "Backend Input queue shutdown? " << backend_input_queue_.isShutdown()
      << '\n'
@@ -274,7 +286,8 @@ void Pipeline::spinOnce(FrontendInputPacketBase::UniquePtr input) {
 void Pipeline::launchThreads() {
   if (parallel_run_) {
     frontend_thread_ = VIO::make_unique<std::thread>(
-        &VisionImuFrontendModule::spin, CHECK_NOTNULL(vio_frontend_module_.get()));
+        &VisionImuFrontendModule::spin,
+        CHECK_NOTNULL(vio_frontend_module_.get()));
 
     backend_thread_ = VIO::make_unique<std::thread>(
         &VioBackendModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
@@ -338,8 +351,7 @@ void Pipeline::joinThreads() {
   VLOG(1) << "All threads joined.";
 }
 
-void Pipeline::joinThread(const std::string& thread_name,
-                          std::thread* thread) {
+void Pipeline::joinThread(const std::string& thread_name, std::thread* thread) {
   if (thread) {
     VLOG(1) << "Joining " << thread_name.c_str() << " thread...";
     if (thread->joinable()) {

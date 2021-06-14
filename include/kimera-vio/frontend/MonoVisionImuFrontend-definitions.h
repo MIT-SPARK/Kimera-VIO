@@ -69,6 +69,12 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_;
   const gtsam::Pose3 b_Pose_cam_rect_;
+  // TODO(nathan) make this name consistent
+  /**
+   * This member is not necessarily a key-frame and can be one of two things:
+   * - The last frame processed (is_keyframe_ = false)
+   * - The newest keyframe (is_keyframe_ = true)
+   */
   const Frame frame_lkf_;
   const cv::Mat feature_tracks_;
 };

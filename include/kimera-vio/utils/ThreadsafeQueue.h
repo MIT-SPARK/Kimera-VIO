@@ -96,6 +96,14 @@ class ThreadsafeQueueBase {
    */
   virtual bool batchPop(InternalQueue* output_queue) = 0;
 
+  /**
+   * @brief Get the value at the front of the queue if not empty
+   * @param[out] value pointer to value at front of queue if it exists
+   * @param[in] timeout time to wait for a new value
+   * @return true if there was a valid value at the front of the queue
+   */
+  virtual std::shared_ptr<T> peekBlockingWithTimeout(size_t duration_ms) = 0;
+
   void shutdown() {
     VLOG(1) << "Shutting down queue: " << queue_id_;
     std::unique_lock<std::mutex> mlock(mutex_);
@@ -219,6 +227,14 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
    */
   bool batchPop(typename TQB::InternalQueue* output_queue) override;
 
+  /**
+   * @brief Get the value at the front of the queue if not empty
+   * @param[out] value pointer to value at front of queue if it exists
+   * @param[in] timeout time to wait for a new value
+   * @return true if there was a valid value at the front of the queue
+   */
+  virtual std::shared_ptr<T> peekBlockingWithTimeout(size_t duration_ms) override;
+
  public:
   using TQB::queue_id_;
 
@@ -253,6 +269,9 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
   virtual std::shared_ptr<T> popBlocking() override { return nullptr; }
   virtual bool pop(T&) override { return true; }
   virtual std::shared_ptr<T> pop() override { return nullptr; }
+  virtual std::shared_ptr<T> peekBlockingWithTimeout(size_t duration_ms) override {
+    return nullptr;
+  }
 };
 
 template <typename T>
@@ -344,8 +363,8 @@ bool ThreadsafeQueue<T>::popBlockingWithTimeout(T& value, size_t duration_ms) {
   data_cond_.wait_for(lk, std::chrono::milliseconds(duration_ms), [this] {
     return !data_queue_.empty() || shutdown_;
   });
-  // Return false in case shutdown is requested or the queue is empty (in which
-  // case, a timeout has happened).
+  // Return false in case shutdown is requested or the queue is empty (in
+  // which case, a timeout has happened).
   if (shutdown_ || data_queue_.empty()) return false;
   value = std::move(*data_queue_.front());
   data_queue_.pop();
@@ -391,6 +410,21 @@ bool ThreadsafeQueue<T>::batchPop(typename TQB::InternalQueue* output_queue) {
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
   return success;
+}
+
+template <typename T>
+std::shared_ptr<T> ThreadsafeQueue<T>::peekBlockingWithTimeout(size_t duration_ms) {
+  std::unique_lock<std::mutex> lk(mutex_);
+  // Wait until there is data in the queue, shutdown is requested, or
+  // the given time is elapsed...
+  data_cond_.wait_for(lk, std::chrono::milliseconds(duration_ms), [this] {
+    return !data_queue_.empty() || shutdown_;
+  });
+  if (shutdown_ || data_queue_.empty()) {
+    return nullptr;
+  }
+
+  return data_queue_.front();
 }
 
 }  // namespace VIO

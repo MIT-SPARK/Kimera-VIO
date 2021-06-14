@@ -76,6 +76,11 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::isDataAvailableUpToImpl(
   return QueryResult::kDataAvailable;
 }
 
+bool ThreadsafeImuBuffer::getNewestImuMeasurement(ImuMeasurement* value) {
+  CHECK_NOTNULL(value);
+  return buffer_.getNewestValue(value);
+}
+
 void ThreadsafeImuBuffer::linearInterpolate(const Timestamp& t0,
                                             const ImuAccGyr& y0,
                                             const Timestamp& t1,
