@@ -214,8 +214,9 @@ class PipelineModule : public PipelineModuleBase {
         auto spin_duration = utils::Timer::toc(tic).count();
         timing_stats.AddSample(spin_duration);
       } else {
-        LOG_IF(WARNING, VLOG_IS_ON(2)) << "Module: " << name_id_
-                                       << " - No Input received.";
+        // TODO(nathan) switch to VLOG_IS_ON(1) when we fix how spinning works
+        LOG_IF_EVERY_N(WARNING, VLOG_IS_ON(2), 20)
+            << "Module: " << name_id_ << " - No Input received.";
       }
 
       // Break the while loop if we are in sequential mode.

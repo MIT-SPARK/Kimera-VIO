@@ -111,7 +111,6 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
   }
 
   if (ransac_result.first == TrackingStatus::INVALID) {
-    // TODO(nathan) investigate dropping samples when INVALID
     LOG(ERROR)
         << "Temporal calibration attempted to perform RANSAC without "
            "enough measurements. Giving up calibration and defaulting to "
@@ -120,8 +119,6 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
   }
 
   if (ransac_result.first == TrackingStatus::FEW_MATCHES) {
-    // TODO(nathan) investigate dropping samples for FEW_MATCHES
-    // TODO(nathan) investigate capping number of FEW_MATCHES for last_frame_
     VLOG(1) << "RANSAC for temporal sync failed due to too few matches. "
                "Caching IMU measurements";
     imu_stamp_cache_.push_back(imu_stamps);

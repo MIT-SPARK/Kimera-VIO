@@ -148,11 +148,11 @@ class FrontendLogger {
                       bool save_img);
   void logFrontendTemporalCal(const Timestamp& timestamp_vision,
                               const Timestamp& timestamp_imu,
-                              double vision_relative_angle_norm,
-                              double image_relative_angle_norm,
+                              const double& vision_relative_angle_norm,
+                              const double& image_relative_angle_norm,
                               bool not_enough_data,
                               bool not_enough_variance,
-                              double result);
+                              const double& result);
 
  private:
   // StreamWrappers with filenames to which output is saved.

@@ -42,7 +42,7 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
   struct Measurement {
     Measurement() {}
 
-    Measurement(Timestamp timestamp, double value)
+    Measurement(const Timestamp& timestamp, const double& value)
         : timestamp(timestamp), value(value) {}
 
     friend std::ostream& operator<<(std::ostream& out, const Measurement& m) {
@@ -98,15 +98,15 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
   void interpNewImageMeasurements(
       const std::vector<Timestamp>& image_timestamps,
       const gtsam::Pose3& T_ref_cur,
-      size_t num_new_imu_measurements);
+      const size_t& num_new_imu_measurements);
 
   double getTimeShift() const;
 
   void logData(FrontendLogger* logger,
-               size_t num_imu_added,
-               bool not_enough_data,
-               bool not_enough_variance,
-               double result);
+               const size_t& num_imu_added,
+               const bool& not_enough_data,
+               const bool& not_enough_variance,
+               const double& result);
 
   RotOnlyPIMParamPtr pim_params_;
   bool do_imu_rate_estimation_;

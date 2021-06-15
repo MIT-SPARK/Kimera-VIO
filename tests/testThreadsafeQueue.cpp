@@ -259,15 +259,14 @@ TEST(testThreadsafeQueue, peek) {
   ThreadsafeQueue<std::string> q("test_queue");
   q.push("hello world");
 
-  std::string* value;
-  ASSERT_TRUE(q.peekBlockingWithTimeout(value, 100));
+  std::shared_ptr<std::string> value = q.peekBlockingWithTimeout(100);
   ASSERT_TRUE(value != nullptr);
   EXPECT_EQ("hello world", *value);
 
   ThreadsafeQueue<std::unique_ptr<std::string>> q_unique("test_queue");
   q_unique.push(VIO::make_unique<std::string>("hello world"));
-  std::unique_ptr<std::string>* value_unique;
-  ASSERT_TRUE(q_unique.peekBlockingWithTimeout(value_unique, 100));
+  std::shared_ptr<std::unique_ptr<std::string>> value_unique =
+      q_unique.peekBlockingWithTimeout(100);
   ASSERT_TRUE(value_unique != nullptr);
   ASSERT_TRUE(*value_unique != nullptr);
   EXPECT_EQ("hello world", *(*value_unique));

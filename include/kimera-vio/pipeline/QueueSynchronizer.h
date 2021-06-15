@@ -115,17 +115,15 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
     static constexpr size_t timeout_ms = 100000u;  // Wait 1500ms at most!
     for (int i = 0; i < max_iterations; ++i) {
-      T* curr_payload;
-      if (!queue->peekBlockingWithTimeout(curr_payload, timeout_ms)) {
+      std::shared_ptr<T> curr_payload =
+          queue->peekBlockingWithTimeout(timeout_ms);
+      if (!curr_payload) {
         LOG(ERROR) << "Queue sync failed for module: " << name_id
                    << " with queue: " << queue->queue_id_ << "\n Reason: \n"
                    << "Queue status: "
                    << (queue->isShutdown() ? "Shutdown..." : "Timeout...");
         return false;
-      } else {
-        VLOG(5) << "Popping from: " << queue->queue_id_;
       }
-      CHECK(curr_payload) << "Got nullptr from peek";
 
       if (!(*curr_payload)) {
         LOG(WARNING)
@@ -140,6 +138,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
       }
 
       payload_timestamp = (*curr_payload)->timestamp_;
+
       if (payload_timestamp > timestamp) {
         LOG(WARNING)
             << "Syncing queue " << queue->queue_id_ << " in module " << name_id
@@ -149,20 +148,21 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
         return false;
       }
 
-      CHECK(queue->pop(*pipeline_payload)) << "queue somehow lost a measurement";
+      VLOG(5) << "Popping from: " << queue->queue_id_;
+      CHECK(queue->pop(*pipeline_payload))
+          << "queue somehow lost a measurement";
       if (payload_timestamp == timestamp) {
         return true;  // we found the payload we want
       }
     }
 
     // TODO(nathan) consider a more graceful failure here
-    CHECK(false) << "Syncing queue " << queue->queue_id_ << " in module "
-                 << name_id
-                 << " failed;\n Could not retrieve timestamp requested after "
-                 << max_iterations << " iterations: \n"
-                 << " - Requested timestamp: " << timestamp << '\n'
-                 << " - Best payload timestamp:    " << payload_timestamp
-                 << '\n';
+    LOG(FATAL) << "Syncing queue " << queue->queue_id_ << " in module "
+               << name_id
+               << " failed;\n Could not retrieve timestamp requested after "
+               << max_iterations << " iterations: \n"
+               << " - Requested timestamp: " << timestamp << '\n'
+               << " - Best payload timestamp:    " << payload_timestamp << '\n';
     return false;
   }
 

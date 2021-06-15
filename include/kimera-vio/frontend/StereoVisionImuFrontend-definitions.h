@@ -64,6 +64,12 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
   const gtsam::Pose3 relative_pose_body_stereo_;
   const gtsam::Pose3 b_Pose_camL_rect_;
   const gtsam::Pose3 b_Pose_camR_rect_;
+  // TODO(nathan) make this name consistent
+  /**
+   * This member is not necessarily a key-frame and can be one of two things:
+   * - The last frame processed (is_keyframe_ = false)
+   * - The newest keyframe (is_keyframe_ = true)
+   */
   const StereoFrame stereo_frame_lkf_;
   const cv::Mat feature_tracks_;
 };

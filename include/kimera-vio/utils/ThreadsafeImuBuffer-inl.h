@@ -56,12 +56,8 @@ inline void ThreadsafeImuBuffer::addMeasurement(
   ImuMeasurement last_value;
   if (buffer_.getNewestValue(&last_value)) {
     if (timestamp_nanoseconds <= last_value.timestamp_) {
-      if (!have_warned_user_) {
-        LOG(WARNING) << "Imu timestamps not strictly increasing";
-        have_warned_user_ = true;
-      } else {
-        VLOG(10) << "Timestamps not strictly increasing";
-      }
+      LOG_FIRST_N(WARNING, 1) << "Imu timestamps not strictly increasing";
+      VLOG(10) << "Timestamps not strictly increasing";
       return;
     }
   }

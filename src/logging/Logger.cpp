@@ -553,11 +553,11 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
 
 void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
                                             const Timestamp& timestamp_imu,
-                                            double vision_relative_angle_norm,
-                                            double imu_relative_angle_norm,
+                                            const double& vision_relative_angle_norm,
+                                            const double& imu_relative_angle_norm,
                                             bool not_enough_data,
                                             bool not_enough_variance,
-                                            double result) {
+                                            const double& result) {
   std::ofstream& output_stream = output_frontend_temporal_cal_.ofstream_;
 
   if (!is_header_written_temporal_cal_) {
