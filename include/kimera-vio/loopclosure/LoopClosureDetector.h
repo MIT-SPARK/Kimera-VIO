@@ -7,9 +7,10 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   LoopClosureDetector.cpp
+ * @file   LoopClosureDetector.h
  * @brief  Pipeline for detection and reporting of Loop Closures between frames
- * @author Marcus Abate, Luca Carlone
+ * @author Marcus Abate
+ * @author Luca Carlone
  */
 
 #pragma once
@@ -32,8 +33,6 @@
 #include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
-#include "kimera-vio/pipeline/PipelineModule.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 /* ------------------------------------------------------------------------ */
 // Forward declare KimeraRPGO, a private dependency.
@@ -388,8 +387,7 @@ class LoopClosureDetector {
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
   gtsam::SharedNoiseModel
-      shared_noise_model_;  // TODO(marcus): make accurate
-                            // should also come in with input
+      shared_noise_model_;
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
@@ -404,124 +402,5 @@ class LoopClosureDetector {
   using SacProblemStereo =
       opengv::sac_problems::point_cloud::PointCloudSacProblem;
 };  // class LoopClosureDetector
-
-enum class LoopClosureDetectorType {
-  //! Bag of Words approach
-  BoW = 0u,
-};
-
-class LcdFactory {
- public:
-  KIMERA_POINTER_TYPEDEFS(LcdFactory);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdFactory);
-  LcdFactory() = delete;
-  virtual ~LcdFactory() = default;
-
-  static LoopClosureDetector::UniquePtr createLcd(
-      const LoopClosureDetectorType& lcd_type,
-      const LoopClosureDetectorParams& lcd_params,
-      const StereoCamera::ConstPtr& stereo_camera,
-      const StereoMatchingParams& stereo_matching_params,
-      bool log_output) {
-    switch (lcd_type) {
-      case LoopClosureDetectorType::BoW: {
-        return VIO::make_unique<LoopClosureDetector>(lcd_params,
-                                                     stereo_camera,
-                                                     stereo_matching_params,
-                                                     log_output);
-      }
-      default: {
-        LOG(FATAL) << "Requested loop closure detector type is not supported.\n"
-                   << "Currently supported loop closure detector types:\n"
-                   << "0: BoW \n but requested loop closure detector: "
-                   << static_cast<int>(lcd_type);
-      }
-    }
-  }
-};
-
-class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
- public:
-  KIMERA_POINTER_TYPEDEFS(LcdModule);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdModule);
-  using LcdFrontendInput = FrontendOutputPacketBase::Ptr;
-  using LcdBackendInput = BackendOutput::Ptr;
-
-  LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
-      : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
-        frontend_queue_("lcd_frontend_queue"),
-        backend_queue_("lcd_backend_queue"),
-        lcd_(std::move(lcd)) {}
-  virtual ~LcdModule() = default;
-
-  //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillFrontendQueue(const LcdFrontendInput& frontend_payload) {
-    frontend_queue_.push(frontend_payload);
-  }
-  inline void fillBackendQueue(const LcdBackendInput& backend_payload) {
-    backend_queue_.push(backend_payload);
-  }
-
- protected:
-  //! Synchronize input queues.
-  inline InputUniquePtr getInputPacket() override {
-    // TODO(X): this is the same or very similar to the Mesher getInputPacket.
-    LcdBackendInput backend_payload;
-    bool queue_state = false;
-    if (PIO::parallel_run_) {
-      queue_state = backend_queue_.popBlocking(backend_payload);
-    } else {
-      queue_state = backend_queue_.pop(backend_payload);
-    }
-    if (!queue_state) {
-      LOG_IF(WARNING, PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Backend queue is down";
-      VLOG_IF(1, !PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Backend queue is empty or down";
-      return nullptr;
-    }
-    CHECK(backend_payload);
-    const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
-
-    // Look for the synchronized packet in Frontend payload queue
-    // This should always work, because it should not be possible to have
-    // a Backend payload without having a Frontend one first!
-    LcdFrontendInput frontend_payload = nullptr;
-    PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
-    CHECK(frontend_payload);
-    CHECK(frontend_payload->is_keyframe_);
-    CHECK_EQ(timestamp, frontend_payload->timestamp_);
-
-    // Push the synced messages to the lcd's input queue
-    const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
-    return VIO::make_unique<LcdInput>(
-        timestamp, frontend_payload, backend_payload->cur_kf_id_, body_pose);
-  }
-
-  OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
-    return lcd_->spinOnce(*input);
-  }
-
-  //! Called when general shutdown of PipelineModule is triggered.
-  void shutdownQueues() override {
-    LOG(INFO) << "Shutting down queues for: " << name_id_;
-    frontend_queue_.shutdown();
-    backend_queue_.shutdown();
-  }
-
-  //! Checks if the module has work to do (should check input queues are empty)
-  bool hasWork() const override {
-    // We don't check Frontend queue because it runs faster than Backend queue.
-    return !backend_queue_.empty();
-  }
-
- private:
-  //! Input Queues
-  ThreadsafeQueue<LcdFrontendInput> frontend_queue_;
-  ThreadsafeQueue<LcdBackendInput> backend_queue_;
-
-  //! Lcd implementation
-  LoopClosureDetector::UniquePtr lcd_;
-};
 
 }  // namespace VIO

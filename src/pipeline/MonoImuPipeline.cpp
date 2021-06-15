@@ -22,6 +22,7 @@
 #include "kimera-vio/backend/VioBackendFactory.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendFactory.h"
+#include "kimera-vio/loopclosure/LcdFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/pipeline/Pipeline.h"
 #include "kimera-vio/utils/Statistics.h"

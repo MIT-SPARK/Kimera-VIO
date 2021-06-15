@@ -35,6 +35,10 @@ typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
 typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
 
+enum class LoopClosureDetectorType {
+  BoW = 0u,  //! Bag of Words approach
+};
+
 enum class LCDStatus : int {
   LOOP_DETECTED,
   NO_MATCHES,

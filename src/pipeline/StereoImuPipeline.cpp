@@ -15,14 +15,15 @@
 
 #include "kimera-vio/pipeline/StereoImuPipeline.h"
 
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
+#include <string>
 
 #include "kimera-vio/backend/VioBackendFactory.h"
 #include "kimera-vio/dataprovider/StereoDataProviderModule.h"
 #include "kimera-vio/frontend/VisionImuFrontendFactory.h"
+#include "kimera-vio/loopclosure/LcdFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
