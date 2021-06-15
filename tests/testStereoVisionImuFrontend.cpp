@@ -528,7 +528,7 @@ TEST_F(StereoVisionImuFrontendFixture, DISABLED_processFirstFrame) {
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
     Vector3 v_expect =
-        UndistorterRectifier::UndistortKeypointAndGetVersor(left_frame.keypoints_[i], left_frame.cam_param_);
+        UndistorterRectifier::GetBearingVector(left_frame.keypoints_[i], left_frame.cam_param_);
     Vector3 v_actual = left_frame.versors_[i];
     EXPECT_LT((v_actual - v_expect).norm(), 0.1);
   }
@@ -609,7 +609,7 @@ TEST_F(StereoVisionImuFrontendFixture, DISABLED_processFirstFrame) {
     double depth_expect = depth_gt[idx_gt];
     double depth_actual = sf.keypoints_3d_[i](2);
     Vector3 v_expected =
-        UndistorterRectifier::UndistortKeypointAndGetVersor(KeypointCV(left_distort_corners[idx_gt].x(),
+        UndistorterRectifier::GetBearingVector(KeypointCV(left_distort_corners[idx_gt].x(),
                                          left_distort_corners[idx_gt].y()),
                               left_frame.cam_param_);
     v_expected = v_expected * (depth_gt[idx_gt]);

@@ -163,7 +163,6 @@ class StereoFrame {
   StatusKeypointsCV right_keypoints_rectified_;
 
   //! Depths of keypoints
-  // TODO(marcus): we got rid of this for a reason, find out what to replace it with...
   VIO::Depths keypoints_depth_;
 
   //! 3D positions of the stereo points as given by reprojection using stereo

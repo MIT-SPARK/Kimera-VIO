@@ -163,7 +163,7 @@ void Tracker::featureTracking(Frame* ref_frame,
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
     cur_frame->keypoints_.push_back(px_cur[i]);
     cur_frame->versors_.push_back(
-        UndistorterRectifier::UndistortKeypointAndGetVersor(px_cur[i], ref_frame->cam_param_, R));
+        UndistorterRectifier::GetBearingVector(px_cur[i], ref_frame->cam_param_, R));
   }
 
   // max number of frames in which a feature is seen
@@ -256,7 +256,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
       << "Median disparity calculation failed...";
   VLOG(5) << "Median disparity: " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
-    LOG(WARNING) << "LOW_DISPARITY: " << disparity;
+    VLOG(5) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;
   } else {
     // Check for rotation only case

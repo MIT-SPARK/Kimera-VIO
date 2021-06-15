@@ -24,13 +24,13 @@
 #include <opencv2/opencv.hpp>
 
 #include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
+#include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
@@ -57,6 +57,8 @@ class Tracker {
           const Camera::ConstPtr& camera,
           DisplayQueue* display_queue = nullptr);
 
+  virtual ~Tracker() = default;
+
   // Tracker parameters.
   const FrontendParams tracker_params_;
 
@@ -71,7 +73,7 @@ class Tracker {
 
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.
-  std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
+  virtual std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
       Frame* ref_frame,
       Frame* cur_frame);
 
@@ -154,8 +156,7 @@ class Tracker {
   // Incremental id assigned to new landmarks.
   LandmarkId landmark_count_;
 
-  // StereoCamera object for the camera we are tracking. We use the left camera.
-  // TODO(marcus): this should be general to all camera types!
+  // Camera object for the camera we are tracking. For stereo, use left.
   Camera::ConstPtr camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of

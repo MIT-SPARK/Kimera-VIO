@@ -28,7 +28,7 @@ ransac_inlier_threshold_stereo: 0.3
 use_mono_rot: 0
 refine_pose: 1
 
-lowe_ratio: 0.9  # TODO(marcus): get rid, not used
+lowe_ratio: 0.9
 matcher_type: 3
 
 nfeatures: 1000

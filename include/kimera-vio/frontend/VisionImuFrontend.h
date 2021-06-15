@@ -26,6 +26,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/imu-frontend/ImuFrontendParams.h"
+#include "kimera-vio/initial/TimeAlignerBase.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/visualizer/Display-definitions.h"
@@ -45,7 +46,8 @@ class VisionImuFrontend {
   KIMERA_POINTER_TYPEDEFS(VisionImuFrontend);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisionImuFrontend);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  
+  typedef std::function<void(double imu_time_shift_s)> ImuTimeShiftCallback;
+
  public:
   VisionImuFrontend(const ImuParams& imu_params,
                  const ImuBias& imu_initial_bias,
@@ -105,9 +107,18 @@ class VisionImuFrontend {
     return tracker_->debug_info_;
   }
 
+  /* ------------------------------------------------------------------------ */
+  // register a callback for the frontend to update the imu time shift
+  inline void registerImuTimeShiftUpdateCallback(const ImuTimeShiftCallback& callback) {
+    imu_time_shift_update_callback_ = callback;
+  }
+
  protected:
   virtual FrontendOutputPacketBase::UniquePtr
       bootstrapSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
+
+  virtual FrontendOutputPacketBase::UniquePtr
+      timeAlignmentSpin(FrontendInputPacketBase::UniquePtr&& input);
 
   virtual FrontendOutputPacketBase::UniquePtr
       nominalSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
@@ -136,8 +147,9 @@ class VisionImuFrontend {
 
  protected:
   enum class FrontendState {
-    Bootstrap = 0u,  //! Initialize Frontend
-    Nominal = 1u     //! Run Frontend
+    Bootstrap = 0u,               //! Initialize Frontend
+    InitialTimeAlignment = 1u,    //! Optionally initialize IMU-Camera time alignment
+    Nominal = 2u                  //! Run Frontend
   };
   std::atomic<FrontendState> frontend_state_;
 
@@ -160,6 +172,10 @@ class VisionImuFrontend {
 
   // Logger
   FrontendLogger::UniquePtr logger_;
+
+  // Time alignment
+  ImuTimeShiftCallback imu_time_shift_update_callback_;
+  TimeAlignerBase::UniquePtr time_aligner_;
 };
 
 }  // namespace VIO
