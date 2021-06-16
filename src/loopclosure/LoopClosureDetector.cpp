@@ -19,9 +19,9 @@
 #include <KimeraRPGO/RobustSolver.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
 #include <opengv/relative_pose/CentralRelativeAdapter.hpp>
 #include <opengv/sac/Ransac.hpp>
@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -69,6 +70,9 @@ LoopClosureDetector::LoopClosureDetector(
       stereo_matcher_(nullptr),
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
+      shared_noise_model_(),
+      ransac_3pt_(),
+      ransac_5pt_(),
       logger_(nullptr) {
   // TODO(marcus): This should come in with every input payload, not be
   // constant.
@@ -131,6 +135,13 @@ LoopClosureDetector::LoopClosureDetector(
                                   lcd_params_.pgo_rot_threshold_,
                                   KimeraRPGO::Verbosity::QUIET);
   pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
+
+  ransac_3pt_.max_iterations_ = lcd_params_.max_ransac_iterations_stereo_;
+  ransac_3pt_.probability_ = lcd_params_.ransac_probability_stereo_;
+  ransac_3pt_.threshold_ = lcd_params_.ransac_threshold_stereo_;
+  ransac_5pt_.max_iterations_ = lcd_params_.max_ransac_iterations_mono_;
+  ransac_5pt_.probability_ = lcd_params_.ransac_probability_mono_;
+  ransac_5pt_.threshold_ = lcd_params_.ransac_threshold_mono_;
 
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
 }
@@ -785,9 +796,6 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
 }
 
 /* ------------------------------------------------------------------------ */
-// TODO(marcus): both geometrticVerification and recoverPose run the matching
-// alg. this is wasteful. Store the matched indices as latest for use in the
-// compute step
 bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id,
     const FrameId& match_id,
@@ -804,67 +812,56 @@ bool LoopClosureDetector::geometricVerificationNister(
   i_query = *inlier_id_in_query_frame;
   i_match = *inlier_id_in_match_frame;
 
-  BearingVectors query_versors, match_versors;
-
+  // Convert matches to proper data type for ransac wrapper
   CHECK_EQ(i_query.size(), i_match.size());
-  query_versors.resize(i_query.size());
-  match_versors.resize(i_match.size());
-  for (size_t i = 0; i < i_match.size(); i++) {
-    query_versors[i] = (db_frames_[query_id].versors_[i_query[i]]);
-    match_versors[i] = (db_frames_[match_id].versors_[i_match[i]]);
+  KeypointMatches matches_query_match;
+  for (size_t i = 0; i < i_query.size(); i++) {
+    matches_query_match.push_back(std::make_pair(i_query[i], i_match[i]));
   }
 
-  // Recover relative pose between frames, with translation up to a scalar.
-  if (static_cast<int>(match_versors.size()) >=
-      lcd_params_.min_correspondences_) {
-    AdapterMono adapter(match_versors, query_versors);
-
+  if (static_cast<int>(i_match.size()) >= lcd_params_.min_correspondences_) {
     // Use RANSAC to solve the central-relative-pose problem.
-    opengv::sac::Ransac<SacProblemMono> ransac;
+    TrackingStatusPose result;
+    Tracker::runRansac<ProblemMono>(
+        db_frames_[query_id].keypoints_3d_,
+        db_frames_[match_id].keypoints_3d_,
+        matches_query_match,
+        lcd_params_.ransac_randomize_mono_,
+        0,  // no min inlier for ransac bc thresholding done after
+        &ransac_5pt_,
+        &result);
 
-    ransac.sac_model_ =
-        std::make_shared<SacProblemMono>(adapter,
-                                         SacProblemMono::Algorithm::NISTER,
-                                         lcd_params_.ransac_randomize_mono_);
-    ransac.max_iterations_ = lcd_params_.max_ransac_iterations_mono_;
-    ransac.probability_ = lcd_params_.ransac_probability_mono_;
-    ransac.threshold_ = lcd_params_.ransac_threshold_mono_;
-
-    // Compute transformation via RANSAC.
-    bool ransac_success = ransac.computeModel();
-    VLOG(3) << "ransac 5pt size of input: " << query_versors.size()
-            << "\nransac 5pt inliers: " << ransac.inliers_.size()
-            << "\nransac 5pt iterations: " << ransac.iterations_;
-    debug_info_.mono_input_size_ = query_versors.size();
-    debug_info_.mono_inliers_ = ransac.inliers_.size();
-    debug_info_.mono_iter_ = ransac.iterations_;
+    bool ransac_success =
+        result.first == TrackingStatus::INVALID ? true : false;
+    VLOG(3) << "ransac 5pt size of input: " << i_match.size()
+            << "\nransac 5pt inliers: " << ransac_5pt_.inliers_.size()
+            << "\nransac 5pt iterations: " << ransac_5pt_.iterations_;
+    debug_info_.mono_input_size_ = i_match.size();
+    debug_info_.mono_inliers_ = ransac_5pt_.inliers_.size();
+    debug_info_.mono_iter_ = ransac_5pt_.iterations_;
 
     if (!ransac_success) {
       VLOG(3) << "LoopClosureDetector Failure: RANSAC 5pt could not solve.";
     } else {
       double inlier_percentage =
-          static_cast<double>(ransac.inliers_.size()) / query_versors.size();
+          static_cast<double>(ransac_5pt_.inliers_.size()) / i_match.size();
 
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
-        if (ransac.iterations_ < lcd_params_.max_ransac_iterations_mono_) {
-          opengv::transformation_t transformation = ransac.model_coefficients_;
+        if (ransac_5pt_.iterations_ < lcd_params_.max_ransac_iterations_mono_) {
           // Remove the outliers based on ransac.inliers (modify i_query and
           // i_match AND pass the result out)
           inlier_id_in_query_frame->clear();
           inlier_id_in_match_frame->clear();
-          for (const auto i : ransac.inliers_) {
+          for (const auto i : ransac_5pt_.inliers_) {
             inlier_id_in_query_frame->push_back(i_query[i]);
             inlier_id_in_match_frame->push_back(i_match[i]);
           }
-          *camMatch_T_camQuery_mono =
-              UtilsOpenCV::openGvTfToGtsamPose3(transformation);
-
+          *camMatch_T_camQuery_mono = result.second;
           return true;
         }
       }
     }
   }
-
   return false;
 }
 
@@ -885,65 +882,56 @@ bool LoopClosureDetector::recoverPoseArun(
   i_query = *inlier_id_in_query_frame;
   i_match = *inlier_id_in_match_frame;
 
-  BearingVectors f_match, f_query;
-
-  // Fill point clouds with matched 3D keypoints.
+  // Convert matches to proper data type for ransac wrapper
   CHECK_EQ(i_query.size(), i_match.size());
-  f_match.resize(i_match.size());
-  f_query.resize(i_query.size());
-  for (size_t i = 0; i < i_match.size(); i++) {
-    f_query[i] = (db_frames_[query_id].keypoints_3d_.at(i_query[i]));
-    f_match[i] = (db_frames_[match_id].keypoints_3d_.at(i_match[i]));
+  KeypointMatches matches_query_match;
+  for (size_t i = 0; i < i_query.size(); i++) {
+    matches_query_match.push_back(std::make_pair(i_query[i], i_match[i]));
   }
 
-  AdapterStereo adapter(f_match, f_query);
-  opengv::transformation_t transformation;
-
   // Compute transform using RANSAC 3-point method (Arun).
-  opengv::sac::Ransac<SacProblemStereo> ransac;
-  ransac.sac_model_ = std::make_shared<SacProblemStereo>(
-      adapter, lcd_params_.ransac_randomize_stereo_);
-  ransac.max_iterations_ = lcd_params_.max_ransac_iterations_stereo_;
-  ransac.probability_ = lcd_params_.ransac_probability_stereo_;
-  ransac.threshold_ = lcd_params_.ransac_threshold_stereo_;
+  TrackingStatusPose result;
+  Tracker::runRansac<ProblemStereo>(
+      db_frames_[query_id].keypoints_3d_,
+      db_frames_[match_id].keypoints_3d_,
+      matches_query_match,
+      lcd_params_.ransac_randomize_mono_,
+      0,  // no min inlier for ransac bc thresholding done after
+      &ransac_3pt_,
+      &result);
 
   // Compute transformation via RANSAC.
-  bool ransac_success = ransac.computeModel();
-  VLOG(3) << "ransac 3pt size of input: " << f_match.size()
-          << "\nransac 3pt inliers: " << ransac.inliers_.size()
-          << "\nransac 3pt iterations: " << ransac.iterations_;
-  debug_info_.stereo_input_size_ = f_match.size();
-  debug_info_.stereo_inliers_ = ransac.inliers_.size();
-  debug_info_.stereo_iter_ = ransac.iterations_;
+  bool ransac_success = result.first == TrackingStatus::INVALID ? true : false;
+  VLOG(3) << "ransac 3pt size of input: " << i_match.size()
+          << "\nransac 3pt inliers: " << ransac_3pt_.inliers_.size()
+          << "\nransac 3pt iterations: " << ransac_3pt_.iterations_;
+  debug_info_.stereo_input_size_ = i_match.size();
+  debug_info_.stereo_inliers_ = ransac_3pt_.inliers_.size();
+  debug_info_.stereo_iter_ = ransac_3pt_.iterations_;
 
   if (!ransac_success) {
     VLOG(3) << "LoopClosureDetector Failure: RANSAC 3pt could not solve.";
   } else {
     double inlier_percentage =
-        static_cast<double>(ransac.inliers_.size()) / f_match.size();
+        static_cast<double>(ransac_3pt_.inliers_.size()) / i_match.size();
 
     if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_stereo_) {
-      if (ransac.iterations_ < lcd_params_.max_ransac_iterations_stereo_) {
-        transformation = ransac.model_coefficients_;
-
+      if (ransac_3pt_.iterations_ < lcd_params_.max_ransac_iterations_stereo_) {
         // Remove the outliers based on ransac.inliers (modify i_query and
         // i_match AND pass the result out)
         inlier_id_in_query_frame->clear();
         inlier_id_in_match_frame->clear();
-        for (const auto i : ransac.inliers_) {
+        for (const auto i : ransac_3pt_.inliers_) {
           inlier_id_in_query_frame->push_back(i_query[i]);
           inlier_id_in_match_frame->push_back(i_match[i]);
         }
 
-        // Transform pose from camera frame to body frame.
-        *camMatch_T_camQuery =
-            UtilsOpenCV::openGvTfToGtsamPose3(transformation);
-
+        // Return result
+        *camMatch_T_camQuery = result.second;
         return true;
       }
     }
   }
-
   return false;
 }
 

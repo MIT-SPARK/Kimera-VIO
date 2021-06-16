@@ -389,18 +389,13 @@ class LoopClosureDetector {
   gtsam::SharedNoiseModel
       shared_noise_model_;
 
+  // Ranasc problems
+  opengv::sac::Ransac<ProblemStereo> ransac_3pt_;
+  opengv::sac::Ransac<ProblemMono> ransac_5pt_;
+
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
   LcdDebugInfo debug_info_;
-
- private:
-  // Lcd typedefs
-  using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
-  using SacProblemMono =
-      opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-  using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
-  using SacProblemStereo =
-      opengv::sac_problems::point_cloud::PointCloudSacProblem;
-};  // class LoopClosureDetector
+};
 
 }  // namespace VIO
