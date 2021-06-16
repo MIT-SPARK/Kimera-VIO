@@ -17,10 +17,10 @@
 
 namespace VIO {
 
-ThreadsafeOdometryBuffer::ThreadsafeOdometryBuffer(Timestamp buffer_length_ns)
+ThreadsafeOdometryBuffer::ThreadsafeOdometryBuffer(const Timestamp& buffer_length_ns)
     : buffer_(buffer_length_ns) {}
 
-void ThreadsafeOdometryBuffer::add(Timestamp time,
+void ThreadsafeOdometryBuffer::add(const Timestamp& time,
                                    const gtsam::NavState& odometry) {
   Odometry to_add;
   to_add.timestamp = time;
@@ -29,7 +29,7 @@ void ThreadsafeOdometryBuffer::add(Timestamp time,
 }
 
 ThreadsafeOdometryBuffer::QueryResult ThreadsafeOdometryBuffer::getNearest(
-    Timestamp timestamp,
+    const Timestamp& timestamp,
     gtsam::NavState* odometry) {
   if (buffer_.empty()) {
     return QueryResult::DataNotYetAvailable;

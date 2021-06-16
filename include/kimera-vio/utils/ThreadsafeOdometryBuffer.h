@@ -28,11 +28,11 @@ class ThreadsafeOdometryBuffer {
     DataAvailable,
   };
 
-  explicit ThreadsafeOdometryBuffer(Timestamp buffer_length_ns);
+  explicit ThreadsafeOdometryBuffer(const Timestamp& buffer_length_ns);
 
-  void add(Timestamp time, const gtsam::NavState& odometry);
+  void add(const Timestamp& time, const gtsam::NavState& odometry);
 
-  ThreadsafeOdometryBuffer::QueryResult getNearest(Timestamp timestamp,
+  ThreadsafeOdometryBuffer::QueryResult getNearest(const Timestamp& timestamp,
                                                    gtsam::NavState* odometry);
 
  private:

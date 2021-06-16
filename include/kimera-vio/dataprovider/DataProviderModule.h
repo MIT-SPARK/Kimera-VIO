@@ -83,7 +83,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    */
   inline void fillExternalOdometryQueue(const ExternalOdomMeasurement& odom) {
     if (!external_odometry_buffer_) {
-      LOG(WARNING)
+      // warn hopefully about every second (assuming a range of 30hz-100hz)
+      LOG_EVERY_N(WARNING, 50)
           << "Attempting to add external odometry when using an external "
              "odometry source is disabled! Measurements will be ignored";
       return;

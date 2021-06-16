@@ -360,19 +360,18 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
   }
 
   // Add odometry factors if they're available and have non-zero precision
-  if (odometry_body_pose &&
-      ((*odom_params_).betweenRotationPrecision_ > 0.0 ||
-       (*odom_params_).betweenTranslationPrecision_ > 0.0)) {
-    CHECK(odom_params_);
+  if (odometry_body_pose && odom_params_ &&
+      (odom_params_->betweenRotationPrecision_ > 0.0 ||
+       odom_params_->betweenTranslationPrecision_ > 0.0)) {
     addBetweenFactor(last_kf_id_,
                      curr_kf_id_,
                      *odometry_body_pose,
-                     (*odom_params_).betweenRotationPrecision_,
-                     (*odom_params_).betweenTranslationPrecision_);
+                     odom_params_->betweenRotationPrecision_,
+                     odom_params_->betweenTranslationPrecision_);
   }
-  if (odometry_vel && (*odom_params_).velocityPrecision_ > 0.0) {
+  if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
     addVelocityPrior(
-        curr_kf_id_, *odometry_vel, (*odom_params_).velocityPrecision_);
+        curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
   }
 
   /////////////////// OPTIMIZE /////////////////////////////////////////////////
@@ -902,8 +901,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
-                                         "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to stay as it is since it is "
+                "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -916,8 +916,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
-                                         "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to be a proj. factor, as it "
+                "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,

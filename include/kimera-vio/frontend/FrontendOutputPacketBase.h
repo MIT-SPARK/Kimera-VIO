@@ -31,8 +31,8 @@ class FrontendOutputPacketBase : public PipelinePayload {
 
   FrontendOutputPacketBase(
       const Timestamp& timestamp,
-      const bool is_keyframe,
-      const FrontendType frontend_type,
+      const bool& is_keyframe,
+      const FrontendType& frontend_type,
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS& imu_acc_gyrs,
       const DebugTrackerInfo& debug_tracker_info,

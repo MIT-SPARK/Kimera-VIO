@@ -32,14 +32,14 @@ enum class FrontendType {
 
 // TODO(marcus): this could probably move somewhere else once refactor happens
 struct ExternalOdomMeasurement {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   ExternalOdomMeasurement() = default;
+
   ExternalOdomMeasurement(const Timestamp& timestamp,
                           const gtsam::NavState& odom_data)
       : timestamp_(timestamp), odom_data_(odom_data) {}
-  ExternalOdomMeasurement(Timestamp&& timestamp, gtsam::NavState&& odom_data)
-      : timestamp_(std::move(timestamp)), odom_data_(std::move(odom_data)) {}
 
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Timestamp timestamp_;
   gtsam::NavState odom_data_;
 };

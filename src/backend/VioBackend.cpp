@@ -359,23 +359,22 @@ bool VioBackend::addVisualInertialStateAndOptimize(
   }
 
   // Add odometry factors if they're available and have non-zero precision
-  if (odometry_body_pose &&
-      ((*odom_params_).betweenRotationPrecision_ > 0.0 ||
-       (*odom_params_).betweenTranslationPrecision_ > 0.0)) {
-    CHECK(odom_params_);
+  if (odometry_body_pose && odom_params_ &&
+      (odom_params_->betweenRotationPrecision_ > 0.0 ||
+       odom_params_->betweenTranslationPrecision_ > 0.0)) {
     addBetweenFactor(last_kf_id_,
                      curr_kf_id_,
                      *odometry_body_pose,
-                     (*odom_params_).betweenRotationPrecision_,
-                     (*odom_params_).betweenTranslationPrecision_);
+                     odom_params_->betweenRotationPrecision_,
+                     odom_params_->betweenTranslationPrecision_);
   }
-  if (odometry_vel && (*odom_params_).velocityPrecision_ > 0.0) {
+  if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
     LOG(WARNING)
         << "Using velocity priors from external odometry: "
         << "This only works if you have velocity estimates in the world frame! "
         << "(not provided by typical odometry sensors)";
     addVelocityPrior(
-        curr_kf_id_, *odometry_vel, (*odom_params_).velocityPrecision_);
+        curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
   }
 
   // Why do we do this??
@@ -900,7 +899,7 @@ void VioBackend::addVelocityPrior(const FrameId& frame_id,
                                   const gtsam::Velocity3& vel,
                                   const double& precision) {
   VLOG(10) << "Adding odometry pose velocity prior factor.";
-  Vector3 precisions;
+  gtsam::Vector3 precisions;
   precisions.head<3>().setConstant(precision);
   const gtsam::SharedNoiseModel& noise_model =
       gtsam::noiseModel::Diagonal::Precisions(precisions);
