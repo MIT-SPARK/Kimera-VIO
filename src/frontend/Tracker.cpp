@@ -192,6 +192,73 @@ void Tracker::featureTracking(Frame* ref_frame,
   debug_info_.featureTrackingTime_ = utils::Timer::toc(tic).count();
 }
 
+template <class ProblemT>
+void Tracker::runRansac(const BearingVectors& vectors_ref,
+                        const BearingVectors& vectors_cur,
+                        const KeypointMatches& matches_ref_cur,
+                        const bool& ransac_randomize,
+                        const int& min_nr_inliers,
+                        opengv::sac::Ransac<ProblemT>* ransac,
+                        TrackingStatusPose* tracking_status_pose,
+                        const int& ransac_verbosity) {
+  CHECK_NOTNULL(ransac);
+  CHECK_NOTNULL(tracking_status_pose);
+
+  // Get matched bearing vectors (vector of 3D vectors)
+  const size_t& n_matches = matches_ref_cur.size();
+  BearingVectors f_cur;
+  BearingVectors f_ref;
+  f_cur.reserve(n_matches);
+  f_ref.reserve(n_matches);
+  for (const KeypointMatch& it : matches_ref_cur) {
+    f_ref.push_back(vectors_ref.at(it.first));
+    f_cur.push_back(vectors_cur.at(it.second));
+  }
+
+  // Create adapter and initialize problem based on input type
+  if constexpr (std::is_same<ProblemT, VIO::ProblemMono>::value) {
+    AdapterMono adapter(f_ref, f_cur);
+    ransac->sac_model_ = std::make_shared<VIO::ProblemMono>(
+        adapter, ProblemMono::NISTER, ransac_randomize);
+  } else if constexpr (std::is_same<ProblemT,
+                                    VIO::ProblemMonoGivenRot>::value) {
+    AdapterMonoGivenRot adapter(f_ref, f_cur);
+    ransac->sac_model_ =
+        std::make_shared<VIO::ProblemMonoGivenRot>(adapter, ransac_randomize);
+  } else if constexpr (std::is_same<ProblemT, VIO::ProblemStereo>::value) {
+    AdapterStereo adapter(f_ref, f_cur);
+    ransac->sac_model_ =
+        std::make_shared<VIO::ProblemStereo>(adapter, ransac_randomize);
+  } else {
+    LOG(FATAL) << "Ransac problem type not recognized.";
+  }
+
+  // Run ransac and return result
+  if (!ransac->computeModel(ransac_verbosity)) {
+    *tracking_status_pose =
+        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+  }
+
+  LOG_IF(WARNING, tracking_status_pose->first == TrackingStatus::INVALID)
+      << "failure: RANSAC could not find a solution."
+      << "\n  size of matches_ref_cur: " << matches_ref_cur.size()
+      << "\n  size of f_ref: " << f_ref.size()
+      << "\n  size of f_cur: " << f_cur.size();
+
+  // Check quality of tracking
+  TrackingStatus status = TrackingStatus::VALID;
+  if (ransac->inliers_.size() < min_nr_inliers) {
+    VLOG(5) << "FEW_MATCHES: " << ransac->inliers_.size();
+    status = TrackingStatus::FEW_MATCHES;
+  }
+
+  // Get the resulting transformation: a 3x4 matrix [R t]
+  const opengv::transformation_t& best_transformation =
+      ransac->model_coefficients_;
+  *tracking_status_pose = std::make_pair(
+      status, UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
+}
+
 std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
     Frame* ref_frame,
     Frame* cur_frame) {
@@ -591,72 +658,6 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
       std::make_pair(status,
                      gtsam::Pose3(camLrectlkf_R_camLrectkf, gtsam::Point3(t))),
       totalInfo.cast<double>());
-}
-
-template <class ProblemT>
-void Tracker::runRansac(const BearingVectors& vectors_ref,
-                        const BearingVectors& vectors_cur,
-                        const KeypointMatches& matches_ref_cur,
-                        const bool& ransac_randomize,
-                        const int& min_nr_inliers,
-                        opengv::sac::Ransac<ProblemT>* ransac,
-                        TrackingStatusPose* tracking_status_pose,
-                        const int& ransac_verbosity) {
-  CHECK_NOTNULL(ransac);
-  CHECK_NOTNULL(tracking_status_pose);
-
-  // Get matched bearing vectors (vector of 3D vectors)
-  const size_t& n_matches = matches_ref_cur.size();
-  BearingVectors f_cur;
-  BearingVectors f_ref;
-  f_cur.reserve(n_matches);
-  f_ref.reserve(n_matches);
-  for (const KeypointMatch& it : matches_ref_cur) {
-    f_ref.push_back(vectors_ref.at(it.first));
-    f_cur.push_back(vectors_cur.at(it.second));
-  }
-
-  // Create adapter and initialize problem based on input type
-  if constexpr (std::is_same<ProblemT, VIO::ProblemMono>::value) {
-    AdapterMono adapter(f_ref, f_cur);
-    ransac->sac_model_ = std::make_shared<VIO::ProblemMono>(
-        adapter, ProblemMono::NISTER, ransac_randomize);
-  } else if constexpr (std::is_same<ProblemT, VIO::ProblemMonoGivenRot>::value) {
-    AdapterMonoGivenRot adapter(f_ref, f_cur);
-    ransac->sac_model_ = std::make_shared<VIO::ProblemMonoGivenRot>(
-        adapter, ransac_randomize);
-  } else if constexpr (std::is_same<ProblemT, VIO::ProblemStereo>::value) {
-    AdapterStereo adapter(f_ref, f_cur);
-    ransac->sac_model_ = std::make_shared<VIO::ProblemStereo>(
-        adapter, ransac_randomize);
-  } else {
-    LOG(FATAL) << "Ransac problem type not recognized.";
-  }
-
-  // Run ransac and return result
-  if (!ransac->computeModel(ransac_verbosity)) {
-    *tracking_status_pose =
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
-  }
-
-  LOG_IF(WARNING, tracking_status_pose->first == TrackingStatus::INVALID)
-      << "failure: RANSAC could not find a solution."
-      << "\n  size of matches_ref_cur: " << matches_ref_cur.size()
-      << "\n  size of f_ref: " << f_ref.size()
-      << "\n  size of f_cur: " << f_cur.size();
-
-  // Check quality of tracking
-  TrackingStatus status = TrackingStatus::VALID;
-  if (ransac->inliers_.size() < min_nr_inliers) {
-    VLOG(5) << "FEW_MATCHES: " << ransac->inliers_.size();
-    status = TrackingStatus::FEW_MATCHES;
-  }
-
-  // Get the resulting transformation: a 3x4 matrix [R t]
-  const opengv::transformation_t& best_transformation =
-      ransac->model_coefficients_;
-  *tracking_status_pose = std::make_pair(
-      status, UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
 }
 
 std::pair<TrackingStatus, gtsam::Pose3>
