@@ -1009,62 +1009,62 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
           << "- Focal Length: " << avg_focal_length << '\n'
           << "- Threshold: " << threshold;
 
-  switch (tracker_params_.pnp_method_) {
+  return Tracker::runPnpRansac(adapter,
+                               tracker_params_.pnp_method_,
+                               rotation_prior,
+                               translation_prior,
+                               threshold,
+                               max_iterations,
+                               probability,
+                               best_absolute_pose,
+                               inliers);
+}
+
+bool Tracker::runPnpRansac(AdapterPnp& adapter,
+                           const PnpMethod& pnp_method,
+                           const opengv::rotation_t& rotation_prior,
+                           const opengv::translation_t& translation_prior,
+                           const double& threshold,
+                           const int& max_iterations,
+                           const double& probability,
+                           gtsam::Pose3* best_pose,
+                           std::vector<int>* inliers) {
+  CHECK_NOTNULL(best_pose);
+  std::shared_ptr<opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
+        absolute_pose_problem_ptr;
+
+  switch (pnp_method) {
     case PnpMethod::KneipP2P: {
       // Uses rotation prior from adapter
       adapter.setR(rotation_prior);
-      return runPnpRansac(
-          VIO::make_unique<
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
-              adapter,
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::
-                  TWOPT),
-          threshold,
-          max_iterations,
-          probability,
-          best_absolute_pose,
-          inliers);
+      absolute_pose_problem_ptr = VIO::make_unique<
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
+          adapter,
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::TWOPT);
       break;
     }
     case PnpMethod::KneipP3P: {
-      return runPnpRansac(
-          VIO::make_unique<
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
-              adapter,
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::
-                  KNEIP),
-          threshold,
-          max_iterations,
-          probability,
-          best_absolute_pose,
-          inliers);
+      absolute_pose_problem_ptr = VIO::make_unique<
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
+          adapter,
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::KNEIP);
+      break;
     }
     case PnpMethod::GaoP3P: {
       // Get the result
-      return runPnpRansac(
-          VIO::make_unique<
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
-              adapter,
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::GAO),
-          threshold,
-          max_iterations,
-          probability,
-          best_absolute_pose,
-          inliers);
+      absolute_pose_problem_ptr = VIO::make_unique<
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
+          adapter,
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::GAO);
+      break;
     }
     case PnpMethod::EPNP: {
       // Uses all correspondences.
-      return runPnpRansac(
-          VIO::make_unique<
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
-              adapter,
-              opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::
-                  EPNP),
-          threshold,
-          max_iterations,
-          probability,
-          best_absolute_pose,
-          inliers);
+      absolute_pose_problem_ptr = VIO::make_unique<
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>(
+          adapter,
+          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::EPNP);
+      break;
     }
     case PnpMethod::UPNP: {
       LOG_IF(WARNING, inliers) << "UPNP expects outlier free correspondences.";
@@ -1073,8 +1073,9 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
           opengv::absolute_pose::upnp(adapter);
       // TODO(TONI): what about the rest of transformations?
       CHECK_GT(upnp_transformations.size(), 0);
-      *best_absolute_pose = Eigen::MatrixXd(upnp_transformations[0]);
+      *best_pose = Eigen::MatrixXd(upnp_transformations[0]);
       return true;
+      break;
     }
     case PnpMethod::UP3P: {
       CHECK(inliers);
@@ -1084,8 +1085,9 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
           opengv::absolute_pose::upnp(adapter, *inliers);
       // TODO(TONI): what about the rest of transformations?
       CHECK_GT(upnp_transformations.size(), 0);
-      *best_absolute_pose = Eigen::MatrixXd(upnp_transformations[0]);
+      *best_pose = Eigen::MatrixXd(upnp_transformations[0]);
       return true;
+      break;
     }
     case PnpMethod::NonlinearOptimization: {
       CHECK(inliers);
@@ -1094,34 +1096,25 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
       // Uses all correspondences.
       adapter.sett(translation_prior);
       adapter.setR(rotation_prior);
-      *best_absolute_pose = Eigen::MatrixXd(
+      *best_pose = Eigen::MatrixXd(
           opengv::absolute_pose::optimize_nonlinear(adapter, *inliers));
       return true;
+      break;
     }
     case PnpMethod::MLPNP: {
       // TODO(TONI): needs fork of opengv, can we make a static check and use
       // this iff we are having MLPNP support?
       LOG(FATAL) << "Not implemented...";
       return false;
+      break;
     }
     default: {
       LOG(ERROR) << "Unknown PnP method selected: "
-                 << VIO::to_underlying(tracker_params_.pnp_method_);
+                 << VIO::to_underlying(pnp_method);
       return false;
+      break;
     }
   }
-}
-
-bool Tracker::runPnpRansac(
-    std::shared_ptr<opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
-        absolute_pose_problem_ptr,
-    const double& threshold,
-    const int& max_iterations,
-    const double& probability,
-    gtsam::Pose3* best_pose,
-    std::vector<int>* inliers) {
-  CHECK_NOTNULL(best_pose);
-  CHECK(absolute_pose_problem_ptr);
 
   //! Create a Ransac object
   opengv::sac::Ransac<

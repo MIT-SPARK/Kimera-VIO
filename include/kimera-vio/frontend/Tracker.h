@@ -190,7 +190,6 @@ class Tracker {
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
- private:
   /**
    * @brief runPnpRansac
    * @param absolute_pose_problem_ptr
@@ -200,15 +199,15 @@ class Tracker {
    * @param inliers The inliers from the input data
    * @return true on success, false on failure.
    */
-  bool runPnpRansac(
-      std::shared_ptr<
-          opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem>
-          absolute_pose_problem_ptr,
-      const double& threshold,
-      const int& max_iterations,
-      const double& probability,
-      gtsam::Pose3* best_pose,
-      std::vector<int>* inliers);
+  static bool runPnpRansac(AdapterPnp& adapter,
+                           const PnpMethod& pnp_method,
+                           const opengv::rotation_t& rotation_prior,
+                           const opengv::translation_t& translation_prior,
+                           const double& threshold,
+                           const int& max_iterations,
+                           const double& probability,
+                           gtsam::Pose3* best_pose,
+                           std::vector<int>* inliers);
 
  public:
   //! Debug info (its public to allow stereo frames to populate it).
