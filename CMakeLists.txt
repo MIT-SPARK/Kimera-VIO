@@ -247,6 +247,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testMeshUtils.cpp
     tests/testMeshOptimization.cpp
     tests/testMonoProvider.cpp
+    tests/testOdomParams.cpp
     tests/testParallelMonoProvider.cpp
     tests/testParallelPlaneRegularBasicFactor.cpp
     tests/testParallelPlaneRegularTangentSpaceFactor.cpp

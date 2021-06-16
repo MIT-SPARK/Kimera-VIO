@@ -33,7 +33,8 @@ bool OdometryParams::parseYAML(const std::string& filepath) {
   body_Pose_odom_ = body_Pose_odom;
 
   yaml_parser.getYamlParam("odomRotationPrecision", &betweenRotationPrecision_);
-  yaml_parser.getYamlParam("odomPositionPrecision", &betweenTranslationPrecision_);
+  yaml_parser.getYamlParam("odomPositionPrecision",
+                           &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("odomVelPrecision", &velocityPrecision_);
 
   double rate_hz = 0.0;
@@ -62,7 +63,11 @@ void OdometryParams::print() const {
 
 bool OdometryParams::equals(const PipelineParams& obj) const {
   const auto& rhs = static_cast<const OdometryParams&>(obj);
-  return body_Pose_odom_.equals(rhs.body_Pose_odom_);
+  return body_Pose_odom_.equals(rhs.body_Pose_odom_) &&
+         betweenRotationPrecision_ == rhs.betweenRotationPrecision_ &&
+         betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
+         velocityPrecision_ == rhs.velocityPrecision_ &&
+         nominal_sampling_time_s_ == rhs.nominal_sampling_time_s_;
 }
 
 }  // namespace VIO
