@@ -89,6 +89,16 @@ class Tracker {
     landmarks_map_ = lmks_map;
   }
 
+  template <class ProblemT>
+  static void runRansac(const BearingVectors& vectors_ref,
+                        const BearingVectors& vectors_cur,
+                        const KeypointMatches& matches_ref_cur,
+                        const bool& ransac_randomize,
+                        const int& min_nr_inliers,
+                        opengv::sac::Ransac<ProblemT>* ransac,
+                        TrackingStatusPose* tracking_status_pose,
+                        const int& ransac_verbosity = 0);
+
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(

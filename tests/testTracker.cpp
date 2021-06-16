@@ -1673,7 +1673,7 @@ TEST_F(TestTracker, PnPTracking) {
   size_t lmk_id = 0;
   LandmarkIds lmk_ids;
   StatusKeypointsCV left_inlier_status_kpts;
-  std::vector<gtsam::Vector3> bearing_vectors;
+  BearingVectors bearing_vectors;
   for (const auto& kpt : left_inlier_kpts) {
     VLOG(5) << "Keypoint: " << kpt;
     // What if the keypoint is out of image bounds?

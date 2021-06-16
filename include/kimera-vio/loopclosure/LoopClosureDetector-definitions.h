@@ -60,7 +60,7 @@ struct LCDFrame {
            const FrameId& id,
            const FrameId& id_kf,
            const std::vector<cv::KeyPoint>& keypoints,
-           const std::vector<gtsam::Vector3>& keypoints_3d,
+           const BearingVectors& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
            const BearingVectors& versors,
@@ -81,7 +81,7 @@ struct LCDFrame {
   FrameId id_;
   FrameId id_kf_;
   std::vector<cv::KeyPoint> keypoints_;
-  std::vector<gtsam::Vector3> keypoints_3d_;
+  BearingVectors keypoints_3d_;
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors versors_;

@@ -1450,7 +1450,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
                           const KeypointsCV& keypoints,
                           const std::vector<KeypointStatus>& keypoints_status,
-                          const std::vector<Vector3>& keypoints_3d,
+                          const BearingVectors& keypoints_3d,
                           const LandmarkIds& landmarks,
                           const gtsam::Pose3& left_camera_pose,
                           Mesh2D* mesh_2d,
@@ -1549,7 +1549,7 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
 void Mesher::appendNonVioStereoPoints(
     const LandmarkIds& landmarks,
     const std::vector<KeypointStatus>& keypoints_status,
-    const std::vector<Vector3>& keypoints_3d,
+    const BearingVectors& keypoints_3d,
     const gtsam::Pose3& left_cam_pose,
     PointsWithIdMap* points_with_id_stereo) const {
   CHECK_NOTNULL(points_with_id_stereo);
@@ -1855,7 +1855,7 @@ void Mesher::createMesh2dStereo(
     const LandmarkIds& landmarks,
     const std::vector<KeypointStatus>& keypoints_status,
     const KeypointsCV& keypoints,
-    const std::vector<Vector3>& keypoints_3d,
+    const BearingVectors& keypoints_3d,
     const cv::Size& img_size,
     std::vector<std::pair<LandmarkId, gtsam::Point3>>* lmk_with_id_stereo) {
   // triangulation_2D is compulsory, lmk_with_id_stereo is optional.
