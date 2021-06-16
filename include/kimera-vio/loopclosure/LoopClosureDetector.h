@@ -72,12 +72,38 @@ class LoopClosureDetector {
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single frame and adds it to relevant internal
+   * databases. Also generates associated bearing vectors for PnP.
+   * @param[in] frame A Frame object with one images, landmarks, and a pose to
+   * the body frame at a minimum. Other fields may also be populated.
+   * @param[in] points_with_ids A PointsWithIdMap object obtained from the
+   * backend's output.
+   * @return The local ID of the frame after it is added to the databases.
+   */
+  FrameId processAndAddFrame(const Frame& frame,
+                             const PointsWithIdMap& points_with_ids);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Processed a single stereo-frame and adds it to relevant internal
    * databases.
    * @param[in] stereo_frame A StereoFrame object with two images and a pose to
    * the body frame at a minimum. Other fields may also be populated.
    * @return The local ID of the frame after it is added to the databases.
    */
-  FrameId processAndAddFrame(const StereoFrame& stereo_frame);
+  FrameId processAndAddStereoFrame(const StereoFrame& stereo_frame);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Detect features in frame for use with BoW and return keypoints and
+   * descriptors. Currently only ORB features are supported.
+   * @param[in] frame A Frame object with an image.
+   * @param[out] keypoints The ORB keypoints that are detected in the image.
+   * @param[out] descriptors_mat The descriptors associated with the ORB
+   * keypoints in a matrix form.
+   * @param[out] descriptors_vec The descriptors vectorized.
+   */
+  void getNewFeaturesAndDescriptors(const Frame& frame,
+                                    std::vector<cv::KeyPoint>* keypoints,
+                                    OrbDescriptor* descriptors_mat,
+                                    OrbDescriptorVec* descriptors_vec);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Runs all checks on a frame and determines whether it a loop-closure
@@ -89,7 +115,7 @@ class LoopClosureDetector {
    * @return True if the frame is declared a loop-closure with a previous frame,
    *  false otherwise.
    */
-  bool detectLoop(const StereoFrame& stereo_frame, LoopResult* result);
+  bool detectLoop(const FrameId& frame_id, LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Verify that the geometry between two frames is close enough to be
@@ -213,11 +239,29 @@ class LoopClosureDetector {
   void print() const;
 
   /* ------------------------------------------------------------------------ */
+  /** @brief Clears all keypoints and features from an input Frame and
+   *  fills it with ORB features. Also returns associated bearing-vectors.
+   * @param[in] keypoints A vector of KeyPoints representing the ORB keypoints
+   *  identified by an ORB detector.
+   * @param[in] points_with_ids A PointsWithIdMap object obtained from the
+   * backend's output.
+   * @param[out] frame A Frame initially filled with front-end features,
+   * @param[out] keypoints_3d_culled A list of bearing-vectors representing 
+   * the 3D keypoints from the backend that were seen by this frame.
+   *  which is then replaced with ORB features from the keypoints parameter.
+   */
+  // TODO(marcus): utils and reorder (or just static)
+  void rewriteFrameFeatures(const std::vector<cv::KeyPoint>& keypoints,
+                            const PointsWithIdMap& points_with_ids,
+                            Frame* frame,
+                            BearingVectors* keypoints_3d_culled) const;
+
+  /* ------------------------------------------------------------------------ */
   /** @brief Clears all keypoints and features from an input StereoFrame and
    *  fills it with ORB features.
    * @param[in] keypoints A vector of KeyPoints representing the ORB keypoints
    *  identified by an ORB detector.
-   * @param[in/out] A StereoFrame initially filled with front-end features,
+   * @param[out] A StereoFrame initially filled with front-end features,
    *  which is then replaced with ORB features from the keypoints parameter.
    */
   // TODO(marcus): utils and reorder (or just static)
@@ -344,15 +388,31 @@ class LoopClosureDetector {
    *  3D keypoints matched between the frames.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] bodyMatch_T_bodyQuery The relative pose between the two frames.
+   * @param[out] camMatch_T_camQuery The relative pose between the two frames.
    * @return True if the verification passes, false otherwise.
    */
   bool recoverPoseGivenRot(const FrameId& query_id,
                            const FrameId& match_id,
                            const gtsam::Pose3& camMatch_T_camQuery_mono,
-                           gtsam::Pose3* bodyMatch_T_bodyQuery,
+                           gtsam::Pose3* camMatch_T_camQuery,
                            std::vector<FrameId>* inlier_id_in_query_frame,
                            std::vector<FrameId>* inlier_id_in_match_frame);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Checks geometric verification and determines a pose that is
+   *  "stereo" - correct in translation scale using PnP. Ideal for monocular
+   * case.
+   * @param[in] query_id The frame ID of the query frame in the database.
+   * @param[in] match_id The frame ID of the match frame in the database.
+   * @param[out] camMatch_T_camQuery The relative pose between the two frames.
+   * @return True if the verification passes, false otherwise.
+   */
+  bool recoverPosePnP(const FrameId& query_id,
+                      const FrameId& match_id,
+                      const gtsam::Pose3& camMatch_T_camQuery_mono,
+                      gtsam::Pose3* camMatch_T_camQuery,
+                      std::vector<FrameId>* inlier_id_in_query_frame,
+                      std::vector<FrameId>* inlier_id_in_match_frame);
 
  private:
   enum class LcdState {

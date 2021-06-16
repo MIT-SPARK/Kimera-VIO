@@ -311,12 +311,12 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   EXPECT_EQ(stereo_frame.right_keypoints_rectified_.size(), nfeatures);
 }
 
-TEST_F(LCDFixture, processAndAddFrame) {
+TEST_F(LCDFixture, processAndAddStereoFrame) {
   /* Test adding frame to database without BoW Loop CLosure Detection */
   CHECK(lcd_detector_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
 
-  FrameId id_0 = lcd_detector_->processAndAddFrame(*match1_stereo_frame_);
+  FrameId id_0 = lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
 
   EXPECT_EQ(id_0, 0);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 1);
@@ -326,7 +326,7 @@ TEST_F(LCDFixture, processAndAddFrame) {
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size(),
             lcd_detector_->getLCDParams().nfeatures_);
 
-  FrameId id_1 = lcd_detector_->processAndAddFrame(*query1_stereo_frame_);
+  FrameId id_1 = lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
 
   EXPECT_EQ(id_1, 1);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 2);
@@ -342,8 +342,8 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   CHECK(lcd_detector_);
   CHECK(match1_stereo_frame_);
   CHECK(query1_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*match1_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*query1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
 
   // Find correspondences between keypoints.
   std::vector<FrameId> i_query, i_match;
@@ -382,8 +382,8 @@ TEST_F(LCDFixture, recoverPoseArun) {
   /* Test proper scaled pose recovery between ref and cur images */
   CHECK(match1_stereo_frame_);
   CHECK(query1_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*match1_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*query1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
 
   // Find correspondences between keypoints.
   std::vector<FrameId> i_match1, i_query1;
@@ -401,8 +401,8 @@ TEST_F(LCDFixture, recoverPoseArun) {
   /* Test pose recovery on other two images */
   CHECK(match2_stereo_frame_);
   CHECK(query2_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*match2_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*query2_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*query2_stereo_frame_);
 
   // Find correspondences between keypoints.
   std::vector<FrameId> i_query2, i_match2;
@@ -430,8 +430,8 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   /* Test pose recovery given ground truth rotation and unit translation */
   CHECK(match1_stereo_frame_);
   CHECK(query1_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*match1_stereo_frame_);
-  lcd_detector_->processAndAddFrame(*query1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
 
   bodyMatch1_T_bodyQuery1_gt = match1_T_query1_;
   lcd_detector_->transformBodyPoseToCameraPose(bodyMatch1_T_bodyQuery1_gt,
@@ -463,8 +463,8 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
 
   CHECK(match2_stereo_frame_);
   CHECK(query2_stereo_frame_);
-  FrameId frm_2 = lcd_detector_->processAndAddFrame(*match2_stereo_frame_);
-  FrameId frm_3 = lcd_detector_->processAndAddFrame(*query2_stereo_frame_);
+  FrameId frm_2 = lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
+  FrameId frm_3 = lcd_detector_->processAndAddStereoFrame(*query2_stereo_frame_);
 
   bodyMatch2_T_bodyQuery2_gt = match2_T_query2_;
   lcd_detector_->transformBodyPoseToCameraPose(bodyMatch2_T_bodyQuery2_gt,
@@ -507,22 +507,28 @@ TEST_F(LCDFixture, detectLoop) {
   CHECK(match1_stereo_frame_);
   CHECK(match2_stereo_frame_);
   CHECK(query1_stereo_frame_);
-  lcd_detector_->detectLoop(*match2_stereo_frame_, &loop_result_0);
+  FrameId id;
+  
+  id = lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
+  lcd_detector_->detectLoop(id, &loop_result_0);
   EXPECT_EQ(loop_result_0.isLoop(), false);
 
   /* Test the detectLoop method against two images that are identical */
-  lcd_detector_->detectLoop(*match2_stereo_frame_, &loop_result_2);
+  id = lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
+  lcd_detector_->detectLoop(id, &loop_result_2);
   EXPECT_EQ(loop_result_2.isLoop(), true);
   EXPECT_EQ(loop_result_2.query_id_, 1);
   EXPECT_EQ(loop_result_2.match_id_, 0);
   EXPECT_TRUE(loop_result_2.relative_pose_.equals(
       gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(0, 0, 0)), tol));
 
-  lcd_detector_->detectLoop(*match1_stereo_frame_, &loop_result_1);
+  id = lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
+  lcd_detector_->detectLoop(id, &loop_result_1);
   EXPECT_EQ(loop_result_1.isLoop(), false);
 
   /* Test the detectLoop method against two unidentical, similar images */
-  lcd_detector_->detectLoop(*query1_stereo_frame_, &loop_result_3);
+  id = lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
+  lcd_detector_->detectLoop(id, &loop_result_3);
   EXPECT_EQ(loop_result_3.isLoop(), true);
   EXPECT_EQ(loop_result_3.match_id_, 2);
   EXPECT_EQ(loop_result_3.query_id_, 3);

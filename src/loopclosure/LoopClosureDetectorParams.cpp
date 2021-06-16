@@ -180,6 +180,9 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
     case static_cast<unsigned int>(PoseRecoveryOption::GIVEN_ROT):
       pose_recovery_option_ = PoseRecoveryOption::GIVEN_ROT;
       break;
+    case static_cast<unsigned int>(PoseRecoveryOption::PNP):
+      pose_recovery_option_ = PoseRecoveryOption::PNP;
+      break;
     default:
       throw std::runtime_error(
           "LCDparams parseYAML: wrong pose_recovery_option_id");

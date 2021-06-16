@@ -186,8 +186,13 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
     StereoFrontendOutput::Ptr stereo_frontend_output =
         VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
             input.frontend_output_);
+
+    // Process and store relevant data from input frame.
+    FrameId frame_id =
+        processAndAddStereoFrame(stereo_frontend_output->stereo_frame_lkf_);
+
     // Try to find a loop and update the PGO with the result if available.
-    if (detectLoop(stereo_frontend_output->stereo_frame_lkf_, &loop_result)) {
+    if (detectLoop(frame_id, &loop_result)) {
       LoopClosureFactor lc_factor(loop_result.match_id_,
                                   loop_result.query_id_,
                                   loop_result.relative_pose_,
@@ -263,22 +268,46 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
 /* ------------------------------------------------------------------------ */
 FrameId LoopClosureDetector::processAndAddFrame(
+    const Frame& frame,
+    const PointsWithIdMap& points_with_ids) {
+  std::vector<cv::KeyPoint> keypoints;
+  OrbDescriptor descriptors_mat;
+  OrbDescriptorVec descriptors_vec;
+
+  getNewFeaturesAndDescriptors(
+      frame, &keypoints, &descriptors_mat, &descriptors_vec);
+
+  // Fill StereoFrame with ORB keypoints and get 3D keypoints from the backend
+  // associated with frame's landmarks.
+  Frame cp_frame(frame);
+  BearingVectors keypoints_3d;
+  rewriteFrameFeatures(keypoints, points_with_ids, &cp_frame, &keypoints_3d);
+
+  // Build and store LCDFrame object.
+  db_frames_.push_back(LCDFrame(cp_frame.timestamp_,
+                                db_frames_.size(),
+                                cp_frame.id_,
+                                keypoints,
+                                keypoints_3d,
+                                descriptors_vec,
+                                descriptors_mat,
+                                cp_frame.versors_,
+                                boost::none,
+                                boost::none));
+
+  CHECK(!db_frames_.empty());
+  return db_frames_.back().id_;
+}
+
+/* ------------------------------------------------------------------------ */
+FrameId LoopClosureDetector::processAndAddStereoFrame(
     const StereoFrame& stereo_frame) {
   std::vector<cv::KeyPoint> keypoints;
   OrbDescriptor descriptors_mat;
   OrbDescriptorVec descriptors_vec;
 
-  // Extract ORB features and construct descriptors_vec.
-  orb_feature_detector_->detectAndCompute(
-      stereo_frame.left_frame_.img_, cv::Mat(), keypoints, descriptors_mat);
-
-  int L = orb_feature_detector_->descriptorSize();
-  descriptors_vec.resize(descriptors_mat.size().height);
-
-  for (size_t i = 0; i < descriptors_vec.size(); i++) {
-    descriptors_vec[i] = cv::Mat(1, L, descriptors_mat.type());  // one row only
-    descriptors_mat.row(i).copyTo(descriptors_vec[i].row(0));
-  }
+  getNewFeaturesAndDescriptors(
+      stereo_frame.left_frame_, &keypoints, &descriptors_mat, &descriptors_vec);
 
   // Fill StereoFrame with ORB keypoints and perform stereo matching.
   StereoFrame cp_stereo_frame(stereo_frame);
@@ -300,12 +329,32 @@ FrameId LoopClosureDetector::processAndAddFrame(
   return db_frames_.back().id_;
 }
 
+void LoopClosureDetector::getNewFeaturesAndDescriptors(
+    const Frame& frame,
+    std::vector<cv::KeyPoint>* keypoints,
+    OrbDescriptor* descriptors_mat,
+    OrbDescriptorVec* descriptors_vec) {
+  CHECK_NOTNULL(keypoints);
+  CHECK_NOTNULL(descriptors_mat);
+  CHECK_NOTNULL(descriptors_vec);
+  // TODO(marcus): switch on feature type (orb, etc) when more are supported
+  // Extract ORB features and construct descriptors_vec.
+  orb_feature_detector_->detectAndCompute(
+      frame.img_, cv::Mat(), *keypoints, *descriptors_mat);
+
+  int L = orb_feature_detector_->descriptorSize();
+  descriptors_vec->resize(descriptors_mat->size().height);
+
+  for (size_t i = 0; i < descriptors_vec->size(); i++) {
+    (*descriptors_vec)[i] = cv::Mat(1, L, descriptors_mat->type());  // one row only
+    descriptors_mat->row(i).copyTo((*descriptors_vec)[i].row(0));
+  }
+}
+
 /* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
+bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
                                      LoopResult* result) {
   CHECK_NOTNULL(result);
-
-  FrameId frame_id = processAndAddFrame(stereo_frame);
   result->query_id_ = frame_id;
 
   // Create BOW representation of descriptors.
@@ -486,6 +535,15 @@ bool LoopClosureDetector::recoverPose(
                                                  inlier_id_in_match_frame);
       break;
     }
+    case PoseRecoveryOption::PNP: {
+      passed_pose_recovery = recoverPosePnP(query_id,
+                                                 match_id,
+                                                 camMatch_T_camQuery_mono,
+                                                 &camMatch_T_camQuery_stereo,
+                                                 inlier_id_in_query_frame,
+                                                 inlier_id_in_match_frame);
+      break;
+    }
     default: {
       LOG(FATAL) << "LoopClosureDetector: Incorrect pose recovery option: "
                  << std::to_string(
@@ -532,6 +590,17 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values values;
 
+  // Cannot perform pose-refinement without stereo rectified keypoints.
+  // For monocular case with PnP, don't use this.
+  // TODO(marcus): make it a check of an if.
+  if (!db_frames_[query_id].left_keypoints_rectified_ ||
+      !db_frames_[query_id].right_keypoints_rectified_ ||
+      !db_frames_[match_id].left_keypoints_rectified_ ||
+      !db_frames_[match_id].right_keypoints_rectified_) {
+    LOG(FATAL) << "LoopClosureDetector: Pose refinement only supported for "
+                  "the stereo case!";
+  }
+
   // TODO camMatch_T_camQuery rename to camMatch_T_camQuery
   gtsam::Key key_match = gtsam::Symbol('x', match_id);
   gtsam::Key key_query = gtsam::Symbol('x', query_id);
@@ -557,10 +626,14 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   for (size_t i = 0; i < inlier_id_in_query_frame.size(); i++) {
     KeypointCV undistorted_rectified_left_query_keypoint =
         (db_frames_[query_id]
-             .left_keypoints_rectified_.at(inlier_id_in_query_frame[i]).second);
+             .left_keypoints_rectified_.get()
+             .at(inlier_id_in_query_frame[i])
+             .second);
     KeypointCV undistorted_rectified_right_query_keypoint =
         (db_frames_[query_id]
-             .right_keypoints_rectified_.at(inlier_id_in_query_frame[i]).second);
+             .right_keypoints_rectified_.get()
+             .at(inlier_id_in_query_frame[i])
+             .second);
 
     gtsam::StereoPoint2 sp_query_i(undistorted_rectified_left_query_keypoint.x,
                                    undistorted_rectified_right_query_keypoint.x,
@@ -572,10 +645,14 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
     KeypointCV undistorted_rectified_left_match_keypoint =
         (db_frames_[match_id]
-             .left_keypoints_rectified_.at(inlier_id_in_match_frame[i]).second);
+             .left_keypoints_rectified_.get()
+             .at(inlier_id_in_match_frame[i])
+             .second);
     KeypointCV undistorted_rectified_right_match_keypoint =
         (db_frames_[match_id]
-             .right_keypoints_rectified_.at(inlier_id_in_match_frame[i]).second);
+             .right_keypoints_rectified_.get()
+             .at(inlier_id_in_match_frame[i])
+             .second);
 
     gtsam::StereoPoint2 sp_match_i(undistorted_rectified_left_match_keypoint.x,
                                    undistorted_rectified_right_match_keypoint.x,
@@ -653,6 +730,47 @@ void LoopClosureDetector::print() const {
 }
 
 /* ------------------------------------------------------------------------ */
+void LoopClosureDetector::rewriteFrameFeatures(
+    const std::vector<cv::KeyPoint>& keypoints,
+    const PointsWithIdMap& points_with_ids,
+    Frame* frame,
+    BearingVectors* keypoints_3d_culled) const {
+  CHECK_NOTNULL(frame);
+  CHECK_NOTNULL(keypoints_3d_culled);
+
+  // Clear all relevant fields
+  frame->keypoints_.clear();
+  frame->versors_.clear();
+  frame->scores_.clear();
+
+  // Reserve space in all relevant fields
+  frame->keypoints_.reserve(keypoints.size());
+  frame->versors_.reserve(keypoints.size());
+  frame->scores_.reserve(keypoints.size());
+
+  // Add ORB keypoints
+  for (const cv::KeyPoint& keypoint : keypoints) {
+    frame->keypoints_.push_back(keypoint.pt);
+    frame->versors_.push_back(
+        UndistorterRectifier::UndistortKeypointAndGetVersor(keypoint.pt,
+                                                            frame->cam_param_));
+    frame->scores_.push_back(1.0);
+  }
+
+  // Output all 3D keypoints seen by backend that are in frame.
+  // Does not use the ORB keypoints that were previously generated, but instead
+  // the keypoints obtained from the frontend and stored by the backend as
+  // landmarks. This is why we don't clear the landmarks from the frame.
+  
+  // TODO(marcus): check the backend param for generating the pointswithidmap
+  // should be a boost::optional so that if it's none we can throw exception in
+  // lcd ctor
+  for (const LandmarkId& id : frame->landmarks_) {
+    keypoints_3d_culled->push_back((points_with_ids.at(id)));
+  }
+}
+
+/* ------------------------------------------------------------------------ */
 void LoopClosureDetector::rewriteStereoFrameFeatures(
     const std::vector<cv::KeyPoint>& keypoints,
     StereoFrame* stereo_frame) const {
@@ -691,7 +809,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
 
   // stereo_frame->setIsRectified(false);
 
-  // Add ORB keypoints.
+  // Add ORB keypoints
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
@@ -1040,6 +1158,101 @@ bool LoopClosureDetector::recoverPoseGivenRot(
   //
   // gtsam::Point3 scaled_t(unit_t[0] * scaling_factor,
   //     unit_t[1] * scaling_factor, unit_t[2] * scaling_factor);
+}
+
+/* ------------------------------------------------------------------------ */
+bool LoopClosureDetector::recoverPosePnP(
+    const FrameId& query_id,
+    const FrameId& match_id,
+    const gtsam::Pose3& camMatch_T_camQuery_mono,
+    gtsam::Pose3* camMatch_T_camQuery,
+    std::vector<FrameId>* inlier_id_in_query_frame,
+    std::vector<FrameId>* inlier_id_in_match_frame) {
+  CHECK_NOTNULL(camMatch_T_camQuery);
+  CHECK_NOTNULL(inlier_id_in_query_frame);
+  CHECK_NOTNULL(inlier_id_in_match_frame);
+
+  // Correspondences between frames.
+  std::vector<FrameId> i_query, i_match;
+  // Use mono ransac inliers as correspondences instead of re-matching
+  i_query = *inlier_id_in_query_frame;
+  i_match = *inlier_id_in_match_frame;
+
+  // Convert matches to proper data type for ransac wrapper
+  CHECK_EQ(i_query.size(), i_match.size());
+  KeypointMatches matches_query_match;
+  for (size_t i = 0; i < i_query.size(); i++) {
+    matches_query_match.push_back(std::make_pair(i_query[i], i_match[i]));
+  }
+
+  // TODO(Toni): parametrize
+  static constexpr int max_iterations = 100;
+  static constexpr double probability = 0.99;
+  // Should be similar to current klt_eps, but keep it separate.
+  const double& reprojection_error = lcd_params_.ransac_threshold_stereo_;
+  const double avg_focal_length =
+      0.5 * static_cast<double>(
+                stereo_camera_->getLeftCamParams().intrinsics_[0] +
+                stereo_camera_->getLeftCamParams().intrinsics_[1]);
+  const double threshold =
+      1.0 - std::cos(std::atan(std::sqrt(2.0) * reprojection_error /
+                               avg_focal_length));
+  VLOG(5) << "LCD PnP params:\n"
+          << "- Reprojection error: " << reprojection_error << '\n'
+          << "- Focal Length: " << avg_focal_length << '\n'
+          << "- Threshold: " << threshold;
+
+  // Compute transform using RANSAC 3-point method (Arun).
+  AdapterPnp adapter(db_frames_[query_id].keypoints_3d_,
+                     db_frames_[match_id].keypoints_3d_);
+  gtsam::Pose3 best_pose;
+  std::vector<int> inliers;
+  bool ransac_success =
+      Tracker::runPnpRansac(adapter,
+                            // lcd_params_.pnp_method,  // TODO(marcus): add
+                            PnpMethod::EPNP,
+                            camMatch_T_camQuery_mono.rotation().matrix(),
+                            camMatch_T_camQuery_mono.translation().matrix(),
+                            threshold,
+                            max_iterations,
+                            probability,
+                            &best_pose,
+                            &inliers);
+
+  // Compute transformation via RANSAC.
+  VLOG(3) << "LCD ransac 3pt size of input: " << i_match.size()
+          << "\nransac 3pt inliers: " << inliers.size();
+          // << "\nransac 3pt iterations: " << ransac_3pt_.iterations_;
+  debug_info_.stereo_input_size_ = i_match.size();
+  debug_info_.stereo_inliers_ = inliers.size();
+  // TODO(marcus): save iterations from pnp on tracker side!
+  // debug_info_.stereo_iter_ = ransac_3pt_.iterations_;
+
+  if (!ransac_success) {
+    VLOG(3) << "LoopClosureDetector Failure: RANSAC 3pt could not solve.";
+  } else {
+    double inlier_percentage =
+        static_cast<double>(inliers.size()) / i_match.size();
+
+    if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_stereo_) {
+      // TODO(marcus): re-enable once you can return iteration count from pnp
+      // if (ransac_3pt_.iterations_ < lcd_params_.max_ransac_iterations_stereo_) {
+        // Remove the outliers based on ransac.inliers (modify i_query and
+        // i_match AND pass the result out)
+        inlier_id_in_query_frame->clear();
+        inlier_id_in_match_frame->clear();
+        for (const auto i : inliers) {
+          inlier_id_in_query_frame->push_back(i_query[i]);
+          inlier_id_in_match_frame->push_back(i_match[i]);
+        }
+
+        // Return result
+        *camMatch_T_camQuery = best_pose;
+        return true;
+      // }
+    }
+  }
+  return false;
 }
 
 /* ------------------------------------------------------------------------ */

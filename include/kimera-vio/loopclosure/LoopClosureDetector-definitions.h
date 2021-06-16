@@ -52,7 +52,7 @@ enum class LCDStatus : int {
 
 enum class GeomVerifOption : int { NISTER, NONE };
 
-enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT };
+enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT, PNP };
 
 struct LCDFrame {
   LCDFrame() {}
@@ -64,8 +64,8 @@ struct LCDFrame {
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
            const BearingVectors& versors,
-           const StatusKeypointsCV& left_keypoints_rectified,
-           const StatusKeypointsCV& right_keypoints_rectified)
+           boost::optional<StatusKeypointsCV&> left_keypoints_rectified,
+           boost::optional<StatusKeypointsCV&> right_keypoints_rectified)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -85,8 +85,8 @@ struct LCDFrame {
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors versors_;
-  StatusKeypointsCV left_keypoints_rectified_;
-  StatusKeypointsCV right_keypoints_rectified_;
+  boost::optional<StatusKeypointsCV> left_keypoints_rectified_;
+  boost::optional<StatusKeypointsCV> right_keypoints_rectified_;
 };  // struct LCDFrame
 
 struct MatchIsland {
