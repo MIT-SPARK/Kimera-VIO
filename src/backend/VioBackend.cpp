@@ -402,9 +402,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
       use_stereo_btw_factor ? input.stereo_ransac_body_pose_ : boost::none,
-      input.external_odometry_body_pose_,
-      input.external_odometry_vel_);  // optional: pose estimate from stereo
-                                      // ransac
+      input.lkf_body_OdomPose_kf_body_,
+      input.kf_body_world_OdomVel_kf_body_);  // optional: pose estimate from
+                                              // stereo ransac
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;

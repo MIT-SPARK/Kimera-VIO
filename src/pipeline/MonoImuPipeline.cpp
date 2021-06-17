@@ -94,8 +94,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
               converted_output->imu_acc_gyrs_,
               boost::none,  // don't pass stereo
                             // pose to Backend!
-              converted_output->lkf_body_Pose_kf_body_,
-              converted_output->body_world_Vel_body_));
+              converted_output->lkf_body_OdomPose_kf_body_,
+              converted_output->kf_body_world_OdomVel_kf_body_));
         } else {
           VLOG(5)
               << "Frontend did not output a keyframe, skipping Backend input.";
