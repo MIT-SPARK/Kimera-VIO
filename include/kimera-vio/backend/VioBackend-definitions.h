@@ -241,16 +241,16 @@ struct BackendInput : public PipelinePayload {
       //! Raw imu msgs for Backend init only
       const ImuAccGyrS& imu_acc_gyrs,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
-      boost::optional<gtsam::Pose3> lkf_body_OdomPose_kf_body = boost::none,
-      boost::optional<gtsam::Velocity3> kf_body_world_OdomVel_kf_body = boost::none)
+      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
+      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
         stereo_ransac_body_pose_(stereo_ransac_body_pose),
-        lkf_body_OdomPose_kf_body_(lkf_body_OdomPose_kf_body),
-        kf_body_world_OdomVel_kf_body_(kf_body_world_OdomVel_kf_body) {}
+        body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
@@ -260,10 +260,10 @@ struct BackendInput : public PipelinePayload {
   ImuAccGyrS imu_acc_gyrs_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
   // between pose from last keyframe to current according to external odometry
-  boost::optional<gtsam::Pose3> lkf_body_OdomPose_kf_body_;
+  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
   // velocity of the current keyframe body w.r.t. the world frame in the body
   // frame
-  boost::optional<gtsam::Velocity3> kf_body_world_OdomVel_kf_body_;
+  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
  public:
   void print() const {

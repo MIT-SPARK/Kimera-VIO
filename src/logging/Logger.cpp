@@ -280,10 +280,10 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
 }
 
 void BackendLogger::logBackendExtOdom(const BackendInput& input) {
-  if (!input.lkf_body_OdomPose_kf_body_) {
+  if (!input.body_lkf_OdomPose_body_kf_) {
     return;  // we're not using external odometry, don't log anything
   }
-  if (!input.kf_body_world_OdomVel_kf_body_) {
+  if (!input.body_kf_world_OdomVel_body_kf_) {
     return;  // we're not using external odometry, don't log anything
   }
 
@@ -301,16 +301,16 @@ void BackendLogger::logBackendExtOdom(const BackendInput& input) {
   // write the relative pose estimate between the last keyframe
   // and the current one as well as the current body velocity estimate
   const gtsam::Point3 tran =
-      (*input.lkf_body_OdomPose_kf_body_).translation();
+      (*input.body_lkf_OdomPose_body_kf_).translation();
   const gtsam::Quaternion quat =
-      (*input.lkf_body_OdomPose_kf_body_).rotation().toQuaternion();
+      (*input.body_lkf_OdomPose_body_kf_).rotation().toQuaternion();
   output_stream << input.timestamp_ << ",";
   output_stream << tran.x() << "," << tran.y() << "," << tran.z() << ",";
   output_stream << quat.w() << "," << quat.x() << "," << quat.y() << ","
                 << quat.z() << ",";
-  output_stream << (*input.kf_body_world_OdomVel_kf_body_).x() << ","
-                << (*input.kf_body_world_OdomVel_kf_body_).y() << ","
-                << (*input.kf_body_world_OdomVel_kf_body_).z() << std::endl;
+  output_stream << (*input.body_kf_world_OdomVel_body_kf_).x() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).y() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).z() << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

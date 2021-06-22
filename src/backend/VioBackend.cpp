@@ -362,6 +362,8 @@ bool VioBackend::addVisualInertialStateAndOptimize(
   if (odometry_body_pose && odom_params_ &&
       (odom_params_->betweenRotationPrecision_ > 0.0 ||
        odom_params_->betweenTranslationPrecision_ > 0.0)) {
+    VLOG(1) << "Added external factor between " << last_kf_id_ << " and "
+            << curr_kf_id_;
     addBetweenFactor(last_kf_id_,
                      curr_kf_id_,
                      *odometry_body_pose,
@@ -369,7 +371,7 @@ bool VioBackend::addVisualInertialStateAndOptimize(
                      odom_params_->betweenTranslationPrecision_);
   }
   if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
-    LOG(WARNING)
+    LOG_FIRST_N(WARNING, 1)
         << "Using velocity priors from external odometry: "
         << "This only works if you have velocity estimates in the world frame! "
         << "(not provided by typical odometry sensors)";
@@ -402,8 +404,8 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
       use_stereo_btw_factor ? input.stereo_ransac_body_pose_ : boost::none,
-      input.lkf_body_OdomPose_kf_body_,
-      input.kf_body_world_OdomVel_kf_body_);  // optional: pose estimate from
+      input.body_lkf_OdomPose_body_kf_,
+      input.body_kf_world_OdomVel_body_kf_);  // optional: pose estimate from
                                               // stereo ransac
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;

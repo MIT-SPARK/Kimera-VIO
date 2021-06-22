@@ -205,7 +205,7 @@ TEST_F(TestExternalOdometryProviderEnabled, validOdometrySequence) {
 
   FrontendInputPacketBase::UniquePtr result_base;
   ASSERT_TRUE(output_queue_.pop(result_base));
-  EXPECT_TRUE(result_base->world_NavState_odom_);
+  EXPECT_TRUE(result_base->world_NavState_ext_odom_);
 }
 
 TEST_F(TestExternalOdometryProvider, validOdometrySequenceNoOdom) {
@@ -226,7 +226,7 @@ TEST_F(TestExternalOdometryProvider, validOdometrySequenceNoOdom) {
 
   FrontendInputPacketBase::UniquePtr result_base;
   ASSERT_TRUE(output_queue_.pop(result_base));
-  EXPECT_FALSE(result_base->world_NavState_odom_);
+  EXPECT_FALSE(result_base->world_NavState_ext_odom_);
 }
 
 TEST_F(TestExternalOdometryProviderEnabled, inexactOdometrySequence) {
@@ -251,7 +251,7 @@ TEST_F(TestExternalOdometryProviderEnabled, inexactOdometrySequence) {
   addOdometry(18);  // trigger packet creation
   spinWithTimeout();
   ASSERT_TRUE(output_queue_.pop(result_base));
-  EXPECT_TRUE(result_base->world_NavState_odom_);
+  EXPECT_TRUE(result_base->world_NavState_ext_odom_);
 }
 
 TEST(TestExternalOdometryFrontend, ExternalOdomVelCorrect) {

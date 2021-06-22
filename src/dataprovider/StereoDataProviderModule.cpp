@@ -69,7 +69,7 @@ StereoDataProviderModule::getInputPacket() {
         // be given in PipelineParams.
         mono_imu_sync_packet->imu_stamps_,
         mono_imu_sync_packet->imu_accgyrs_,
-        mono_imu_sync_packet->world_NavState_odom_));
+        mono_imu_sync_packet->world_NavState_ext_odom_));
   }
 
   // Push the synced messages to the Frontend's input queue

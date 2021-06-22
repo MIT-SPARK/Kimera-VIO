@@ -28,9 +28,7 @@ bool OdometryParams::parseYAML(const std::string& filepath) {
 
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
-  const gtsam::Pose3& body_Pose_odom =
-      UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
-  body_Pose_odom_ = body_Pose_odom;
+  body_Pose_ext_odom_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   yaml_parser.getYamlParam("odomRotationPrecision", &betweenRotationPrecision_);
   yaml_parser.getYamlParam("odomPositionPrecision",
@@ -49,7 +47,7 @@ void OdometryParams::print() const {
   std::stringstream out;
   PipelineParams::print(out,
                         "body_Pose_odom",
-                        body_Pose_odom_,
+                        body_Pose_ext_odom_,
                         "odom_rotation_precision",
                         betweenRotationPrecision_,
                         "odom_position_precision",
@@ -63,7 +61,7 @@ void OdometryParams::print() const {
 
 bool OdometryParams::equals(const PipelineParams& obj) const {
   const auto& rhs = static_cast<const OdometryParams&>(obj);
-  return body_Pose_odom_.equals(rhs.body_Pose_odom_) &&
+  return body_Pose_ext_odom_.equals(rhs.body_Pose_ext_odom_) &&
          betweenRotationPrecision_ == rhs.betweenRotationPrecision_ &&
          betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
          velocityPrecision_ == rhs.velocityPrecision_ &&

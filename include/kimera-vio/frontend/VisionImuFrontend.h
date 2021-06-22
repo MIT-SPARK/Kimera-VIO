@@ -148,12 +148,12 @@ class VisionImuFrontend {
                             TrackingStatusPose* status_pose_mono);
 
   inline void cacheExternalOdometry(FrontendInputPacketBase* input) {
-    if (input->world_NavState_odom_) {
+    if (input->world_NavState_ext_odom_) {
       VLOG(2) << "Caching first odom measurement in boostrapSpin";
-      const gtsam::Pose3 odom_Pose_body =
-          (*odom_params_).body_Pose_odom_.inverse();
-      world_Pose_lkf_body_ =
-          (*input->world_NavState_odom_).pose().compose(odom_Pose_body);
+      const gtsam::Pose3 ext_odom_Pose_body =
+          (*odom_params_).body_Pose_ext_odom_.inverse();
+      world_OdomPose_body_lkf_ =
+          (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
     }
   }
 
@@ -166,29 +166,29 @@ class VisionImuFrontend {
 
     // Past this point we are using external odometry
     CHECK(input);
-    if (!input->world_NavState_odom_) {
+    if (!input->world_NavState_ext_odom_) {
       LOG(WARNING)
           << "Input packet did not contain valid external odometry measurement";
       return boost::none;
     }
 
     // First time getting a odometry measurement
-    const gtsam::Pose3& odom_Pose_body =
-        (*odom_params_).body_Pose_odom_.inverse();
-    if (!world_Pose_lkf_body_) {
-      world_Pose_lkf_body_ =
-          (*input->world_NavState_odom_).pose().compose(odom_Pose_body);
+    const gtsam::Pose3& ext_odom_Pose_body =
+        (*odom_params_).body_Pose_ext_odom_.inverse();
+    if (!world_OdomPose_body_lkf_) {
+      world_OdomPose_body_lkf_ =
+          (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
       return boost::none;
     }
 
-    gtsam::Pose3 world_Pose_kf_body =
-        (*input->world_NavState_odom_).pose().compose(odom_Pose_body);
-    gtsam::Pose3 lkf_body_Pose_kf_body =
-        (*world_Pose_lkf_body_).between(world_Pose_kf_body);
+    gtsam::Pose3 world_Pose_body_kf =
+        (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
+    gtsam::Pose3 body_lkf_Pose_body_kf =
+        (*world_OdomPose_body_lkf_).between(world_Pose_body_kf);
 
     // We cache the current keyframe odometry for the next keyframe
-    world_Pose_lkf_body_ = world_Pose_kf_body;
-    return lkf_body_Pose_kf_body;
+    world_OdomPose_body_lkf_ = world_Pose_body_kf;
+    return body_lkf_Pose_body_kf;
   }
 
   inline boost::optional<gtsam::Velocity3> getExternalOdometryWorldVelocity(
@@ -198,7 +198,7 @@ class VisionImuFrontend {
     }
 
     CHECK(input);
-    if (!input->world_NavState_odom_) {
+    if (!input->world_NavState_ext_odom_) {
       // we could log here too, but RelativePose handles it...
       return boost::none;
     }
@@ -206,7 +206,7 @@ class VisionImuFrontend {
     // Pass the sensor velocity in the world frame if available
     // NOTE: typical odometry is not suitable for this since the vel estimate
     // in the world frame will not have a bounded error.
-    return (*input->world_NavState_odom_).velocity();
+    return (*input->world_NavState_ext_odom_).velocity();
   }
 
  protected:
@@ -245,7 +245,7 @@ class VisionImuFrontend {
   // External odometry
   boost::optional<OdometryParams> odom_params_;
   // world_Pose_body for the last keyframe
-  boost::optional<gtsam::Pose3> world_Pose_lkf_body_;
+  boost::optional<gtsam::Pose3> world_OdomPose_body_lkf_;
 };
 
 }  // namespace VIO

@@ -77,8 +77,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    * @brief Push an external odometry measurement into the queue for later
    * processing
    * @param timestamp timestamp of measurement
-   * @param world_NavState_odom "tuple" of world_Pose_odom and
-   * odom_world_Vel_odom (i.e. pose of body (odom frame) w.r.t. world and
+   * @param odom "tuple" of world_Pose_ext_odom and
+   * ext_odom_world_Vel_ext_odom (i.e. pose of body (odom frame) w.r.t. world and
    * velocity of the odom frame in the world frame w.r.t. the odom frame)
    */
   inline void fillExternalOdometryQueue(const ExternalOdomMeasurement& odom) {

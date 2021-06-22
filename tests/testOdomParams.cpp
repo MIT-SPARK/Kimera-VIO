@@ -47,7 +47,7 @@ TEST(TestOdometryParams, ParsingCorrect) {
   OdometryParams expected_params;
   gtsam::Vector3 expected_position;
   expected_position << 1.0, 2.0, 3.0;
-  expected_params.body_Pose_odom_ =
+  expected_params.body_Pose_ext_odom_ =
       gtsam::Pose3(gtsam::Rot3::identity(), expected_position);
   expected_params.betweenRotationPrecision_ = 1.0;
   expected_params.betweenTranslationPrecision_ = 2.0;

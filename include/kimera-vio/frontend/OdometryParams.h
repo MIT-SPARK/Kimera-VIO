@@ -36,7 +36,7 @@ protected:
   bool equals(const PipelineParams& obj) const override;
 
  public:
-  gtsam::Pose3 body_Pose_odom_ = gtsam::Pose3::identity();
+  gtsam::Pose3 body_Pose_ext_odom_ = gtsam::Pose3::identity();
 
   double betweenRotationPrecision_ = 0.0;
   double betweenTranslationPrecision_ = 100.0;

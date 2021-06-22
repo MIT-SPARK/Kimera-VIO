@@ -363,6 +363,8 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
   if (odometry_body_pose && odom_params_ &&
       (odom_params_->betweenRotationPrecision_ > 0.0 ||
        odom_params_->betweenTranslationPrecision_ > 0.0)) {
+    VLOG(1) << "Added external factor between " << last_kf_id_ << " and "
+            << curr_kf_id_;
     addBetweenFactor(last_kf_id_,
                      curr_kf_id_,
                      *odometry_body_pose,
@@ -370,6 +372,10 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
                      odom_params_->betweenTranslationPrecision_);
   }
   if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
+    LOG_FIRST_N(WARNING, 1)
+        << "Using velocity priors from external odometry: "
+        << "This only works if you have velocity estimates in the world frame! "
+        << "(not provided by typical odometry sensors)";
     addVelocityPrior(
         curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
   }

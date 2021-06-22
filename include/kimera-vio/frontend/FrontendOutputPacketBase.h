@@ -36,8 +36,8 @@ class FrontendOutputPacketBase : public PipelinePayload {
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS& imu_acc_gyrs,
       const DebugTrackerInfo& debug_tracker_info,
-      boost::optional<gtsam::Pose3> lkf_body_OdomPose_kf_body = boost::none,
-      boost::optional<gtsam::Velocity3> kf_body_world_OdomVel_kf_body =
+      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
+      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
           boost::none)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
@@ -45,8 +45,8 @@ class FrontendOutputPacketBase : public PipelinePayload {
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
         debug_tracker_info_(debug_tracker_info),
-        lkf_body_OdomPose_kf_body_(lkf_body_OdomPose_kf_body),
-        kf_body_world_OdomVel_kf_body_(kf_body_world_OdomVel_kf_body) {}
+        body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
   virtual ~FrontendOutputPacketBase() = default;
 
@@ -58,10 +58,10 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const DebugTrackerInfo debug_tracker_info_;
   // between pose of the body from the current to the last keyframe as estimated
   // by an external odometry source
-  boost::optional<gtsam::Pose3> lkf_body_OdomPose_kf_body_;
+  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
   // velocity of the current body frame w.r.t. world frame in the current body
   // frame from odometry
-  boost::optional<gtsam::Velocity3> kf_body_world_OdomVel_kf_body_;
+  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
