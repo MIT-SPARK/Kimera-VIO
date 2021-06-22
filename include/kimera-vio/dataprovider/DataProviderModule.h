@@ -20,18 +20,20 @@
 
 #pragma once
 
+#include <glog/logging.h>
+
 #include <atomic>
 #include <functional>
 #include <string>
 #include <utility>  // for move
 
-#include <glog/logging.h>
-
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
+#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeOdometryBuffer.h"
 
 namespace VIO {
 
@@ -69,6 +71,25 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   // TODO(Toni): remove, register at ctor level.
   inline void registerVioPipelineCallback(const PipelineOutputCallback& cb) {
     vio_pipeline_callback_ = cb;
+  }
+
+  /**
+   * @brief Push an external odometry measurement into the queue for later
+   * processing
+   * @param timestamp timestamp of measurement
+   * @param odom "tuple" of world_Pose_ext_odom and
+   * ext_odom_world_Vel_ext_odom (i.e. pose of body (odom frame) w.r.t. world and
+   * velocity of the odom frame in the world frame w.r.t. the odom frame)
+   */
+  inline void fillExternalOdometryQueue(const ExternalOdomMeasurement& odom) {
+    if (!external_odometry_buffer_) {
+      // warn hopefully about every second (assuming a range of 30hz-100hz)
+      LOG_EVERY_N(WARNING, 50)
+          << "Attempting to add external odometry when using an external "
+             "odometry source is disabled! Measurements will be ignored";
+      return;
+    }
+    external_odometry_buffer_->add(odom.timestamp_, odom.odom_data_);
   }
 
   /**
@@ -142,6 +163,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   Timestamp imu_timestamp_correction_;
   std::atomic<Timestamp> imu_time_shift_ns_;  // t_imu = t_cam + imu_shift
   PipelineOutputCallback vio_pipeline_callback_;
-};
+  //! External odometry source
+  ThreadsafeOdometryBuffer::UniquePtr external_odometry_buffer_;
+};  // namespace VIO
 
 }  // namespace VIO

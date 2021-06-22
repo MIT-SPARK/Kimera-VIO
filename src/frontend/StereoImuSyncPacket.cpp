@@ -20,13 +20,17 @@
 
 namespace VIO {
 
+using OptOdom = boost::optional<gtsam::NavState>;
+
 StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,
                                          const ImuAccGyrS& imu_accgyrs,
+                                         OptOdom external_odometry,
                                          const ReinitPacket& reinit_packet)
     : FrontendInputPacketBase(stereo_frame.timestamp_,
                               imu_stamps,
-                              imu_accgyrs),
+                              imu_accgyrs,
+                              external_odometry),
       stereo_frame_(stereo_frame),
       reinit_packet_(reinit_packet) {
   // The timestamp of the last IMU measurement must correspond to the timestamp
@@ -39,8 +43,7 @@ StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
 }
 
 void StereoImuSyncPacket::print() const {
-  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.timestamp_
-            << '\n'
+  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.timestamp_ << '\n'
             << "STAMPS IMU rows : \n"
             << imu_stamps_.rows() << '\n'
             << "STAMPS IMU cols : \n"

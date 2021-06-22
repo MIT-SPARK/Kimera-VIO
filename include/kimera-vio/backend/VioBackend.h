@@ -51,6 +51,7 @@
 #include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/initial/InitializationFromImu.h"
 #include "kimera-vio/logging/Logger.h"
@@ -84,7 +85,8 @@ class VioBackend {
              const BackendParams& backend_params,
              const ImuParams& imu_params,
              const BackendOutputParams& backend_output_params,
-             bool log_output);
+             bool log_output,
+             boost::optional<OdometryParams> odom_params = boost::none);
   virtual ~VioBackend() { LOG(INFO) << "Backend destructor called."; }
 
  public:
@@ -205,7 +207,9 @@ class VioBackend {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
+      boost::optional<gtsam::Pose3> odometry_body_pose = boost::none,
+      boost::optional<gtsam::Velocity3> odometry_vel = boost::none);
 
   // Uses landmark table to add factors in graph.
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
@@ -231,9 +235,15 @@ class VioBackend {
 
   void addNoMotionFactor(const FrameId& from_id, const FrameId& to_id);
 
+  void addVelocityPrior(const FrameId& frame_id,
+                        const gtsam::Velocity3& vel,
+                        const double& precision);
+
   void addBetweenFactor(const FrameId& from_id,
                         const FrameId& to_id,
-                        const gtsam::Pose3& from_id_POSE_to_id);
+                        const gtsam::Pose3& from_id_POSE_to_id,
+                        const double& between_rotation_precision,
+                        const double& between_translation_precision);
 
   /**
    * @brief optimize
@@ -431,6 +441,7 @@ class VioBackend {
   const BackendParams backend_params_;
   const ImuParams imu_params_;
   const BackendOutputParams backend_output_params_;
+  boost::optional<OdometryParams> odom_params_;
 
   // State estimates.
   // TODO(Toni): bundle these in a VioNavStateTimestamped.

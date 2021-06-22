@@ -103,14 +103,16 @@ RegularVioBackend::RegularVioBackend(
     const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
-    const bool& log_output)
+    const bool& log_output,
+    boost::optional<OdometryParams> odom_params)
     : regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)),
       VioBackend(B_Pose_leftCam,
                  stereo_calibration,
                  backend_params,
                  imu_params,
                  backend_output_params,
-                 log_output) {
+                 log_output,
+                 odom_params) {
   LOG(INFO) << "Using Regular VIO Backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.
@@ -150,7 +152,9 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
+    boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
+    boost::optional<gtsam::Pose3> odometry_body_pose,
+    boost::optional<gtsam::Velocity3> odometry_vel) {
   debug_info_.resetAddedFactorsStatistics();
 
   // if (VLOG_IS_ON(20)) {
@@ -183,7 +187,11 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     if (VLOG_IS_ON(20)) {
       stereo_ransac_body_pose->print();
     }
-    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
+    addBetweenFactor(last_kf_id_,
+                     curr_kf_id_,
+                     *stereo_ransac_body_pose,
+                     backend_params_.betweenRotationPrecision_,
+                     backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
@@ -349,6 +357,27 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
       }
       break;
     }
+  }
+
+  // Add odometry factors if they're available and have non-zero precision
+  if (odometry_body_pose && odom_params_ &&
+      (odom_params_->betweenRotationPrecision_ > 0.0 ||
+       odom_params_->betweenTranslationPrecision_ > 0.0)) {
+    VLOG(1) << "Added external factor between " << last_kf_id_ << " and "
+            << curr_kf_id_;
+    addBetweenFactor(last_kf_id_,
+                     curr_kf_id_,
+                     *odometry_body_pose,
+                     odom_params_->betweenRotationPrecision_,
+                     odom_params_->betweenTranslationPrecision_);
+  }
+  if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
+    LOG_FIRST_N(WARNING, 1)
+        << "Using velocity priors from external odometry: "
+        << "This only works if you have velocity estimates in the world frame! "
+        << "(not provided by typical odometry sensors)";
+    addVelocityPrior(
+        curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
   }
 
   /////////////////// OPTIMIZE /////////////////////////////////////////////////
@@ -878,8 +907,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
-                                         "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to stay as it is since it is "
+                "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -892,8 +922,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
-                                         "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to be a proj. factor, as it "
+                "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,
