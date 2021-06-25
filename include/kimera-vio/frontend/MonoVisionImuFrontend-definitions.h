@@ -39,22 +39,27 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
   KIMERA_POINTER_TYPEDEFS(MonoFrontendOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MonoFrontendOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MonoFrontendOutput(const bool& is_keyframe,
-                     const StatusMonoMeasurementsPtr& status_mono_measurements,
-                     const TrackingStatus& tracker_status,
-                     const gtsam::Pose3& relative_pose_body,
-                     const gtsam::Pose3& b_Pose_cam_rect,
-                     const Frame& frame_lkf,
-                     const ImuFrontend::PimPtr& pim,
-                     const ImuAccGyrS& imu_acc_gyrs,
-                     const cv::Mat& feature_tracks,
-                     const DebugTrackerInfo& debug_tracker_info)
+  MonoFrontendOutput(
+      const bool& is_keyframe,
+      const StatusMonoMeasurementsPtr& status_mono_measurements,
+      const TrackingStatus& tracker_status,
+      const gtsam::Pose3& relative_pose_body,
+      const gtsam::Pose3& b_Pose_cam_rect,
+      const Frame& frame_lkf,
+      const ImuFrontend::PimPtr& pim,
+      const ImuAccGyrS& imu_acc_gyrs,
+      const cv::Mat& feature_tracks,
+      const DebugTrackerInfo& debug_tracker_info,
+      boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body = boost::none,
+      boost::optional<gtsam::Velocity3> body_world_Vel_body = boost::none)
       : FrontendOutputPacketBase(frame_lkf.timestamp_,
                                  is_keyframe,
                                  FrontendType::kMonoImu,
                                  pim,
                                  imu_acc_gyrs,
-                                 debug_tracker_info),
+                                 debug_tracker_info,
+                                 lkf_body_Pose_kf_body,
+                                 body_world_Vel_body),
         status_mono_measurements_(status_mono_measurements),
         tracker_status_(tracker_status),
         relative_pose_body_(relative_pose_body),
@@ -69,6 +74,12 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_;
   const gtsam::Pose3 b_Pose_cam_rect_;
+  // TODO(nathan) make this name consistent
+  /**
+   * This member is not necessarily a key-frame and can be one of two things:
+   * - The last frame processed (is_keyframe_ = false)
+   * - The newest keyframe (is_keyframe_ = true)
+   */
   const Frame frame_lkf_;
   const cv::Mat feature_tracks_;
 };

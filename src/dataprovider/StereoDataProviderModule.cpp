@@ -26,14 +26,17 @@ StereoDataProviderModule::StereoDataProviderModule(
     const std::string& name_id,
     const bool& parallel_run,
     const StereoMatchingParams& stereo_matching_params)
-    : MonoDataProviderModule(output_queue, name_id, parallel_run),
+    : MonoDataProviderModule(output_queue,
+                             name_id,
+                             parallel_run),
       right_frame_queue_("data_provider_right_frame_queue"),
       stereo_matching_params_(stereo_matching_params) {}
 
 StereoDataProviderModule::InputUniquePtr
 StereoDataProviderModule::getInputPacket() {
   //! Get left image + IMU data
-  MonoImuSyncPacket::UniquePtr mono_imu_sync_packet = getMonoImuSyncPacket();
+  MonoImuSyncPacket::UniquePtr mono_imu_sync_packet =
+      getMonoImuSyncPacket(false);
   if (!mono_imu_sync_packet) {
     return nullptr;
   }
@@ -54,6 +57,7 @@ StereoDataProviderModule::getInputPacket() {
     return nullptr;
   }
   CHECK(right_frame_payload);
+  timestamp_last_frame_ = timestamp;
 
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);
@@ -64,7 +68,8 @@ StereoDataProviderModule::getInputPacket() {
                     *right_frame_payload),          // this copies...
         // be given in PipelineParams.
         mono_imu_sync_packet->imu_stamps_,
-        mono_imu_sync_packet->imu_accgyrs_));
+        mono_imu_sync_packet->imu_accgyrs_,
+        mono_imu_sync_packet->world_NavState_ext_odom_));
   }
 
   // Push the synced messages to the Frontend's input queue

@@ -29,18 +29,24 @@ class FrontendOutputPacketBase : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendOutputPacketBase);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  FrontendOutputPacketBase(const Timestamp& timestamp,
-                           const bool is_keyframe,
-                           const FrontendType frontend_type,
-                           const ImuFrontend::PimPtr& pim,
-                           const ImuAccGyrS& imu_acc_gyrs,
-                           const DebugTrackerInfo& debug_tracker_info)
+  FrontendOutputPacketBase(
+      const Timestamp& timestamp,
+      const bool& is_keyframe,
+      const FrontendType& frontend_type,
+      const ImuFrontend::PimPtr& pim,
+      const ImuAccGyrS& imu_acc_gyrs,
+      const DebugTrackerInfo& debug_tracker_info,
+      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
+      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
+          boost::none)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
         frontend_type_(frontend_type),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        debug_tracker_info_(debug_tracker_info) {}
+        debug_tracker_info_(debug_tracker_info),
+        body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
   virtual ~FrontendOutputPacketBase() = default;
 
@@ -50,6 +56,12 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const ImuFrontend::PimPtr pim_;
   const ImuAccGyrS imu_acc_gyrs_;
   const DebugTrackerInfo debug_tracker_info_;
+  // between pose of the body from the current to the last keyframe as estimated
+  // by an external odometry source
+  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
+  // velocity of the current body frame w.r.t. world frame in the current body
+  // frame from odometry
+  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };

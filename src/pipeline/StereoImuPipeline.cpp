@@ -30,19 +30,21 @@
 #include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
+DECLARE_bool(do_coarse_imu_camera_temporal_sync);
+DECLARE_bool(do_fine_imu_camera_temporal_sync);
+
 namespace VIO {
 
 // TODO(marcus): clean this and put things in the base ctor
 StereoImuPipeline::StereoImuPipeline(const VioParams& params,
-                               Visualizer3D::UniquePtr&& visualizer,
-                               DisplayBase::UniquePtr&& displayer)
-    : Pipeline(params),
-      stereo_camera_(nullptr) {
+                                     Visualizer3D::UniquePtr&& visualizer,
+                                     DisplayBase::UniquePtr&& displayer)
+    : Pipeline(params), stereo_camera_(nullptr) {
   //! Create Stereo Camera
-  CHECK_EQ(params.camera_params_.size(), 2u) << "Need two cameras for StereoImuPipeline.";
-  stereo_camera_ = std::make_shared<StereoCamera>(
-      params.camera_params_.at(0),
-      params.camera_params_.at(1));
+  CHECK_EQ(params.camera_params_.size(), 2u)
+      << "Need two cameras for StereoImuPipeline.";
+  stereo_camera_ = std::make_shared<StereoCamera>(params.camera_params_.at(0),
+                                                  params.camera_params_.at(1));
 
   //! Create DataProvider
   data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
@@ -51,6 +53,17 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
       parallel_run_,
       // TODO(Toni): these params should not be sent...
       params.frontend_params_.stereo_matching_params_);
+  if (FLAGS_do_coarse_imu_camera_temporal_sync) {
+    data_provider_module_->doCoarseImuCameraTemporalSync();
+  }
+  if (!FLAGS_do_fine_imu_camera_temporal_sync) {
+    if (FLAGS_do_coarse_imu_camera_temporal_sync) {
+      LOG(WARNING) << "The manually provided IMU time shift will be applied on "
+                      "top of whatever the coarse time alignment calculates. "
+                      "This may or may not be what you want!";
+    }
+    data_provider_module_->setImuTimeShift(imu_params_.imu_time_shift_);
+  }
 
   data_provider_module_->registerVioPipelineCallback(
       std::bind(&StereoImuPipeline::spinOnce, this, std::placeholders::_1));
@@ -66,26 +79,35 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
           params.frontend_params_,
           stereo_camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
-  vio_frontend_module_->registerOutputCallback([&backend_input_queue](
-      const FrontendOutputPacketBase::Ptr& output) {
-    StereoFrontendOutput::Ptr converted_output =
-        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+  vio_frontend_module_->registerImuTimeShiftUpdateCallback(
+      [&](double imu_time_shift_s) {
+        data_provider_module_->setImuTimeShift(imu_time_shift_s);
+      });
+  vio_frontend_module_->registerOutputCallback(
+      [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
+        StereoFrontendOutput::Ptr converted_output =
+            VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                output);
 
-    if (converted_output && converted_output->is_keyframe_) {
-      //! Only push to Backend input queue if it is a keyframe!
-      backend_input_queue.push(VIO::make_unique<BackendInput>(
-          converted_output->stereo_frame_lkf_.timestamp_,
-          converted_output->status_stereo_measurements_,
-          converted_output->tracker_status_,
-          converted_output->pim_,
-          converted_output->imu_acc_gyrs_,
-          converted_output->relative_pose_body_stereo_));
-    } else {
-      VLOG(5) << "Frontend did not output a keyframe, skipping Backend input.";
-    }
-  });
+        if (converted_output && converted_output->is_keyframe_) {
+          //! Only push to Backend input queue if it is a keyframe!
+          backend_input_queue.push(VIO::make_unique<BackendInput>(
+              converted_output->stereo_frame_lkf_.timestamp_,
+              converted_output->status_stereo_measurements_,
+              converted_output->tracker_status_,
+              converted_output->pim_,
+              converted_output->imu_acc_gyrs_,
+              converted_output->relative_pose_body_stereo_,
+              converted_output->body_lkf_OdomPose_body_kf_,
+              converted_output->body_kf_world_OdomVel_body_kf_));
+        } else {
+          VLOG(5)
+              << "Frontend did not output a keyframe, skipping Backend input.";
+        }
+      });
 
   //! Params for what the Backend outputs.
   // TODO(Toni): put this into Backend params.
@@ -108,7 +130,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
           *backend_params_,
           imu_params_,
           backend_output_params,
-          FLAGS_log_output));
+          FLAGS_log_output,
+          params.odom_params_));
   vio_backend_module_->registerOnFailureCallback(
       std::bind(&StereoImuPipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
@@ -135,7 +158,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
     vio_frontend_module_->registerOutputCallback(
         [&mesher_module](const FrontendOutputPacketBase::Ptr& output) {
           StereoFrontendOutput::Ptr converted_output =
-              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                  output);
           CHECK_NOTNULL(mesher_module.get())
               ->fillFrontendQueue(converted_output);
         });
@@ -185,7 +209,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
     vio_frontend_module_->registerOutputCallback(
         [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
           StereoFrontendOutput::Ptr converted_output =
-              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                  output);
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
         });
