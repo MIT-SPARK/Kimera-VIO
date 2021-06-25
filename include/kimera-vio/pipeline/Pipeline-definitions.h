@@ -25,6 +25,8 @@
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 #include "kimera-vio/visualizer/DisplayParams.h"
 
+DECLARE_bool(use_external_odometry);
+
 namespace VIO {
 
 /**
