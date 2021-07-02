@@ -38,12 +38,12 @@ We kindly ask to cite our paper if you find this library useful:
  }
  
 @article{Rosinol21arxiv-Kimera,
-    title={Kimera: from {SLAM} to Spatial Perception with {3D} Dynamic Scene Graphs},
-    author={Rosinol, Antoni and Violette, Andrew and Abate, Marcus and Hughes, Nathan and Chang, Yun
+    title = {Kimera: from {SLAM} to Spatial Perception with {3D} Dynamic Scene Graphs},
+    author = {Rosinol, Antoni and Violette, Andrew and Abate, Marcus and Hughes, Nathan and Chang, Yun
      and Shi, Jingnan and Gupta, Arjun and Carlone, Luca},
-    year={2021},
-    journal={arXiv preprint arXiv: 2101.06894},
-    pdf={https://arxiv.org/pdf/2101.06894.pdf} 
+    year = {2021},
+    journal = {arXiv preprint arXiv: 2101.06894},
+    pdf = {https://arxiv.org/pdf/2101.06894.pdf} 
 }
 ```
 
