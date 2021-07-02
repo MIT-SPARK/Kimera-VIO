@@ -55,13 +55,13 @@ We kindly ask to cite our paper if you find this library useful:
 
 Backend optimization is based on:
 
- - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. **On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**. IEEE Trans. Robotics, 33(1):1-21, 2016.
+ - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. [**On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**](https://arxiv.org/pdf/1512.02363.pdf). IEEE Trans. Robotics, 33(1):1-21, 2016.
 
- - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. **Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.** IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
+ - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. [**Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.**](https://www.cc.gatech.edu/~dellaert/dhtml/pubs/Carlone14icra.pdf) IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 Alternatively, the `Regular VIO` Backend, using structural regularities, is described in this paper:
 
-- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. **Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**. IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
+- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. [**Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**](https://arxiv.org/pdf/1903.01067.pdf). IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
 
 ## Demo
 
