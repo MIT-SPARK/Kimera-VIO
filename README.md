@@ -15,7 +15,7 @@
 [![Build Status](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/badge/icon)](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/)
 For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/VIO_20Euroc_20Performance_20Report).
 
-**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
+**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Nathan Hughes, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
 
 ## What is Kimera-VIO?
 
@@ -36,6 +36,15 @@ We kindly ask to cite our paper if you find this library useful:
    url = {https://github.com/MIT-SPARK/Kimera},
    pdf = {https://arxiv.org/pdf/1910.02490.pdf}
  }
+ 
+@article{Rosinol21arxiv-Kimera,
+    title={Kimera: from {SLAM} to Spatial Perception with {3D} Dynamic Scene Graphs},
+    author={Rosinol, Antoni and Violette, Andrew and Abate, Marcus and Hughes, Nathan and Chang, Yun
+     and Shi, Jingnan and Gupta, Arjun and Carlone, Luca},
+    year={2021},
+    journal={arXiv preprint arXiv: 2101.06894},
+    pdf={https://arxiv.org/pdf/2101.06894.pdf} 
+}
 ```
 
 ### Related Publications
