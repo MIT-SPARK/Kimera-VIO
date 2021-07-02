@@ -38,7 +38,7 @@ We kindly ask to cite our paper if you find this library useful:
  }
  ```
  
- - A. Rosinol and A. Violette and M. Abate and N. Hughes and Y. Chang and J. Shi and A. Gupta and L. Carlone, [**Kimera: from SLAM to Spatial Perception with 3D Dynamic Scene Graphs**](https://arxiv.org/abs/2101.06894). arXiv preprint arXiv: 2101.06894, 2021. [arXiv:2101.06894](https://arxiv.org/abs/2101.06894).
+ - A. Rosinol and A. Violette and M. Abate and N. Hughes and Y. Chang and J. Shi and A. Gupta and L. Carlone, [**Kimera: from SLAM to Spatial Perception with 3D Dynamic Scene Graphs**](https://arxiv.org/abs/2101.06894). arXiv preprint, 2021. [arXiv:2101.06894](https://arxiv.org/abs/2101.06894).
 
 ```bibtex
 @article{Rosinol21arxiv-Kimera,
