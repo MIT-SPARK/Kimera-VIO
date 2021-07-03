@@ -94,15 +94,15 @@ RUN python3.5 -m pip install PyQt5==5.14
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
-ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/evo-1.git
+ADD https://api.github.com/repos/MIT-SPARK/evo-1/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/evo-1.git
 RUN cd evo-1 && python3.5 $(which pip3) install .
 
 # Install spark_vio_evaluation
 RUN python3.5 $(which pip3) install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
 RUN cd Kimera-VIO-Evaluation && python3.5 $(which pip3) install -e .
 

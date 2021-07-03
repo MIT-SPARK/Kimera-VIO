@@ -22,10 +22,10 @@ To use the notebooks you will need Jupyter:
 pip install jupyter
 ```
 
-You will need [`evo-1`](https://github.com/ToniRV/evo-1). It is currently best to build from source (consider using a virtual environment):
+You will need [`evo-1`](https://github.com/MIT-SPARK/evo-1). It is currently best to build from source (consider using a virtual environment):
 
 ```bash
-git clone https://github.com/ToniRV/evo-1.git
+git clone https://github.com/MIT-SPARK/evo-1
 cd evo-1
 pip install . --upgrade --no-binary evo
 ```
