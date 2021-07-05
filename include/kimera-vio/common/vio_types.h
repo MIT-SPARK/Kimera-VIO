@@ -68,7 +68,7 @@ using BearingVectors =
     std::vector<gtsam::Vector3, Eigen::aligned_allocator<gtsam::Vector3>>;
 
 // TODO(Toni): we wouldn't need this if we didn't use vector of pairs.
-static void getValidKeypointsFromStatusKeypointsCV(
+static inline void getValidKeypointsFromStatusKeypointsCV(
     const StatusKeypointsCV& status_kpts_cv,
     KeypointsCV* valid_kpts) {
   CHECK_NOTNULL(valid_kpts)->clear();

@@ -57,6 +57,8 @@ class Tracker {
           const Camera::ConstPtr& camera,
           DisplayQueue* display_queue = nullptr);
 
+  virtual ~Tracker() = default;
+
   // Tracker parameters.
   const FrontendParams tracker_params_;
 
@@ -101,7 +103,7 @@ class Tracker {
 
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.
-  std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
+  virtual std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
       Frame* ref_frame,
       Frame* cur_frame);
 

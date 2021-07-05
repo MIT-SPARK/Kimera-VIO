@@ -35,13 +35,17 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS& imu_acc_gyrs,
       const cv::Mat& feature_tracks,
-      const DebugTrackerInfo& debug_tracker_info)
+      const DebugTrackerInfo& debug_tracker_info,
+      boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body = boost::none,
+      boost::optional<gtsam::Velocity3> body_world_Vel_body = boost::none)
       : FrontendOutputPacketBase(stereo_frame_lkf.timestamp_,
                                  is_keyframe,
                                  FrontendType::kStereoImu,
                                  pim,
                                  imu_acc_gyrs,
-                                 debug_tracker_info),
+                                 debug_tracker_info,
+                                 lkf_body_Pose_kf_body,
+                                 body_world_Vel_body),
         status_stereo_measurements_(status_stereo_measurements),
         b_Pose_camL_rect_(b_Pose_camL_rect),
         b_Pose_camR_rect_(b_Pose_camR_rect),
@@ -54,6 +58,12 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
   const gtsam::Pose3 b_Pose_camL_rect_;
   const gtsam::Pose3 b_Pose_camR_rect_;
+  // TODO(nathan) make this name consistent
+  /**
+   * This member is not necessarily a key-frame and can be one of two things:
+   * - The last frame processed (is_keyframe_ = false)
+   * - The newest keyframe (is_keyframe_ = true)
+   */
   const StereoFrame stereo_frame_lkf_;
   const cv::Mat feature_tracks_;
 };

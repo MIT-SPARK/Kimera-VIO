@@ -14,6 +14,11 @@ In this repository we follow the ASL coding guidelines with some modifications:
 ### Variable and parameter naming
 * Prefer writing out a human understandable name and avoid abbreviations where possible.
 * Strictly keep the correct mathematical notation for frames and transformations as discussed [here](Expressing frame transformations in code.). Add short comments if the single letter frame specification is not self explanatory, but do not write the full name for a frame.
+    * When expressing vector quantities where the relative frame matters (e.g. velocity), we use the following convention:
+    ```
+    VectorType A_B_Vel_C // velocity of frame A w.r.t frame B expressed in frame C
+    ```
+    Unless the coordinate frames are obvious in this convention (unlikely), it's probably a good idea to place a comment at the definition similar to the comment above (so that the coordinate frame names are clear).
 
 ### Naming of variables and methods
 * Name your variables s.t. other people can directly understand what is going on.

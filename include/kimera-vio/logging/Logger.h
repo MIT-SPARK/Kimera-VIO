@@ -98,6 +98,8 @@ class BackendLogger {
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
 
+  void logBackendExtOdom(const BackendInput& input);
+
  private:
   void logBackendResultsCSV(const BackendOutput& output);
   void logSmartFactorsStats(const BackendOutput& output);
@@ -112,6 +114,7 @@ class BackendLogger {
   OfstreamWrapper output_pim_navstates_csv_;
   OfstreamWrapper output_backend_factors_stats_csv_;
   OfstreamWrapper output_backend_timing_csv_;
+  OfstreamWrapper output_backend_external_odometry_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
   double timing_loggerbackend_;
@@ -120,6 +123,7 @@ class BackendLogger {
   bool is_header_written_pim_navstates_ = false;
   bool is_header_written_backend_factors_stats_ = false;
   bool is_header_written_backend_timing_ = false;
+  bool is_header_written_external_odometry_ = false;
 };
 
 class FrontendLogger {
@@ -142,16 +146,25 @@ class FrontendLogger {
                       const std::string& dir_name,
                       bool disp_img,
                       bool save_img);
+  void logFrontendTemporalCal(const Timestamp& timestamp_vision,
+                              const Timestamp& timestamp_imu,
+                              const double& vision_relative_angle_norm,
+                              const double& image_relative_angle_norm,
+                              bool not_enough_data,
+                              bool not_enough_variance,
+                              const double& result);
 
  private:
   // StreamWrappers with filenames to which output is saved.
   OfstreamWrapper output_frontend_stats_;
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
+  OfstreamWrapper output_frontend_temporal_cal_;
   std::string output_frontend_img_path_;
   bool is_header_written_frontend_stats_ = false;
   bool is_header_written_ransac_mono_ = false;
   bool is_header_written_ransac_stereo_ = false;
+  bool is_header_written_temporal_cal_ = false;
 };
 
 class MesherLogger {

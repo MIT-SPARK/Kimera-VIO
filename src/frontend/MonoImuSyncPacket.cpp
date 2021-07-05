@@ -22,10 +22,12 @@ namespace VIO {
 
 MonoImuSyncPacket::MonoImuSyncPacket(Frame::UniquePtr frame,
                                      const ImuStampS& imu_stamps,
-                                     const ImuAccGyrS& imu_accgyrs)
+                                     const ImuAccGyrS& imu_accgyrs,
+                                     boost::optional<gtsam::NavState> external_odometry)
     : FrontendInputPacketBase(frame->timestamp_,
                               imu_stamps,
-                              imu_accgyrs),
+                              imu_accgyrs,
+                              external_odometry),
       frame_(std::move(frame)) {
   CHECK_GT(imu_stamps_.cols(), 0u);
   CHECK_EQ(frame_->timestamp_, imu_stamps_(imu_stamps_.cols() - 1));
