@@ -781,7 +781,9 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     case PoseGuessSource::MONO: {
       if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
         addStateValues(frame_id,
-                       tracker_status.lkf_T_k_mono_,
+                       W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
+                           tracker_status.lkf_T_k_mono_ *
+                           B_Pose_leftCamRect_.inverse(),
                        navstate_k.velocity(),
                        imu_bias_lkf_);
       } else {
@@ -793,7 +795,9 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     case PoseGuessSource::STEREO: {
       if (tracker_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
         addStateValues(frame_id,
-                       tracker_status.lkf_T_k_stereo_,
+                       W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
+                           tracker_status.lkf_T_k_stereo_ *
+                           B_Pose_leftCamRect_.inverse(),
                        navstate_k.velocity(),
                        imu_bias_lkf_);
       } else {
@@ -804,10 +808,11 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     }
     case PoseGuessSource::PNP: {
       if (tracker_status.tracking_status_pnp_ == TrackingStatus::VALID) {
-        addStateValues(frame_id,
-                       tracker_status.W_T_k_pnp_,
-                       navstate_k.velocity(),
-                       imu_bias_lkf_);
+        addStateValues(
+            frame_id,
+            tracker_status.W_T_k_pnp_ * B_Pose_leftCamRect_.inverse(),
+            navstate_k.velocity(),
+            imu_bias_lkf_);
       } else {
         LOG(WARNING) << "PnP tracking failure... Using IMU for pose guess.";
         addStateValuesFromNavState(frame_id, navstate_k);
