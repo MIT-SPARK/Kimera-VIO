@@ -21,8 +21,9 @@
 
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
-#include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
+#include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/imu-frontend/ImuFrontendParams.h"
@@ -50,9 +51,10 @@ class VisionImuFrontend {
 
  public:
   VisionImuFrontend(const ImuParams& imu_params,
-                 const ImuBias& imu_initial_bias,
-                 DisplayQueue* display_queue,
-                 bool log_output);
+                    const ImuBias& imu_initial_bias,
+                    DisplayQueue* display_queue,
+                    bool log_output,
+                    boost::optional<OdometryParams> odom_params = boost::none);
 
   virtual ~VisionImuFrontend();
 
@@ -109,19 +111,20 @@ class VisionImuFrontend {
 
   /* ------------------------------------------------------------------------ */
   // register a callback for the frontend to update the imu time shift
-  inline void registerImuTimeShiftUpdateCallback(const ImuTimeShiftCallback& callback) {
+  inline void registerImuTimeShiftUpdateCallback(
+      const ImuTimeShiftCallback& callback) {
     imu_time_shift_update_callback_ = callback;
   }
 
  protected:
-  virtual FrontendOutputPacketBase::UniquePtr
-      bootstrapSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
+  virtual FrontendOutputPacketBase::UniquePtr bootstrapSpin(
+      FrontendInputPacketBase::UniquePtr&& input) = 0;
 
-  virtual FrontendOutputPacketBase::UniquePtr
-      timeAlignmentSpin(FrontendInputPacketBase::UniquePtr&& input);
+  virtual FrontendOutputPacketBase::UniquePtr timeAlignmentSpin(
+      FrontendInputPacketBase::UniquePtr&& input);
 
-  virtual FrontendOutputPacketBase::UniquePtr
-      nominalSpin(FrontendInputPacketBase::UniquePtr&& input) = 0;
+  virtual FrontendOutputPacketBase::UniquePtr nominalSpin(
+      FrontendInputPacketBase::UniquePtr&& input) = 0;
 
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontend gravity. Trivial gravity is needed for initial alignment.
@@ -139,17 +142,79 @@ class VisionImuFrontend {
     return imu_frontend_->getPreintegrationGravity();
   }
 
-  void outlierRejectionMono(
-      const gtsam::Rot3& keyframe_R_cur_frame,
-      Frame* frame_lkf,
-      Frame* frame_k,
-      TrackingStatusPose* status_pose_mono);
+  void outlierRejectionMono(const gtsam::Rot3& keyframe_R_cur_frame,
+                            Frame* frame_lkf,
+                            Frame* frame_k,
+                            TrackingStatusPose* status_pose_mono);
+
+  inline void cacheExternalOdometry(FrontendInputPacketBase* input) {
+    if (input->world_NavState_ext_odom_) {
+      VLOG(2) << "Caching first odom measurement in boostrapSpin";
+      const gtsam::Pose3 ext_odom_Pose_body =
+          (*odom_params_).body_Pose_ext_odom_.inverse();
+      world_OdomPose_body_lkf_ =
+          (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
+    }
+  }
+
+  // can't be const (needs to cache keyframe odom if possible)
+  inline boost::optional<gtsam::Pose3> getExternalOdometryRelativeBodyPose(
+      FrontendInputPacketBase* input) {
+    if (!odom_params_) {
+      return boost::none;
+    }
+
+    // Past this point we are using external odometry
+    CHECK(input);
+    if (!input->world_NavState_ext_odom_) {
+      LOG(WARNING)
+          << "Input packet did not contain valid external odometry measurement";
+      return boost::none;
+    }
+
+    // First time getting a odometry measurement
+    const gtsam::Pose3& ext_odom_Pose_body =
+        (*odom_params_).body_Pose_ext_odom_.inverse();
+    if (!world_OdomPose_body_lkf_) {
+      world_OdomPose_body_lkf_ =
+          (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
+      return boost::none;
+    }
+
+    gtsam::Pose3 world_Pose_body_kf =
+        (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
+    gtsam::Pose3 body_lkf_Pose_body_kf =
+        (*world_OdomPose_body_lkf_).between(world_Pose_body_kf);
+
+    // We cache the current keyframe odometry for the next keyframe
+    world_OdomPose_body_lkf_ = world_Pose_body_kf;
+    return body_lkf_Pose_body_kf;
+  }
+
+  inline boost::optional<gtsam::Velocity3> getExternalOdometryWorldVelocity(
+      FrontendInputPacketBase* input) const {
+    if (!odom_params_) {
+      return boost::none;
+    }
+
+    CHECK(input);
+    if (!input->world_NavState_ext_odom_) {
+      // we could log here too, but RelativePose handles it...
+      return boost::none;
+    }
+
+    // Pass the sensor velocity in the world frame if available
+    // NOTE: typical odometry is not suitable for this since the vel estimate
+    // in the world frame will not have a bounded error.
+    return (*input->world_NavState_ext_odom_).velocity();
+  }
 
  protected:
   enum class FrontendState {
-    Bootstrap = 0u,               //! Initialize Frontend
-    InitialTimeAlignment = 1u,    //! Optionally initialize IMU-Camera time alignment
-    Nominal = 2u                  //! Run Frontend
+    Bootstrap = 0u,  //! Initialize Frontend
+    InitialTimeAlignment =
+        1u,       //! Optionally initialize IMU-Camera time alignment
+    Nominal = 2u  //! Run Frontend
   };
   std::atomic<FrontendState> frontend_state_;
 
@@ -176,6 +241,11 @@ class VisionImuFrontend {
   // Time alignment
   ImuTimeShiftCallback imu_time_shift_update_callback_;
   TimeAlignerBase::UniquePtr time_aligner_;
+
+  // External odometry
+  boost::optional<OdometryParams> odom_params_;
+  // world_Pose_body for the last keyframe
+  boost::optional<gtsam::Pose3> world_OdomPose_body_lkf_;
 };
 
 }  // namespace VIO

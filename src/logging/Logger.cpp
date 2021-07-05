@@ -89,7 +89,9 @@ BackendLogger::BackendLogger()
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
-      output_backend_timing_csv_("output_backendTiming.csv") {}
+      output_backend_timing_csv_("output_backendTiming.csv"),
+      output_backend_external_odometry_(
+          "output_backend_external_odometry.csv") {}
 
 void BackendLogger::logBackendOutput(const BackendOutput& output) {
   logBackendResultsCSV(output);
@@ -275,6 +277,40 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
                 << output.debug_info_.numAddedBetweenStereoF_ << ","
                 << output.state_.size() << "," << output.landmark_count_
                 << std::endl;
+}
+
+void BackendLogger::logBackendExtOdom(const BackendInput& input) {
+  if (!input.body_lkf_OdomPose_body_kf_) {
+    return;  // we're not using external odometry, don't log anything
+  }
+  if (!input.body_kf_world_OdomVel_body_kf_) {
+    return;  // we're not using external odometry, don't log anything
+  }
+
+  std::ofstream& output_stream = output_backend_external_odometry_.ofstream_;
+
+  if (!is_header_written_external_odometry_) {
+    // vx (kf), etc. is a little sloppy, but there's no better way to do this
+    // More specifically: the pose is relative between the current and last
+    // keyframe, but the velocity is absolute for the current keyframe
+    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx (kf),vy (kf),vz (kf)"
+                  << std::endl;
+    is_header_written_external_odometry_ = true;
+  }
+
+  // write the relative pose estimate between the last keyframe
+  // and the current one as well as the current body velocity estimate
+  const gtsam::Point3 tran =
+      (*input.body_lkf_OdomPose_body_kf_).translation();
+  const gtsam::Quaternion quat =
+      (*input.body_lkf_OdomPose_body_kf_).rotation().toQuaternion();
+  output_stream << input.timestamp_ << ",";
+  output_stream << tran.x() << "," << tran.y() << "," << tran.z() << ",";
+  output_stream << quat.w() << "," << quat.x() << "," << quat.y() << ","
+                << quat.z() << ",";
+  output_stream << (*input.body_kf_world_OdomVel_body_kf_).x() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).y() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).z() << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

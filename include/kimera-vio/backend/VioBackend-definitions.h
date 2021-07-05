@@ -240,13 +240,17 @@ struct BackendInput : public PipelinePayload {
       const ImuFrontend::PimPtr& pim,
       //! Raw imu msgs for Backend init only
       const ImuAccGyrS& imu_acc_gyrs,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
+      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
+      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+        stereo_ransac_body_pose_(stereo_ransac_body_pose),
+        body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
@@ -255,6 +259,11 @@ struct BackendInput : public PipelinePayload {
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
+  // between pose from last keyframe to current according to external odometry
+  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
+  // velocity of the current keyframe body w.r.t. the world frame in the body
+  // frame
+  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
  public:
   void print() const {
@@ -282,8 +291,8 @@ struct BackendInput : public PipelinePayload {
                 << TrackerStatusSummary::asString(stereo_tracking_status_);
     }
     if (pim_) pim_->print("PIM : ");
-    LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: "
-                                           << *stereo_ransac_body_pose_;
+    LOG_IF(INFO, stereo_ransac_body_pose_)
+        << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
   }
 };
 

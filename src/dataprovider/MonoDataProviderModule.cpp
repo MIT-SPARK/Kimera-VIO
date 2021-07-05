@@ -23,7 +23,9 @@ namespace VIO {
 MonoDataProviderModule::MonoDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run)
-    : DataProviderModule(output_queue, name_id, parallel_run),
+    : DataProviderModule(output_queue,
+                         name_id,
+                         parallel_run),
       left_frame_queue_("data_provider_left_frame_queue"),
       cached_left_frame_(nullptr) {}
 
@@ -80,8 +82,37 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
       return nullptr;
   }
 
+  bool odometry_valid = false;
+  gtsam::NavState external_odometry;
+  if (external_odometry_buffer_) {
+    ThreadsafeOdometryBuffer::QueryResult result =
+        external_odometry_buffer_->getNearest(timestamp, &external_odometry);
+    switch (result) {
+      case ThreadsafeOdometryBuffer::QueryResult::DataNotYetAvailable:
+        // TODO(nathan) consider increasing verbosity here
+        VLOG(2) << "Odometry data not available yet, spinning";
+        cached_left_frame_ =
+            std::move(left_frame_payload);  // we need to spin some more
+        return nullptr;
+      case ThreadsafeOdometryBuffer::QueryResult::DataNeverAvailable:
+        odometry_valid = false;
+        break;
+      case ThreadsafeOdometryBuffer::QueryResult::DataAvailable:
+        odometry_valid = true;
+        break;
+    }
+  }
+
   if (cache_timestamp) {
     timestamp_last_frame_ = timestamp;
+  }
+
+  if (odometry_valid) {
+    // return synchronized left frame, IMU data and external odometry
+    return VIO::make_unique<MonoImuSyncPacket>(std::move(left_frame_payload),
+                                               imu_meas.timestamps_,
+                                               imu_meas.acc_gyr_,
+                                               external_odometry);
   }
 
   //! Send synchronized left frame and IMU data.

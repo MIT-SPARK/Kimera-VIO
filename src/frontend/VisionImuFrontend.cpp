@@ -31,10 +31,12 @@ DEFINE_bool(log_mono_tracking_images,
 
 namespace VIO {
 
-VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
-                                     const ImuBias& imu_initial_bias,
-                                     DisplayQueue* display_queue,
-                                     bool log_output)
+VisionImuFrontend::VisionImuFrontend(
+    const ImuParams& imu_params,
+    const ImuBias& imu_initial_bias,
+    DisplayQueue* display_queue,
+    bool log_output,
+    boost::optional<OdometryParams> odom_params)
     : frontend_state_(FrontendState::Bootstrap),
       frame_count_(0),
       keyframe_count_(0),
@@ -43,7 +45,8 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_(nullptr),
       tracker_status_summary_(),
       display_queue_(display_queue),
-      logger_(nullptr) {
+      logger_(nullptr),
+      odom_params_(odom_params) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();

@@ -30,11 +30,13 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
     const MonoFrontendParams& frontend_params,
     const Camera::ConstPtr& camera,
     DisplayQueue* display_queue,
-    bool log_output)
+    bool log_output,
+    boost::optional<OdometryParams> odom_params)
     : VisionImuFrontend(imu_params,
                         imu_initial_bias,
                         display_queue,
-                        log_output),
+                        log_output,
+                        odom_params),
       mono_frame_k_(nullptr),
       mono_frame_km1_(nullptr),
       mono_frame_lkf_(nullptr),
@@ -69,12 +71,18 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
                         ? FrontendState::InitialTimeAlignment
                         : FrontendState::Nominal;
 
-  // sanity checks
+  if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
+    // we assume that the first frame is hardcoded to be a keyframe.
+    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    cacheExternalOdometry(input.get());
+  }
+
+  // Create mostly invalid output
   CHECK(mono_frame_lkf_);
   CHECK(mono_camera_);
 
   if (FLAGS_do_fine_imu_camera_temporal_sync) {
-    return nullptr; // skip adding a frame to all downstream modules
+    return nullptr;  // skip adding a frame to all downstream modules
   }
 
   // Create mostly invalid output
@@ -174,7 +182,9 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
-        getTrackerInfo());
+        getTrackerInfo(),
+        getExternalOdometryRelativeBodyPose(input.get()),
+        getExternalOdometryWorldVelocity(input.get()));
   } else {
     // Record frame rate timing
     timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());

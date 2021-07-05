@@ -18,6 +18,7 @@
 #include <string>
 
 #include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/rgbd/RgbdFrame.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/Macros.h"
@@ -35,6 +36,7 @@ class DataProviderInterface {
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
   typedef std::function<void(DepthFrame::UniquePtr)> DepthFrameInputCallback;
+  typedef std::function<void(const ExternalOdomMeasurement&)> ExternalOdomInputCallback;
 
   DataProviderInterface() = default;
   virtual ~DataProviderInterface();
@@ -78,6 +80,10 @@ class DataProviderInterface {
       const DepthFrameInputCallback& callback) {
     depth_frame_callback_ = callback;
   }
+  inline void registerExternalOdomCallback(
+      const ExternalOdomInputCallback& callback) {
+    external_odom_callback_ = callback;
+  }
 
  protected:
   // Vio callbacks. These functions should be called once data is available for
@@ -87,6 +93,7 @@ class DataProviderInterface {
   FrameInputCallback left_frame_callback_;
   FrameInputCallback right_frame_callback_;
   DepthFrameInputCallback depth_frame_callback_;
+  ExternalOdomInputCallback external_odom_callback_;
 
   // Shutdown switch to stop data provider.
   std::atomic_bool shutdown_ = {false};
