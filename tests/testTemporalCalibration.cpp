@@ -320,17 +320,17 @@ TEST(temporalCalibration, testBadRansacStatus) {
   TimeAlignerBase::Result result =
       aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_FALSE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 
   // Time alignment "succeeds" if RANSAC is invalid (first result)
   result = aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 
   // Time alignment "succeeds" if 5pt RANSAC is disabled (second result)
   result = aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testEmptyImu) {
@@ -359,12 +359,12 @@ TEST(temporalCalibration, testEmptyImu) {
   TimeAlignerBase::Result result =
       aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_FALSE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 
   // Time alignment "succeeds" if the IMU isn't present between frames
   result = aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testLessThanWindow) {
@@ -395,7 +395,7 @@ TEST(temporalCalibration, testLessThanWindow) {
     TimeAlignerBase::Result result =
         aligner.estimateTimeAlignment(tracker, *output, times, values);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 }
 
@@ -428,7 +428,7 @@ TEST(temporalCalibration, testLessThanWindowFrameRate) {
     TimeAlignerBase::Result result =
         aligner.estimateTimeAlignment(tracker, *output, times, values);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 }
 
@@ -464,7 +464,7 @@ TEST(temporalCalibration, testLowVariance) {
     TimeAlignerBase::Result result =
         aligner.estimateTimeAlignment(tracker, *output, times, values);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 }
 
@@ -500,7 +500,7 @@ TEST(temporalCalibration, testEnoughVariance) {
     if (i < results.size()) {
       // We get false from not having enough data
       EXPECT_FALSE(result.valid);
-      EXPECT_EQ(0.0, result.imu_time_shift);
+      EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
     } else {
       EXPECT_TRUE(result.valid);
       // result needs to be within the min and max possible time
@@ -529,7 +529,7 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -537,7 +537,7 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
@@ -557,7 +557,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -565,7 +565,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
@@ -585,7 +585,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -593,7 +593,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testNegDelayImuRate) {
@@ -613,7 +613,7 @@ TEST(temporalCalibration, testNegDelayImuRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -621,7 +621,7 @@ TEST(temporalCalibration, testNegDelayImuRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayImuRate) {
@@ -641,7 +641,7 @@ TEST(temporalCalibration, testPosDelayImuRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -649,7 +649,7 @@ TEST(temporalCalibration, testPosDelayImuRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testNegDelayFrameRate) {
@@ -669,7 +669,7 @@ TEST(temporalCalibration, testNegDelayFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -677,7 +677,7 @@ TEST(temporalCalibration, testNegDelayFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayFrameRate) {
@@ -697,7 +697,7 @@ TEST(temporalCalibration, testPosDelayFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -705,7 +705,7 @@ TEST(temporalCalibration, testPosDelayFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayLowDisparity) {
@@ -727,7 +727,7 @@ TEST(temporalCalibration, testPosDelayLowDisparity) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -735,7 +735,7 @@ TEST(temporalCalibration, testPosDelayLowDisparity) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
@@ -757,7 +757,7 @@ TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -765,7 +765,7 @@ TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 }  // namespace VIO
