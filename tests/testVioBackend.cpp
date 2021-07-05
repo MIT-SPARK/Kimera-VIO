@@ -485,10 +485,8 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
     BackendOutput::Ptr backend_output = vio_backend->spinOnce(
         BackendInput(timestamp_k,
                      all_measurements[k],
-                     tracker_status_valid.kfTrackingStatus_stereo_,
                      pim,
                      imu_accgyr,
-                     boost::none,
                      // Only push odometry after first one
                      k > 0u ? external_odometry_pose : boost::none,
                      boost::none));
@@ -555,12 +553,11 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
         EXPECT_EQ(
             nr_factors_in_smoother,
             3 + 2 * k + 1);  // 3 priors, 1 imu + 1 between per time stamp:
-                                 // we do not include smart factors of length 1
-                                 // also the odom between factor
+                             // we do not include smart factors of length 1
+                             // also the odom between factor
       } else {
-        EXPECT_EQ(
-            nr_factors_in_smoother,
-            3 + 2 * k + 8 + k);  // 3 priors, 1 imu + 1 between per time
+        EXPECT_EQ(nr_factors_in_smoother,
+                  3 + 2 * k + 8 + k);  // 3 priors, 1 imu + 1 between per time
                                        // stamp, 8 smart factors
                                        // also the odom between factors
       }
@@ -576,8 +573,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
               EXPECT_EQ(btwn->keys().size(), 2);
               EXPECT_EQ(btwn->keys().at(0), btwn->keys().at(1) - 1);
               int key = gtsam::Symbol(btwn->keys().at(1)).index();
-              EXPECT_EQ(btwn->measured().translation().z(),
-                        key / 1000.0);
+              EXPECT_EQ(btwn->measured().translation().z(), key / 1000.0);
             }
           }
         }

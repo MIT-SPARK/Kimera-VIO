@@ -233,8 +233,18 @@ void InitializationBackend::addInitialVisualState(
     W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(B_lkf_Pose_B_k);
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
 
-    if (backend_params_.addBetweenStereoFactors_) {
-      addBetweenFactor(last_kf_id_, curr_kf_id_, B_lkf_Pose_B_k);
+    if (backend_params_.addBetweenStereoFactors_ &&
+        status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+            TrackingStatus::VALID) {
+      addBetweenFactor(
+          last_kf_id_,
+          curr_kf_id_,
+          // I think this should be B_Pose_leftCamRect_...
+          B_Pose_leftCamRect_ *
+              status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+              B_Pose_leftCamRect_.inverse(),
+          backend_params_.betweenRotationPrecision_,
+          backend_params_.betweenTranslationPrecision_);
     }
   } else {
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);

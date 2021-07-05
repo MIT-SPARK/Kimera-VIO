@@ -76,8 +76,6 @@ FrontendOutputPacketBase::Ptr makeOutput(
     return std::make_shared<MonoFrontendOutput>(
         false,
         StatusMonoMeasurementsPtr(nullptr),
-        TrackingStatus::VALID,
-        gtsam::Pose3(),
         gtsam::Pose3(),
         fake_frame,
         ImuFrontend::PimPtr(nullptr),
@@ -90,8 +88,6 @@ FrontendOutputPacketBase::Ptr makeOutput(
     return std::make_shared<StereoFrontendOutput>(
         false,
         StatusStereoMeasurementsPtr(nullptr),
-        TrackingStatus::VALID,
-        gtsam::Pose3(),
         gtsam::Pose3(),
         gtsam::Pose3(),
         fake_stereo,

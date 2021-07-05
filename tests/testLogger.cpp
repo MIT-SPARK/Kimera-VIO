@@ -313,10 +313,8 @@ TEST_F(BackendLoggerFixture, logBackendExtOdom) {
 
   logger_->logBackendExtOdom(BackendInput(timestamp,
                                           nullptr,
-                                          TrackingStatus::VALID,
                                           nullptr,
                                           ImuAccGyrS::Zero(6, 1),
-                                          boost::none,
                                           w_Pose_b,
                                           b_w_Vel_b));
 

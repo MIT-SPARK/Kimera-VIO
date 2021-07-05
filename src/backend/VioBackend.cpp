@@ -311,7 +311,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(
         // I think this should be B_Pose_leftCamRect_...
         B_Pose_leftCamRect_ *
             status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
-            B_Pose_leftCamRect_.inverse());
+            B_Pose_leftCamRect_.inverse(),
+        backend_params_.betweenRotationPrecision_,
+        backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
