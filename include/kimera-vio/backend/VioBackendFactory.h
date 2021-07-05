@@ -36,7 +36,8 @@ class BackendFactory {
       const BackendParams& backend_params,
       const ImuParams& imu_params,
       const BackendOutputParams& backend_output_params,
-      bool log_output) {
+      bool log_output,
+      boost::optional<OdometryParams> odom_params) {
     switch (backend_type) {
       case BackendType::kStereoImu: {
         return VIO::make_unique<VioBackend>(B_Pose_leftCamRect,
@@ -44,7 +45,8 @@ class BackendFactory {
                                             backend_params,
                                             imu_params,
                                             backend_output_params,
-                                            log_output);
+                                            log_output,
+                                            odom_params);
       }
       case BackendType::kStructuralRegularities: {
         return VIO::make_unique<RegularVioBackend>(B_Pose_leftCamRect,
@@ -52,7 +54,8 @@ class BackendFactory {
                                                    backend_params,
                                                    imu_params,
                                                    backend_output_params,
-                                                   log_output);
+                                                   log_output,
+                                                   odom_params);
       }
       default: {
         LOG(FATAL) << "Requested Backend type is not supported.\n"

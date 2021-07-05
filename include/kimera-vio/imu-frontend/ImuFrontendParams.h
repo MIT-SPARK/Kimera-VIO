@@ -47,6 +47,13 @@ protected:
   double acc_random_walk_ = 0.0;
   double imu_time_shift_ = 0.0;  // Defined as t_imu = t_cam + imu_shift
 
+  //! estimate fine alignment at IMU rate instead of image rate
+  bool do_imu_rate_time_alignment_ = true;
+  //! approximate size of time alignment window
+  double time_alignment_window_size_s_ = 10.0;
+  //! additional scaling to apply to nominal threshold of  imu_gryo_variance
+  double time_alignment_variance_threshold_scaling_ = 100.0;
+
   double nominal_sampling_time_s_ = 0.0;
   double imu_integration_sigma_ = 0.0;
 

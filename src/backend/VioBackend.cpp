@@ -70,7 +70,8 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
                        const BackendParams& backend_params,
                        const ImuParams& imu_params,
                        const BackendOutputParams& backend_output_params,
-                       bool log_output)
+                       bool log_output,
+                       boost::optional<OdometryParams> odom_params)
     : backend_params_(backend_params),
       imu_params_(imu_params),
       backend_output_params_(backend_output_params),
@@ -86,7 +87,8 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
       curr_kf_id_(0),
       landmark_count_(0),
       log_output_(log_output),
-      logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr) {
+      logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr),
+      odom_params_(odom_params) {
 // TODO the parsing of the params should be done inside here out from the
 // path to the params file, otherwise other derived VIO Backends will be
 // stuck with the parameters used by vanilla VIO, as there is no polymorphic
@@ -130,7 +132,13 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
 
 /* -------------------------------------------------------------------------- */
 BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
-  if (VLOG_IS_ON(10)) input.print();
+  if (VLOG_IS_ON(10)) {
+    input.print();
+  }
+
+  if (logger_) {
+    logger_->logBackendExtOdom(input);
+  }
 
   bool backend_status = false;
   const BackendState backend_state = backend_state_;
@@ -273,7 +281,9 @@ bool VioBackend::initStateAndSetPriors(
 bool VioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegrationType& pim) {
+    const gtsam::PreintegrationType& pim,
+    boost::optional<gtsam::Pose3> odometry_body_pose,
+    boost::optional<gtsam::Velocity3> odometry_vel) {
   debug_info_.resetAddedFactorsStatistics();
 
   // Features and IMU line up --> do iSAM update
@@ -354,6 +364,27 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     }
   }
 
+  // Add odometry factors if they're available and have non-zero precision
+  if (odometry_body_pose && odom_params_ &&
+      (odom_params_->betweenRotationPrecision_ > 0.0 ||
+       odom_params_->betweenTranslationPrecision_ > 0.0)) {
+    VLOG(1) << "Added external factor between " << last_kf_id_ << " and "
+            << curr_kf_id_;
+    addBetweenFactor(last_kf_id_,
+                     curr_kf_id_,
+                     *odometry_body_pose,
+                     odom_params_->betweenRotationPrecision_,
+                     odom_params_->betweenTranslationPrecision_);
+  }
+  if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
+    LOG_FIRST_N(WARNING, 1)
+        << "Using velocity priors from external odometry: "
+        << "This only works if you have velocity estimates in the world frame! "
+        << "(not provided by typical odometry sensors)";
+    addVelocityPrior(
+        curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
+  }
+
   // Why do we do this??
   // This lags 1 step behind to mimic hw.
   // imu_bias_lkf_ gets updated in the optimize call.
@@ -369,7 +400,10 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
   bool is_smoother_ok = addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
       *input.status_stereo_measurements_kf_,  // Vision data.
-      *input.pim_);                           // Imu preintegrated data.
+      *input.pim_,                            // Imu preintegrated data.
+      input.body_lkf_OdomPose_body_kf_,
+      input.body_kf_world_OdomVel_body_kf_);  // optional: pose estimate from
+                                              // stereo ransac
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;
@@ -869,12 +903,13 @@ void VioBackend::addImuFactor(const FrameId& from_id,
 /* -------------------------------------------------------------------------- */
 void VioBackend::addBetweenFactor(const FrameId& from_id,
                                   const FrameId& to_id,
-                                  const gtsam::Pose3& from_id_POSE_to_id) {
+                                  const gtsam::Pose3& from_id_POSE_to_id,
+                                  const double& between_rotation_precision,
+                                  const double& between_translation_precision) {
   // TODO(Toni): make noise models const members of Backend...
   Vector6 precisions;
-  precisions.head<3>().setConstant(backend_params_.betweenRotationPrecision_);
-  precisions.tail<3>().setConstant(
-      backend_params_.betweenTranslationPrecision_);
+  precisions.head<3>().setConstant(between_rotation_precision);
+  precisions.tail<3>().setConstant(between_translation_precision);
   const gtsam::SharedNoiseModel& betweenNoise_ =
       gtsam::noiseModel::Diagonal::Precisions(precisions);
 
@@ -914,6 +949,19 @@ void VioBackend::addZeroVelocityPrior(const FrameId& frame_id) {
           gtsam::Symbol(kVelocitySymbolChar, frame_id),
           gtsam::Vector3::Zero(),
           zero_velocity_prior_noise_));
+}
+
+void VioBackend::addVelocityPrior(const FrameId& frame_id,
+                                  const gtsam::Velocity3& vel,
+                                  const double& precision) {
+  VLOG(10) << "Adding odometry pose velocity prior factor.";
+  gtsam::Vector3 precisions;
+  precisions.head<3>().setConstant(precision);
+  const gtsam::SharedNoiseModel& noise_model =
+      gtsam::noiseModel::Diagonal::Precisions(precisions);
+  new_imu_prior_and_other_factors_.push_back(
+      boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+          gtsam::Symbol(kVelocitySymbolChar, frame_id), vel, noise_model));
 }
 
 /* -------------------------------------------------------------------------- */

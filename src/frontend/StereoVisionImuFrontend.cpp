@@ -26,6 +26,8 @@
 DEFINE_bool(log_stereo_matching_images,
             false,
             "Display/Save mono tracking rectified and unrectified images.");
+DECLARE_bool(do_fine_imu_camera_temporal_sync);
+
 namespace VIO {
 
 StereoVisionImuFrontend::StereoVisionImuFrontend(
@@ -34,11 +36,13 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
     const FrontendParams& frontend_params,
     const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
-    bool log_output)
+    bool log_output,
+    boost::optional<OdometryParams> odom_params)
     : VisionImuFrontend(imu_params,
                         imu_initial_bias,
                         display_queue,
-                        log_output),
+                        log_output,
+                        odom_params),
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
@@ -70,10 +74,23 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
   processFirstStereoFrame(input->getStereoFrame());
 
   // Initialization done, set state to nominal
-  frontend_state_ = FrontendState::Nominal;
+  frontend_state_ = FLAGS_do_fine_imu_camera_temporal_sync
+                        ? FrontendState::InitialTimeAlignment
+                        : FrontendState::Nominal;
 
-  // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
+  if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
+    // we assume that the first frame is hardcoded to be a keyframe.
+    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    cacheExternalOdometry(input.get());
+  }
+
+  // Create mostly invalid output, to send the imu_acc_gyrs to the Backend.
   CHECK(stereoFrame_lkf_);
+
+  if (FLAGS_do_fine_imu_camera_temporal_sync) {
+    return nullptr;  // skip adding a frame to all downstream modules
+  }
+
   return VIO::make_unique<StereoFrontendOutput>(
       stereoFrame_lkf_->isKeyframe(),
       nullptr,
@@ -191,29 +208,34 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     timing_stats_keyframe_rate.AddSample(utils::Timer::toc(start_time).count());
 
     // Return the output of the Frontend for the others.
+    // We have a keyframe, so We fill stereo_frame_lkf_ with the newest keyframe
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
     return VIO::make_unique<StereoFrontendOutput>(
-        true,
+        frontend_state_ == FrontendState::Nominal,
         status_stereo_measurements,
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
-        *stereoFrame_lkf_,  //! This is really the current keyframe in this if
+        *stereoFrame_lkf_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
-        getTrackerInfo());
+        getTrackerInfo(),
+        getExternalOdometryRelativeBodyPose(input.get()),
+        getExternalOdometryWorldVelocity(input.get()));
   } else {
     // Record frame rate timing
     timing_stats_frame_rate.AddSample(utils::Timer::toc(start_time).count());
 
-    // We don't have a keyframe.
+    // TODO(nathan) unify returning output packets
+    // We don't have a keyframe, so instead we forward the newest frame in this
+    // packet for use in the temporal calibration (if enabled)
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
     return VIO::make_unique<StereoFrontendOutput>(
         false,
         status_stereo_measurements,
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
-        *stereoFrame_lkf_,
+        *stereoFrame_km1_,
         pim,
         input->getImuAccGyrs(),
         feature_tracks,
@@ -497,7 +519,8 @@ void StereoVisionImuFrontend::outlierRejectionStereo(
   gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
   if (tracker_->tracker_params_.ransac_use_1point_stereo_ &&
       !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
-      !force_53point_ransac_) {
+      !force_53point_ransac_ &&
+      frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 1-point RANSAC.
     std::tie(*status_pose_stereo, infoMatStereoTranslation) =
         tracker_->geometricOutlierRejectionStereoGivenRotation(

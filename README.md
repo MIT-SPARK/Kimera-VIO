@@ -15,7 +15,7 @@
 [![Build Status](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/badge/icon)](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/)
 For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/VIO_20Euroc_20Performance_20Report).
 
-**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
+**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Nathan Hughes, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
 
 ## What is Kimera-VIO?
 
@@ -36,19 +36,32 @@ We kindly ask to cite our paper if you find this library useful:
    url = {https://github.com/MIT-SPARK/Kimera},
    pdf = {https://arxiv.org/pdf/1910.02490.pdf}
  }
+ ```
+ 
+ - A. Rosinol and A. Violette and M. Abate and N. Hughes and Y. Chang and J. Shi and A. Gupta and L. Carlone, [**Kimera: from SLAM to Spatial Perception with 3D Dynamic Scene Graphs**](https://arxiv.org/abs/2101.06894). arXiv preprint, 2021. [arXiv:2101.06894](https://arxiv.org/abs/2101.06894).
+
+```bibtex
+@article{Rosinol21arxiv-Kimera,
+   title = {Kimera: from {SLAM} to Spatial Perception with {3D} Dynamic Scene Graphs},
+   author = {Rosinol, Antoni and Violette, Andrew and Abate, Marcus and Hughes, Nathan and Chang, Yun
+   and Shi, Jingnan and Gupta, Arjun and Carlone, Luca},
+   year = {2021},
+   journal = {arXiv preprint arXiv: 2101.06894},
+   pdf = {https://arxiv.org/pdf/2101.06894.pdf} 
+}
 ```
 
 ### Related Publications
 
 Backend optimization is based on:
 
- - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. **On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**. IEEE Trans. Robotics, 33(1):1-21, 2016.
+ - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. [**On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**](https://arxiv.org/pdf/1512.02363.pdf). IEEE Trans. Robotics, 33(1):1-21, 2016.
 
- - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. **Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.** IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
+ - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. [**Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.**](https://www.cc.gatech.edu/~dellaert/dhtml/pubs/Carlone14icra.pdf) IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 Alternatively, the `Regular VIO` Backend, using structural regularities, is described in this paper:
 
-- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. **Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**. IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
+- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. [**Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**](https://arxiv.org/pdf/1903.01067.pdf). IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
 
 ## Demo
 
