@@ -29,10 +29,10 @@
 #include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VisionImuFrontendParams.h"
+#include "kimera-vio/frontend/VisionImuTrackerParams.h"
 #include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/visualizer/Display-definitions.h"
 
 namespace VIO {
 
@@ -51,16 +51,16 @@ class Tracker {
   /**
    * @brief Tracker tracks features from frame to frame.
    * @param tracker_params Parameters for feature tracking
-   * @param camera_params Parameters for the camera used for tracking.
+   * @param Camera Camera used for tracking
    */
-  Tracker(const FrontendParams& tracker_params,
+  Tracker(const TrackerParams& tracker_params,
           const Camera::ConstPtr& camera,
           DisplayQueue* display_queue = nullptr);
 
   virtual ~Tracker() = default;
 
   // Tracker parameters.
-  const FrontendParams tracker_params_;
+  const TrackerParams tracker_params_;
 
   // Mask for features.
   cv::Mat cam_mask_;
@@ -69,6 +69,7 @@ class Tracker {
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame,
                        const gtsam::Rot3& inter_frame_rotation,
+                       const FeatureDetectorParams& feature_detector_params,
                        boost::optional<cv::Mat> R = boost::none);
 
   /**
@@ -91,42 +92,59 @@ class Tracker {
     landmarks_map_ = lmks_map;
   }
 
-  template <class ProblemT>
-  static void runRansac(const BearingVectors& vectors_ref,
-                        const BearingVectors& vectors_cur,
-                        const KeypointMatches& matches_ref_cur,
-                        const bool& ransac_randomize,
-                        const int& min_nr_inliers,
-                        opengv::sac::Ransac<ProblemT>* ransac,
-                        TrackingStatusPose* tracking_status_pose,
-                        const int& ransac_verbosity = 0);
-
-  // TODO(Toni): this function is almost a replica of the Stereo version,
-  // factorize.
-  virtual std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
-      Frame* ref_frame,
-      Frame* cur_frame);
-
-  // TODO(Toni): this function is almost a replica of the Mono version,
-  // factorize.
-  std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionStereo(
-      StereoFrame& ref_frame,
-      StereoFrame& cur_frame);
-
-  // Contrarily to the previous 2 this also returns a 3x3 covariance for the
-  // translation estimate.
-  std::pair<TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionMonoGivenRotation(
+  // gtsam::pose3 has to be rectified cameras bcs bearings are in rectified cams
+  TrackingStatusPose geometricOutlierRejection2d2d(
       Frame* ref_frame,
       Frame* cur_frame,
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+
+  TrackingStatusPose geometricOutlierRejection2d2d(
+      const BearingVectors& ref_bearings,
+      const BearingVectors& cur_bearings,
+      const KeypointMatches& matches_ref_cur,
+      std::vector<int>* inliers,
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+
+  /**
+   * @brief geometricOutlierRejection3d3d
+   * @param ref_stereo_frame
+   * @param cur_stereo_frame
+   * @param cam_lkf_Pose_cam_kf inital guess of the transformation between 3d
+   * pointclouds (this is only used in case of nonlinear optimization).
+   * @return
+   */
+  TrackingStatusPose geometricOutlierRejection3d3d(
+      StereoFrame* ref_stereo_frame,
+      StereoFrame* cur_stereo_frame,
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+
+  // TODO(marcus); doc differences between two versions, esp no outlier removal
+  TrackingStatusPose geometricOutlierRejection3d3d(
+      const Landmarks& ref_keypoints_3d,
+      const Landmarks& cur_keypoints_3d,
+      const KeypointMatches& matches_ref_cur,
+      std::vector<int>* inliers,
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+
+  std::pair<TrackingStatusPose, gtsam::Matrix3>
+  geometricOutlierRejection3d3dGivenRotation(
+      StereoFrame& ref_stereo_frame,
+      StereoFrame& cur_stereo_frame,
+      StereoCamera::ConstPtr stereo_camera,
       const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
-  std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
-  geometricOutlierRejectionStereoGivenRotation(
-      StereoFrame& ref_stereoFrame,
-      StereoFrame& cur_stereoFrame,
-      VIO::StereoCamera::ConstPtr stereo_camera,
-      const gtsam::Rot3& camLrectlkf_R_camLrectkf);
+  std::pair<TrackingStatusPose, gtsam::Matrix3>
+  geometricOutlierRejection3d3dGivenRotation(
+      const StatusKeypointsCV& ref_keypoints_status_left,
+      const StatusKeypointsCV& ref_keypoints_status_right,
+      const StatusKeypointsCV& cur_keypoints_status_left,
+      const StatusKeypointsCV& cur_keypoints_status_right,
+      const Landmarks& ref_keypoints_3d,
+      const Landmarks& cur_keypoints_3d,
+      StereoCamera::ConstPtr stereo_camera,
+      const KeypointMatches& matches_ref_cur,
+      const gtsam::Rot3& camLrectlkf_R_camLrectkf,
+      std::vector<int>* inliers);
 
   void removeOutliersMono(const std::vector<int>& inliers,
                           Frame* ref_frame,
@@ -137,6 +155,22 @@ class Tracker {
                             StereoFrame* ref_stereoFrame,
                             StereoFrame* cur_stereoFrame,
                             KeypointMatches* matches_ref_cur);
+
+  /**
+   * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
+   * @param bearing_vectors
+   * @param points
+   * @param camLrectlkf_R_camLrectkf
+   * @param camLrectlkf_t_camLrectkf
+   * @param best_absolute_pose
+   * @param[in/out] inliers
+   */
+  bool pnp(const BearingVectors& bearing_vectors,
+           const Landmarks& points,
+           const gtsam::Rot3& rotation_prior,
+           const gtsam::Point3& translation_prior,
+           gtsam::Pose3* best_absolute_pose,
+           std::vector<int>* inliers);
 
   /**
    * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
@@ -185,31 +219,98 @@ class Tracker {
                                      const KeypointMatches& matches_ref_cur,
                                      double* median_disparity);
 
-  static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
+  // TODO(Toni): remove
+  static std::pair<gtsam::Vector3, gtsam::Matrix3> getPoint3AndCovariance(
       const StereoFrame& stereoFrame,
       const gtsam::StereoCamera& stereoCam,
       const size_t pointId,
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
+  static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
+      const StatusKeypointsCV& keypoints_undistorted_left,
+      const StatusKeypointsCV& keypoints_undistorted_right,
+      const BearingVectors& keypoints_3d,
+      const gtsam::StereoCamera& stereo_cam,
+      const size_t point_id,
+      const gtsam::Matrix3& stereo_point_covariance,
+      boost::optional<gtsam::Matrix3> Rmat);
+
+ private:
   /**
-   * @brief runPnpRansac
-   * @param absolute_pose_problem_ptr
-   * @param threshold Quality threshold to stop
-   * @param max_iterations
+   * @brief runRansac
+   * @param [in] sample_consensus_problem_ptr
+   * @param [in] threshold Quality threshold to stop
+   * @param [in] max_iterations
    * @param [out] The best pose estimate
-   * @param inliers The inliers from the input data
+   * @param [out] inliers The inliers from the input data
    * @return true on success, false on failure.
    */
-  static bool runPnpRansac(AdapterPnp& adapter,
-                           const PnpMethod& pnp_method,
-                           const opengv::rotation_t& rotation_prior,
-                           const opengv::translation_t& translation_prior,
-                           const double& threshold,
-                           const int& max_iterations,
-                           const double& probability,
-                           gtsam::Pose3* best_pose,
-                           std::vector<int>* inliers);
+  template <class SampleConsensusProblem>
+  bool runRansac(
+      std::shared_ptr<SampleConsensusProblem> sample_consensus_problem_ptr,
+      const double& threshold,
+      const int& max_iterations,
+      const double& probability,
+      const bool& do_nonlinear_optimization,
+      gtsam::Pose3* best_pose,
+      std::vector<int>* inliers) {
+    CHECK_NOTNULL(best_pose);
+    CHECK(sample_consensus_problem_ptr);
+
+    //! Create ransac
+    opengv::sac::Ransac<SampleConsensusProblem> ransac(
+        max_iterations, threshold, probability);
+
+    //! Setup ransac
+    ransac.sac_model_ = sample_consensus_problem_ptr;
+
+    //! Run ransac
+    bool success = ransac.computeModel(VLOG_IS_ON(1) ? 1 : 0);
+
+    if (success) {
+      if (ransac.iterations_ >= max_iterations && ransac.inliers_.empty()) {
+        success = false;
+        *best_pose = gtsam::Pose3::identity();
+        if (inliers) *inliers = {};
+      } else {
+        *best_pose =
+            UtilsOpenCV::openGvTfToGtsamPose3(ransac.model_coefficients_);
+        if (inliers) *inliers = ransac.inliers_;
+
+        if (do_nonlinear_optimization) {
+          CHECK(inliers);
+          opengv::transformation_t optimized_pose;
+          sample_consensus_problem_ptr->optimizeModelCoefficients(
+              *inliers, ransac.model_coefficients_, optimized_pose);
+          *best_pose = Eigen::MatrixXd(optimized_pose);
+        }
+      }
+    } else {
+      CHECK(ransac.inliers_.empty());
+      *best_pose = gtsam::Pose3::identity();
+      if (inliers) *inliers = {};
+    }
+
+    VLOG(5) << printRansacStats(
+        ransac, sample_consensus_problem_ptr->indices_->size(), "todo");
+    return success;
+  }
+
+  // Printers
+  template <class T>
+  std::string printRansacStats(const opengv::sac::Ransac<T>& ransac,
+                               const size_t& total_correspondences,
+                               const std::string& ransac_type) const {
+    std::stringstream out;
+    out << "RANSAC (" << ransac_type << "): \n"
+        << "- #iter = " << ransac.iterations_ << '\n'
+        << "- #inliers = " << ransac.inliers_.size() << '\n'
+        << "- #outliers = " << total_correspondences - ransac.inliers_.size()
+        << '\n'
+        << "Total = " << total_correspondences;
+    return out.str();
+  }
 
  public:
   //! Debug info (its public to allow stereo frames to populate it).
@@ -235,14 +336,14 @@ class Tracker {
   std::string output_images_path_;
 
   // Monocular RANSACs
-  opengv::sac::Ransac<ProblemMono> mono_ransac_;
-  opengv::sac::Ransac<ProblemMonoGivenRot> mono_ransac_given_rot_;
+  opengv::sac::Ransac<Problem2d2d> mono_ransac_;
+  opengv::sac::Ransac<Problem2d2dGivenRot> mono_ransac_given_rot_;
 
   // Stereo RANSAC
-  opengv::sac::Ransac<ProblemStereo> stereo_ransac_;
+  opengv::sac::Ransac<Problem3d3d> stereo_ransac_;
 
   // Pnp RANSAC
-  opengv::sac::Ransac<ProblemPnp> pnp_ransac_;
+  opengv::sac::Ransac<ProblemPnP> pnp_ransac_;
 
   mutable std::mutex landmarks_map_mtx_;
   //! Most up-to-date map of landmarks with optimized 3D poses from backend.

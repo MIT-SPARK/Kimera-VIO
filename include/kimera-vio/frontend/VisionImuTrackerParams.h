@@ -63,7 +63,7 @@ struct TrackerParams : public PipelineParams {
   bool ransac_use_2point_mono_ = true;
   
   //! Use 2D-2D tracking to remove outliers
-  Pose2d2dAlgorithm pose_2d2d_algorithm_ = Pose2d2dAlgorithm::STEWENIUS;
+  Pose2d2dAlgorithm pose_2d2d_algorithm_ = Pose2d2dAlgorithm::NISTER;
   bool optimize_2d2d_pose_from_inliers_ = false;
 
   //! Use 3D-3D tracking to remove outliers
