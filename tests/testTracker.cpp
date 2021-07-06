@@ -1740,8 +1740,6 @@ TEST_F(TestTracker, PnPTracking) {
   gtsam::Pose3 best_absolute_pose = gtsam::Pose3::identity();
   std::vector<int> inliers;
   EXPECT_TRUE(tracker_->pnp(*cur_stereo_frame,
-                            gtsam::Rot3::identity(),
-                            gtsam::Point3::Identity(),
                             &best_absolute_pose,
                             &inliers));
   //! Check inliers/outliers

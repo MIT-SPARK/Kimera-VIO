@@ -393,11 +393,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
       if (tracker_->tracker_params_.use_pnp_tracking_) {
         gtsam::Pose3 best_absolute_pose;
         std::vector<int> inliers;
-        if (tracker_->pnp(*stereoFrame_k_,
-                          gtsam::Rot3::identity(),
-                          gtsam::Point3::Identity(),
-                          &best_absolute_pose,
-                          &inliers) &&
+        if (tracker_->pnp(*stereoFrame_k_, &best_absolute_pose, &inliers) &&
             inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
           tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::VALID;
           LOG(WARNING) << "PnP tracking success:\n"

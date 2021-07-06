@@ -950,15 +950,17 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
 }
 
 bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
-                  const gtsam::Rot3& camLrectlkf_R_camLrectkf,
-                  const gtsam::Point3& camLrectlkf_t_camLrectkf,
                   gtsam::Pose3* best_absolute_pose,
-                  std::vector<int>* inliers) {
+                  std::vector<int>* inliers,
+                  gtsam::Pose3* w_Pose_cam) {
   CHECK_NOTNULL(best_absolute_pose);
 
-  const opengv::rotation_t& rotation_prior = camLrectlkf_R_camLrectkf.matrix();
-  const opengv::translation_t& translation_prior =
-      camLrectlkf_t_camLrectkf.matrix();
+  opengv::rotation_t rotation_prior = opengv::rotation_t::Identity();
+  opengv::translation_t translation_prior = opengv::translation_t::Identity();
+  if (w_Pose_cam) {
+    rotation_prior = w_Pose_cam->rotation().matrix();
+    translation_prior = w_Pose_cam->translation().matrix();
+  }
 
   opengv::bearingVectors_t bearing_vectors;
   opengv::points_t points;
