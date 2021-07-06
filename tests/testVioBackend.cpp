@@ -552,12 +552,12 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
       } else if (k == 1) {
         EXPECT_EQ(
             nr_factors_in_smoother,
-            3 + 2 * k + 1);  // 3 priors, 1 imu + 1 between per time stamp:
+            3 + 3 * k + 1);  // 3 priors, 1 imu + 1 between per time stamp:
                              // we do not include smart factors of length 1
                              // also the odom between factor
       } else {
         EXPECT_EQ(nr_factors_in_smoother,
-                  3 + 2 * k + 8 + k);  // 3 priors, 1 imu + 1 between per time
+                  3 + 3 * k + 8 + k);  // 3 priors, 1 imu + 1 between per time
                                        // stamp, 8 smart factors
                                        // also the odom between factors
       }
