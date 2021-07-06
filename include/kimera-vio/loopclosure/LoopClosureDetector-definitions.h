@@ -16,15 +16,16 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
 
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/utils/Macros.h"
@@ -52,20 +53,20 @@ enum class LCDStatus : int {
 
 enum class GeomVerifOption : int { NISTER, NONE };
 
-enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT, PNP };
+enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT };
 
 struct LCDFrame {
   LCDFrame() {}
   LCDFrame(const Timestamp& timestamp,
            const FrameId& id,
            const FrameId& id_kf,
-           const std::vector<cv::KeyPoint>& keypoints,
-           const BearingVectors& keypoints_3d,
+           const KeypointsCV& keypoints,
+           const Landmarks& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
-           const BearingVectors& versors,
-           boost::optional<StatusKeypointsCV&> left_keypoints_rectified,
-           boost::optional<StatusKeypointsCV&> right_keypoints_rectified)
+           const BearingVectors& bearing_vectors,
+           const StatusKeypointsCV& left_keypoints_rectified,
+           const StatusKeypointsCV& right_keypoints_rectified)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -73,20 +74,20 @@ struct LCDFrame {
         keypoints_3d_(keypoints_3d),
         descriptors_vec_(descriptors_vec),
         descriptors_mat_(descriptors_mat),
-        versors_(versors),
+        bearing_vectors_(bearing_vectors),
         left_keypoints_rectified_(left_keypoints_rectified),
         right_keypoints_rectified_(right_keypoints_rectified) {}
 
   Timestamp timestamp_;
   FrameId id_;
   FrameId id_kf_;
-  std::vector<cv::KeyPoint> keypoints_;
-  BearingVectors keypoints_3d_;
+  KeypointsCV keypoints_;
+  Landmarks keypoints_3d_;
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
-  BearingVectors versors_;
-  boost::optional<StatusKeypointsCV> left_keypoints_rectified_;
-  boost::optional<StatusKeypointsCV> right_keypoints_rectified_;
+  BearingVectors bearing_vectors_;
+  StatusKeypointsCV left_keypoints_rectified_;
+  StatusKeypointsCV right_keypoints_rectified_;
 };  // struct LCDFrame
 
 struct MatchIsland {
@@ -237,10 +238,12 @@ struct LcdInput : public PipelinePayload {
   LcdInput(const Timestamp& timestamp,
            const FrontendOutputPacketBase::Ptr& frontend_output,
            const FrameId& cur_kf_id,
+           const PointsWithIdMap& W_points_with_ids,
            const gtsam::Pose3& W_Pose_Blkf)
       : PipelinePayload(timestamp),
         frontend_output_(frontend_output),
         cur_kf_id_(cur_kf_id),
+        W_points_with_ids_(W_points_with_ids),
         W_Pose_Blkf_(W_Pose_Blkf) {
     CHECK(frontend_output);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
@@ -248,6 +251,7 @@ struct LcdInput : public PipelinePayload {
 
   const FrontendOutputPacketBase::Ptr frontend_output_;
   const FrameId cur_kf_id_;
+  const PointsWithIdMap W_points_with_ids_;
   const gtsam::Pose3 W_Pose_Blkf_;
 };
 

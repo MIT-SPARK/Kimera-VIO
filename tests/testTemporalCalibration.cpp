@@ -19,6 +19,7 @@
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
 #include "kimera-vio/initial/TimeAlignerBase.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 #include <Eigen/Dense>
 #include <vector>
@@ -36,14 +37,13 @@ typedef std::pair<TrackingStatus, gtsam::Pose3> RansacResult;
 class MockTracker : public Tracker {
  public:
   MockTracker()
-      : Tracker(FrontendParams(), std::make_shared<Camera>(CameraParams())) {}
+      : Tracker(TrackerParams(), std::make_shared<Camera>(CameraParams())) {}
 
   ~MockTracker() = default;
 
   MOCK_METHOD(RansacResult,
-              geometricOutlierRejectionMono,
-              (Frame*, Frame*),
-              (override));
+              geometricOutlierRejection2d2d,
+              (Frame*, Frame*));
 };
 
 class ReturnHelper {
@@ -303,7 +303,7 @@ TEST(temporalCalibration, testBadRansacStatus) {
   results.emplace_back(TrackingStatus::DISABLED, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(2)
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -342,7 +342,7 @@ TEST(temporalCalibration, testEmptyImu) {
   results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(1)
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -376,7 +376,7 @@ TEST(temporalCalibration, testLessThanWindow) {
   results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -408,7 +408,7 @@ TEST(temporalCalibration, testLessThanWindowFrameRate) {
   results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -448,7 +448,7 @@ TEST(temporalCalibration, testLowVariance) {
   }
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -484,7 +484,7 @@ TEST(temporalCalibration, testEnoughVariance) {
   }
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -519,7 +519,7 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -547,7 +547,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -575,7 +575,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -603,7 +603,7 @@ TEST(temporalCalibration, testNegDelayImuRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -631,7 +631,7 @@ TEST(temporalCalibration, testPosDelayImuRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -659,7 +659,7 @@ TEST(temporalCalibration, testNegDelayFrameRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -687,7 +687,7 @@ TEST(temporalCalibration, testPosDelayFrameRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -717,7 +717,7 @@ TEST(temporalCalibration, testPosDelayLowDisparity) {
   data.results[4].first =
       TrackingStatus::LOW_DISPARITY;  // force caching of IMU
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
@@ -747,7 +747,7 @@ TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
   data.results[4].first =
       TrackingStatus::LOW_DISPARITY;  // force caching of IMU
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
+  EXPECT_CALL(tracker, geometricOutlierRejection2d2d(NotNull(), NotNull()))
       .With(AllArgs(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));

@@ -61,7 +61,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   data_provider_module_->registerVioPipelineCallback(
       std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));
 
-  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_)
+  LOG_IF(FATAL, params.frontend_params_.use_stereo_tracking_)
       << "useStereoTracking is set to true, but this is a mono pipeline!";
   vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,

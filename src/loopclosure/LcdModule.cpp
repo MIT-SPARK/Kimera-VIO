@@ -18,10 +18,10 @@
 namespace VIO {
 
 LcdModule::LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
-      : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
-        frontend_queue_("lcd_frontend_queue"),
-        backend_queue_("lcd_backend_queue"),
-        lcd_(std::move(lcd)) {
+    : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
+      frontend_queue_("lcd_frontend_queue"),
+      backend_queue_("lcd_backend_queue"),
+      lcd_(std::move(lcd)) {
   CHECK(lcd_);
 }
 
@@ -55,8 +55,11 @@ LcdModule::InputUniquePtr LcdModule::getInputPacket() {
 
   // Push the synced messages to the lcd's input queue
   const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
-  return VIO::make_unique<LcdInput>(
-      timestamp, frontend_payload, backend_payload->cur_kf_id_, body_pose);
+  return VIO::make_unique<LcdInput>(timestamp,
+                                    frontend_payload,
+                                    backend_payload->cur_kf_id_,
+                                    backend_payload->landmarks_with_id_map_,
+                                    body_pose);
 }
 
 }  // namespace VIO

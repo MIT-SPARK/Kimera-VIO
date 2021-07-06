@@ -13,6 +13,8 @@
  */
 
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
+
 
 namespace VIO {
 
