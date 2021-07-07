@@ -60,7 +60,7 @@ struct LCDFrame {
   LCDFrame(const Timestamp& timestamp,
            const FrameId& id,
            const FrameId& id_kf,
-           const KeypointsCV& keypoints,
+           const std::vector<cv::KeyPoint>& keypoints,
            const Landmarks& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
@@ -81,7 +81,7 @@ struct LCDFrame {
   Timestamp timestamp_;
   FrameId id_;
   FrameId id_kf_;
-  KeypointsCV keypoints_;
+  std::vector<cv::KeyPoint> keypoints_;
   Landmarks keypoints_3d_;
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;

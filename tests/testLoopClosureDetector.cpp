@@ -41,6 +41,7 @@ class LCDFixture : public ::testing::Test {
  protected:
   // Tolerances
   const double tol = 1e-7;
+  const double loose_tol = 1e-5;
   const double rot_tol_mono = 0.05;  // radians
   const double tran_tol_mono =
       0.1;  // meters (error rescaled using ground-truth)
@@ -153,6 +154,12 @@ class LCDFixture : public ::testing::Test {
     stereo_frame->setIsKeyframe(true);
     stereo_matcher_->sparseStereoReconstruction(stereo_frame.get());
     stereo_frame->checkStereoFrame();
+
+    // Also copy the rectified keypoints to the frame level for mono
+    stereo_frame->left_frame_.keypoints_undistorted_ =
+        stereo_frame->left_keypoints_rectified_;
+    stereo_frame->right_frame_.keypoints_undistorted_ =
+        stereo_frame->right_keypoints_rectified_;
 
     return stereo_frame;
   }
@@ -326,11 +333,11 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   CHECK(match1_stereo_frame_);
   StereoFrame stereo_frame = *match1_stereo_frame_;
 
-  KeypointsCV keypoints;
+  std::vector<cv::KeyPoint> keypoints;
   keypoints.reserve(nfeatures);
 
   for (unsigned int i = 0; i < nfeatures; i++) {
-    keypoints.push_back(KeypointCV(300, (i + 1) * 2));
+    keypoints.push_back(cv::KeyPoint(cv::Point2f(300, (i + 1) * 2), 2.0));
   }
 
   lcd_detector_->rewriteStereoFrameFeatures(keypoints, &stereo_frame);
@@ -345,10 +352,10 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   EXPECT_EQ(left_frame.scores_.size(), nfeatures);
 
   for (unsigned int i = 0; i < left_frame.keypoints_.size(); i++) {
-    EXPECT_EQ(left_frame.keypoints_[i], keypoints[i]);
+    EXPECT_EQ(left_frame.keypoints_[i], keypoints[i].pt);
     EXPECT_EQ(left_frame.versors_[i],
               UndistorterRectifier::UndistortKeypointAndGetVersor(
-                  keypoints[i], left_frame.cam_param_));
+                  keypoints[i].pt, left_frame.cam_param_));
   }
 
   EXPECT_EQ(stereo_frame.keypoints_3d_.size(), nfeatures);
@@ -356,7 +363,7 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   EXPECT_EQ(stereo_frame.right_keypoints_rectified_.size(), nfeatures);
 }
 
-TEST_F(LCDFixture, DISABLED_processAndAddMonoFrame) {
+TEST_F(LCDFixture, processAndAddMonoFrame) {
   /* Test adding frame to database without BoW Loop CLosure Detection */
   CHECK(lcd_detector_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
@@ -364,24 +371,55 @@ TEST_F(LCDFixture, DISABLED_processAndAddMonoFrame) {
   FrameId id_0 = lcd_detector_->processAndAddMonoFrame(
       match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_match1_);
 
+  size_t nr_kpts =
+      lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size();
   EXPECT_EQ(id_0, 0);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 1);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).timestamp_,
             timestamp_match1_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).id_kf_, id_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size(),
-            match1_stereo_frame_->left_frame_.keypoints_.size());
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_3d_.size(),
+            nr_kpts);
 
   FrameId id_1 = lcd_detector_->processAndAddMonoFrame(
       query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_query1_);
 
+  nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_.size();
   EXPECT_EQ(id_1, 1);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 2);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).timestamp_,
             timestamp_query1_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).id_kf_, id_query1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_.size(),
-            query1_stereo_frame_->left_frame_.keypoints_.size());
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_3d_.size(),
+            nr_kpts);
+
+  // Perform the same test but with 5 fewer world points in the map to make sure
+  // that the associated landmarks aren't added to the 3D keypoints.
+  size_t num_remove = 4;
+  CHECK_GT(W_match1_lmks3d_.size(), num_remove);
+  PointsWithIdMap W_match1_lmks3d_subset;
+  for (size_t i = 0; i < W_match1_lmks3d_.size() - num_remove; i++) {
+    // Add every other landmark
+    const LandmarkId& lmk_id = match1_stereo_frame_->left_frame_.landmarks_[i];
+    const Landmark& lmk = W_match1_lmks3d_[lmk_id];
+    W_match1_lmks3d_subset.insert(std::make_pair(lmk_id, lmk));
+  }
+  FrameId id_2 =
+      lcd_detector_->processAndAddMonoFrame(match1_stereo_frame_->left_frame_,
+                                            W_match1_lmks3d_subset,
+                                            world_T_match1_);
+
+  nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(2).keypoints_.size();
+  EXPECT_EQ(nr_kpts,
+            lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size() -
+                num_remove);
+  EXPECT_EQ(id_2, 2);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 3);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2).timestamp_,
+            timestamp_match1_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2).id_kf_, id_match1_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2).keypoints_3d_.size(),
+            nr_kpts);
 }
 
 TEST_F(LCDFixture, processAndAddStereoFrame) {
@@ -426,16 +464,6 @@ TEST_F(LCDFixture, geometricVerificationCam2d2d) {
       &matches,
       true);
 
-  cv::Mat img = lcd_detector_->computeAndDrawMatchesBetweenFrames(
-      query1_stereo_frame_->left_frame_.img_,
-      match1_stereo_frame_->left_frame_.img_,
-      1,
-      0,
-      true);
-  cv::imshow("img", img);
-  cv::waitKey(0);
-  cv::destroyAllWindows();
-
   gtsam::Pose3 camMatch_T_camQuery;
   lcd_detector_->geometricVerificationCam2d2d(
       0, 1, matches, &camMatch_T_camQuery);
@@ -457,7 +485,7 @@ TEST_F(LCDFixture, geometricVerificationCam2d2d) {
   EXPECT_LT(error.second, tran_tol_mono);
 }
 
-TEST_F(LCDFixture, DISABLED_recoverPoseBodyArun) {
+TEST_F(LCDFixture, recoverPoseBodyArun) {
   CHECK(lcd_detector_);
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
@@ -465,7 +493,7 @@ TEST_F(LCDFixture, DISABLED_recoverPoseBodyArun) {
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
-  gtsam::Pose3 empty_pose;
+  gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
   std::pair<double, double> error;
 
   /* Test proper scaled pose recovery between ref and cur images */
@@ -484,9 +512,9 @@ TEST_F(LCDFixture, DISABLED_recoverPoseBodyArun) {
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
   lcd_detector_->recoverPoseBody(
-      1, 0, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, true);
+      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
@@ -500,14 +528,14 @@ TEST_F(LCDFixture, DISABLED_recoverPoseBodyArun) {
   // Find correspondences between keypoints.
   KeypointMatches matches2;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(0).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(1).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(2).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(3).descriptors_mat_,
       &matches2,
       true);
 
   gtsam::Pose3 bodyMatch2_T_bodyQuery2_stereo;
   lcd_detector_->recoverPoseBody(
-      3, 2, empty_pose, matches2, &bodyMatch2_T_bodyQuery2_stereo);
+      2, 3, empty_pose, matches2, &bodyMatch2_T_bodyQuery2_stereo);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       match2_T_query2_, bodyMatch2_T_bodyQuery2_stereo, false);
@@ -518,7 +546,7 @@ TEST_F(LCDFixture, DISABLED_recoverPoseBodyArun) {
   EXPECT_LT(error.second, tran_tol_stereo * 1.5);
 }
 
-TEST_F(LCDFixture, DISABLED_recoverPoseBodyGivenRot) {
+TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   CHECK(lcd_detector_);
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = true;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
@@ -615,7 +643,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
-  gtsam::Pose3 empty_pose;
+  gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
   std::pair<double, double> error;
 
   // Noise model for odometry factors
@@ -647,7 +675,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
   lcd_detector_->recoverPoseBody(
-      1, 0, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, true);
@@ -666,7 +694,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
-  gtsam::Pose3 empty_pose;
+  gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
   std::pair<double, double> error;
 
   // Noise model for odometry factors
@@ -698,9 +726,9 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
   lcd_detector_->recoverPoseBody(
-      1, 0, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, true);
+      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
@@ -730,7 +758,8 @@ TEST_F(LCDFixture, detectLoop) {
   EXPECT_EQ(loop_result_2.query_id_, 1);
   EXPECT_EQ(loop_result_2.match_id_, 0);
   EXPECT_TRUE(loop_result_2.relative_pose_.equals(
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(0, 0, 0)), tol));
+      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(0, 0, 0)), loose_tol))
+        << "loop_result_2.relative_pose_: " << loop_result_2.relative_pose_;
 
   frame_id = lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
   lcd_detector_->detectLoop(frame_id, &loop_result_1);
@@ -791,15 +820,15 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
   EXPECT_EQ(pgo_nfg.size(), 3);
 }
 
-TEST_F(LCDFixture, DISABLED_spinOnce) {
+TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
   CHECK(lcd_detector_);
   CHECK(match1_stereo_frame_);
   StereoFrontendOutput::Ptr stereo_frontend_output =
       std::make_shared<StereoFrontendOutput>(match1_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
+                                             stereo_camera_->getBodyPoseLeftCamRect(),
+                                             stereo_camera_->getBodyPoseRightCamRect(),
                                              *match1_stereo_frame_,
                                              ImuFrontend::PimPtr(),
                                              ImuAccGyrS(),
@@ -819,8 +848,8 @@ TEST_F(LCDFixture, DISABLED_spinOnce) {
   stereo_frontend_output =
       std::make_shared<StereoFrontendOutput>(match2_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
+                                             stereo_camera_->getBodyPoseLeftCamRect(),
+                                             stereo_camera_->getBodyPoseRightCamRect(),
                                              *match2_stereo_frame_,
                                              ImuFrontend::PimPtr(),
                                              ImuAccGyrS(),
@@ -840,8 +869,8 @@ TEST_F(LCDFixture, DISABLED_spinOnce) {
   stereo_frontend_output =
       std::make_shared<StereoFrontendOutput>(query1_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
+                                             stereo_camera_->getBodyPoseLeftCamRect(),
+                                             stereo_camera_->getBodyPoseRightCamRect(),
                                              *query1_stereo_frame_,
                                              ImuFrontend::PimPtr(),
                                              ImuAccGyrS(),

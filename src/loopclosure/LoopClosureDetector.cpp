@@ -22,6 +22,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -258,44 +259,81 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
   // should be a boost::optional so that if it's none we can throw exception in
   // lcd ctor
   size_t nr_kpts = frame.keypoints_.size();
-  CHECK_EQ(nr_kpts, frame.landmarks_.size());
-  CHECK_EQ(nr_kpts, frame.versors_.size());
-  CHECK_EQ(nr_kpts, frame.keypoints_undistorted_.size());
+  CHECK_EQ(frame.landmarks_.size(), nr_kpts);
+  CHECK_EQ(frame.versors_.size(), nr_kpts);
+  CHECK_EQ(frame.keypoints_undistorted_.size(), nr_kpts);
 
+  // Compute ORB descriptors. Not all keypoints have computable descriptors,
+  // so size will be equal or smaller.
+  // Format change required for the descriptor computation
+  std::vector<cv::KeyPoint> keypoints_for_descriptor_compute;
+  cv::KeyPoint::convert(frame.keypoints_, keypoints_for_descriptor_compute);
+  OrbDescriptor descriptors_mat;
+  orb_feature_detector_->compute(
+      frame.img_, keypoints_for_descriptor_compute, descriptors_mat);
+
+  // Need to manually generate a mask for which keypoints were removed so that 
+  // all other related data structures can be resized appropriately.
+  // Convert to our format for std::find.
+  KeypointsCV keypoints_cv_for_descriptor_compute;
+  cv::KeyPoint::convert(keypoints_for_descriptor_compute,
+                        keypoints_cv_for_descriptor_compute);
+  std::vector<bool> descriptor_mask(nr_kpts, false);
+  for (size_t i = 0; i < nr_kpts; i++) {
+    auto it = std::find(keypoints_cv_for_descriptor_compute.begin(),
+                        keypoints_cv_for_descriptor_compute.end(),
+                        frame.keypoints_[i]);
+    if (it != keypoints_cv_for_descriptor_compute.end()) {
+      descriptor_mask[i] = true;
+    }
+  }
+
+  // Fill storage members with keypoints associated with landmarks
+  // that are observed in the current time-horizon.
+  // More keypoints will be culled from this as some will be marginalized out
+  // of the backend.
   KeypointsCV keypoints;
   BearingVectors undistorted_bearing_vectors;
   StatusKeypointsCV undistorted_keypoints_with_status;
   Landmarks keypoints_3d;
+  CHECK_EQ(frame.landmarks_.size(), descriptor_mask.size());
   for (size_t i = 0; i < frame.landmarks_.size(); i++) {
-    const LandmarkId& id = frame.landmarks_[i];
-    // Check that the id is in the points map
-    if (W_points_with_ids.find(id) != W_points_with_ids.end()) {
-      // Keep track of keypoints and other data associated with observed
-      // landmarks that are in the backend's points map.
-      keypoints.push_back(frame.keypoints_.at(i));
-      undistorted_bearing_vectors.push_back(frame.versors_.at(i));
-      undistorted_keypoints_with_status.push_back(
-          frame.keypoints_undistorted_.at(i));
+    if (descriptor_mask[i]) {
+      const LandmarkId& id = frame.landmarks_[i];
+      // Check that the id is in the points map
+      if (W_points_with_ids.find(id) != W_points_with_ids.end()) {
+        // Keep track of keypoints and other data associated with observed
+        // landmarks that are in the backend's points map.
+        keypoints.push_back(frame.keypoints_.at(i));
+        undistorted_bearing_vectors.push_back(frame.versors_.at(i));
+        undistorted_keypoints_with_status.push_back(
+            frame.keypoints_undistorted_.at(i));
 
-      // Convert point from world frame to local camera frame so that the
-      // reference frame matches the convention used in the stereo case.
-      // TODO(marcus): unit test to make sure ref frame is correct for these
-      // points
-      Landmark keypoint_3d =
-          W_Pose_Blkf * B_Pose_camLrect_ * W_points_with_ids.at(id);
-      keypoints_3d.push_back(keypoint_3d);
+        // Convert point from world frame to local camera frame so that the
+        // reference frame matches the convention used in the stereo case.
+        // TODO(marcus): unit test to make sure ref frame is correct for these
+        // points
+        Landmark keypoint_3d =
+            W_Pose_Blkf * B_Pose_camLrect_ * W_points_with_ids.at(id);
+        keypoints_3d.push_back(keypoint_3d);
+      } else {
+        VLOG(10) << "ProcessAndAddMonoFrame: landmark id not in world points!";
+      }
     } else {
-      LOG(ERROR) << "ProcessAndAddMonoFrame: landmark id not in world points!";
+      VLOG(10) << "ProcessAndAddMonoFrame: landmark not in backend! Remove this message.";
     }
   }
 
-  // Generate descriptors for remaining keypoints.
-  // format change required for the descriptor computation
-  std::vector<cv::KeyPoint> keypoints_for_descriptor_compute;
-  cv::KeyPoint::convert(keypoints, keypoints_for_descriptor_compute);
-  OrbDescriptor descriptors_mat;
-  orb_feature_detector_->compute(
-      frame.img_, keypoints_for_descriptor_compute, descriptors_mat);
+  // Re-generate descriptors for remaining keypoints if necessary.
+  if (keypoints.size() < keypoints_for_descriptor_compute.size()) {
+    LOG(ERROR) << "ProcessAndAddMonoFrame: recomputing descriptors.";
+    // Convert and compute for culled keypoints, a subset of frame.keypoints_
+    keypoints_for_descriptor_compute.clear();
+    cv::KeyPoint::convert(keypoints, keypoints_for_descriptor_compute);
+    OrbDescriptor descriptors_mat;
+    orb_feature_detector_->compute(
+        frame.img_, keypoints_for_descriptor_compute, descriptors_mat);
+  }
   OrbDescriptorVec descriptors_vec;
   descriptorMatToVec(descriptors_mat, &descriptors_vec);
 
@@ -303,7 +341,7 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
   db_frames_.push_back(LCDFrame(frame.timestamp_,
                                 FrameId(db_frames_.size()),
                                 frame.id_,
-                                keypoints,
+                                keypoints_for_descriptor_compute,
                                 keypoints_3d,
                                 descriptors_vec,
                                 descriptors_mat,
@@ -318,33 +356,22 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
 /* ------------------------------------------------------------------------ */
 FrameId LoopClosureDetector::processAndAddStereoFrame(
     const StereoFrame& stereo_frame) {
-  KeypointsCV keypoints;
+  std::vector<cv::KeyPoint> keypoints;
   OrbDescriptor descriptors_mat;
+  OrbDescriptorVec descriptors_vec;
   getNewFeaturesAndDescriptors(
       stereo_frame.left_frame_.img_, &keypoints, &descriptors_mat);
+  descriptorMatToVec(descriptors_mat, &descriptors_vec);
 
   // Fill StereoFrame with ORB keypoints and perform stereo matching.
   StereoFrame cp_stereo_frame(stereo_frame);
   rewriteStereoFrameFeatures(keypoints, &cp_stereo_frame);
 
-  // Cut descriptors down to relevant size
-  // First have to recompute descriptors for surviving keypoints not removed
-  // by the update function.
-  descriptors_mat = OrbDescriptor();
-  std::vector<cv::KeyPoint> keypoints_for_descriptor_matching;
-  cv::KeyPoint::convert(cp_stereo_frame.left_frame_.keypoints_,
-                        keypoints_for_descriptor_matching);
-  orb_feature_detector_->compute(cp_stereo_frame.left_frame_.img_,
-                                 keypoints_for_descriptor_matching,
-                                 descriptors_mat);
-  OrbDescriptorVec descriptors_vec;
-  descriptorMatToVec(descriptors_mat, &descriptors_vec);
-
   // Build and store LCDFrame object.
   db_frames_.push_back(LCDFrame(cp_stereo_frame.timestamp_,
-                                FrameId(db_frames_.size()),
+                                db_frames_.size(),
                                 cp_stereo_frame.id_,
-                                cp_stereo_frame.left_frame_.keypoints_,
+                                keypoints,
                                 cp_stereo_frame.keypoints_3d_,
                                 descriptors_vec,
                                 descriptors_mat,
@@ -359,18 +386,14 @@ FrameId LoopClosureDetector::processAndAddStereoFrame(
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::getNewFeaturesAndDescriptors(
     const cv::Mat& img,
-    KeypointsCV* keypoints,
+    std::vector<cv::KeyPoint>* keypoints,
     OrbDescriptor* descriptors_mat) {
   CHECK_NOTNULL(keypoints);
   CHECK_NOTNULL(descriptors_mat);
   // TODO(marcus): switch on feature type (orb, etc) when more are supported
   // Extract ORB features and construct descriptors_vec.
-  std::vector<cv::KeyPoint> keypoints_for_compute;
   orb_feature_detector_->detectAndCompute(
-      img, cv::Mat(), keypoints_for_compute, *descriptors_mat);
-
-  // Convert keypoints to common VIO type.
-  cv::KeyPoint::convert(keypoints_for_compute, *keypoints);
+      img, cv::Mat(), *keypoints, *descriptors_mat);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -522,90 +545,24 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
     gtsam::Pose3* camMatch_T_camQuery_2d) {
   CHECK_NOTNULL(camMatch_T_camQuery_2d);
 
-  // std::vector<int> inliers;
-  // TrackingStatusPose result = tracker_.geometricOutlierRejection2d2d(
-  //     db_frames_[ref_id].bearing_vectors_,
-  //     db_frames_[cur_id].bearing_vectors_,
-  //     matches_match_query,
-  //     &inliers);
+  TrackingStatusPose result;
+  if (matches_match_query.empty()) {
+    VLOG(10) << "LoopClosureDetector: failure to find matching keypoints "
+                "between reference and current frames."
+             << "\n reference id: " << ref_id << " current id: " << cur_id;
+    result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+  } else {
+    std::vector<int> inliers;
+    result = tracker_.geometricOutlierRejection2d2d(
+        db_frames_[ref_id].bearing_vectors_,
+        db_frames_[cur_id].bearing_vectors_,
+        matches_match_query,
+        &inliers);
 
-  // *camMatch_T_camQuery_2d = result.second;
-
-  // if (result.first == TrackingStatus::VALID) return true;
-  // return false;
-
-
-
-
-
-
-  // OLD VERSION:
-  // Correspondences between frames.
-  std::vector<FrameId> i_query, i_match;
-  for (const auto& match : matches_match_query) {
-    i_match.push_back(match.first);
-    i_query.push_back(match.second);
+    *camMatch_T_camQuery_2d = result.second;
   }
 
-  BearingVectors query_versors, match_versors;
-  CHECK_EQ(i_query.size(), i_match.size());
-  query_versors.resize(i_query.size());
-  match_versors.resize(i_match.size());
-  for (size_t i = 0; i < i_match.size(); i++) {
-    query_versors[i] = (db_frames_[cur_id].bearing_vectors_[i_query[i]]);
-    match_versors[i] = (db_frames_[ref_id].bearing_vectors_[i_match[i]]);
-  }
-
-  // Recover relative pose between frames, with translation up to a scalar.
-  if (static_cast<int>(match_versors.size()) >= 0) {
-    opengv::relative_pose::CentralRelativeAdapter adapter(match_versors,
-                                                          query_versors);
-
-    // Use RANSAC to solve the central-relative-pose problem.
-    opengv::sac::Ransac<
-        opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem>
-        ransac;
-
-    ransac.sac_model_ = std::make_shared<
-        opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem>(
-        adapter,
-        opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem::
-            Algorithm::NISTER,
-        lcd_params_.tracker_params_.ransac_randomize_);
-    ransac.max_iterations_ =
-    lcd_params_.tracker_params_.ransac_max_iterations_; ransac.probability_ =
-    lcd_params_.tracker_params_.ransac_probability_; ransac.threshold_ =
-    lcd_params_.tracker_params_.ransac_threshold_mono_;
-
-    // Compute transformation via RANSAC.
-    bool ransac_success = ransac.computeModel();
-    LOG(INFO) << "ransac 5pt size of input: " << query_versors.size();
-    LOG(INFO) << "ransac 5pt inliers: " << ransac.inliers_.size();
-    LOG(INFO) << "ransac 5pt iterations: " << ransac.iterations_;
-    debug_info_.mono_input_size_ = query_versors.size();
-    debug_info_.mono_inliers_ = ransac.inliers_.size();
-    debug_info_.mono_iter_ = ransac.iterations_;
-
-    if (!ransac_success) {
-      VLOG(3) << "LoopClosureDetector Failure: RANSAC 5pt could not solve.";
-    } else {
-      double inlier_percentage =
-          static_cast<double>(ransac.inliers_.size()) / query_versors.size();
-
-      if (inlier_percentage >=
-          lcd_params_.tracker_params_.ransac_threshold_mono_) {
-        if (ransac.iterations_ <
-            lcd_params_.tracker_params_.ransac_max_iterations_) {
-          opengv::transformation_t transformation =
-          ransac.model_coefficients_; *camMatch_T_camQuery_2d =
-              UtilsOpenCV::openGvTfToGtsamPose3(transformation);
-
-          return true;
-        }
-      }
-    }
-  }
-
+  if (result.first == TrackingStatus::VALID) return true;
   return false;
 }
 
@@ -813,7 +770,7 @@ void LoopClosureDetector::print() const {
 
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::rewriteStereoFrameFeatures(
-    const KeypointsCV& keypoints,
+    const std::vector<cv::KeyPoint>& keypoints,
     StereoFrame* stereo_frame) const {
   CHECK_NOTNULL(stereo_frame);
 
@@ -848,14 +805,14 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
   stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
 
-  stereo_frame->setIsRectified(false);
+  // stereo_frame->setIsRectified(false);
 
-  // Add ORB keypoints
-  for (const KeypointCV& keypoint : keypoints) {
-    left_frame_mutable->keypoints_.push_back(keypoint);
+  // Add ORB keypoints.
+  for (const cv::KeyPoint& keypoint : keypoints) {
+    left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
         UndistorterRectifier::UndistortKeypointAndGetVersor(
-            keypoint, left_frame_mutable->cam_param_));
+            keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 
@@ -891,17 +848,11 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
   }
 
   // Draw matches.
-  float keypoint_diameter = 2;
-  std::vector<cv::KeyPoint> keypoints_query, keypoints_match;
-  cv::KeyPoint::convert(
-      db_frames_.at(query_id).keypoints_, keypoints_query, keypoint_diameter);
-  cv::KeyPoint::convert(
-      db_frames_.at(match_id).keypoints_, keypoints_match, keypoint_diameter);
   cv::Mat img_matches;
   cv::drawMatches(query_img,
-                  keypoints_query,
+                  db_frames_.at(query_id).keypoints_,
                   match_img,
-                  keypoints_match,
+                  db_frames_.at(match_id).keypoints_,
                   good_matches,
                   img_matches,
                   cv::Scalar(255, 0, 0),

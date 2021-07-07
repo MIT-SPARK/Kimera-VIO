@@ -47,7 +47,7 @@ ransac_threshold_stereo: 0.3
 ransac_use_1point_stereo: 1  # if 1, use rotation. else arun method
 ransac_use_2point_mono: 0
 ransac_max_iterations: 500
-ransac_probability: 0.999
+ransac_probability: 0.995
 ransac_randomize: 0
 disparityThreshold: 0.5
 # Type of optical flow predictor to aid feature tracking:
@@ -56,7 +56,7 @@ disparityThreshold: 0.5
 optical_flow_predictor_type: 1
 
 # 2D-2D pose estimation method
-2d2d_algorithm: 1 # NISTER
+2d2d_algorithm: 0 # Stewenius
 optimize_2d2d_pose_from_inliers: 0
 
 # 3D-3D pose estimation

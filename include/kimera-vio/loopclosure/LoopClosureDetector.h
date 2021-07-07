@@ -105,7 +105,7 @@ class LoopClosureDetector {
    * @param[out] descriptors_vec The descriptors vectorized.
    */
   void getNewFeaturesAndDescriptors(const cv::Mat& img,
-                                    KeypointsCV* keypoints,
+                                    std::vector<cv::KeyPoint>* keypoints,
                                     OrbDescriptor* descriptors_mat);
 
   /* ------------------------------------------------------------------------ */
@@ -241,7 +241,7 @@ class LoopClosureDetector {
    *  which is then replaced with ORB features from the keypoints parameter.
    */
   // TODO(marcus): utils and reorder (or just static)
-  void rewriteStereoFrameFeatures(const KeypointsCV& keypoints,
+  void rewriteStereoFrameFeatures(const std::vector<cv::KeyPoint>& keypoints,
                                   StereoFrame* stereo_frame) const;
 
   /* ------------------------------------------------------------------------ */
