@@ -225,14 +225,16 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   }
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
-  yaml_parser.getYamlParam("betweenRotationPrecision", &betweenRotationPrecision_);
-  yaml_parser.getYamlParam("betweenTranslationPrecision", &betweenTranslationPrecision_);
+  yaml_parser.getYamlParam("betweenRotationPrecision",
+                           &betweenRotationPrecision_);
+  yaml_parser.getYamlParam("betweenTranslationPrecision",
+                           &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
   yaml_parser.getYamlParam("max_lc_cached_before_optimize",
                            &max_lc_cached_before_optimize_);
 
-      return true;
+  return true;
 }
 
 void LoopClosureDetectorParams::print() const {
@@ -337,7 +339,10 @@ void LoopClosureDetectorParams::print() const {
                         "pgo_rot_threshold_: ",
                         pgo_rot_threshold_,
                         "pgo_trans_threshold_: ",
-                        pgo_trans_threshold_);
+                        pgo_trans_threshold_,
+                        "max_lc_cached_before_optimize_: ",
+                        max_lc_cached_before_optimize_);
   LOG(INFO) << out.str();
 }
+
 }  // namespace VIO

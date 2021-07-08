@@ -152,7 +152,8 @@ class LoopClosureDetectorParams : public PipelineParams {
       betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
 
       pgo_rot_threshold_== rhs.pgo_rot_threshold_ &&
-      pgo_trans_threshold_== rhs.pgo_trans_threshold_;
+      pgo_trans_threshold_== rhs.pgo_trans_threshold_ &&
+      max_lc_cached_before_optimize_ == rhs.max_lc_cached_before_optimize_;
   }
 
  public:
