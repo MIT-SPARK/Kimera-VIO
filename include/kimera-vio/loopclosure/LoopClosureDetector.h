@@ -74,7 +74,11 @@ class LoopClosureDetector {
   virtual LcdOutput::UniquePtr spinOnce(const LcdInput& input);
 
   /* ------------------------------------------------------------------------ */
-  // TODO: doc
+  /** @brief Register callback for checking the size of the input queue. Knowing 
+   * this can help determine when to optimize the factor graph and when to wait 
+   * for additional inputs to be added first.
+   * @param[in] cb A callback function
+   */
   inline void registerInputQueueCheckCallback(const InputQueueCheckCallback& cb) {
     queue_check_cb_ = cb;
   }
