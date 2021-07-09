@@ -11,14 +11,14 @@ ENV DIRPATH /root
 WORKDIR $DIRPATH
 
 #Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get update && apt-get install -y git cmake
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils && \
+    apt-get install -y git cmake && rm -rf /var/lib/apt/lists/*
 
 # Install xvfb to provide a display to container for GUI related testing.
-RUN apt-get update && apt-get install -y xvfb
+RUN apt-get update && apt-get install -y xvfb && rm -rf /var/lib/apt/lists/*
 
 # Install GTSAM
-RUN apt-get update && apt-get install -y libboost-all-dev
+RUN apt-get update && apt-get install -y libboost-all-dev && rm -rf /var/lib/apt/lists/*
 ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
@@ -26,7 +26,8 @@ RUN cd gtsam && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
-    make -j$(nproc) install
+    make -j$(nproc) install && \
+    rm -rf ./*
 
 # Install OpenCV for Ubuntu 18.04
 RUN apt-get update && apt-get install -y \
@@ -34,7 +35,8 @@ RUN apt-get update && apt-get install -y \
       libjpeg-dev libpng-dev libtiff-dev \
       libvtk6-dev \
       libgtk-3-dev \
-      libatlas-base-dev gfortran
+      libatlas-base-dev gfortran && \
+      rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/opencv/opencv.git
 RUN cd opencv && \
@@ -52,7 +54,8 @@ RUN cd opencv/build && \
       -D BUILD_opencv_python2=OFF \
       -D BUILD_opencv_python3=OFF \
       -DOPENCV_EXTRA_MODULES_PATH=$DIRPATH/opencv_contrib/modules .. && \
-      make -j$(nproc) install
+      make -j$(nproc) install && \
+      rm -rf ./*
 
 # Install Open_GV
 RUN git clone https://github.com/laurentkneip/opengv
@@ -63,7 +66,8 @@ RUN cd opengv/build && \
       -DCMAKE_INSTALL_PREFIX=/usr/local \
       -DEIGEN_INCLUDE_DIRS=$DIRPATH/gtsam/gtsam/3rdparty/Eigen \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
-      make -j$(nproc) install
+      make -j$(nproc) install && \
+      rm -rf ./*
 
 # Install DBoW2
 RUN git clone https://github.com/dorian3d/DBoW2.git
@@ -71,7 +75,8 @@ RUN cd DBoW2 && \
       mkdir build && \
       cd build && \
       cmake .. && \
-      make -j$(nproc) install
+      make -j$(nproc) install && \
+      rm -rf ./*
 
 # Install RobustPGO
 ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
@@ -84,12 +89,13 @@ RUN cd Kimera-RPGO && \
 
 ## [Optional] Install Kimera-VIO-Evaluation from PyPI
 RUN apt-get update && \
-    apt-get install software-properties-common -y
+    apt-get install software-properties-common -y && \
+    rm -rf /var/lib/apt/lists/*
 # Get python3
 RUN apt-get update && \
-    add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update && \
-    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk && \
+    rm -rf /var/lib/apt/lists/*
 RUN python3.5 -m pip install PyQt5==5.14
 
 # Install evo-1 for evaluation
@@ -117,16 +123,17 @@ RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Install glog, gflags
-RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
+RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Kimera-VIO
 RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
-RUN apt-get update && apt-get install -y wget
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
-RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc
+RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc && rm V1_01_easy.zip
 
 # Yamelize euroc dataset
 RUN bash $DIRPATH/Kimera-VIO/scripts/euroc/yamelize.bash -p $DIRPATH/euroc
