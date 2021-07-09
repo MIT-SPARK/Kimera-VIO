@@ -59,7 +59,7 @@ class LoopClosureDetector {
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
                       const StereoCamera::ConstPtr& stereo_camera,
                       const StereoMatchingParams& stereo_matching_params,
-                      bool log_output);
+                      bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
