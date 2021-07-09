@@ -93,12 +93,12 @@ class Tracker {
   }
 
   // gtsam::pose3 has to be rectified cameras bcs bearings are in rectified cams
-  TrackingStatusPose geometricOutlierRejection2d2d(
+  virtual TrackingStatusPose geometricOutlierRejection2d2d(
       Frame* ref_frame,
       Frame* cur_frame,
       const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
 
-  TrackingStatusPose geometricOutlierRejection2d2d(
+  virtual TrackingStatusPose geometricOutlierRejection2d2d(
       const BearingVectors& ref_bearings,
       const BearingVectors& cur_bearings,
       const KeypointMatches& matches_ref_cur,
