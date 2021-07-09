@@ -955,13 +955,6 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
                   gtsam::Pose3* w_Pose_cam) {
   CHECK_NOTNULL(best_absolute_pose);
 
-  opengv::rotation_t rotation_prior = opengv::rotation_t::Identity();
-  opengv::translation_t translation_prior = opengv::translation_t::Identity();
-  if (w_Pose_cam) {
-    rotation_prior = w_Pose_cam->rotation().matrix();
-    translation_prior = w_Pose_cam->translation().matrix();
-  }
-
   opengv::bearingVectors_t bearing_vectors;
   opengv::points_t points;
 
@@ -1029,6 +1022,8 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
   switch (tracker_params_.pnp_method_) {
     case PnpMethod::KneipP2P: {
       // Uses rotation prior from adapter
+      CHECK(w_Pose_cam);
+      opengv::rotation_t rotation_prior = w_Pose_cam->rotation().matrix();
       adapter.setR(rotation_prior);
       return runPnpRansac(
           VIO::make_unique<
@@ -1109,6 +1104,10 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
       LOG_IF(FATAL, inliers->empty())
           << "NonlinearOptimization needs to know the inliers.";
       // Uses all correspondences.
+      CHECK(w_Pose_cam);
+      opengv::rotation_t rotation_prior = w_Pose_cam->rotation().matrix();
+      opengv::translation_t translation_prior = 
+          w_Pose_cam->translation().matrix();
       adapter.sett(translation_prior);
       adapter.setR(rotation_prior);
       *best_absolute_pose = Eigen::MatrixXd(

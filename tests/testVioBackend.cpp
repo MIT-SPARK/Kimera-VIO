@@ -13,20 +13,18 @@
  * @author Luca Carlone
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
-#include <random>
-
-#include <boost/smart_ptr/make_shared.hpp>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
+
+#include <algorithm>
+#include <boost/smart_ptr/make_shared.hpp>
+#include <cstdlib>
+#include <iostream>
+#include <random>
 
 #include "kimera-vio/backend/VioBackend.h"
 #include "kimera-vio/backend/VioBackendFactory.h"
@@ -525,58 +523,19 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
                   3 + k + 8 + (k - 1));  // 3 priors, 1 imu per time stamp, 8
                                          // smart factors, 1 odom between factor
       }
-
-      // Check between factors for odometry
-      if (k > 0) {
-        for (const auto& f : nlfg) {
-          if (f) {
-            boost::shared_ptr<gtsam::BetweenFactor<gtsam::Pose3>> btwn =
-                boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
-                    f);
-            if (btwn) {
-              EXPECT_EQ(btwn->keys().size(),
-                        k + 1);  // One per frame after first
-              for (size_t j = 1; j <= btwn->keys().size(); j++) {
-                EXPECT_EQ(gtsam::Symbol(btwn->keys().at(j - 1)),
-                          gtsam::Symbol('x', j));
-                EXPECT_EQ(btwn->measured().translation(),
-                          gtsam::Point3(0, 0, j / 1000.0));
-              }
-            }
-          }
-        }
-      }
     } else {
       if (k == 0) {
         EXPECT_EQ(nr_factors_in_smoother, 3);  // 3 priors
       } else if (k == 1) {
-        EXPECT_EQ(
-            nr_factors_in_smoother,
-            3 + 3 * k + 1);  // 3 priors, 1 imu + 1 between per time stamp:
-                             // we do not include smart factors of length 1
-                             // also the odom between factor
+        EXPECT_EQ(nr_factors_in_smoother,
+                  3 + 4 * k);  // 3 priors, 1 imu + 1 btw imu biases + 1 btw
+                               // stereo poses and 1 odom btw factor for each k.
+                               // We do not include smart factors of length 1
       } else {
         EXPECT_EQ(nr_factors_in_smoother,
-                  3 + 3 * k + 8 + k);  // 3 priors, 1 imu + 1 between per time
-                                       // stamp, 8 smart factors
-                                       // also the odom between factors
-      }
-
-      // Check between factors for odometry
-      if (k == 3) {
-        for (const auto& f : nlfg) {
-          if (f) {
-            boost::shared_ptr<gtsam::BetweenFactor<gtsam::Pose3>> btwn =
-                boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
-                    f);
-            if (btwn) {
-              EXPECT_EQ(btwn->keys().size(), 2);
-              EXPECT_EQ(btwn->keys().at(0), btwn->keys().at(1) - 1);
-              int key = gtsam::Symbol(btwn->keys().at(1)).index();
-              EXPECT_EQ(btwn->measured().translation().z(), key / 1000.0);
-            }
-          }
-        }
+                  3 + 4 * k + 8);  // 3 priors, 1 imu + 1 btw imu biases +
+                                   // 1 btw stereo poses + 1 btw odom pose per
+                                   // k, 8 smart factors,
       }
     }
 
