@@ -37,13 +37,22 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("min_matches_per_island", &min_matches_per_island_);
   yaml_parser.getYamlParam("max_intraisland_gap", &max_intraisland_gap_);
   yaml_parser.getYamlParam("max_nrFrames_between_islands",
-                           &max_nrFrames_between_islands_);
+                          &max_nrFrames_between_islands_);
   yaml_parser.getYamlParam("max_nrFrames_between_queries",
-                           &max_nrFrames_between_queries_);
+                          &max_nrFrames_between_queries_);
   yaml_parser.getYamlParam("refine_pose", &refine_pose_);
   yaml_parser.getYamlParam("use_pnp_pose_recovery", &use_pnp_pose_recovery_);
   yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
-  yaml_parser.getYamlParam("matcher_type", &matcher_type_);
+
+  int matcher_type_id;
+  yaml_parser.getYamlParam("matcher_type", &matcher_type_id);
+#if CV_VERSION_MAJOR == 3
+    matcher_type_ = matcher_type_id;
+#else
+    matcher_type_ = 
+      static_cast<cv::DescriptorMatcher::MatcherType>(matcher_type_id);
+#endif
+  
   yaml_parser.getYamlParam("nfeatures", &nfeatures_);
   yaml_parser.getYamlParam("scale_factor", &scale_factor_);
   yaml_parser.getYamlParam("nlevels", &nlevels_);
@@ -69,9 +78,9 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
   yaml_parser.getYamlParam("betweenRotationPrecision",
-                           &betweenRotationPrecision_);
+                          &betweenRotationPrecision_);
   yaml_parser.getYamlParam("betweenTranslationPrecision",
-                           &betweenTranslationPrecision_);
+                          &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
 
@@ -146,4 +155,39 @@ void LoopClosureDetectorParams::print() const {
                         pgo_trans_threshold_);
   LOG(INFO) << out.str();
 }
+
+bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2, double tol) const {
+  return tracker_params_.equals(lp2.tracker_params_, tol) &&
+         (use_nss_ == lp2.use_nss_) && (fabs(alpha_ - lp2.alpha_) <= tol) &&
+         (min_temporal_matches_ == lp2.min_temporal_matches_) &&
+         (recent_frames_window_ == lp2.recent_frames_window_) &&
+         (max_db_results_ == lp2.max_db_results_) &&
+         (fabs(min_nss_factor_ - lp2.min_nss_factor_) <= tol) &&
+         (min_matches_per_island_ == lp2.min_matches_per_island_) &&
+         (max_intraisland_gap_ == lp2.max_intraisland_gap_) &&
+         (max_nrFrames_between_islands_ == lp2.max_nrFrames_between_islands_) &&
+         (max_nrFrames_between_queries_ == lp2.max_nrFrames_between_queries_) &&
+
+         (refine_pose_ == lp2.refine_pose_) &&
+         (use_pnp_pose_recovery_ == lp2.use_pnp_pose_recovery_) &&
+         (fabs(lowe_ratio_ - lp2.lowe_ratio_) <= tol) &&
+         (matcher_type_ == lp2.matcher_type_) &&
+
+         (nfeatures_ == lp2.nfeatures_) &&
+         (fabs(scale_factor_ - lp2.scale_factor_) <= tol) &&
+         (nlevels_ == lp2.nlevels_) &&
+         (edge_threshold_ == lp2.edge_threshold_) &&
+         (first_level_ == lp2.first_level_) && (WTA_K_ == lp2.WTA_K_) &&
+         (score_type_ == lp2.score_type_) && (patch_sze_ == lp2.patch_sze_) &&
+         (fast_threshold_ == lp2.fast_threshold_) &&
+
+         (fabs(betweenRotationPrecision_ - lp2.betweenRotationPrecision_) <=
+          tol) &&
+         (fabs(betweenTranslationPrecision_ -
+               lp2.betweenTranslationPrecision_) <= tol) &&
+
+         (fabs(pgo_rot_threshold_ - lp2.pgo_rot_threshold_) <= tol) &&
+         (fabs(pgo_trans_threshold_ - lp2.pgo_trans_threshold_) <= tol);
+}
+
 }  // namespace VIO

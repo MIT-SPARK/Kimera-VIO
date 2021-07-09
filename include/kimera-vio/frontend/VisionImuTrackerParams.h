@@ -52,8 +52,10 @@ struct TrackerParams : public PipelineParams {
   //! RANSAC parameters
   int minNrMonoInliers_ = 10;
   int minNrStereoInliers_ = 5;  // TODO should be size_t
+  int min_pnp_inliers_ = 10;
   double ransac_threshold_mono_ = 1.0e-6;
   double ransac_threshold_stereo_ = 1.0;
+  double ransac_threshold_pnp_ = 1.0;  //! Max reprojection error for inliers
   int ransac_max_iterations_ = 100;    // TODO (minor) : should we split this in
                                        // mono and stereo?
   double ransac_probability_ = 0.995;  // TODO (minor) : should we split this in
@@ -72,8 +74,6 @@ struct TrackerParams : public PipelineParams {
   //! PnP tracking parameters
   Pose3d2dAlgorithm pnp_algorithm_ = Pose3d2dAlgorithm::EPNP;
   bool optimize_2d3d_pose_from_inliers_ = false;
-  int min_pnp_inliers_ = 10;
-  double ransac_threshold_pnp_ = 1.0;  //! Max reprojection error for inliers
 
   //! Optical flow
   OpticalFlowPredictorType optical_flow_predictor_type_ =

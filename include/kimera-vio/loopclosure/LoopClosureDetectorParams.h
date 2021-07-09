@@ -29,46 +29,20 @@ namespace VIO {
 
 class LoopClosureDetectorParams : public PipelineParams {
  public:
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorParams);
   LoopClosureDetectorParams();
-
- public:
   virtual ~LoopClosureDetectorParams() = default;
 
   // NOTE: we cannot parse width, height principe pt and focal length from here.
   // Those are done at initialization of the LoopClosureDetector.
-  bool parseYAML(const std::string& filepath) override;
-
   void print() const override;
+  bool parseYAML(const std::string& filepath) override;
+  bool equals(const LoopClosureDetectorParams& lp2, double tol = 1e-10) const;
 
-  bool equals(const PipelineParams& obj) const override {
+ protected:
+  virtual bool equals(const PipelineParams& obj) const {
     const auto& rhs = static_cast<const LoopClosureDetectorParams&>(obj);
-    return tracker_params_ == rhs.tracker_params_ && use_nss_ == rhs.use_nss_ &&
-           alpha_ == rhs.alpha_ &&
-           min_temporal_matches_ == rhs.min_temporal_matches_ &&
-           recent_frames_window_ == rhs.recent_frames_window_ &&
-           max_db_results_ == rhs.max_db_results_ &&
-           min_nss_factor_ == rhs.min_nss_factor_ &&
-           min_matches_per_island_ == rhs.min_matches_per_island_ &&
-           max_intraisland_gap_ == rhs.max_intraisland_gap_ &&
-           max_nrFrames_between_islands_ == rhs.max_nrFrames_between_islands_ &&
-           max_nrFrames_between_queries_ == rhs.max_nrFrames_between_queries_ &&
-
-           refine_pose_ == rhs.refine_pose_ &&
-           use_pnp_pose_recovery_ == rhs.use_pnp_pose_recovery_ &&
-           lowe_ratio_ == rhs.lowe_ratio_ &&
-           matcher_type_ == rhs.matcher_type_ &&
-
-           nfeatures_ == rhs.nfeatures_ && scale_factor_ == rhs.scale_factor_ &&
-           nlevels_ == rhs.nlevels_ && edge_threshold_ == rhs.edge_threshold_ &&
-           first_level_ == rhs.first_level_ && WTA_K_ == rhs.WTA_K_ &&
-           score_type_ == rhs.score_type_ && patch_sze_ == rhs.patch_sze_ &&
-           fast_threshold_ == rhs.fast_threshold_ &&
-
-           betweenRotationPrecision_ == rhs.betweenRotationPrecision_ &&
-           betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
-
-           pgo_rot_threshold_ == rhs.pgo_rot_threshold_ &&
-           pgo_trans_threshold_ == rhs.pgo_trans_threshold_;
+    return equals(rhs);
   }
 
  public:
@@ -103,7 +77,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_ = 0.7;
 #if CV_VERSION_MAJOR == 3
-  int matcher_type_;
+  int matcher_type_ = 0;
 #else
   cv::DescriptorMatcher::MatcherType matcher_type_;
 #endif

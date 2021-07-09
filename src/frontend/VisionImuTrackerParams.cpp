@@ -105,12 +105,32 @@ bool TrackerParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("ransac_threshold_stereo",
                            &ransac_threshold_stereo_);
   yaml_parser.getYamlParam("ransac_threshold_pnp", &ransac_threshold_pnp_);
-  yaml_parser.getYamlParam("ransac_use_1point_stereo",
-                           &ransac_use_1point_stereo_);
-  yaml_parser.getYamlParam("ransac_use_2point_mono", &ransac_use_2point_mono_);
   yaml_parser.getYamlParam("ransac_max_iterations", &ransac_max_iterations_);
   yaml_parser.getYamlParam("ransac_probability", &ransac_probability_);
   yaml_parser.getYamlParam("ransac_randomize", &ransac_randomize_);
+  yaml_parser.getYamlParam("ransac_use_1point_stereo",
+                           &ransac_use_1point_stereo_);
+  yaml_parser.getYamlParam("ransac_use_2point_mono", &ransac_use_2point_mono_);
+
+  int pose_2d2d_algorithm;
+  yaml_parser.getYamlParam("2d2d_algorithm", &pose_2d2d_algorithm);
+  pose_2d2d_algorithm_ = static_cast<Pose2d2dAlgorithm>(pose_2d2d_algorithm);
+
+  yaml_parser.getYamlParam("optimize_2d2d_pose_from_inliers",
+                           &optimize_2d2d_pose_from_inliers_);
+  yaml_parser.getYamlParam("optimize_3d3d_pose_from_inliers",
+                           &optimize_3d3d_pose_from_inliers_);
+
+  int pnp_algorithm;
+  yaml_parser.getYamlParam("pnp_algorithm", &pnp_algorithm);
+  pnp_algorithm_ = static_cast<Pose3d2dAlgorithm>(pnp_algorithm);
+
+  int optical_flow_predictor_type;
+  yaml_parser.getYamlParam("optical_flow_predictor_type", &optical_flow_predictor_type);
+  optical_flow_predictor_type_ =
+      static_cast<OpticalFlowPredictorType>(optical_flow_predictor_type);
+
+  yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
 
   return true;
 }
