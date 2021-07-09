@@ -167,24 +167,21 @@ class Tracker {
    */
   bool pnp(const BearingVectors& bearing_vectors,
            const Landmarks& points,
-           const gtsam::Rot3& rotation_prior,
-           const gtsam::Point3& translation_prior,
            gtsam::Pose3* best_absolute_pose,
-           std::vector<int>* inliers);
+           std::vector<int>* inliers,
+           gtsam::Pose3* w_Pose_cam = nullptr);
 
   /**
    * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
    * @param cur_stereo_frame
-   * @param camLrectlkf_R_camLrectkf
-   * @param camLrectlkf_t_camLrectkf
+   * @param w_Pose_cam
    * @param best_absolute_pose
    * @param[in/out] inliers
    */
   bool pnp(const StereoFrame& cur_stereo_frame,
-           const gtsam::Rot3& camLrectlkf_R_camLrectkf,
-           const gtsam::Point3& camLrectlkf_t_camLrectkf,
            gtsam::Pose3* best_absolute_pose,
-           std::vector<int>* inliers);
+           std::vector<int>* inliers,
+           gtsam::Pose3* w_Pose_cam = nullptr);
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers

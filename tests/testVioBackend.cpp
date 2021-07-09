@@ -13,20 +13,18 @@
  * @author Luca Carlone
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
-#include <random>
-
-#include <boost/smart_ptr/make_shared.hpp>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
+
+#include <algorithm>
+#include <boost/smart_ptr/make_shared.hpp>
+#include <cstdlib>
+#include <iostream>
+#include <random>
 
 #include "kimera-vio/backend/VioBackend.h"
 #include "kimera-vio/backend/VioBackendFactory.h"

@@ -1059,16 +1059,11 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
 }
 
 bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
-                  const gtsam::Rot3& camLrectlkf_R_camLrectkf,
-                  const gtsam::Point3& camLrectlkf_t_camLrectkf,
                   gtsam::Pose3* best_absolute_pose,
-                  std::vector<int>* inliers) {
+                  std::vector<int>* inliers,
+                  gtsam::Pose3* w_Pose_cam) {
   CHECK_NOTNULL(best_absolute_pose);
   const Frame& cur_frame = cur_stereo_frame.left_frame_;
-
-  // fix/double_stereo_rectification changes this to left_frame.keypoints_undistorted:
-  const StatusKeypointsCV& keypoints_undistorted =
-      cur_stereo_frame.left_keypoints_rectified_;
 
   opengv::bearingVectors_t bearing_vectors;
   opengv::points_t points;
@@ -1116,10 +1111,9 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
 
   bool success = pnp(bearing_vectors,
                      points,
-                     camLrectlkf_R_camLrectkf,
-                     camLrectlkf_t_camLrectkf,
                      best_absolute_pose,
-                     inliers);
+                     inliers,
+                     w_Pose_cam);
 
   VLOG(5) << "PnP tracking " << (success ? " success " : " failure ") << ":\n"
           << "- Total Correspondences: " << points.size() << '\n'
@@ -1133,10 +1127,9 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
 
 bool Tracker::pnp(const BearingVectors& bearing_vectors,
                   const Landmarks& points,
-                  const gtsam::Rot3& rotation_prior,
-                  const gtsam::Point3& translation_prior,
                   gtsam::Pose3* best_absolute_pose,
-                  std::vector<int>* inliers) {
+                  std::vector<int>* inliers,
+                  gtsam::Pose3* w_Pose_cam) {
   bool success = false;
   if (points.size() == 0) {
     LOG(WARNING) << "No 2D-3D correspondences found for 2D-3D RANSAC...";
@@ -1174,7 +1167,9 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
     switch (tracker_params_.pnp_algorithm_) {
       case Pose3d2dAlgorithm::KneipP2P: {
         // Uses rotation prior from adapter
-        adapter.setR(rotation_prior.matrix());
+        CHECK(w_Pose_cam);
+        opengv::rotation_t rotation_prior = w_Pose_cam->rotation().matrix();
+        adapter.setR(rotation_prior);
         success =
             runRansac(std::make_shared<ProblemPnP>(adapter, ProblemPnP::TWOPT),
                       threshold,
@@ -1247,8 +1242,12 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
         LOG_IF(FATAL, inliers->empty())
             << "NonlinearOptimization needs to know the inliers.";
         // Uses all correspondences.
-        adapter.sett(translation_prior.matrix());
-        adapter.setR(rotation_prior.matrix());
+        CHECK(w_Pose_cam);
+        opengv::rotation_t rotation_prior = w_Pose_cam->rotation().matrix();
+        opengv::translation_t translation_prior =
+            w_Pose_cam->translation().matrix();
+        adapter.setR(rotation_prior);
+        adapter.sett(translation_prior);
         *best_absolute_pose = Eigen::MatrixXd(
             opengv::absolute_pose::optimize_nonlinear(adapter, *inliers));
         success = true;

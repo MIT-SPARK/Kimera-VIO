@@ -583,12 +583,13 @@ bool LoopClosureDetector::recoverPoseBody(
     // 3D points from backend stored in world reference frame. The transform
     // between world and cam is given by the VIO estimate for the given kf.
     gtsam::Pose3 W_T_camQuery;
+    gtsam::Pose3 camMatch_T_camQuery_2d_copy(
+        camMatch_T_camQuery_2d);  // because original is const
     success = tracker_.pnp(db_frames_[cur_id].bearing_vectors_,
                            db_frames_[cur_id].keypoints_3d_,
-                           camMatch_T_camQuery_2d.rotation(),
-                           camMatch_T_camQuery_2d.translation(),
                            &W_T_camQuery,
-                           &inliers);
+                           &inliers,
+                           &camMatch_T_camQuery_2d_copy);
 
     // TODO(marcus): invert this process
     // We have to convert the pose to the local frame and get the relative
