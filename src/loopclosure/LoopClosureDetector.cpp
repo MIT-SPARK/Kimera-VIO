@@ -669,39 +669,40 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   smart_factors_params.setDynamicOutlierRejectionThreshold(3);
 
   for (size_t i = 0; i < matches_match_query.size(); i++) {
-    KeypointCV undistorted_rectified_left_query_keypoint =
-        (db_frames_[cur_id]
-             .left_keypoints_rectified_.at(matches_match_query[i].first)
-             .second);
-    KeypointCV undistorted_rectified_right_query_keypoint =
-        (db_frames_[cur_id]
-             .right_keypoints_rectified_.at(matches_match_query[i].first)
-             .second);
-
-    gtsam::StereoPoint2 sp_query_i(undistorted_rectified_left_query_keypoint.x,
-                                   undistorted_rectified_right_query_keypoint.x,
-                                   undistorted_rectified_left_query_keypoint.y);
-
-    SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
-
-    stereo_factor_i.add(
-        sp_query_i, key_query, stereo_camera_->getStereoCalib());
-
     KeypointCV undistorted_rectified_left_match_keypoint =
         (db_frames_[ref_id]
-             .left_keypoints_rectified_.at(matches_match_query[i].second)
+             .left_keypoints_rectified_.at(matches_match_query[i].first)
              .second);
     KeypointCV undistorted_rectified_right_match_keypoint =
         (db_frames_[ref_id]
-             .right_keypoints_rectified_.at(matches_match_query[i].second)
+             .right_keypoints_rectified_.at(matches_match_query[i].first)
              .second);
 
     gtsam::StereoPoint2 sp_match_i(undistorted_rectified_left_match_keypoint.x,
                                    undistorted_rectified_right_match_keypoint.x,
                                    undistorted_rectified_left_match_keypoint.y);
 
+    SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
+
     stereo_factor_i.add(
         sp_match_i, key_match, stereo_camera_->getStereoCalib());
+
+    KeypointCV undistorted_rectified_left_query_keypoint =
+        (db_frames_[cur_id]
+             .left_keypoints_rectified_.at(matches_match_query[i].second)
+             .second);
+    KeypointCV undistorted_rectified_right_query_keypoint =
+        (db_frames_[cur_id]
+             .right_keypoints_rectified_.at(matches_match_query[i].second)
+             .second);
+
+    gtsam::StereoPoint2 sp_query_i(undistorted_rectified_left_query_keypoint.x,
+                                   undistorted_rectified_right_query_keypoint.x,
+                                   undistorted_rectified_left_query_keypoint.y);
+
+
+    stereo_factor_i.add(
+        sp_query_i, key_query, stereo_camera_->getStereoCalib());
 
     nfg.add(stereo_factor_i);
   }
