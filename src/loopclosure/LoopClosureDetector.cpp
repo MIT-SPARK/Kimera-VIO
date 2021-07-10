@@ -326,11 +326,11 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
 
   // Re-generate descriptors for remaining keypoints if necessary.
   if (keypoints.size() < keypoints_for_descriptor_compute.size()) {
-    LOG(ERROR) << "ProcessAndAddMonoFrame: recomputing descriptors.";
+    VLOG(10) << "ProcessAndAddMonoFrame: recomputing descriptors.";
     // Convert and compute for culled keypoints, a subset of frame.keypoints_
     keypoints_for_descriptor_compute.clear();
     cv::KeyPoint::convert(keypoints, keypoints_for_descriptor_compute);
-    OrbDescriptor descriptors_mat;
+    descriptors_mat = OrbDescriptor();
     orb_feature_detector_->compute(
         frame.img_, keypoints_for_descriptor_compute, descriptors_mat);
   }

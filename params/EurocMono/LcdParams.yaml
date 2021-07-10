@@ -12,7 +12,7 @@ max_nrFrames_between_islands: 3
 max_nrFrames_between_queries: 2
 
 
-refine_pose: 1
+refine_pose: 0
 use_pnp_pose_recovery: 1
 
 lowe_ratio: 0.9  # TODO(marcus): get rid, not used
