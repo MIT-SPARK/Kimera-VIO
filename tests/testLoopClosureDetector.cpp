@@ -56,8 +56,8 @@ class LCDFixture : public ::testing::Test {
         stereo_camera_(nullptr),
         stereo_matcher_(nullptr),
         lcd_detector_(nullptr),
-        match1_T_query1_(),
-        match2_T_query2_(),
+        bodyMatch1_T_bodyQuery1_gt_(),
+        bodyMatch2_T_bodyQuery2_gt_(),
         match1_stereo_frame_(nullptr),
         match2_stereo_frame_(nullptr),
         query1_stereo_frame_(nullptr),
@@ -99,27 +99,27 @@ class LCDFixture : public ::testing::Test {
         false);
 
     // Euroc V1_01_easy ts: 1403715386762142976
-    world_T_match1_ = gtsam::Pose3(
+    world_T_bodyMatch1_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),
         gtsam::Point3(1.573832, 2.023348, 1.738755));
 
     // Euroc V1_01_easy ts: 1403715288312143104
-    world_T_query1_ = gtsam::Pose3(
+    world_T_bodyQuery1_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.478634, 0.415595, -0.700197, 0.328505)),
         gtsam::Point3(1.872115, 1.786064, 1.586159));
 
     // Euroc V1_01_easy ts: 1403715400762142976
-    world_T_match2_ = gtsam::Pose3(
+    world_T_bodyMatch2_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.3394, -0.672895, -0.492724, -0.435018)),
         gtsam::Point3(-0.662997, -0.495046, 1.347300));
 
     // Euroc V1_01_easy ts: 1403715400262142976
-    world_T_query2_ = gtsam::Pose3(
+    world_T_bodyQuery2_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.39266, -0.590667, -0.58023, -0.400326)),
         gtsam::Point3(-0.345638, -0.501712, 1.320441));
 
-    match1_T_query1_ = world_T_match1_.between(world_T_query1_);
-    match2_T_query2_ = world_T_match2_.between(world_T_query2_);
+    bodyMatch1_T_bodyQuery1_gt_ = world_T_bodyMatch1_.between(world_T_bodyQuery1_);
+    bodyMatch2_T_bodyQuery2_gt_ = world_T_bodyMatch2_.between(world_T_bodyQuery2_);
 
     // Initialize StereoFrame objects for reference and current frames
     feature_detector_ =
@@ -209,8 +209,8 @@ class LCDFixture : public ::testing::Test {
     CHECK_EQ(match1Cam_lmks3d.size(),
              match1_stereo_frame_->left_frame_.landmarks_.size());
     for (size_t i = 0; i < match1Cam_lmks3d.size(); i++) {
-      // world_T_match1_ is the VIO estimate of body wrt world
-      Landmark W_lmk = world_T_match1_ * body_T_cam * match1Cam_lmks3d[i];
+      // world_T_bodyMatch1_ is the VIO estimate of body wrt world
+      Landmark W_lmk = world_T_bodyMatch1_ * body_T_cam * match1Cam_lmks3d[i];
       W_match1_lmks3d_.insert(std::make_pair(
           match1_stereo_frame_->left_frame_.landmarks_[i], W_lmk));
     }
@@ -219,8 +219,8 @@ class LCDFixture : public ::testing::Test {
     CHECK_EQ(query1Cam_lmks3d.size(),
              query1_stereo_frame_->left_frame_.landmarks_.size());
     for (size_t i = 0; i < query1Cam_lmks3d.size(); i++) {
-      // world_T_match1_ is the VIO estimate of body wrt world
-      Landmark W_lmk = world_T_query1_ * body_T_cam * query1Cam_lmks3d[i];
+      // world_T_bodyMatch1_ is the VIO estimate of body wrt world
+      Landmark W_lmk = world_T_bodyQuery1_ * body_T_cam * query1Cam_lmks3d[i];
       W_query1_lmks3d_.insert(std::make_pair(
           query1_stereo_frame_->left_frame_.landmarks_[i], W_lmk));
     }
@@ -229,8 +229,8 @@ class LCDFixture : public ::testing::Test {
     CHECK_EQ(match2Cam_lmks3d.size(),
              match2_stereo_frame_->left_frame_.landmarks_.size());
     for (size_t i = 0; i < match2Cam_lmks3d.size(); i++) {
-      // world_T_match1_ is the VIO estimate of body wrt world
-      Landmark W_lmk = world_T_match2_ * body_T_cam * match2Cam_lmks3d[i];
+      // world_T_bodyMatch1_ is the VIO estimate of body wrt world
+      Landmark W_lmk = world_T_bodyMatch2_ * body_T_cam * match2Cam_lmks3d[i];
       W_match2_lmks3d_.insert(std::make_pair(
           match2_stereo_frame_->left_frame_.landmarks_[i], W_lmk));
     }
@@ -239,8 +239,8 @@ class LCDFixture : public ::testing::Test {
     CHECK_EQ(query2Cam_lmks3d.size(),
              query2_stereo_frame_->left_frame_.landmarks_.size());
     for (size_t i = 0; i < query2Cam_lmks3d.size(); i++) {
-      // world_T_match1_ is the VIO estimate of body wrt world
-      Landmark W_lmk = world_T_query2_ * body_T_cam * query2Cam_lmks3d[i];
+      // world_T_bodyMatch1_ is the VIO estimate of body wrt world
+      Landmark W_lmk = world_T_bodyQuery2_ * body_T_cam * query2Cam_lmks3d[i];
       W_query2_lmks3d_.insert(std::make_pair(
           query2_stereo_frame_->left_frame_.landmarks_[i], W_lmk));
     }
@@ -268,9 +268,9 @@ class LCDFixture : public ::testing::Test {
   LoopClosureDetector::UniquePtr lcd_detector_;
 
   // Stored frame members
-  gtsam::Pose3 world_T_match1_, world_T_match2_, world_T_query1_,
-      world_T_query2_, world_T_match3_, world_T_query3_;
-  gtsam::Pose3 match1_T_query1_, match2_T_query2_, match3_T_query3_;
+  gtsam::Pose3 world_T_bodyMatch1_, world_T_bodyMatch2_, world_T_bodyQuery1_,
+      world_T_bodyQuery2_, world_T_match3_, world_T_query3_;
+  gtsam::Pose3 bodyMatch1_T_bodyQuery1_gt_, bodyMatch2_T_bodyQuery2_gt_, match3_T_query3_;
   PointsWithIdMap W_match1_lmks3d_, W_query1_lmks3d_;
   PointsWithIdMap W_match2_lmks3d_, W_query2_lmks3d_;
   std::unique_ptr<StereoFrame> match1_stereo_frame_, query1_stereo_frame_;
@@ -369,7 +369,7 @@ TEST_F(LCDFixture, processAndAddMonoFrame) {
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
 
   FrameId id_0 = lcd_detector_->processAndAddMonoFrame(
-      match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_match1_);
+      match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_bodyMatch1_);
 
   size_t nr_kpts =
       lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size();
@@ -382,7 +382,7 @@ TEST_F(LCDFixture, processAndAddMonoFrame) {
             nr_kpts);
 
   FrameId id_1 = lcd_detector_->processAndAddMonoFrame(
-      query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_query1_);
+      query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_bodyQuery1_);
 
   nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_.size();
   EXPECT_EQ(id_1, 1);
@@ -407,7 +407,7 @@ TEST_F(LCDFixture, processAndAddMonoFrame) {
   FrameId id_2 =
       lcd_detector_->processAndAddMonoFrame(match1_stereo_frame_->left_frame_,
                                             W_match1_lmks3d_subset,
-                                            world_T_match1_);
+                                            world_T_bodyMatch1_);
 
   nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(2).keypoints_.size();
   EXPECT_EQ(nr_kpts,
@@ -469,7 +469,7 @@ TEST_F(LCDFixture, geometricVerificationCam2d2d) {
       0, 1, matches, &camMatch_T_camQuery);
 
   // Pose transforms points from query1 to match1 frame.
-  gtsam::Pose3 gt = match1_T_query1_;
+  gtsam::Pose3 gt = bodyMatch1_T_bodyQuery1_gt_;
   gtsam::Pose3 bodyMatch_T_bodyQuery;
   lcd_detector_->transformCameraPoseToBodyPose(camMatch_T_camQuery,
                                                &bodyMatch_T_bodyQuery);
@@ -514,7 +514,7 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
   lcd_detector_->recoverPoseBody(
       0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, false);
+      bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
@@ -538,7 +538,7 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
       2, 3, empty_pose, matches2, &bodyMatch2_T_bodyQuery2_stereo);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match2_T_query2_, bodyMatch2_T_bodyQuery2_stereo, false);
+      bodyMatch2_T_bodyQuery2_gt_, bodyMatch2_T_bodyQuery2_stereo, false);
 
   // TODO(marcus): add comment everywhere where this is tuned explaining why
   // tol_loose for use in places like this
@@ -564,7 +564,7 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
   lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
 
-  bodyMatch1_T_bodyQuery1_gt = match1_T_query1_;
+  bodyMatch1_T_bodyQuery1_gt = bodyMatch1_T_bodyQuery1_gt_;
   lcd_detector_->transformBodyPoseToCameraPose(bodyMatch1_T_bodyQuery1_gt,
                                                &camMatch1_T_camQuery1_gt);
   // Fake mono ransac with translation up to scale
@@ -588,7 +588,7 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
                                  &bodyMatch1_T_bodyQuery1_stereo);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, false);
+      bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, false);
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
 
@@ -602,7 +602,7 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   FrameId frm_3 =
       lcd_detector_->processAndAddStereoFrame(*query2_stereo_frame_);
 
-  bodyMatch2_T_bodyQuery2_gt = match2_T_query2_;
+  bodyMatch2_T_bodyQuery2_gt = bodyMatch2_T_bodyQuery2_gt_;
   lcd_detector_->transformBodyPoseToCameraPose(bodyMatch2_T_bodyQuery2_gt,
                                                &camMatch2_T_camQuery2_gt);
 
@@ -628,7 +628,7 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
                                  &bodyMatch2_T_bodyQuery2_stereo);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match2_T_query2_, bodyMatch2_T_bodyQuery2_stereo, false);
+      bodyMatch2_T_bodyQuery2_gt_, bodyMatch2_T_bodyQuery2_stereo, false);
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
 }
@@ -646,24 +646,12 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
   gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
   std::pair<double, double> error;
 
-  // Noise model for odometry factors
-  gtsam::Vector6 precisions;
-  precisions.head<3>().setConstant(100);
-  precisions.tail<3>().setConstant(100);
-  gtsam::SharedNoiseModel shared_noise_model =
-      gtsam::noiseModel::Diagonal::Precisions(precisions);
-
-  // First add odom factors to insert world pose estimate.
-  lcd_detector_->initializePGO(OdometryFactor(
-      match1_stereo_frame_->id_, world_T_match1_, shared_noise_model));
-  lcd_detector_->addOdometryFactorAndOptimize(OdometryFactor(
-      query1_stereo_frame_->id_, world_T_query1_, shared_noise_model));
-
   // Process mono frames
+  // TODO(marcus): remove pose from here entirely, not necessary anymore
   lcd_detector_->processAndAddMonoFrame(
-      match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_match1_);
+      match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_bodyMatch1_);
   lcd_detector_->processAndAddMonoFrame(
-      query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_query1_);
+      query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_bodyQuery1_);
 
   // Find correspondences between keypoints.
   KeypointMatches matches1;
@@ -678,7 +666,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, true);
+      bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, true);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
@@ -687,8 +675,9 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
 TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
   /* Test proper scaled pose recovery between ref and cur images */
   CHECK(lcd_detector_);
-  lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
   lcd_params_.use_pnp_pose_recovery_ = true;
+  lcd_params_.tracker_params_.pnp_algorithm_ = Pose3d2dAlgorithm::EPNP;
+  lcd_params_.refine_pose_ = false;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_,
@@ -697,21 +686,8 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
   gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
   std::pair<double, double> error;
 
-  // Noise model for odometry factors
-  gtsam::Vector6 precisions;
-  precisions.head<3>().setConstant(100);
-  precisions.tail<3>().setConstant(100);
-  gtsam::SharedNoiseModel shared_noise_model =
-      gtsam::noiseModel::Diagonal::Precisions(precisions);
-
   CHECK(match1_stereo_frame_);
   CHECK(query1_stereo_frame_);
-
-  // First add odom factors to insert world pose estimate.
-  lcd_detector_->initializePGO(OdometryFactor(
-      match1_stereo_frame_->id_, world_T_match1_, shared_noise_model));
-  lcd_detector_->addOdometryFactorAndOptimize(OdometryFactor(
-      query1_stereo_frame_->id_, world_T_query1_, shared_noise_model));
 
   lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
   lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
@@ -728,7 +704,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
   lcd_detector_->recoverPoseBody(
       0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, bodyMatch1_T_bodyQuery1_stereo, false);
+      bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
@@ -773,7 +749,7 @@ TEST_F(LCDFixture, detectLoop) {
   EXPECT_EQ(loop_result_3.query_id_, 3);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      match1_T_query1_, loop_result_3.relative_pose_, false);
+      bodyMatch1_T_bodyQuery1_gt_, loop_result_3.relative_pose_, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
@@ -788,7 +764,7 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
                      gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   OdometryFactor odom_factor(
-      1, world_T_match1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      1, world_T_bodyMatch1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->addOdometryFactorAndOptimize(odom_factor);
 
   gtsam::Values pgo_trajectory = lcd_detector_->getPGOTrajectory();
@@ -802,15 +778,15 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
   /* Test the addition of odometry and loop closure factors to the PGO */
   CHECK(lcd_detector_);
   OdometryFactor odom_factor_1(
-      0, world_T_match1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      0, world_T_bodyMatch1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->initializePGO(odom_factor_1);
 
   OdometryFactor odom_factor_2(
-      1, world_T_query1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      1, world_T_bodyQuery1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->addOdometryFactorAndOptimize(odom_factor_2);
 
   LoopClosureFactor lc_factor_1_2(
-      0, 1, match1_T_query1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      0, 1, bodyMatch1_T_bodyQuery1_gt_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->addLoopClosureFactorAndOptimize(lc_factor_1_2);
 
   gtsam::Values pgo_trajectory = lcd_detector_->getPGOTrajectory();

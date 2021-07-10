@@ -1059,22 +1059,22 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
 }
 
 bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
-                  gtsam::Pose3* best_absolute_pose,
+                  gtsam::Pose3* W_Pose_cam_estimate,
                   std::vector<int>* inliers,
-                  gtsam::Pose3* w_Pose_cam) {
-  CHECK_NOTNULL(best_absolute_pose);
+                  gtsam::Pose3* W_Pose_cam_prior) {
+  CHECK_NOTNULL(W_Pose_cam_estimate);
   const Frame& cur_frame = cur_stereo_frame.left_frame_;
 
-  opengv::bearingVectors_t bearing_vectors;
-  opengv::points_t points;
+  opengv::bearingVectors_t cam_bearing_vectors;
+  opengv::points_t W_points;
 
   //! Copy landmarks map since otw we may block backend thread. This assumes
   //! copying the whole map is quicker than spending time finding the lmks we
   //! need. Call this as late as possible, so the backend has maximum time.
-  LandmarksMap copy_landmarks_map;
+  LandmarksMap copy_W_landmarks_map;
   {  // Safe-guard the landmarks_map_
     std::lock_guard<std::mutex> lock(landmarks_map_mtx_);
-    copy_landmarks_map = landmarks_map_;
+    copy_W_landmarks_map = landmarks_map_;
   }
 
   // This is horrible, because we are weirdly looping over right_keypoints_rect
@@ -1091,11 +1091,11 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
       CHECK_NE(lmk_id, -1);
       //! We have a valid lmk id.
       //! Query our map of optimized landmarks.
-      const auto& it = copy_landmarks_map.find(lmk_id);
-      if (it != copy_landmarks_map.end()) {
+      const auto& it = copy_W_landmarks_map.find(lmk_id);
+      if (it != copy_W_landmarks_map.end()) {
         //! We found our landmark, store its value.
-        points.push_back(it->second);
-        bearing_vectors.push_back(cur_stereo_frame.keypoints_3d_[i]);
+        W_points.push_back(it->second);
+        cam_bearing_vectors.push_back(cur_stereo_frame.keypoints_3d_[i]);
       } else {
         //! The landmark is not in our time-horizon.
         VLOG(5) << "Landmark Id " << lmk_id << " is out of time-horizon.";
@@ -1109,37 +1109,30 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
     }
   }
 
-  bool success = pnp(bearing_vectors,
-                     points,
-                     best_absolute_pose,
+  bool success = pnp(cam_bearing_vectors,
+                     W_points,
+                     W_Pose_cam_estimate,
                      inliers,
-                     w_Pose_cam);
-
-  VLOG(5) << "PnP tracking " << (success ? " success " : " failure ") << ":\n"
-          << "- Total Correspondences: " << points.size() << '\n'
-          << "\t- # inliers: " << inliers->size() << '\n'
-          << "\t- # outliers: " << points.size() - inliers->size() << '\n'
-          << "- Best pose: \n"
-          << *best_absolute_pose;
+                     W_Pose_cam_prior);
 
   return success;
 }
 
-bool Tracker::pnp(const BearingVectors& bearing_vectors,
-                  const Landmarks& points,
-                  gtsam::Pose3* best_absolute_pose,
+bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
+                  const Landmarks& F_points,
+                  gtsam::Pose3* F_Pose_cam_estimate,
                   std::vector<int>* inliers,
-                  gtsam::Pose3* w_Pose_cam) {
+                  gtsam::Pose3* F_Pose_cam_prior) {
   bool success = false;
-  if (points.size() == 0) {
+  if (F_points.size() == 0) {
     LOG(WARNING) << "No 2D-3D correspondences found for 2D-3D RANSAC...";
-    *best_absolute_pose = gtsam::Pose3::identity();
+    *F_Pose_cam_estimate = gtsam::Pose3::identity();
     *inliers = {};
     success = false;
   } else {
     // Create the central adapter
-    CHECK_EQ(bearing_vectors.size(), points.size());
-    AdapterPnp adapter(bearing_vectors, points);
+    CHECK_EQ(cam_bearing_vectors.size(), F_points.size());
+    AdapterPnp adapter(cam_bearing_vectors, F_points);
 
     // Should be similar to current klt_eps, but keep it separate.
     const double reprojection_error = tracker_params_.ransac_threshold_pnp_;
@@ -1167,8 +1160,8 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
     switch (tracker_params_.pnp_algorithm_) {
       case Pose3d2dAlgorithm::KneipP2P: {
         // Uses rotation prior from adapter
-        CHECK(w_Pose_cam);
-        opengv::rotation_t rotation_prior = w_Pose_cam->rotation().matrix();
+        CHECK(F_Pose_cam_prior);
+        opengv::rotation_t rotation_prior = F_Pose_cam_prior->rotation().matrix();
         adapter.setR(rotation_prior);
         success =
             runRansac(std::make_shared<ProblemPnP>(adapter, ProblemPnP::TWOPT),
@@ -1176,7 +1169,7 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
                       tracker_params_.ransac_max_iterations_,
                       tracker_params_.ransac_probability_,
                       tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      best_absolute_pose,
+                      F_Pose_cam_estimate,
                       inliers);
         break;
       }
@@ -1187,7 +1180,7 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
                       tracker_params_.ransac_max_iterations_,
                       tracker_params_.ransac_probability_,
                       tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      best_absolute_pose,
+                      F_Pose_cam_estimate,
                       inliers);
         break;
       }
@@ -1198,7 +1191,7 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
                       tracker_params_.ransac_max_iterations_,
                       tracker_params_.ransac_probability_,
                       tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      best_absolute_pose,
+                      F_Pose_cam_estimate,
                       inliers);
         break;
       }
@@ -1209,7 +1202,7 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
                       tracker_params_.ransac_max_iterations_,
                       tracker_params_.ransac_probability_,
                       tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      best_absolute_pose,
+                      F_Pose_cam_estimate,
                       inliers);
         break;
       }
@@ -1221,7 +1214,7 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
             opengv::absolute_pose::upnp(adapter);
         // TODO(TONI): what about the rest of transformations?
         CHECK_GT(upnp_transformations.size(), 0);
-        *best_absolute_pose = Eigen::MatrixXd(upnp_transformations[0]);
+        *F_Pose_cam_estimate = Eigen::MatrixXd(upnp_transformations[0]);
         success = true;
         break;
       }
@@ -1233,7 +1226,7 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
             opengv::absolute_pose::upnp(adapter, *inliers);
         // TODO(TONI): what about the rest of transformations?
         CHECK_GT(upnp_transformations.size(), 0);
-        *best_absolute_pose = Eigen::MatrixXd(upnp_transformations[0]);
+        *F_Pose_cam_estimate = Eigen::MatrixXd(upnp_transformations[0]);
         success = true;
         break;
       }
@@ -1242,13 +1235,13 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
         LOG_IF(FATAL, inliers->empty())
             << "NonlinearOptimization needs to know the inliers.";
         // Uses all correspondences.
-        CHECK(w_Pose_cam);
-        opengv::rotation_t rotation_prior = w_Pose_cam->rotation().matrix();
+        CHECK(F_Pose_cam_prior);
+        opengv::rotation_t rotation_prior = F_Pose_cam_prior->rotation().matrix();
         opengv::translation_t translation_prior =
-            w_Pose_cam->translation().matrix();
+            F_Pose_cam_prior->translation().matrix();
         adapter.setR(rotation_prior);
         adapter.sett(translation_prior);
-        *best_absolute_pose = Eigen::MatrixXd(
+        *F_Pose_cam_estimate = Eigen::MatrixXd(
             opengv::absolute_pose::optimize_nonlinear(adapter, *inliers));
         success = true;
         break;
@@ -1266,6 +1259,14 @@ bool Tracker::pnp(const BearingVectors& bearing_vectors,
       }
     }
   }
+
+  VLOG(5) << "PnP tracking " << (success ? " success " : " failure ") << ":\n"
+          << "- Total Correspondences: " << F_points.size() << '\n'
+          << "\t- # inliers: " << inliers->size() << '\n'
+          << "\t- # outliers: " << F_points.size() - inliers->size() << '\n'
+          << "- Estimated pose: \n"
+          << *F_Pose_cam_estimate;
+
   return success;
 }
 

@@ -313,9 +313,9 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
         // reference frame matches the convention used in the stereo case.
         // TODO(marcus): unit test to make sure ref frame is correct for these
         // points
-        Landmark keypoint_3d =
-            W_Pose_Blkf * B_Pose_camLrect_ * W_points_with_ids.at(id);
-        keypoints_3d.push_back(keypoint_3d);
+        Landmark cam_keypoint_3d =
+            (W_Pose_Blkf * B_Pose_camLrect_).inverse() * W_points_with_ids.at(id);
+        keypoints_3d.push_back(cam_keypoint_3d);
       } else {
         VLOG(10) << "ProcessAndAddMonoFrame: landmark id not in world points!";
       }
@@ -372,6 +372,7 @@ FrameId LoopClosureDetector::processAndAddStereoFrame(
                                 db_frames_.size(),
                                 cp_stereo_frame.id_,
                                 keypoints,
+                                // keypoints_3d_ are in local (camera) frame
                                 cp_stereo_frame.keypoints_3d_,
                                 descriptors_vec,
                                 descriptors_mat,
@@ -580,23 +581,25 @@ bool LoopClosureDetector::recoverPoseBody(
 
   bool success = false;
   if (lcd_params_.use_pnp_pose_recovery_) {
-    // 3D points from backend stored in world reference frame. The transform
-    // between world and cam is given by the VIO estimate for the given kf.
-    gtsam::Pose3 W_T_camQuery;
     gtsam::Pose3 camMatch_T_camQuery_2d_copy(
         camMatch_T_camQuery_2d);  // because original is const
-    success = tracker_.pnp(db_frames_[cur_id].bearing_vectors_,
-                           db_frames_[cur_id].keypoints_3d_,
-                           &W_T_camQuery,
+
+    BearingVectors camQuery_bearing_vectors;
+    Landmarks camMatch_points;
+    for (const KeypointMatch& it : matches_match_query) {
+      const BearingVector& query_bearing =
+          db_frames_[cur_id].bearing_vectors_.at(it.second);
+      const Landmark& match_point =
+          db_frames_[ref_id].keypoints_3d_.at(it.first);
+      camQuery_bearing_vectors.push_back(query_bearing);
+      camMatch_points.push_back(match_point);
+    }
+
+    success = tracker_.pnp(camQuery_bearing_vectors,
+                           camMatch_points,
+                           &camMatch_T_camQuery_3d,
                            &inliers,
                            &camMatch_T_camQuery_2d_copy);
-
-    // TODO(marcus): invert this process
-    // We have to convert the pose to the local frame and get the relative
-    // between the query and match.
-    const gtsam::Pose3& W_T_Bmatch = W_Pose_Blkf_estimates_.at(ref_id);
-    camMatch_T_camQuery_3d =
-        (W_T_Bmatch * B_Pose_camLrect_).inverse() * W_T_camQuery;
   } else {
     TrackingStatusPose result;
     if (tracker_.tracker_params_.ransac_use_1point_stereo_) {

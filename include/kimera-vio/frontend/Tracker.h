@@ -158,30 +158,30 @@ class Tracker {
 
   /**
    * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
-   * @param bearing_vectors
-   * @param points
-   * @param camLrectlkf_R_camLrectkf
-   * @param camLrectlkf_t_camLrectkf
-   * @param best_absolute_pose
+   * @param [in] cam_bearing_vectors Bearing vectors in camera frame.
+   * @param [in] F_points 3D landmarks in the generic frame F.
+   * @param [out] F_Pose_cam_estimate Output of pnp ransac.
    * @param[in/out] inliers
+   * @param [in] F_Pose_cam_prior Optional prior pose of the camera with respect to
+   * reference frame F.
    */
-  bool pnp(const BearingVectors& bearing_vectors,
-           const Landmarks& points,
-           gtsam::Pose3* best_absolute_pose,
+  bool pnp(const BearingVectors& cam_bearing_vectors,
+           const Landmarks& F_points,
+           gtsam::Pose3* F_Pose_cam_estimate,
            std::vector<int>* inliers,
-           gtsam::Pose3* w_Pose_cam = nullptr);
+           gtsam::Pose3* F_Pose_cam_prior = nullptr);
 
   /**
    * @brief pnp Absolute Pose estimation from 2D-3D correspondences.
    * @param cur_stereo_frame
-   * @param w_Pose_cam
-   * @param best_absolute_pose
+   * @param W_Pose_cam_prior
+   * @param W_Pose_cam_estimate
    * @param[in/out] inliers
    */
   bool pnp(const StereoFrame& cur_stereo_frame,
-           gtsam::Pose3* best_absolute_pose,
+           gtsam::Pose3* W_Pose_cam_estimate,
            std::vector<int>* inliers,
-           gtsam::Pose3* w_Pose_cam = nullptr);
+           gtsam::Pose3* W_Pose_cam_prior = nullptr);
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers
