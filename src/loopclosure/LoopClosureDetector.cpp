@@ -153,10 +153,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   switch (lcd_state_) {
     case LcdState::Bootstrap: {
       initializePGO(odom_factor);
-      // This should be out above (and remove the one inside
-      // addOdometryFactorAndOptimize. Not doing it now bcs code assumes that
-      // addOdometryFactorAndOptimize does that...
-      W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
       break;
     }
     case LcdState::Nominal: {
@@ -1055,8 +1051,10 @@ bool LoopClosureDetector::recoverPoseGivenRot(
 
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
-  CHECK_EQ(factor.cur_key_, 0u);
   CHECK(lcd_state_ == LcdState::Bootstrap);
+  CHECK_EQ(factor.cur_key_, 0u);
+
+  W_Pose_Blkf_estimates_.push_back(factor.W_Pose_Blkf_);
 
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
@@ -1079,6 +1077,7 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
 void LoopClosureDetector::addOdometryFactorAndOptimize(
     const OdometryFactor& factor) {
   CHECK(lcd_state_ == LcdState::Nominal);
+  CHECK_GT(factor.cur_key_, 0u);
 
   W_Pose_Blkf_estimates_.push_back(factor.W_Pose_Blkf_);
 
@@ -1088,7 +1087,6 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  CHECK_GT(factor.cur_key_, 0u);
   const gtsam::Values& optimized_values = pgo_->calculateEstimate();
   CHECK_EQ(factor.cur_key_, optimized_values.size());
   const gtsam::Pose3& estimated_last_pose =
@@ -1108,9 +1106,12 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   CHECK(pgo_);
   pgo_->update(nfg, value);
 }
+
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::addLoopClosureFactorAndOptimize(
     const LoopClosureFactor& factor) {
+  CHECK(lcd_state_ == LcdState::Nominal);
+
   gtsam::NonlinearFactorGraph nfg;
 
   nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol(factor.ref_key_),
