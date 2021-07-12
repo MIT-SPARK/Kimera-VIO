@@ -244,8 +244,23 @@ void StereoCamera::undistortRectifyLeftKeypoints(
     StatusKeypointsCV* status_keypoints_rectified) const {
   KeypointsCV undistorted_rectified_keypoints;
   CHECK(left_cam_undistort_rectifier_);
-  left_cam_undistort_rectifier_->undistortRectifyKeypoints(
-      keypoints, &undistorted_rectified_keypoints);
+  switch (original_left_camera_->getCamParams().camera_model_) {
+    case CameraModel::PINHOLE: {
+      left_cam_undistort_rectifier_->undistortRectifyKeypoints(
+          keypoints, &undistorted_rectified_keypoints);
+    } break;
+    case CameraModel::OMNI: {
+      // TODO(marcus): after gtsam camera model, this disappears and
+      // the switch happens in UndistorterRectifier.
+      Camera::UndistortKeypointsOmni(keypoints,
+                                     original_left_camera_->getCamParams(),
+                                     original_left_camera_->getCamParams().K_,
+                                     &undistorted_rectified_keypoints);
+    } break;
+    default: {
+      LOG(FATAL) << "Camera: Unrecognized camera model.";
+    }
+  }
   left_cam_undistort_rectifier_->checkUndistortedRectifiedLeftKeypoints(
       keypoints, undistorted_rectified_keypoints, status_keypoints_rectified);
 }
@@ -355,6 +370,12 @@ void StereoCamera::computeRectificationParameters(
           *Q,
           // TODO: Flag to maximise area???
           cv::CALIB_ZERO_DISPARITY);
+    } break;
+    case DistortionModel::OMNI: {
+      LOG(FATAL)
+          << "UndistorterRectifier: Attempting to initialize for OMNI "
+             "camera, but undistortion is implemented at camera level. "
+             "Use a mono camera instead.";
     } break;
     default: {
       LOG(FATAL) << "Unknown DistortionModel: "

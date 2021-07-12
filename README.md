@@ -177,6 +177,19 @@ To get help on what each gflag parameter does, just run the executable with the 
 
 OpenCV's 3D visualization also has some shortcuts for interaction: check [tips for usage](./docs/tips_usage.md)
 
+Camera parameters can be described using the pinhole model or the omni model. The omni model is based on the OCamCalib toolbox described in [this paper](http://rpg.ifi.uzh.ch/docs/CCMVS2007_scaramuzza.pdf). A tutorial for generating the calibration can be found [here](https://sites.google.com/site/scarabotix/ocamcalib-toolbox).
+
+The Omni camera model requires these additional parameters:
+
+```
+omni_affine
+omni_distortion_center
+```
+
+The distortion polynomial is stored in the `distortion_coefficients` field. The matlab toolbox gives only 4 coefficients as output, however Kimera supports 5 coefficients. The second one can be set to zero. For example, if your output from OCamCalib is `[1, 2, 3, 4]` then you can set `distortion_coefficients` to `[1, 0, 2, 3, 4]` in the camera parameters file.
+
+Inverse polynomial for projection is not required. In the omni camera case, the `intrinsics` field represents the intrinsics of a **ideal pinhole model** of the fisheye camera, which is primarily used when instantiating gtsam calibrations that currently are only implemented for pinhole cameras. Leaving it blank is sufficient as the code will generate a ideal model based on the image size. You may supply your own ideal pinhole intrinsics and they will be used instead. In the pinhole case, these values must be supplied consistently with the camera parameters (focal lengths and image center). 
+
 # 4. Contribution guidelines
 
 We strongly encourage you to submit issues, feedback and potential improvements.

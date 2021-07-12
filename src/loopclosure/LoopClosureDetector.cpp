@@ -70,8 +70,6 @@ LoopClosureDetector::LoopClosureDetector(
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
       logger_(nullptr) {
-  // TODO(marcus): This should come in with every input payload, not be
-  // constant.
   Vector6 precisions;
   precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
@@ -684,7 +682,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        UndistorterRectifier::UndistortKeypointAndGetVersor(keypoint.pt, left_frame_mutable->cam_param_));
+        UndistorterRectifier::GetBearingVector(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 

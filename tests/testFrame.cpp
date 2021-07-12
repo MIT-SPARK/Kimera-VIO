@@ -98,7 +98,7 @@ TEST(testFrame, getNrValidKeypoints) {
 }
 
 /* ************************************************************************* */
-TEST(testFrame, UndistortKeypointAndGetVersor) {
+TEST(testFrame, GetBearingVector) {
   // Perform a scan on the grid to verify the correctness of pixel calibration!
   const int numTestRows = 8;
   const int numTestCols = 8;
@@ -121,7 +121,7 @@ TEST(testFrame, UndistortKeypointAndGetVersor) {
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end();
        iter++) {
-    Vector3 versor = UndistorterRectifier::UndistortKeypointAndGetVersor(*iter, cam_params);
+    Vector3 versor = UndistorterRectifier::GetBearingVector(*iter, cam_params);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
@@ -140,7 +140,7 @@ TEST(testFrame, UndistortKeypointAndGetVersor) {
 
 /* ************************************************************************* */
 // TODO: Create test for Calibrate Pixel with pinhole equidistant model
-TEST(testFrame, DISABLED_UndistortKeypointAndGetVersor) {
+TEST(testFrame, DISABLED_GetBearingVector) {
   // Perform a scan on the grid to verify the correctness of pixel calibration!
   const int numTestRows = 8;
   const int numTestCols = 8;
@@ -167,7 +167,7 @@ TEST(testFrame, DISABLED_UndistortKeypointAndGetVersor) {
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end();
        iter++) {
-    Vector3 versor = UndistorterRectifier::UndistortKeypointAndGetVersor(*iter, cam_params);
+    Vector3 versor = UndistorterRectifier::GetBearingVector(*iter, cam_params);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
@@ -180,7 +180,7 @@ TEST(testFrame, DISABLED_UndistortKeypointAndGetVersor) {
   }
 }
 
-// TEST(testFrame, UndistortKeypointAndGetVersorEquidistant) {}
+// TEST(testFrame, GetBearingVectorEquidistant) {}
 
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {

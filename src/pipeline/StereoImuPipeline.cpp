@@ -35,7 +35,6 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
-// TODO(marcus): clean this and put things in the base ctor
 StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                                      Visualizer3D::UniquePtr&& visualizer,
                                      DisplayBase::UniquePtr&& displayer)

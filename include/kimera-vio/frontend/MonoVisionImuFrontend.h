@@ -85,9 +85,9 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
   void getSmartMonoMeasurements(const Frame::Ptr& frame,
                                 MonoMeasurements* smart_mono_measurements);
 
-  // void sendFeatureTracksToLogger() const;
+  void sendFeatureTracksToLogger() const;
 
-  // void sendMonoTrackingToLogger() const;
+  void sendMonoTrackingToLogger() const;
 
   static void printStatusMonoMeasurements(
       const StatusMonoMeasurements& status_mono_measurements);
