@@ -67,7 +67,8 @@ class LCDFixture : public ::testing::Test {
         timestamp_match1_(1000),
         timestamp_query1_(2000),
         timestamp_match2_(3000),
-        timestamp_query2_(4000) {
+        timestamp_query2_(4000),
+        is_backend_queue_filled_(false) {
     // First set value of vocabulary path for LoopClosureDetector
     FLAGS_vocabulary_path = "../vocabulary/ORBvoc.yml";
     frontend_params_.parseYAML(lcd_test_data_path_ + "/FrontendParams.yaml");
@@ -97,7 +98,7 @@ class LCDFixture : public ::testing::Test {
         frontend_params_.stereo_matching_params_, 
         false);
 
-    lcd_detector_->registerInputQueueCheckCallback(
+    lcd_detector_->registerIsBackendQueueFilledCallback(
         std::bind(&LCDFixture::lcdInputQueueCb, this));
 
     // Euroc V1_01_easy ts: 1403715386762142976
@@ -237,10 +238,9 @@ class LCDFixture : public ::testing::Test {
     stereo_matcher_->sparseStereoReconstruction(query2_stereo_frame_.get());
   }
 
+ public:
   // Just to prevent a CHECK from failing.
-  bool lcdInputQueueCb() {
-    return true;
-  }
+  bool lcdInputQueueCb() { return is_backend_queue_filled_; }
 
   // Standard gtest methods, unnecessary for now
   virtual void SetUp() {}
@@ -273,6 +273,8 @@ class LCDFixture : public ::testing::Test {
   const VIO::Timestamp timestamp_query1_;
   const VIO::Timestamp timestamp_match2_;
   const VIO::Timestamp timestamp_query2_;
+
+  bool is_backend_queue_filled_;
 };  // class LCDFixture
 
 TEST_F(LCDFixture, defaultConstructor) {

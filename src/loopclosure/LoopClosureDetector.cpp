@@ -1121,10 +1121,10 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
                                              factor.noise_));
 
   // Only optimize if we don't have other potential loop closures to process.
-  CHECK(queue_check_cb_);
+  CHECK(is_backend_queue_filled_cb_);
   // True if backend input queue is empty or we have cached enough LCs.
   bool do_optimize =
-      !queue_check_cb_() ||
+      !is_backend_queue_filled_cb_() ||
       num_lc_unoptimized_ >= lcd_params_.max_lc_cached_before_optimize_;
 
   if (!do_optimize) {

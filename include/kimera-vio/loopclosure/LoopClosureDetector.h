@@ -50,7 +50,7 @@ class LoopClosureDetector {
   KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetector);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using InputQueueCheckCallback = std::function<bool()>;
+  using IsBackendQueueFilledCallback = std::function<bool()>;
 
   /* ------------------------------------------------------------------------ */
   /** @brief Constructor: detects loop-closures and updates internal PGO.
@@ -75,8 +75,9 @@ class LoopClosureDetector {
 
   /* ------------------------------------------------------------------------ */
   // TODO: doc
-  inline void registerInputQueueCheckCallback(const InputQueueCheckCallback& cb) {
-    queue_check_cb_ = cb;
+  inline void registerIsBackendQueueFilledCallback(
+      const IsBackendQueueFilledCallback& cb) {
+    is_backend_queue_filled_cb_ = cb;
   }
 
   /* ------------------------------------------------------------------------ */
@@ -400,7 +401,7 @@ class LoopClosureDetector {
                             // should also come in with input
 
   // Queue-checking callback
-  InputQueueCheckCallback queue_check_cb_;
+  IsBackendQueueFilledCallback is_backend_queue_filled_cb_;
   size_t num_lc_unoptimized_;
 
   // Logging members
@@ -464,7 +465,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
         frontend_queue_("lcd_frontend_queue"),
         backend_queue_("lcd_backend_queue"),
         lcd_(std::move(lcd)) {
-    lcd_->registerInputQueueCheckCallback(std::bind(&LcdModule::hasWork, this));
+    lcd_->registerIsBackendQueueFilledCallback(std::bind(&LcdModule::hasWork, this));
   }
   virtual ~LcdModule() = default;
 
