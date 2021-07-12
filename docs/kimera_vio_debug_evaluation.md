@@ -25,7 +25,7 @@ pip install jupyter
 You will need [`evo-1`](https://github.com/MIT-SPARK/evo-1). It is currently best to build from source (consider using a virtual environment):
 
 ```bash
-git clone https://github.com/MIT-SPARK/evo-1
+git clone https://github.com/MIT-SPARK/evo-1.git
 cd evo-1
 pip install . --upgrade --no-binary evo
 ```
