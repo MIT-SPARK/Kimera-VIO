@@ -14,6 +14,10 @@
 
 #pragma once
 
+#include <gtsam/navigation/NavState.h>
+
+#include "kimera-vio/common/vio_types.h"
+
 namespace VIO {
 
 enum class FrontendType {
@@ -23,6 +27,21 @@ enum class FrontendType {
   kStereoImu = 1,
   //! Frontend that works with RGB + Depth camera and Imu
   kRgbdImu = 2
+};
+
+
+// TODO(marcus): this could probably move somewhere else once refactor happens
+struct ExternalOdomMeasurement {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  ExternalOdomMeasurement() = default;
+
+  ExternalOdomMeasurement(const Timestamp& timestamp,
+                          const gtsam::NavState& odom_data)
+      : timestamp_(timestamp), odom_data_(odom_data) {}
+
+  Timestamp timestamp_;
+  gtsam::NavState odom_data_;
 };
 
 }  // namespace VIO

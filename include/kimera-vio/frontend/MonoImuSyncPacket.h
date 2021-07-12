@@ -28,7 +28,9 @@ class MonoImuSyncPacket : public FrontendInputPacketBase {
   MonoImuSyncPacket() = delete;
   MonoImuSyncPacket(Frame::UniquePtr frame,
                     const ImuStampS& imu_stamps,
-                    const ImuAccGyrS& imu_accgyrs);
+                    const ImuAccGyrS& imu_accgyrs,
+                    boost::optional<gtsam::NavState> external_odometry = boost::none);
+
   virtual ~MonoImuSyncPacket() = default;
 
   inline const Frame& getFrame() const { return *frame_; }

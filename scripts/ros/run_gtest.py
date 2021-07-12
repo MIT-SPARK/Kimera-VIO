@@ -37,7 +37,7 @@ def get_package_dir() -> str:
 def get_build_dir(package_path) -> str:
     """Get the build directory for the workspace."""
     ret = subprocess.run(
-        ["catkin", "locate", "-b"],
+        ["catkin", "locate", "-b", "kimera_vio"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=str(package_path),
@@ -53,8 +53,9 @@ def get_build_dir(package_path) -> str:
 def main():
     """Locate test binary and switch to that."""
     package_path = get_package_dir()
-    build_path = get_build_dir(package_path)
-    test_location = build_path / "kimera_vio" / "testKimeraVIO"
+    ws_path = package_path.parent.parent
+    build_path = get_build_dir(ws_path)
+    test_location = build_path / "testKimeraVIO"
 
     with tempfile.TemporaryDirectory(dir=str(package_path)) as run_dir:
         with change_directory(run_dir):

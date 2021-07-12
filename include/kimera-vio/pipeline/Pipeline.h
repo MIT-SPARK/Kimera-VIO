@@ -84,6 +84,12 @@ class Pipeline {
     data_provider_module_->fillImuQueue(imu_measurements);
   }
 
+  inline void fillExternalOdomQueue(
+      const ExternalOdomMeasurement& odom_measurement) {
+    CHECK(data_provider_module_);
+    data_provider_module_->fillExternalOdometryQueue(odom_measurement);
+  }
+
  public:
   /**
    * @brief spin Spin the whole pipeline by spinning the data provider

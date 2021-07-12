@@ -89,7 +89,9 @@ BackendLogger::BackendLogger()
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
-      output_backend_timing_csv_("output_backendTiming.csv") {}
+      output_backend_timing_csv_("output_backendTiming.csv"),
+      output_backend_external_odometry_(
+          "output_backend_external_odometry.csv") {}
 
 void BackendLogger::logBackendOutput(const BackendOutput& output) {
   logBackendResultsCSV(output);
@@ -277,6 +279,40 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
                 << std::endl;
 }
 
+void BackendLogger::logBackendExtOdom(const BackendInput& input) {
+  if (!input.body_lkf_OdomPose_body_kf_) {
+    return;  // we're not using external odometry, don't log anything
+  }
+  if (!input.body_kf_world_OdomVel_body_kf_) {
+    return;  // we're not using external odometry, don't log anything
+  }
+
+  std::ofstream& output_stream = output_backend_external_odometry_.ofstream_;
+
+  if (!is_header_written_external_odometry_) {
+    // vx (kf), etc. is a little sloppy, but there's no better way to do this
+    // More specifically: the pose is relative between the current and last
+    // keyframe, but the velocity is absolute for the current keyframe
+    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx (kf),vy (kf),vz (kf)"
+                  << std::endl;
+    is_header_written_external_odometry_ = true;
+  }
+
+  // write the relative pose estimate between the last keyframe
+  // and the current one as well as the current body velocity estimate
+  const gtsam::Point3 tran =
+      (*input.body_lkf_OdomPose_body_kf_).translation();
+  const gtsam::Quaternion quat =
+      (*input.body_lkf_OdomPose_body_kf_).rotation().toQuaternion();
+  output_stream << input.timestamp_ << ",";
+  output_stream << tran.x() << "," << tran.y() << "," << tran.z() << ",";
+  output_stream << quat.w() << "," << quat.x() << "," << quat.y() << ","
+                << quat.z() << ",";
+  output_stream << (*input.body_kf_world_OdomVel_body_kf_).x() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).y() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).z() << std::endl;
+}
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
 MesherLogger::MesherLogger() : output_path_(FLAGS_output_path) {}
@@ -374,6 +410,7 @@ FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
       output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
+      output_frontend_temporal_cal_("output_frontend_temporal_cal.csv"),
       output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
   // Create output directories for images.
   boost::filesystem::create_directory(
@@ -514,6 +551,29 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
   }
 }
 
+void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
+                                            const Timestamp& timestamp_imu,
+                                            const double& vision_relative_angle_norm,
+                                            const double& imu_relative_angle_norm,
+                                            bool not_enough_data,
+                                            bool not_enough_variance,
+                                            const double& result) {
+  std::ofstream& output_stream = output_frontend_temporal_cal_.ofstream_;
+
+  if (!is_header_written_temporal_cal_) {
+    output_stream << "#timestamp_vision,timestamp_imu,vision_relative_angle_"
+                     "norm,imu_relative_angle_norm,not_enough_data,not_"
+                     "enough_variance,t_imu_cam_s"
+                  << std::endl;
+    is_header_written_temporal_cal_ = true;
+  }
+
+  output_stream << timestamp_vision << "," << timestamp_imu << ","
+                << vision_relative_angle_norm << ","
+                << imu_relative_angle_norm << "," << not_enough_data << ","
+                << not_enough_variance << "," << result << "," << std::endl;
+}
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 PipelineLogger::PipelineLogger()
     : output_pipeline_timing_("output_timingOverall.csv") {}
@@ -577,8 +637,6 @@ void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
   output_traj_.closeAndOpenLogFile();
   // We log the full optimized trajectory in csv format.
   std::ofstream& output_stream_traj = output_traj_.ofstream_;
-
-  // TODO(marcus): set the append to false on this one and overwrite EVERY TIME
 
   bool is_header_written = false;
   if (!is_header_written) {

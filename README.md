@@ -15,7 +15,7 @@
 [![Build Status](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/badge/icon)](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/)
 For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/VIO_20Euroc_20Performance_20Report).
 
-**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
+**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Nathan Hughes, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
 
 ## What is Kimera-VIO?
 
@@ -36,19 +36,32 @@ We kindly ask to cite our paper if you find this library useful:
    url = {https://github.com/MIT-SPARK/Kimera},
    pdf = {https://arxiv.org/pdf/1910.02490.pdf}
  }
+ ```
+ 
+ - A. Rosinol and A. Violette and M. Abate and N. Hughes and Y. Chang and J. Shi and A. Gupta and L. Carlone, [**Kimera: from SLAM to Spatial Perception with 3D Dynamic Scene Graphs**](https://arxiv.org/abs/2101.06894). arXiv preprint, 2021. [arXiv:2101.06894](https://arxiv.org/abs/2101.06894).
+
+```bibtex
+@article{Rosinol21arxiv-Kimera,
+   title = {Kimera: from {SLAM} to Spatial Perception with {3D} Dynamic Scene Graphs},
+   author = {Rosinol, Antoni and Violette, Andrew and Abate, Marcus and Hughes, Nathan and Chang, Yun
+   and Shi, Jingnan and Gupta, Arjun and Carlone, Luca},
+   year = {2021},
+   journal = {arXiv preprint arXiv: 2101.06894},
+   pdf = {https://arxiv.org/pdf/2101.06894.pdf} 
+}
 ```
 
 ### Related Publications
 
 Backend optimization is based on:
 
- - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. **On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**. IEEE Trans. Robotics, 33(1):1-21, 2016.
+ - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. [**On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**](https://arxiv.org/pdf/1512.02363.pdf). IEEE Trans. Robotics, 33(1):1-21, 2016.
 
- - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. **Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.** IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
+ - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. [**Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.**](https://www.cc.gatech.edu/~dellaert/dhtml/pubs/Carlone14icra.pdf) IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 Alternatively, the `Regular VIO` Backend, using structural regularities, is described in this paper:
 
-- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. **Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**. IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
+- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. [**Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**](https://arxiv.org/pdf/1903.01067.pdf). IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
 
 ## Demo
 
@@ -163,6 +176,19 @@ To get help on what each gflag parameter does, just run the executable with the 
   - Optionally, you can try the VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
 OpenCV's 3D visualization also has some shortcuts for interaction: check [tips for usage](./docs/tips_usage.md)
+
+Camera parameters can be described using the pinhole model or the omni model. The omni model is based on the OCamCalib toolbox described in [this paper](http://rpg.ifi.uzh.ch/docs/CCMVS2007_scaramuzza.pdf). A tutorial for generating the calibration can be found [here](https://sites.google.com/site/scarabotix/ocamcalib-toolbox).
+
+The Omni camera model requires these additional parameters:
+
+```
+omni_affine
+omni_distortion_center
+```
+
+The distortion polynomial is stored in the `distortion_coefficients` field. The matlab toolbox gives only 4 coefficients as output, however Kimera supports 5 coefficients. The second one can be set to zero. For example, if your output from OCamCalib is `[1, 2, 3, 4]` then you can set `distortion_coefficients` to `[1, 0, 2, 3, 4]` in the camera parameters file.
+
+Inverse polynomial for projection is not required. In the omni camera case, the `intrinsics` field represents the intrinsics of a **ideal pinhole model** of the fisheye camera, which is primarily used when instantiating gtsam calibrations that currently are only implemented for pinhole cameras. Leaving it blank is sufficient as the code will generate a ideal model based on the image size. You may supply your own ideal pinhole intrinsics and they will be used instead. In the pinhole case, these values must be supplied consistently with the camera parameters (focal lengths and image center). 
 
 # 4. Contribution guidelines
 

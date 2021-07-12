@@ -62,13 +62,13 @@ class UndistorterRectifier {
       boost::optional<cv::Mat> P = boost::none);
 
   /**
-   * @brief UndistortKeypointAndGetVersor undistort a single pixel,
+   * @brief GetBearingVector undistort a single pixel,
    * and return the corresponding versor.
    * (unit norm vector corresponding to bearing).
    * @param cv_px keypoint
    * @param cam_param CameraParams instance
    */
-  static gtsam::Vector3 UndistortKeypointAndGetVersor(
+  static gtsam::Vector3 GetBearingVector(
       const KeypointCV& keypoint,
       const CameraParams& cam_param,
       boost::optional<cv::Mat> R = boost::none);

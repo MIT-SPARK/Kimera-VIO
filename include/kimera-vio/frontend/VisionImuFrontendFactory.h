@@ -36,15 +36,17 @@ class VisionImuFrontendFactory {
       const FrontendParams& frontend_params,
       const Camera::ConstPtr& camera,
       DisplayQueue* display_queue,
-      bool log_output) {
+      bool log_output,
+      boost::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
         return VIO::make_unique<MonoVisionImuFrontend>(imu_params,
-                                                    imu_initial_bias,
-                                                    frontend_params,
-                                                    camera,
-                                                    display_queue,
-                                                    log_output);
+                                                       imu_initial_bias,
+                                                       frontend_params,
+                                                       camera,
+                                                       display_queue,
+                                                       log_output,
+                                                       odom_params);
       }
       case FrontendType::kStereoImu: {
         LOG(FATAL) << "Tried to create a StereoVisionFrontEnd"
@@ -69,7 +71,8 @@ class VisionImuFrontendFactory {
       const FrontendParams& frontend_params,
       const StereoCamera::ConstPtr& stereo_camera,
       DisplayQueue* display_queue,
-      bool log_output) {
+      bool log_output,
+      boost::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
         LOG(FATAL) << "Tried to create a MonoVisionFrontEnd"
@@ -77,11 +80,12 @@ class VisionImuFrontendFactory {
       }
       case FrontendType::kStereoImu: {
         return VIO::make_unique<StereoVisionImuFrontend>(imu_params,
-                                                      imu_initial_bias,
-                                                      frontend_params,
-                                                      stereo_camera,
-                                                      display_queue,
-                                                      log_output);
+                                                         imu_initial_bias,
+                                                         frontend_params,
+                                                         stereo_camera,
+                                                         display_queue,
+                                                         log_output,
+                                                         odom_params);
       }
       default: {
         LOG(FATAL) << "Requested frontend type is not supported.\n"

@@ -17,6 +17,7 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -29,13 +30,13 @@ UndistorterRectifier::UndistorterRectifier(const cv::Mat& P,
   initUndistortRectifyMaps(cam_params, R, P, &map_x_, &map_y_);
 }
 
-// TODO(marcus): add unit test w/ and w/o rectification
 void UndistorterRectifier::UndistortRectifyKeypoints(
     const KeypointsCV& keypoints,
     KeypointsCV* undistorted_keypoints,
     const CameraParams& cam_param,
     boost::optional<cv::Mat> R,
     boost::optional<cv::Mat> P) {
+  CHECK_NOTNULL(undistorted_keypoints)->clear();
   switch (cam_param.distortion_model_) {
     case DistortionModel::RADTAN: {
       cv::undistortPoints(keypoints,
@@ -54,6 +55,12 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
                                    R ? R.get() : cv::noArray(),
                                    P ? P.get() : cv::noArray());
     } break;
+    case DistortionModel::OMNI: {
+      // TODO(marcus): when impl moves to gtsam::OmniCamera, use that here
+      // and implement undistort here by calling the camera's backproject!
+      Camera::UndistortKeypointsOmni(
+          keypoints, cam_param, P, undistorted_keypoints);
+    } break;
     default: {
       LOG(FATAL) << "Unknown distortion model.";
     }
@@ -63,7 +70,7 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
 // NOTE: we don't pass P because we want normalized/canonical pixel
 // coordinates (3D bearing vectors with last element = 1) for versors.
 // If we were to pass P, it would convert back to pixel coordinates.
-gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
+gtsam::Vector3 UndistorterRectifier::GetBearingVector(
     const KeypointCV& keypoint,
     const CameraParams& cam_param,
     boost::optional<cv::Mat> R) {
@@ -78,7 +85,7 @@ gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
       &undistorted_keypoint,
       cam_param,
       R,
-      boost::none);
+      boost::none);  // NOTE: not sending P because we want canonical frame
 
   // Transform to unit vector.
   gtsam::Vector3 versor(
@@ -97,7 +104,7 @@ gtsam::Vector3 UndistorterRectifier::UndistortKeypointAndGetVersor(
   //  std::cout << "distorted_keypoint: \n" << distorted_keypoint << std::endl;
   //  std::cout << "distorted_keypoint_gtsam: \n" << distorted_keypoint_gtsam <<
   //  std::endl; std::cout << "px_mismatch: \n" << px_mismatch << std::endl;
-  //  throw std::runtime_error("UndistortKeypointAndGetVersor: possible calibration
+  //  throw std::runtime_error("GetBearingVector: possible calibration
   //  mismatch");
   //}
 
@@ -138,48 +145,63 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
   status_kps->reserve(distorted_kps.size());
 
   int invalid_count = 0;
-  for (size_t i = 0u; i < undistorted_kps.size(); i++) {
-    // cropToSize modifies keypoints, so we have to copy.
-    KeypointCV distorted_kp = distorted_kps[i];
-    KeypointCV undistorted_kp = undistorted_kps[i];
-    bool cropped = UtilsOpenCV::cropToSize(&undistorted_kp, map_x_.size());
+  switch (cam_params_.camera_model_) {
+    case CameraModel::PINHOLE : {
+      for (size_t i = 0u; i < undistorted_kps.size(); i++) {
+        // cropToSize modifies keypoints, so we have to copy.
+        KeypointCV distorted_kp = distorted_kps[i];
+        KeypointCV undistorted_kp = undistorted_kps[i];
+        bool cropped = UtilsOpenCV::cropToSize(&undistorted_kp, map_x_.size());
 
-    // TODO(Toni): would be nicer to interpolate exact position.
-    float expected_distorted_kp_x = map_x_.at<float>(
-        std::round(undistorted_kp.y), std::round(undistorted_kp.x));
-    float expected_distorted_kp_y = map_y_.at<float>(
-        std::round(undistorted_kp.y), std::round(undistorted_kp.x));
+        // TODO(Toni): would be nicer to interpolate exact position.
+        float expected_distorted_kp_x = map_x_.at<float>(
+            std::round(undistorted_kp.y), std::round(undistorted_kp.x));
+        float expected_distorted_kp_y = map_y_.at<float>(
+            std::round(undistorted_kp.y), std::round(undistorted_kp.x));
 
-    if (cropped) {
-      VLOG(5) << "Undistorted Rectified keypoint out of image!\n"
-              << "Keypoint undistorted: \n"
-              << undistorted_kps[i] << '\n'
-              << "Image Size (map x size): " << map_x_.size;
-      invalid_count += 1;
-      status_kps->push_back(
-          std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
-    } else {
-      if (std::fabs(distorted_kp.x - expected_distorted_kp_x) > pixel_tol ||
-          std::fabs(distorted_kp.y - expected_distorted_kp_y) > pixel_tol) {
-        // Mark as invalid all pixels that were undistorted out of the frame
-        // and for which the undistorted rectified keypoint remaps close to
-        // the distorted unrectified pixel.
-        VLOG(5) << "Pixel mismatch when checking undistortRectification! \n"
-                 << "Actual undistorted Keypoint: \n"
-                 << " - x: " << undistorted_kp.x << '\n'
-                 << " - y: " << undistorted_kp.y << '\n'
-                 << "Expected undistorted Keypoint: \n"
-                 << " - x: " << expected_distorted_kp_x << '\n'
-                 << " - y: " << expected_distorted_kp_y;
-        // Invalid points.
-        invalid_count += 1;
-        status_kps->push_back(
-            std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
-      } else {
-        // Point is valid!
-        status_kps->push_back(
-            std::make_pair(KeypointStatus::VALID, undistorted_kp));
+        if (cropped) {
+          VLOG(5) << "Undistorted Rectified keypoint out of image!\n"
+                  << "Keypoint undistorted: \n"
+                  << undistorted_kps[i] << '\n'
+                  << "Image Size (map x size): " << map_x_.size;
+          invalid_count += 1;
+          status_kps->push_back(
+              std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
+        } else {
+          if (std::fabs(distorted_kp.x - expected_distorted_kp_x) > pixel_tol ||
+              std::fabs(distorted_kp.y - expected_distorted_kp_y) > pixel_tol) {
+            // Mark as invalid all pixels that were undistorted out of the frame
+            // and for which the undistorted rectified keypoint remaps close to
+            // the distorted unrectified pixel.
+            VLOG(5) << "Pixel mismatch when checking undistortRectification! \n"
+                    << "Actual undistorted Keypoint: \n"
+                    << " - x: " << undistorted_kp.x << '\n'
+                    << " - y: " << undistorted_kp.y << '\n'
+                    << "Expected undistorted Keypoint: \n"
+                    << " - x: " << expected_distorted_kp_x << '\n'
+                    << " - y: " << expected_distorted_kp_y;
+            // Invalid points.
+            invalid_count += 1;
+            status_kps->push_back(
+                std::make_pair(KeypointStatus::NO_LEFT_RECT, undistorted_kp));
+          } else {
+            // Point is valid!
+            status_kps->push_back(
+                std::make_pair(KeypointStatus::VALID, undistorted_kp));
+          }
+        }
       }
+    } break;
+    case CameraModel::OMNI: {
+      // TODO(marcus): add some logic here for actual projection checks
+      // TODO(marcus): does it make sense to add NO_LEFT_RECT?
+      for (const KeypointCV& kpt : undistorted_kps) {
+        KeypointStatus status = KeypointStatus::VALID;
+        status_kps->push_back(StatusKeypointCV(status, kpt));
+      }
+    } break;
+    default: {
+      LOG(FATAL) << "Unknown camera model.";
     }
   }
 
@@ -247,6 +269,11 @@ void UndistorterRectifier::initUndistortRectifyMaps(
           // Output:
           map_x_float,
           map_y_float);
+    } break;
+    case DistortionModel::OMNI: {
+      LOG(WARNING) << "UndistorterRectifier: Attempting to initialize for OMNI "
+                   "camera, but undistortion is implemented at camera level. "
+                   "UndistorterRectifier will not work.";
     } break;
     default: {
       LOG(FATAL) << "Unknown distortion model: "
