@@ -83,6 +83,7 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
                           &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
+  yaml_parser.getYamlParam("gnc_alpha", &gnc_alpha_);
 
   return true;
 }
@@ -152,7 +153,9 @@ void LoopClosureDetectorParams::print() const {
                         "pgo_rot_threshold_: ",
                         pgo_rot_threshold_,
                         "pgo_trans_threshold_: ",
-                        pgo_trans_threshold_);
+                        pgo_trans_threshold_,
+                        "gnc_alpha_",
+                        gnc_alpha_);
   LOG(INFO) << out.str();
 }
 

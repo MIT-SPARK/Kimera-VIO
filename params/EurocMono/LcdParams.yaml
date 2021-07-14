@@ -33,6 +33,7 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
 pgo_rot_threshold: 0.001
 pgo_trans_threshold: 0.001
+gnc_alpha: 0.7
 
 #TRACKER PARAMETERS for outlier rejection
 maxFeatureAge: 25

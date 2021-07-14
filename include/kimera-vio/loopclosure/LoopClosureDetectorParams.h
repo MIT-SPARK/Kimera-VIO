@@ -105,6 +105,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   ////////////////////////////// PGO solver params /////////////////////////////
   double pgo_rot_threshold_ = 0.01;
   double pgo_trans_threshold_ = 0.1;
+  double gnc_alpha_ = 0.7;
   //////////////////////////////////////////////////////////////////////////////
 };
 

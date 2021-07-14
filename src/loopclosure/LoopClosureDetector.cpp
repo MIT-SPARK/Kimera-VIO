@@ -118,6 +118,8 @@ LoopClosureDetector::LoopClosureDetector(
   pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
                                   lcd_params_.pgo_rot_threshold_,
                                   KimeraRPGO::Verbosity::QUIET);
+  if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1)
+    pgo_params.setGncInlierCostThresholdsAtProbability(lcd_params_.gnc_alpha_);
   pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
 
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
