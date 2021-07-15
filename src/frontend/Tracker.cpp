@@ -301,6 +301,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
     //! Fill debug info.
     debug_info_.nrMonoPutatives_ = adapter.getNumberCorrespondences();
     debug_info_.nrMonoInliers_ = inliers->size();
+    debug_info_.monoRansacIters_ = 0;  // no access to ransac from here
     // debug_info_.monoRansacIters_ = ransac->iterations_;
 
     status_pose = std::make_pair(status, best_pose);
@@ -728,6 +729,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection3d3d(
     debug_info_.nrStereoPutatives_ = adapter.getNumberCorrespondences();
     debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
     debug_info_.nrStereoInliers_ = inliers->size();
+    debug_info_.stereoRansacIters_ = 0;  // no access to ransac from here
     // debug_info_.stereoRansacIters_ = iterations;
 
     status_pose = std::make_pair(status, best_pose);
@@ -1123,7 +1125,9 @@ bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
                   gtsam::Pose3* F_Pose_cam_estimate,
                   std::vector<int>* inliers,
                   gtsam::Pose3* F_Pose_cam_prior) {
+  auto start_time_tic = utils::Timer::tic();
   bool success = false;
+
   if (F_points.size() == 0) {
     LOG(WARNING) << "No 2D-3D correspondences found for 2D-3D RANSAC...";
     *F_Pose_cam_estimate = gtsam::Pose3::identity();
@@ -1258,6 +1262,13 @@ bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
         break;
       }
     }
+
+    //! Fill debug info.
+    debug_info_.nrStereoPutatives_ = adapter.getNumberCorrespondences();
+    debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+    debug_info_.nrStereoInliers_ = inliers->size();
+    debug_info_.stereoRansacIters_ = 0;  // no access to ransac from here
+    // debug_info_.stereoRansacIters_ = iterations;
   }
 
   VLOG(5) << "PnP tracking " << (success ? " success " : " failure ") << ":\n"

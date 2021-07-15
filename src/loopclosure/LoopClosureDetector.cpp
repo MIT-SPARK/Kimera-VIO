@@ -137,7 +137,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
   timestamp_map_[input.cur_kf_id_] = input.timestamp_;
-  // TODO: W_Pose_Blkf_estimates_.push_back(odom_factor.W_Pose_Blkf_);
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
 
@@ -240,6 +239,14 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
     debug_info_.pgo_size_ = pgo_->size();
     debug_info_.pgo_lc_count_ = pgo_->getNumLC();
     debug_info_.pgo_lc_inliers_ = pgo_->getNumLCInliers();
+
+    debug_info_.mono_input_size_ = tracker_.debug_info_.nrMonoPutatives_;
+    debug_info_.mono_inliers_ = tracker_.debug_info_.nrMonoInliers_;
+    debug_info_.mono_iter_ = tracker_.debug_info_.monoRansacIters_;
+
+    debug_info_.stereo_input_size_ = tracker_.debug_info_.nrStereoPutatives_;
+    debug_info_.stereo_inliers_ = tracker_.debug_info_.nrStereoInliers_;
+    debug_info_.stereo_iter_ = tracker_.debug_info_.stereoRansacIters_;
 
     logger_->logTimestampMap(timestamp_map_);
     logger_->logDebugInfo(debug_info_);
@@ -565,6 +572,11 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
     *camMatch_T_camQuery_2d = result.second;
   }
 
+  if (logger_)
+    logger_->logGeometricVerification(db_frames_[cur_id].timestamp_,
+                                      db_frames_[ref_id].timestamp_,
+                                      *camMatch_T_camQuery_2d);
+
   if (result.first == TrackingStatus::VALID) return true;
   return false;
 }
@@ -636,6 +648,12 @@ bool LoopClosureDetector::recoverPoseBody(
 
   transformCameraPoseToBodyPose(camMatch_T_camQuery_3d,
                                 bodyMatch_T_bodyQuery_3d);
+
+  if (logger_)
+    logger_->logPoseRecovery(db_frames_[cur_id].timestamp_,
+                             db_frames_[ref_id].timestamp_,
+                             *bodyMatch_T_bodyQuery_3d);
+
   return success;
 }
 
