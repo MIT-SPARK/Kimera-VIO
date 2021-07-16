@@ -191,7 +191,7 @@ class LoopClosureDetector {
    * WARNING: This is a potentially dangerous method to use because it requires
    *  a manual deletion of the pointer before it goes out of scope.
    */
-  inline const std::vector<LCDFrame>* getFrameDatabasePtr() const {
+  inline const std::vector<LCDFrame::Ptr>* getFrameDatabasePtr() const {
     return &db_frames_;
   }
 
@@ -349,7 +349,7 @@ class LoopClosureDetector {
 
   // BoW and Loop Detection database and members
   std::unique_ptr<OrbDatabase> db_BoW_;
-  std::vector<LCDFrame> db_frames_;
+  std::vector<LCDFrame::Ptr> db_frames_;
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring

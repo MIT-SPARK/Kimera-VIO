@@ -160,19 +160,28 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // Process the StereoFrame and check for a loop closure with previous ones.
   LoopResult loop_result;
   FrameId lcd_frame_id;
-  if (input.frontend_output_->frontend_type_ == FrontendType::kStereoImu) {
-    StereoFrontendOutput::Ptr stereo_frontend_output =
-        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-            input.frontend_output_);
-    lcd_frame_id =
-        processAndAddStereoFrame(stereo_frontend_output->stereo_frame_lkf_);
-  } else {
-    MonoFrontendOutput::Ptr mono_frontend_output =
-        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-            input.frontend_output_);
-    lcd_frame_id = processAndAddMonoFrame(mono_frontend_output->frame_lkf_,
-                                          input.W_points_with_ids_,
-                                          input.W_Pose_Blkf_);
+  switch (input.frontend_output_->frontend_type_) {
+    case FrontendType::kMonoImu: {
+      MonoFrontendOutput::Ptr mono_frontend_output =
+          VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+              input.frontend_output_);
+      lcd_frame_id = processAndAddMonoFrame(mono_frontend_output->frame_lkf_,
+                                            input.W_points_with_ids_,
+                                            input.W_Pose_Blkf_);
+      break;
+    }
+    case FrontendType::kStereoImu: {
+      StereoFrontendOutput::Ptr stereo_frontend_output =
+          VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+              input.frontend_output_);
+      lcd_frame_id =
+          processAndAddStereoFrame(stereo_frontend_output->stereo_frame_lkf_);
+      break;
+    }
+    default: {
+      LOG(FATAL)
+          << "LoopClosureDetector not implemented for this frontend type.";
+    }
   }
   detectLoop(lcd_frame_id, &loop_result);
 
@@ -201,8 +210,8 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   }
 
   // Timestamps for PGO and for LCD should match now.
-  CHECK_EQ(db_frames_.back().timestamp_,
-           timestamp_map_.at(db_frames_.back().id_));
+  CHECK_EQ(db_frames_.back()->timestamp_,
+           timestamp_map_.at(db_frames_.back()->id_));
   CHECK_EQ(timestamp_map_.size(), db_frames_.size());
   CHECK_EQ(timestamp_map_.size(), W_Pose_Blkf_estimates_.size());
 
@@ -347,19 +356,18 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
   descriptorMatToVec(descriptors_mat, &descriptors_vec);
 
   // Build and store LCDFrame object.
-  db_frames_.push_back(LCDFrame(frame.timestamp_,
-                                FrameId(db_frames_.size()),
-                                frame.id_,
-                                keypoints_for_descriptor_compute,
-                                keypoints_3d,
-                                descriptors_vec,
-                                descriptors_mat,
-                                undistorted_bearing_vectors,
-                                undistorted_keypoints_with_status,
-                                StatusKeypointsCV()));
+  db_frames_.push_back(
+      std::make_shared<LCDFrame>(frame.timestamp_,
+                                 FrameId(db_frames_.size()),
+                                 frame.id_,
+                                 keypoints_for_descriptor_compute,
+                                 keypoints_3d,
+                                 descriptors_vec,
+                                 descriptors_mat,
+                                 undistorted_bearing_vectors));
 
   CHECK(!db_frames_.empty());
-  return db_frames_.back().id_;
+  return db_frames_.back()->id_;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -377,20 +385,21 @@ FrameId LoopClosureDetector::processAndAddStereoFrame(
   rewriteStereoFrameFeatures(keypoints, &cp_stereo_frame);
 
   // Build and store LCDFrame object.
-  db_frames_.push_back(LCDFrame(cp_stereo_frame.timestamp_,
-                                db_frames_.size(),
-                                cp_stereo_frame.id_,
-                                keypoints,
-                                // keypoints_3d_ are in local (camera) frame
-                                cp_stereo_frame.keypoints_3d_,
-                                descriptors_vec,
-                                descriptors_mat,
-                                cp_stereo_frame.left_frame_.versors_,
-                                cp_stereo_frame.left_keypoints_rectified_,
-                                cp_stereo_frame.right_keypoints_rectified_));
+  db_frames_.push_back(std::make_shared<StereoLCDFrame>(
+      cp_stereo_frame.timestamp_,
+      db_frames_.size(),
+      cp_stereo_frame.id_,
+      keypoints,
+      // keypoints_3d_ are in local (camera) frame
+      cp_stereo_frame.keypoints_3d_,
+      descriptors_vec,
+      descriptors_mat,
+      cp_stereo_frame.left_frame_.versors_,
+      cp_stereo_frame.left_keypoints_rectified_,
+      cp_stereo_frame.right_keypoints_rectified_));
 
   CHECK(!db_frames_.empty());
-  return db_frames_.back().id_;
+  return db_frames_.back()->id_;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -433,7 +442,7 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
   // Create BOW representation of descriptors.
   DBoW2::BowVector bow_vec;
   DCHECK(db_BoW_);
-  db_BoW_->getVocabulary()->transform(db_frames_[frame_id].descriptors_vec_,
+  db_BoW_->getVocabulary()->transform(db_frames_[frame_id]->descriptors_vec_,
                                       bow_vec);
 
   int max_possible_match_id = frame_id - lcd_params_.recent_frames_window_;
@@ -504,8 +513,8 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
             // Find correspondences between keypoints.
             KeypointMatches matches_match_query;
             computeDescriptorMatches(
-                db_frames_[result->match_id_].descriptors_mat_,
-                db_frames_[result->query_id_].descriptors_mat_,
+                db_frames_[result->match_id_]->descriptors_mat_,
+                db_frames_[result->query_id_]->descriptors_mat_,
                 &matches_match_query,
                 true);
 
@@ -564,8 +573,8 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
   } else {
     std::vector<int> inliers;
     result = tracker_.geometricOutlierRejection2d2d(
-        db_frames_[ref_id].bearing_vectors_,
-        db_frames_[cur_id].bearing_vectors_,
+        db_frames_[ref_id]->bearing_vectors_,
+        db_frames_[cur_id]->bearing_vectors_,
         matches_match_query,
         &inliers);
 
@@ -573,8 +582,8 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
   }
 
   if (logger_)
-    logger_->logGeometricVerification(db_frames_[cur_id].timestamp_,
-                                      db_frames_[ref_id].timestamp_,
+    logger_->logGeometricVerification(db_frames_[cur_id]->timestamp_,
+                                      db_frames_[ref_id]->timestamp_,
                                       *camMatch_T_camQuery_2d);
 
   if (result.first == TrackingStatus::VALID) return true;
@@ -602,9 +611,9 @@ bool LoopClosureDetector::recoverPoseBody(
     Landmarks camMatch_points;
     for (const KeypointMatch& it : matches_match_query) {
       const BearingVector& query_bearing =
-          db_frames_[cur_id].bearing_vectors_.at(it.second);
+          db_frames_[cur_id]->bearing_vectors_.at(it.second);
       const Landmark& match_point =
-          db_frames_[ref_id].keypoints_3d_.at(it.first);
+          db_frames_[ref_id]->keypoints_3d_.at(it.first);
       camQuery_bearing_vectors.push_back(query_bearing);
       camMatch_points.push_back(match_point);
     }
@@ -617,14 +626,27 @@ bool LoopClosureDetector::recoverPoseBody(
   } else {
     TrackingStatusPose result;
     if (tracker_.tracker_params_.ransac_use_1point_stereo_) {
+      // For 1pt we need stereo, so cast to derived form.
+      StereoLCDFrame::Ptr ref_stereo_lcd_frame = nullptr;
+      StereoLCDFrame::Ptr cur_stereo_lcd_frame = nullptr;
+      ref_stereo_lcd_frame =
+          std::dynamic_pointer_cast<StereoLCDFrame>(db_frames_[ref_id]);
+      cur_stereo_lcd_frame =
+          std::dynamic_pointer_cast<StereoLCDFrame>(db_frames_[cur_id]);
+      if (!ref_stereo_lcd_frame || !cur_stereo_lcd_frame) {
+        LOG(FATAL) << "LoopClosureDetector: Error casting to StereoLCDFrame. "
+                      "Cannot have ransac_use_1point_stereo_ enabled without "
+                      "stereo frontend inputs.";
+      }
+
       std::pair<TrackingStatusPose, gtsam::Matrix3> result_full =
           tracker_.geometricOutlierRejection3d3dGivenRotation(
-              db_frames_[ref_id].left_keypoints_rectified_,
-              db_frames_[ref_id].right_keypoints_rectified_,
-              db_frames_[cur_id].left_keypoints_rectified_,
-              db_frames_[cur_id].right_keypoints_rectified_,
-              db_frames_[ref_id].keypoints_3d_,
-              db_frames_[cur_id].keypoints_3d_,
+              ref_stereo_lcd_frame->left_keypoints_rectified_,
+              ref_stereo_lcd_frame->right_keypoints_rectified_,
+              cur_stereo_lcd_frame->left_keypoints_rectified_,
+              cur_stereo_lcd_frame->right_keypoints_rectified_,
+              ref_stereo_lcd_frame->keypoints_3d_,
+              cur_stereo_lcd_frame->keypoints_3d_,
               stereo_camera_,
               matches_match_query,
               camMatch_T_camQuery_2d.rotation(),
@@ -633,8 +655,8 @@ bool LoopClosureDetector::recoverPoseBody(
       camMatch_T_camQuery_3d = result.second;
     } else {
       result = tracker_.geometricOutlierRejection3d3d(
-          db_frames_[ref_id].keypoints_3d_,
-          db_frames_[cur_id].keypoints_3d_,
+          db_frames_[ref_id]->keypoints_3d_,
+          db_frames_[cur_id]->keypoints_3d_,
           matches_match_query,
           &inliers);
       camMatch_T_camQuery_3d = result.second;
@@ -650,8 +672,8 @@ bool LoopClosureDetector::recoverPoseBody(
                                 bodyMatch_T_bodyQuery_3d);
 
   if (logger_)
-    logger_->logPoseRecovery(db_frames_[cur_id].timestamp_,
-                             db_frames_[ref_id].timestamp_,
+    logger_->logPoseRecovery(db_frames_[cur_id]->timestamp_,
+                             db_frames_[ref_id]->timestamp_,
                              *bodyMatch_T_bodyQuery_3d);
 
   return success;
@@ -688,14 +710,29 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   smart_factors_params.setRetriangulationThreshold(0.001);
   smart_factors_params.setDynamicOutlierRejectionThreshold(3);
 
+  // Cast to stereo because we need access to left and right undistorted
+  // keypoints currently.
+  // refinePoses does not work in mono.
+  StereoLCDFrame::Ptr ref_stereo_lcd_frame = nullptr;
+  StereoLCDFrame::Ptr cur_stereo_lcd_frame = nullptr;
+  ref_stereo_lcd_frame =
+      std::dynamic_pointer_cast<StereoLCDFrame>(db_frames_.at(ref_id));
+  cur_stereo_lcd_frame =
+      std::dynamic_pointer_cast<StereoLCDFrame>(db_frames_.at(cur_id));
+  if (ref_stereo_lcd_frame && cur_stereo_lcd_frame) {
+    LOG(FATAL) << "LoopClosureDetector: Error casting to StereoLCDFrame. "
+                  "Cannot have ransac_use_1point_stereo_ enabled without "
+                  "stereo frontend inputs.";
+  }
+
   for (size_t i = 0; i < matches_match_query.size(); i++) {
     KeypointCV undistorted_rectified_left_match_keypoint =
-        (db_frames_[ref_id]
-             .left_keypoints_rectified_.at(matches_match_query[i].first)
+        (ref_stereo_lcd_frame->left_keypoints_rectified_
+             .at(matches_match_query[i].first)
              .second);
     KeypointCV undistorted_rectified_right_match_keypoint =
-        (db_frames_[ref_id]
-             .right_keypoints_rectified_.at(matches_match_query[i].first)
+        (ref_stereo_lcd_frame->right_keypoints_rectified_
+             .at(matches_match_query[i].first)
              .second);
 
     gtsam::StereoPoint2 sp_match_i(undistorted_rectified_left_match_keypoint.x,
@@ -708,12 +745,12 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
         sp_match_i, key_match, stereo_camera_->getStereoCalib());
 
     KeypointCV undistorted_rectified_left_query_keypoint =
-        (db_frames_[cur_id]
-             .left_keypoints_rectified_.at(matches_match_query[i].second)
+        (cur_stereo_lcd_frame->left_keypoints_rectified_
+             .at(matches_match_query[i].second)
              .second);
     KeypointCV undistorted_rectified_right_query_keypoint =
-        (db_frames_[cur_id]
-             .right_keypoints_rectified_.at(matches_match_query[i].second)
+        (cur_stereo_lcd_frame->right_keypoints_rectified_
+             .at(matches_match_query[i].second)
              .second);
 
     gtsam::StereoPoint2 sp_query_i(undistorted_rectified_left_query_keypoint.x,
@@ -861,8 +898,8 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
   if (cut_matches) lowe_ratio = lcd_params_.lowe_ratio_;
 
   // TODO(marcus): this can use computeDescriptorMatches() as well...
-  orb_feature_matcher_->knnMatch(db_frames_[query_id].descriptors_mat_,
-                                 db_frames_[match_id].descriptors_mat_,
+  orb_feature_matcher_->knnMatch(db_frames_[query_id]->descriptors_mat_,
+                                 db_frames_[match_id]->descriptors_mat_,
                                  matches,
                                  2u);
 
@@ -875,9 +912,9 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
   // Draw matches.
   cv::Mat img_matches;
   cv::drawMatches(query_img,
-                  db_frames_.at(query_id).keypoints_,
+                  db_frames_.at(query_id)->keypoints_,
                   match_img,
-                  db_frames_.at(match_id).keypoints_,
+                  db_frames_.at(match_id)->keypoints_,
                   good_matches,
                   img_matches,
                   cv::Scalar(255, 0, 0),

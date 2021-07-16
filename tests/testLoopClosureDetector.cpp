@@ -372,25 +372,25 @@ TEST_F(LCDFixture, processAndAddMonoFrame) {
       match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_bodyMatch1_);
 
   size_t nr_kpts =
-      lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size();
+      lcd_detector_->getFrameDatabasePtr()->at(0)->keypoints_.size();
   EXPECT_EQ(id_0, 0);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 1);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).timestamp_,
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0)->timestamp_,
             timestamp_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).id_kf_, id_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_3d_.size(),
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0)->id_kf_, id_match1_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0)->keypoints_3d_.size(),
             nr_kpts);
 
   FrameId id_1 = lcd_detector_->processAndAddMonoFrame(
       query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_bodyQuery1_);
 
-  nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_.size();
+  nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(1)->keypoints_.size();
   EXPECT_EQ(id_1, 1);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 2);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).timestamp_,
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1)->timestamp_,
             timestamp_query1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).id_kf_, id_query1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_3d_.size(),
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1)->id_kf_, id_query1_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1)->keypoints_3d_.size(),
             nr_kpts);
 
   // Perform the same test but with 5 fewer world points in the map to make sure
@@ -409,16 +409,16 @@ TEST_F(LCDFixture, processAndAddMonoFrame) {
                                             W_match1_lmks3d_subset,
                                             world_T_bodyMatch1_);
 
-  nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(2).keypoints_.size();
+  nr_kpts = lcd_detector_->getFrameDatabasePtr()->at(2)->keypoints_.size();
   EXPECT_EQ(nr_kpts,
-            lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size() -
+            lcd_detector_->getFrameDatabasePtr()->at(0)->keypoints_.size() -
                 num_remove);
   EXPECT_EQ(id_2, 2);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 3);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2).timestamp_,
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2)->timestamp_,
             timestamp_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2).id_kf_, id_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2).keypoints_3d_.size(),
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2)->id_kf_, id_match1_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(2)->keypoints_3d_.size(),
             nr_kpts);
 }
 
@@ -428,23 +428,42 @@ TEST_F(LCDFixture, processAndAddStereoFrame) {
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
 
   FrameId id_0 = lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
-
   EXPECT_EQ(id_0, 0);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 1);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).timestamp_,
-            timestamp_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).id_kf_, id_match1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size(),
+
+  StereoLCDFrame::Ptr stereo_lcd_frame =
+      std::dynamic_pointer_cast<StereoLCDFrame>(
+          lcd_detector_->getFrameDatabasePtr()->at(0));
+  EXPECT_EQ(stereo_lcd_frame->timestamp_, timestamp_match1_);
+  EXPECT_EQ(stereo_lcd_frame->id_kf_, id_match1_);
+  EXPECT_EQ(stereo_lcd_frame->keypoints_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->keypoints_3d_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->descriptors_vec_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->descriptors_mat_.size().height,
+            lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->bearing_vectors_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->left_keypoints_rectified_.size(),
+            lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->right_keypoints_rectified_.size(),
             lcd_params_.nfeatures_);
 
   FrameId id_1 = lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
-
   EXPECT_EQ(id_1, 1);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 2);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).timestamp_,
-            timestamp_query1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).id_kf_, id_query1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(1).keypoints_.size(),
+
+  stereo_lcd_frame = std::dynamic_pointer_cast<StereoLCDFrame>(
+      lcd_detector_->getFrameDatabasePtr()->at(1));
+  EXPECT_EQ(stereo_lcd_frame->timestamp_, timestamp_query1_);
+  EXPECT_EQ(stereo_lcd_frame->id_kf_, id_query1_);
+  EXPECT_EQ(stereo_lcd_frame->keypoints_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->keypoints_3d_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->descriptors_vec_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->descriptors_mat_.size().height,
+            lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->bearing_vectors_.size(), lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->left_keypoints_rectified_.size(),
+            lcd_params_.nfeatures_);
+  EXPECT_EQ(stereo_lcd_frame->right_keypoints_rectified_.size(),
             lcd_params_.nfeatures_);
 }
 
@@ -459,8 +478,8 @@ TEST_F(LCDFixture, geometricVerificationCam2d2d) {
   // Find correspondences between keypoints.
   KeypointMatches matches;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(0).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(1).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
       &matches,
       true);
 
@@ -505,8 +524,8 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
   // Find correspondences between keypoints.
   KeypointMatches matches1;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(0).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(1).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
       &matches1,
       true);
 
@@ -528,8 +547,8 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
   // Find correspondences between keypoints.
   KeypointMatches matches2;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(2).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(3).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(2)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(3)->descriptors_mat_,
       &matches2,
       true);
 
@@ -575,8 +594,8 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   // Find correspondences between keypoints.
   KeypointMatches matches1;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(0).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(1).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
       &matches1,
       true);
 
@@ -615,8 +634,8 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   // Find correspondences between keypoints.
   KeypointMatches matches2;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(2).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(3).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(2)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(3)->descriptors_mat_,
       &matches2,
       true);
 
@@ -656,8 +675,8 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
   // Find correspondences between keypoints.
   KeypointMatches matches1;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(0).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(1).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
       &matches1,
       true);
 
@@ -695,8 +714,8 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
   // Find correspondences between keypoints.
   KeypointMatches matches1;
   lcd_detector_->computeDescriptorMatches(
-      lcd_detector_->getFrameDatabasePtr()->at(0).descriptors_mat_,
-      lcd_detector_->getFrameDatabasePtr()->at(1).descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
       &matches1,
       true);
 

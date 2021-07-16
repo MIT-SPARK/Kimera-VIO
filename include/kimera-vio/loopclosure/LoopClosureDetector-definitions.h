@@ -56,7 +56,8 @@ enum class GeomVerifOption : int { NISTER, NONE };
 enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT };
 
 struct LCDFrame {
-  LCDFrame() {}
+  KIMERA_POINTER_TYPEDEFS(LCDFrame);
+  LCDFrame() = default;
   LCDFrame(const Timestamp& timestamp,
            const FrameId& id,
            const FrameId& id_kf,
@@ -64,9 +65,7 @@ struct LCDFrame {
            const Landmarks& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
-           const BearingVectors& bearing_vectors,
-           const StatusKeypointsCV& left_keypoints_rectified,
-           const StatusKeypointsCV& right_keypoints_rectified)
+           const BearingVectors& bearing_vectors)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -74,9 +73,8 @@ struct LCDFrame {
         keypoints_3d_(keypoints_3d),
         descriptors_vec_(descriptors_vec),
         descriptors_mat_(descriptors_mat),
-        bearing_vectors_(bearing_vectors),
-        left_keypoints_rectified_(left_keypoints_rectified),
-        right_keypoints_rectified_(right_keypoints_rectified) {}
+        bearing_vectors_(bearing_vectors) {}
+  virtual ~LCDFrame() = default;
 
   Timestamp timestamp_;
   FrameId id_;
@@ -86,9 +84,36 @@ struct LCDFrame {
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors bearing_vectors_;
+};  // struct LCDFrame
+
+struct StereoLCDFrame : LCDFrame {
+  KIMERA_POINTER_TYPEDEFS(StereoLCDFrame);
+  StereoLCDFrame() = default;
+  StereoLCDFrame(const Timestamp& timestamp,
+                 const FrameId& id,
+                 const FrameId& id_kf,
+                 const std::vector<cv::KeyPoint>& keypoints,
+                 const Landmarks& keypoints_3d,
+                 const OrbDescriptorVec& descriptors_vec,
+                 const OrbDescriptor& descriptors_mat,
+                 const BearingVectors& bearing_vectors,
+                 const StatusKeypointsCV& left_keypoints_rectified,
+                 const StatusKeypointsCV& right_keypoints_rectified)
+      : LCDFrame(timestamp,
+                 id,
+                 id_kf,
+                 keypoints,
+                 keypoints_3d,
+                 descriptors_vec,
+                 descriptors_mat,
+                 bearing_vectors),
+        left_keypoints_rectified_(left_keypoints_rectified),
+        right_keypoints_rectified_(right_keypoints_rectified) {}
+  virtual ~StereoLCDFrame() = default;
+
   StatusKeypointsCV left_keypoints_rectified_;
   StatusKeypointsCV right_keypoints_rectified_;
-};  // struct LCDFrame
+};  // struct StereoLCDFrame
 
 struct MatchIsland {
   MatchIsland()
