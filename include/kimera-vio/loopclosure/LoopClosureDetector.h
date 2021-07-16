@@ -96,28 +96,6 @@ class LoopClosureDetector {
   FrameId processAndAddStereoFrame(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Detect features in frame for use with BoW and return keypoints and
-   * descriptors. Currently only ORB features are supported.
-   * @param[in] img Image from which to get features and descriptors.
-   * @param[out] keypoints The ORB keypoints that are detected in the image.
-   * @param[out] descriptors_mat The descriptors associated with the ORB
-   * keypoints in a matrix form.
-   * @param[out] descriptors_vec The descriptors vectorized.
-   */
-  void getNewFeaturesAndDescriptors(const cv::Mat& img,
-                                    std::vector<cv::KeyPoint>* keypoints,
-                                    OrbDescriptor* descriptors_mat);
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Convert an ORB descriptor from matrix form to vector form for
-   * use with BoW.
-   * @param[in] descriptors_mat An OrbDescriptor matrix with input descriptors
-   * @param[out] descriptors_vec The descriptors in vectorize format
-   */
-  void descriptorMatToVec(const OrbDescriptor& descriptors_mat,
-                          OrbDescriptorVec* descriptors_vec);
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Runs all checks on a frame and determines whether it a loop-closure
       with a previous frame or not. Fills the LoopResult with this information.
    * @param[in] frame_id A FrameId representing the ID of the latest LCDFrame
@@ -159,22 +137,7 @@ class LoopClosureDetector {
                        const KeypointMatches& matches_query_match,
                        gtsam::Pose3* bodyMatch_T_bodyQuery_3d);
 
-  /* ------------------------------------------------------------------------ */
-  /** @brief Refine relative pose given by ransac using smart factors.
-   * @param[in] ref_id The frame ID of the match image in the database.
-   * @param[in] cur_id The frame ID of the query image in the database.
-   * @param[in] camMatch_T_camQuery_3d The relative pose between the match
-   * frame
-   *  and the query frame, in the coordinates of the match frame.
-   * @param[in] inlier correspondences (from ransac) in the query frame
-   * @param[in] inlier correspondences (from ransac) in the match frame
-   * @return refined relative pose
-   */
-  gtsam::Pose3 refinePoses(const FrameId ref_id,
-                           const FrameId cur_id,
-                           const gtsam::Pose3& camMatch_T_camQuery_3d,
-                           const KeypointMatches& matches_query_match);
-
+ public:
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the RAW pointer to the BoW database.
    * @return A pointer to the BoW database.
@@ -326,6 +289,45 @@ class LoopClosureDetector {
                                 const OrbDescriptor& cur_descriptors,
                                 KeypointMatches* matches_match_query,
                                 bool cut_matches = false) const;
+
+ private:
+  /* ------------------------------------------------------------------------ */
+  /** @brief Detect features in frame for use with BoW and return keypoints and
+   * descriptors. Currently only ORB features are supported.
+   * @param[in] img Image from which to get features and descriptors.
+   * @param[out] keypoints The ORB keypoints that are detected in the image.
+   * @param[out] descriptors_mat The descriptors associated with the ORB
+   * keypoints in a matrix form.
+   * @param[out] descriptors_vec The descriptors vectorized.
+   */
+  void getNewFeaturesAndDescriptors(const cv::Mat& img,
+                                    std::vector<cv::KeyPoint>* keypoints,
+                                    OrbDescriptor* descriptors_mat);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Convert an ORB descriptor from matrix form to vector form for
+   * use with BoW.
+   * @param[in] descriptors_mat An OrbDescriptor matrix with input descriptors
+   * @param[out] descriptors_vec The descriptors in vectorize format
+   */
+  void descriptorMatToVec(const OrbDescriptor& descriptors_mat,
+                          OrbDescriptorVec* descriptors_vec);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Refine relative pose given by ransac using smart factors.
+   * @param[in] ref_id The frame ID of the match image in the database.
+   * @param[in] cur_id The frame ID of the query image in the database.
+   * @param[in] camMatch_T_camQuery_3d The relative pose between the match
+   * frame
+   *  and the query frame, in the coordinates of the match frame.
+   * @param[in] inlier correspondences (from ransac) in the query frame
+   * @param[in] inlier correspondences (from ransac) in the match frame
+   * @return refined relative pose
+   */
+  gtsam::Pose3 refinePoses(const FrameId ref_id,
+                           const FrameId cur_id,
+                           const gtsam::Pose3& camMatch_T_camQuery_3d,
+                           const KeypointMatches& matches_query_match);
 
  private:
   enum class LcdState {
