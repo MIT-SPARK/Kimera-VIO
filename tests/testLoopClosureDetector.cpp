@@ -908,4 +908,35 @@ TEST_F(LCDFixture, spinOnce) {
   EXPECT_EQ(output_2->states_.size(), 3);
 }
 
+TEST_F(LCDFixture, noRefinePosesInMono) {
+  /* Make sure the LCD pipline fails if refine_poses_ is set to true in mono */
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  CHECK(lcd_detector_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
+  lcd_params_.refine_pose_ = true;
+
+  lcd_detector_->processAndAddMonoFrame(
+      match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_bodyMatch1_);
+  lcd_detector_->processAndAddMonoFrame(
+      query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_bodyQuery1_);
+
+  // Find correspondences between keypoints.
+  KeypointMatches matches1;
+  lcd_detector_->computeDescriptorMatches(
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
+      &matches1,
+      true);
+
+  gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
+  EXPECT_DEATH(
+      lcd_detector_->recoverPoseBody(0,
+                                     1,
+                                     gtsam::Pose3::identity(),
+                                     matches1,
+                                     &bodyMatch1_T_bodyQuery1_stereo),
+      "LoopClosureDetector: Error casting to StereoLCDFrame. Cannot have "
+      "ransac_use_1point_stereo_ enabled without stereo frontend inputs.");
+}
+
 }  // namespace VIO
