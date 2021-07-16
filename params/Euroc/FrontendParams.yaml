@@ -66,8 +66,18 @@ disparityThreshold: 0.5
 # 1: Rotational - use IMU gyro to estimate optical flow.
 optical_flow_predictor_type: 1
 
+# 2D-2D pose estimation method
+use_2d2d_tracking: 1
+2d2d_algorithm: 0 # STEWENIUS
+optimize_2d2d_pose_from_inliers: 0
+
+# 3D-3D pose estimation
+use_3d3d_tracking: 1
+optimize_3d3d_pose_from_inliers: 0
+
 # 2D-3D pose estimation method
-use_pnp_tracking: true
-pnp_method: 3 # EPNP
+use_pnp_tracking: 1
+pnp_algorithm: 3 # EPNP
 min_pnp_inliers: 20 #TODO
 ransac_threshold_pnp: 1.0 #TODO
+optimize_2d3d_pose_from_inliers: 0

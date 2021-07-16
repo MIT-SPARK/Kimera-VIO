@@ -69,8 +69,6 @@ using Slot = long int;
 using SmartFactorMap =
     gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
-using Landmark = gtsam::Point3;
-using Landmarks = std::vector<Landmark>;
 using PointWithId = std::pair<LandmarkId, Landmark>;
 using PointsWithId = std::vector<PointWithId>;
 // TODO(Toni):  there is the same in vio_types.cpp, replace by that one, since
@@ -235,20 +233,30 @@ struct BackendInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(BackendInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  BackendInput(const Timestamp& timestamp_kf_nsec,
-               const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
-               const ImuFrontend::PimPtr& pim,
-               //! Raw imu msgs for Backend init only
-               const ImuAccGyrS& imu_acc_gyrs)
+  BackendInput(
+      const Timestamp& timestamp_kf_nsec,
+      const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
+      const ImuFrontend::PimPtr& pim,
+      //! Raw imu msgs for Backend init only
+      const ImuAccGyrS& imu_acc_gyrs,
+      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
+      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         pim_(pim),
-        imu_acc_gyrs_(imu_acc_gyrs) {}
+        imu_acc_gyrs_(imu_acc_gyrs),
+        body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
+  // between pose from last keyframe to current according to external odometry
+  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
+  // velocity of the current keyframe body w.r.t. the world frame in the body
+  // frame
+  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
  public:
   void print() const {

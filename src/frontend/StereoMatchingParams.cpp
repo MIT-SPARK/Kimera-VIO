@@ -96,6 +96,10 @@ bool StereoMatchingParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("maxPointDist", &max_point_dist_);
   yaml_parser.getYamlParam("bidirectionalMatching", &bidirectional_matching_);
   yaml_parser.getYamlParam("subpixelRefinementStereo", &subpixel_refinement_);
+  if (vision_sensor_type_ == VisionSensorType::RGBD) {
+    yaml_parser.getYamlParam("min_depth_factor", &min_depth_factor_);
+    yaml_parser.getYamlParam("map_depth_factor", &map_depth_factor_);
+  }
   return true;
 }
 

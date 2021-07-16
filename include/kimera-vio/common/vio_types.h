@@ -57,6 +57,8 @@ using PlaneId = std::uint64_t;
 using LandmarkId = long int;  // -1 for invalid landmarks. // int would be too
                             // small if it is 16 bits!
 using LandmarkIds = std::vector<LandmarkId>;
+using Landmark = gtsam::Point3;
+using Landmarks = std::vector<Landmark, Eigen::aligned_allocator<Landmark>>;
 using LandmarkCV = cv::Point3d;
 using LandmarksCV = std::vector<LandmarkCV>;
 enum class LandmarkType { SMART, PROJECTION };
@@ -64,11 +66,12 @@ using KeypointCV = cv::Point2f;
 using KeypointsCV = std::vector<KeypointCV>;
 using StatusKeypointCV = std::pair<KeypointStatus, KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
+using BearingVector = gtsam::Vector3;
 using BearingVectors =
-    std::vector<gtsam::Vector3, Eigen::aligned_allocator<gtsam::Vector3>>;
+    std::vector<BearingVector, Eigen::aligned_allocator<BearingVector>>;
 
 // TODO(Toni): we wouldn't need this if we didn't use vector of pairs.
-static void getValidKeypointsFromStatusKeypointsCV(
+static inline void getValidKeypointsFromStatusKeypointsCV(
     const StatusKeypointsCV& status_kpts_cv,
     KeypointsCV* valid_kpts) {
   CHECK_NOTNULL(valid_kpts)->clear();

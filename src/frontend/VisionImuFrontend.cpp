@@ -13,27 +13,16 @@
  */
 
 #include "kimera-vio/frontend/VisionImuFrontend.h"
-
-DEFINE_bool(visualize_feature_tracks, true, "Display feature tracks.");
-DEFINE_bool(visualize_frontend_images,
-            false,
-            "Display images in Frontend logger for debugging (only use "
-            "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(save_frontend_images,
-            false,
-            "Save images in Frontend logger to disk for debugging (only use "
-            "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(log_feature_tracks, false, "Display/Save feature tracks images.");
-DEFINE_bool(log_mono_tracking_images,
-            false,
-            "Display/Save stereo tracking rectified and unrectified images.");
+#include "kimera-vio/initial/CrossCorrTimeAligner.h"
 
 namespace VIO {
 
-VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
-                               const ImuBias& imu_initial_bias,
-                               DisplayQueue* display_queue,
-                               bool log_output)
+VisionImuFrontend::VisionImuFrontend(
+    const ImuParams& imu_params,
+    const ImuBias& imu_initial_bias,
+    DisplayQueue* display_queue,
+    bool log_output,
+    boost::optional<OdometryParams> odom_params)
     : frontend_state_(FrontendState::Bootstrap),
       frame_count_(0),
       keyframe_count_(0),
@@ -42,9 +31,13 @@ VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
       tracker_(nullptr),
       tracker_status_summary_(),
       display_queue_(display_queue),
-      logger_(nullptr) {
+      logger_(nullptr),
+      odom_params_(odom_params) {
   imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
-  if (log_output) logger_ = VIO::make_unique<FrontendLogger>();
+  if (log_output) {
+    logger_ = VIO::make_unique<FrontendLogger>();
+  }
+  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(imu_params);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {
@@ -55,16 +48,40 @@ FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
   const FrontendState& frontend_state = frontend_state_;
   switch (frontend_state) {
-    case FrontendState::Bootstrap: {
+    case FrontendState::Bootstrap:
       return bootstrapSpin(std::move(input));
-    } break;
-    case FrontendState::Nominal: {
+    case FrontendState::InitialTimeAlignment:
+      return timeAlignmentSpin(std::move(input));
+    case FrontendState::Nominal:
       return nominalSpin(std::move(input));
-    } break;
-    default: {
+    default:
       LOG(FATAL) << "Unrecognized Frontend state.";
-    } break;
+      break;
   }
+}
+
+FrontendOutputPacketBase::UniquePtr VisionImuFrontend::timeAlignmentSpin(
+    FrontendInputPacketBase::UniquePtr&& input) {
+  CHECK(time_aligner_);
+
+  ImuStampS imu_stamps = input->imu_stamps_;
+  ImuAccGyrS imu_accgyrs = input->imu_accgyrs_;
+
+  FrontendOutputPacketBase::UniquePtr nominal_output =
+      nominalSpin(std::move(input));
+  CHECK(nominal_output);
+
+  TimeAlignerBase::Result result = time_aligner_->estimateTimeAlignment(
+      *tracker_, *nominal_output, imu_stamps, imu_accgyrs, logger_.get());
+  if (result.valid) {
+    CHECK(imu_time_shift_update_callback_);
+    imu_time_shift_update_callback_(result.imu_time_shift);
+    frontend_state_ = FrontendState::Nominal;
+  }
+
+  // We always return an invalid input to ensure other modules don't
+  // start until after time alignment is finished
+  return nullptr;
 }
 
 void VisionImuFrontend::outlierRejectionMono(
@@ -74,20 +91,23 @@ void VisionImuFrontend::outlierRejectionMono(
     TrackingStatusPose* status_pose_mono) {
   CHECK_NOTNULL(status_pose_mono);
   if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity())) {
+      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity()) &&
+      frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
-    *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(
-        frame_lkf, frame_k, keyframe_R_cur_frame);
+    gtsam::Pose3 keyframe_Pose_cur_frame(keyframe_R_cur_frame,
+                                         gtsam::Point3::Identity());
+    *status_pose_mono = tracker_->geometricOutlierRejection2d2d(
+        frame_lkf, frame_k, keyframe_Pose_cur_frame);
   } else {
     // 5-point RANSAC.
     *status_pose_mono =
-        tracker_->geometricOutlierRejectionMono(frame_lkf, frame_k);
+        tracker_->geometricOutlierRejection2d2d(frame_lkf, frame_k);
   }
 }
 
 void VisionImuFrontend::printTrackingStatus(const TrackingStatus& status,
-                                         const std::string& type) {
+                                            const std::string& type) {
   LOG(INFO) << "Status " << type << ": "
             << TrackerStatusSummary::asString(status);
 }

@@ -29,6 +29,7 @@
 
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 #ifdef __cplusplus
 extern "C" {

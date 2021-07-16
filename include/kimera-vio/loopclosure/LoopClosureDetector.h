@@ -26,9 +26,10 @@
 #include <utility>
 #include <vector>
 
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
-#include "kimera-vio/frontend/StereoCamera.h"
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
@@ -58,7 +59,7 @@ class LoopClosureDetector {
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
                       const StereoCamera::ConstPtr& stereo_camera,
                       const StereoMatchingParams& stereo_matching_params,
-                      bool log_output);
+                      bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -76,11 +77,14 @@ class LoopClosureDetector {
    * @param[in] frame A Frame object with one images, landmarks, and a pose to
    * the body frame at a minimum. Other fields may also be populated.
    * @param[in] points_with_ids A PointsWithIdMap object obtained from the
-   * backend's output.
+   * backend's output. Expressed in world frame.
+   * @param[in] W_Pose_Blkf A gtsam::Pose3 representing the VIO estimate of
+   * the pose of the body wrt to world frame at the given keframe.
    * @return The local ID of the frame after it is added to the databases.
    */
-  FrameId processAndAddFrame(const Frame& frame,
-                             const PointsWithIdMap& points_with_ids);
+  FrameId processAndAddMonoFrame(const Frame& frame,
+                                 const PointsWithIdMap& W_points_with_ids,
+                                 const gtsam::Pose3& W_Pose_Blkf);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single stereo-frame and adds it to relevant internal
@@ -92,95 +96,48 @@ class LoopClosureDetector {
   FrameId processAndAddStereoFrame(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Detect features in frame for use with BoW and return keypoints and
-   * descriptors. Currently only ORB features are supported.
-   * @param[in] frame A Frame object with an image.
-   * @param[out] keypoints The ORB keypoints that are detected in the image.
-   * @param[out] descriptors_mat The descriptors associated with the ORB
-   * keypoints in a matrix form.
-   * @param[out] descriptors_vec The descriptors vectorized.
-   */
-  void getNewFeaturesAndDescriptors(const Frame& frame,
-                                    std::vector<cv::KeyPoint>* keypoints,
-                                    OrbDescriptor* descriptors_mat,
-                                    OrbDescriptorVec* descriptors_vec);
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Runs all checks on a frame and determines whether it a loop-closure
       with a previous frame or not. Fills the LoopResult with this information.
-   * @param[in] stereo_frame A stereo_frame that has already been "rewritten" by
-   *  the pipeline to have ORB features and keypoints.
+   * @param[in] frame_id A FrameId representing the ID of the latest LCDFrame
+   * added to the database, which will be used to detect loop-closures.
    * @param[out] result A pointer to the LoopResult that is filled with the
    *  result of the loop-closure detection stage.
-   * @return True if the frame is declared a loop-closure with a previous frame,
-   *  false otherwise.
    */
-  bool detectLoop(const FrameId& frame_id, LoopResult* result);
+  void detectLoop(const FrameId& frame_id, LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Verify that the geometry between two frames is close enough to be
       considered a match, and generate a monocular transformation between them.
-   * @param[in] query_id The frame ID of the query image in the database.
-   * @param[in] match_id The frame ID of the match image in the databse.
-   * @param[out] camMatch_T_camQuery_mono The pose between the match frame and the
-   *  query frame, in the coordinates of the match frame.
+   * @param[in] ref_id The frame ID of the match image in the databse.
+   * @param[in] cur_id The frame ID of the query image in the database.
+   * @param[out] camMatch_T_camQuery_2d The pose between the match frame and
+   * the query frame, in the coordinates of the match frame.
    * @return True if the verification check passes, false otherwise.
    */
-  bool geometricVerificationCheck(
-      const FrameId& query_id,
-      const FrameId& match_id,
-      gtsam::Pose3* camMatch_T_camQuery_mono,
-      std::vector<FrameId>* inlier_id_in_query_frame,
-      std::vector<FrameId>* inlier_id_in_match_frame);
+  bool geometricVerificationCam2d2d(const FrameId& ref_id,
+                                    const FrameId& cur_id,
+                                    const KeypointMatches& matches_query_match,
+                                    gtsam::Pose3* camMatch_T_camQuery_2d);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Determine the 3D pose betwen two frames.
-   * @param[in] query_id The frame ID of the query image in the database.
-   * @param[in] match_id The frame ID of the match image in the database.
-   * @param[in] camMatch_T_camQuery_mono The relative pose between the match frame
+   * @param[in] ref_id The frame ID of the match image in the database.
+   * @param[in] cur_id The frame ID of the query image in the database.
+   * @param[in] camMatch_T_camQuery_2d The relative pose between the match
+   * frame
    *  and the query frame, in the coordinates of the match frame.
-   * @param[out] bodyMatch_T_bodyQuery_stereo The 3D pose between the match frame
+   * @param[out] bodyMatch_T_bodyQuery_3d The 3D pose between the match
+   * frame
    *  and the query frame, in the coordinates of the match frame.
    * @return True if the pose is recovered successfully, false otherwise.
    */
-  bool recoverPose(const FrameId& query_id,
-                   const FrameId& match_id,
-                   const gtsam::Pose3& camMatch_T_camQuery_mono,
-                   gtsam::Pose3* bodyMatch_T_bodyQuery_stereo,
-                   std::vector<FrameId>* inlier_id_in_query_frame,
-                   std::vector<FrameId>* inlier_id_in_match_frame);
+  bool recoverPoseBody(const FrameId& ref_id,
+                       const FrameId& cur_id,
+                       const gtsam::Pose3& camMatch_T_camQuery_2d,
+                       const KeypointMatches& matches_query_match,
+                       gtsam::Pose3* bodyMatch_T_bodyQuery_3d);
 
-  /* ------------------------------------------------------------------------ */
-  /** @brief Refine relative pose given by ransac using smart factors.
-   * @param[in] query_id The frame ID of the query image in the database.
-   * @param[in] match_id The frame ID of the match image in the database.
-   * @param[in] camMatch_T_camQuery_stereo The relative pose between the match frame
-   *  and the query frame, in the coordinates of the match frame.
-   * @param[in] inlier correspondences (from ransac) in the query frame
-   * @param[in] inlier correspondences (from ransac) in the match frame
-   * @return refined relative pose
-   */
-  gtsam::Pose3 refinePoses(
-      const FrameId query_id,
-      const FrameId match_id,
-      const gtsam::Pose3& camMatch_T_camQuery_stereo,
-      const std::vector<FrameId>& inlier_id_in_query_frame,
-      const std::vector<FrameId>& inlier_id_in_match_frame);
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Gets a copy of the parameters of the LoopClosureDetector.
-   * @return The local parameters of the LoopClosureDetector.
-   */
-  inline LoopClosureDetectorParams getLCDParams() const { return lcd_params_; }
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Returns a pointer to the parameters of the LoopClosureDetector.
-   * @return A pointer to the parameters of the LoopClosureDetector.
-   */
-  inline LoopClosureDetectorParams* getLCDParamsMutable() {
-    return &lcd_params_;
-  }
-
+ public:
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the RAW pointer to the BoW database.
    * @return A pointer to the BoW database.
@@ -197,7 +154,7 @@ class LoopClosureDetector {
    * WARNING: This is a potentially dangerous method to use because it requires
    *  a manual deletion of the pointer before it goes out of scope.
    */
-  inline const std::vector<LCDFrame>* getFrameDatabasePtr() const {
+  inline const std::vector<LCDFrame::Ptr>* getFrameDatabasePtr() const {
     return &db_frames_;
   }
 
@@ -239,24 +196,6 @@ class LoopClosureDetector {
   void print() const;
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Clears all keypoints and features from an input Frame and
-   *  fills it with ORB features. Also returns associated bearing-vectors.
-   * @param[in] keypoints A vector of KeyPoints representing the ORB keypoints
-   *  identified by an ORB detector.
-   * @param[in] points_with_ids A PointsWithIdMap object obtained from the
-   * backend's output.
-   * @param[out] frame A Frame initially filled with front-end features,
-   * @param[out] keypoints_3d_culled A list of bearing-vectors representing 
-   * the 3D keypoints from the backend that were seen by this frame.
-   *  which is then replaced with ORB features from the keypoints parameter.
-   */
-  // TODO(marcus): utils and reorder (or just static)
-  void rewriteFrameFeatures(const std::vector<cv::KeyPoint>& keypoints,
-                            const PointsWithIdMap& points_with_ids,
-                            Frame* frame,
-                            BearingVectors* keypoints_3d_culled) const;
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Clears all keypoints and features from an input StereoFrame and
    *  fills it with ORB features.
    * @param[in] keypoints A vector of KeyPoints representing the ORB keypoints
@@ -294,7 +233,8 @@ class LoopClosureDetector {
    *  that same transform in the camera frame.
    * @param[in] camMatch_T_camQuery The relative pose between two frames in the
    *  camera coordinate frame.
-   * @param[out] bodyMatch_T_bodyQuery The relative pose between two frames in the
+   * @param[out] bodyMatch_T_bodyQuery The relative pose between two frames in
+   * the
    *  body coordinate frame.
    */
   // TODO(marcus): these should be private or util
@@ -303,7 +243,8 @@ class LoopClosureDetector {
 
   /* ------------------------------------------------------------------------ */
   /** @brief The inverse of transformCameraPoseToBodyPose.
-   * @param[in] bodyMatch_T_bodyQuery The relative pose between two frames in the
+   * @param[in] bodyMatch_T_bodyQuery The relative pose between two frames in
+   * the
    *  body coordinate frame.
    * @param[out] camMatch_T_camQuery The relative pose between two frames in the
    *  camera coordinate frame.
@@ -337,82 +278,56 @@ class LoopClosureDetector {
 
   /* ------------------------------------------------------------------------ */
   /** @brief Computes the indices of keypoints that match between two frames.
-   * @param[in] query_id The frame ID of the query frame in the database.
-   * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] i_query A vector of indices that match in the query frame.
-   * @param[out] i_match A vector of indices that match in the match frame.
+   * @param[in] ref_descriptors The descriptors from the query frame.
+   * @param[in] cur_descriptors The descriptors from the match frame.
+   * @param[out] matches_match_query Map of matching keypoint indices between
+   * match frame and query frame.
    * @param[in] cut_matches If true, Lowe's Ratio Test will be used to cut
    *  out bad matches before sending output.
    */
-  void computeMatchedIndices(const FrameId& query_id,
-                             const FrameId& match_id,
-                             std::vector<FrameId>* i_query,
-                             std::vector<FrameId>* i_match,
-                             bool cut_matches = false) const;
+  void computeDescriptorMatches(const OrbDescriptor& ref_descriptors,
+                                const OrbDescriptor& cur_descriptors,
+                                KeypointMatches* matches_match_query,
+                                bool cut_matches = false) const;
 
  private:
   /* ------------------------------------------------------------------------ */
-  /** @brief Checks geometric verification and determines a pose with
-   *  a translation up to a scale factor between two frames, using Nister's
-   *  five-point method.
-   * @param[in] query_id The frame ID of the query frame in the database.
-   * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] camMatch_T_camQuery_mono The relative pose between the two frames,
-   *  with translation up to a scale factor.
-   * @return True if the verification passes, false otherwise.
+  /** @brief Detect features in frame for use with BoW and return keypoints and
+   * descriptors. Currently only ORB features are supported.
+   * @param[in] img Image from which to get features and descriptors.
+   * @param[out] keypoints The ORB keypoints that are detected in the image.
+   * @param[out] descriptors_mat The descriptors associated with the ORB
+   * keypoints in a matrix form.
+   * @param[out] descriptors_vec The descriptors vectorized.
    */
-  bool geometricVerificationNister(
-      const FrameId& query_id,
-      const FrameId& match_id,
-      gtsam::Pose3* camMatch_T_camQuery_mono,
-      std::vector<FrameId>* inlier_id_in_query_frame,
-      std::vector<FrameId>* inlier_id_in_match_frame);
+  void getNewFeaturesAndDescriptors(const cv::Mat& img,
+                                    std::vector<cv::KeyPoint>* keypoints,
+                                    OrbDescriptor* descriptors_mat);
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Checks geometric verification and determines a pose that is
-   *  "stereo" - correct in translation scale using Arun's three-point method.
-   * @param[in] query_id The frame ID of the query frame in the database.
-   * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] bodyMatch_T_bodyQuery The relative pose between the two frames.
-   * @return True if the verification passes, false otherwise.
+  /** @brief Convert an ORB descriptor from matrix form to vector form for
+   * use with BoW.
+   * @param[in] descriptors_mat An OrbDescriptor matrix with input descriptors
+   * @param[out] descriptors_vec The descriptors in vectorize format
    */
-  bool recoverPoseArun(const FrameId& query_id,
-                       const FrameId& match_id,
-                       gtsam::Pose3* bodyMatch_T_bodyQuery,
-                       std::vector<FrameId>* inlier_id_in_query_frame,
-                       std::vector<FrameId>* inlier_id_in_match_frame);
+  void descriptorMatToVec(const OrbDescriptor& descriptors_mat,
+                          OrbDescriptorVec* descriptors_vec);
 
   /* ------------------------------------------------------------------------ */
-  /** @brief Checks geometric verification and determines a pose that is
-   *  "stereo" - correct in translation scale using the median of all
-   *  3D keypoints matched between the frames.
-   * @param[in] query_id The frame ID of the query frame in the database.
-   * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] camMatch_T_camQuery The relative pose between the two frames.
-   * @return True if the verification passes, false otherwise.
+  /** @brief Refine relative pose given by ransac using smart factors.
+   * @param[in] ref_id The frame ID of the match image in the database.
+   * @param[in] cur_id The frame ID of the query image in the database.
+   * @param[in] camMatch_T_camQuery_3d The relative pose between the match
+   * frame
+   *  and the query frame, in the coordinates of the match frame.
+   * @param[in] inlier correspondences (from ransac) in the query frame
+   * @param[in] inlier correspondences (from ransac) in the match frame
+   * @return refined relative pose
    */
-  bool recoverPoseGivenRot(const FrameId& query_id,
-                           const FrameId& match_id,
-                           const gtsam::Pose3& camMatch_T_camQuery_mono,
-                           gtsam::Pose3* camMatch_T_camQuery,
-                           std::vector<FrameId>* inlier_id_in_query_frame,
-                           std::vector<FrameId>* inlier_id_in_match_frame);
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Checks geometric verification and determines a pose that is
-   *  "stereo" - correct in translation scale using PnP. Ideal for monocular
-   * case.
-   * @param[in] query_id The frame ID of the query frame in the database.
-   * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[out] camMatch_T_camQuery The relative pose between the two frames.
-   * @return True if the verification passes, false otherwise.
-   */
-  bool recoverPosePnP(const FrameId& query_id,
-                      const FrameId& match_id,
-                      const gtsam::Pose3& camMatch_T_camQuery_mono,
-                      gtsam::Pose3* camMatch_T_camQuery,
-                      std::vector<FrameId>* inlier_id_in_query_frame,
-                      std::vector<FrameId>* inlier_id_in_match_frame);
+  gtsam::Pose3 refinePoses(const FrameId ref_id,
+                           const FrameId cur_id,
+                           const gtsam::Pose3& camMatch_T_camQuery_3d,
+                           const KeypointMatches& matches_query_match);
 
  private:
   enum class LcdState {
@@ -425,13 +340,18 @@ class LoopClosureDetector {
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = false;
 
+  // TODO(Toni): we should be using the FeatureDetector/Description class...
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;
   cv::Ptr<cv::DescriptorMatcher> orb_feature_matcher_;
 
+  // TODO(marcus): want to move outlier-rejection to its own file
+  // Tracker for outlier rejection
+  Tracker tracker_;
+
   // BoW and Loop Detection database and members
   std::unique_ptr<OrbDatabase> db_BoW_;
-  std::vector<LCDFrame> db_frames_;
+  std::vector<LCDFrame::Ptr> db_frames_;
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
@@ -446,12 +366,7 @@ class LoopClosureDetector {
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
-  gtsam::SharedNoiseModel
-      shared_noise_model_;
-
-  // Ranasc problems
-  opengv::sac::Ransac<ProblemStereo> ransac_3pt_;
-  opengv::sac::Ransac<ProblemMono> ransac_5pt_;
+  gtsam::SharedNoiseModel shared_noise_model_;
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;

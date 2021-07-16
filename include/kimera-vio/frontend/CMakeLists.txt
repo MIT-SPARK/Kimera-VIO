@@ -10,6 +10,7 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/FrontendInputPacketBase.h"
   "${CMAKE_CURRENT_LIST_DIR}/FrontendOutputPacketBase.h"
   "${CMAKE_CURRENT_LIST_DIR}/MonoVisionImuFrontend.h"
+  "${CMAKE_CURRENT_LIST_DIR}/OdometryParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/MonoVisionImuFrontend-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoFrame.h"
@@ -22,6 +23,7 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendModule.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontendFactory.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionImuTrackerParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.h"
 )

@@ -40,27 +40,10 @@
 
 namespace VIO {
 
-// Mono
-// 5-point ransac
-using ProblemMono =
-opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+using Pose2d2dAlgorithm = opengv::sac_problems::relative_pose::
+    CentralRelativePoseSacProblem::Algorithm;
 
-// MonoTranslationOnly: TranslationOnlySacProblem
-// 2-point ransac
-using ProblemMonoGivenRot =
-opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
-using AdapterMonoGivenRot = opengv::relative_pose::CentralRelativeAdapter;
-
-// Stereo
-// Arun's problem (3-point ransac)
-using ProblemStereo = opengv::sac_problems::point_cloud::PointCloudSacProblem;
-using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
-
-using ProblemPnp = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
-using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
-
-enum class PnpMethod {
+enum class Pose3d2dAlgorithm {
   KneipP2P = 0,
   KneipP3P = 1,
   GaoP3P = 2,
@@ -70,6 +53,23 @@ enum class PnpMethod {
   NonlinearOptimization = 6,
   MLPNP = 7  //! Requires OpenGV fork.
 };
+
+// 2D-2D tracking
+using Problem2d2d =
+    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+//! MonoTranslationOnly: TranslationOnlySacProblem -> 2-point ransac
+using Problem2d2dGivenRot =
+    opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
+using Adapter2d2d = opengv::relative_pose::CentralRelativeAdapter;
+
+// 3D-2D tracking
+using ProblemPnP = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
+using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
+
+// 3D-3D tracking
+//! Stereo: Arun's problem  ->  3-point ransac
+using Problem3d3d = opengv::sac_problems::point_cloud::PointCloudSacProblem;
+using Adapter3d3d = opengv::point_cloud::PointCloudAdapter;
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugTrackerInfo {

@@ -169,7 +169,7 @@ class StereoFrame {
   //! 3D positions of the stereo points as given by reprojection using stereo
   //! disparity; in the rectified left frame.
   // TODO(TONI): this should use the eigen's default allocator...
-  BearingVectors keypoints_3d_;
+  Landmarks keypoints_3d_;
 };
 
 }  // namespace VIO

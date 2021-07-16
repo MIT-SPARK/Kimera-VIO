@@ -255,4 +255,21 @@ TEST(testThreadsafeQueue, stress_test) {
   VLOG(1) << "Threads joined.\n";
 }
 
+TEST(testThreadsafeQueue, peek) {
+  ThreadsafeQueue<std::string> q("test_queue");
+  q.push("hello world");
+
+  std::shared_ptr<std::string> value = q.peekBlockingWithTimeout(100);
+  ASSERT_TRUE(value != nullptr);
+  EXPECT_EQ("hello world", *value);
+
+  ThreadsafeQueue<std::unique_ptr<std::string>> q_unique("test_queue");
+  q_unique.push(VIO::make_unique<std::string>("hello world"));
+  std::shared_ptr<std::unique_ptr<std::string>> value_unique =
+      q_unique.peekBlockingWithTimeout(100);
+  ASSERT_TRUE(value_unique != nullptr);
+  ASSERT_TRUE(*value_unique != nullptr);
+  EXPECT_EQ("hello world", *(*value_unique));
+}
+
 }  // namespace VIO

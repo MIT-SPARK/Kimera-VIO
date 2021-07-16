@@ -36,7 +36,8 @@ class RegularVioBackend : public VioBackend {
                     const BackendParams& backend_params,
                     const ImuParams& imu_params,
                     const BackendOutputParams& backend_output_params,
-                    const bool& log_output);
+                    const bool& log_output,
+                    boost::optional<OdometryParams> odom_params = boost::none);
 
   virtual ~RegularVioBackend() = default;
 
@@ -44,7 +45,9 @@ class RegularVioBackend : public VioBackend {
   bool addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-      const gtsam::PreintegrationType& pim) override;
+      const gtsam::PreintegrationType& pim,
+      boost::optional<gtsam::Pose3> odometry_body_pose = boost::none,
+      boost::optional<gtsam::Velocity3> odometry_vel = boost::none) override;
 
  private:
   typedef size_t Slot;

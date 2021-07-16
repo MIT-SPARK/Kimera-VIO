@@ -38,20 +38,17 @@ class VisionImuFrontendModule
    * @param parallel_run
    * @param vio_frontend
    */
-  explicit VisionImuFrontendModule(
-      InputQueue* input_queue,
-      bool parallel_run,
-      VisionImuFrontend::UniquePtr vio_frontend);
+  explicit VisionImuFrontendModule(InputQueue* input_queue,
+                                   bool parallel_run,
+                                   VisionImuFrontend::UniquePtr vio_frontend);
 
   virtual ~VisionImuFrontendModule() = default;
 
  public:
-  virtual FrontendOutputPacketBase::UniquePtr
-      spinOnce(FrontendInputPacketBase::UniquePtr input);
+  virtual FrontendOutputPacketBase::UniquePtr spinOnce(
+      FrontendInputPacketBase::UniquePtr input);
 
-  inline bool isInitialized() const {
-    return vio_frontend_->isInitialized();
-  }
+  inline bool isInitialized() const { return vio_frontend_->isInitialized(); }
 
   //! Imu related
   inline void updateAndResetImuBias(const ImuBias& imu_bias) const {
@@ -69,6 +66,11 @@ class VisionImuFrontendModule
 
   inline void updateMap(const LandmarksMap& map) const {
     vio_frontend_->updateMap(map);
+  }
+
+  inline void registerImuTimeShiftUpdateCallback(
+      const VisionImuFrontend::ImuTimeShiftCallback& callback) {
+    vio_frontend_->registerImuTimeShiftUpdateCallback(callback);
   }
 
  private:
