@@ -94,8 +94,8 @@ RUN python3.6 -m pip install PyQt5==5.14
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
-ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/evo-1.git
+ADD https://api.github.com/repos/MIT-SPARK/evo-1/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/evo-1.git
 RUN cd evo-1 && python3.6 $(which pip3) install .
 
 # Install Kimera VIO Evaluation
