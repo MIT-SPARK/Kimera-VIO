@@ -74,7 +74,8 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
     double betweenTranslationPrecision,
 
     double pgo_rot_threshold,
-    double pgo_trans_threshold)
+    double pgo_trans_threshold,
+    int max_lc_cached_before_optimize)
     : PipelineParams("Loop Closure Parameters"),
       image_width_(image_width),
       image_height_(image_height),
@@ -126,7 +127,8 @@ LoopClosureDetectorParams::LoopClosureDetectorParams(
       betweenTranslationPrecision_(betweenTranslationPrecision),
 
       pgo_rot_threshold_(pgo_rot_threshold),
-      pgo_trans_threshold_(pgo_trans_threshold) {
+      pgo_trans_threshold_(pgo_trans_threshold),
+      max_lc_cached_before_optimize_(max_lc_cached_before_optimize) {
   // Trivial sanity checks:
   CHECK(alpha_ > 0);
   CHECK(nfeatures_ >= 100);  // TODO(marcus): add more checks, change this one
@@ -223,10 +225,14 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   }
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
-  yaml_parser.getYamlParam("betweenRotationPrecision", &betweenRotationPrecision_);
-  yaml_parser.getYamlParam("betweenTranslationPrecision", &betweenTranslationPrecision_);
+  yaml_parser.getYamlParam("betweenRotationPrecision",
+                           &betweenRotationPrecision_);
+  yaml_parser.getYamlParam("betweenTranslationPrecision",
+                           &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
+  yaml_parser.getYamlParam("max_lc_cached_before_optimize",
+                           &max_lc_cached_before_optimize_);
 
   return true;
 }
@@ -333,7 +339,10 @@ void LoopClosureDetectorParams::print() const {
                         "pgo_rot_threshold_: ",
                         pgo_rot_threshold_,
                         "pgo_trans_threshold_: ",
-                        pgo_trans_threshold_);
+                        pgo_trans_threshold_,
+                        "max_lc_cached_before_optimize_: ",
+                        max_lc_cached_before_optimize_);
   LOG(INFO) << out.str();
 }
+
 }  // namespace VIO
