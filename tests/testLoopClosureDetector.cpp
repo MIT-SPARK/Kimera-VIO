@@ -484,8 +484,9 @@ TEST_F(LCDFixture, geometricVerificationCam2d2d) {
       true);
 
   gtsam::Pose3 camMatch_T_camQuery;
+  std::vector<int> inliers;
   lcd_detector_->geometricVerificationCam2d2d(
-      0, 1, matches, &camMatch_T_camQuery);
+      0, 1, matches, &camMatch_T_camQuery, &inliers);
 
   // Pose transforms points from query1 to match1 frame.
   gtsam::Pose3 gt = bodyMatch1_T_bodyQuery1_gt_;
@@ -530,8 +531,9 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
       true);
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
+  std::vector<int> inliers_1;
   lcd_detector_->recoverPoseBody(
-      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo, &inliers_1);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, false);
 
@@ -553,8 +555,9 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
       true);
 
   gtsam::Pose3 bodyMatch2_T_bodyQuery2_stereo;
+  std::vector<int> inliers_2;
   lcd_detector_->recoverPoseBody(
-      2, 3, empty_pose, matches2, &bodyMatch2_T_bodyQuery2_stereo);
+      2, 3, empty_pose, matches2, &bodyMatch2_T_bodyQuery2_stereo, &inliers_2);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch2_T_bodyQuery2_gt_, bodyMatch2_T_bodyQuery2_stereo, false);
@@ -600,11 +603,13 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
       true);
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
+  std::vector<int> inliers_1;
   lcd_detector_->recoverPoseBody(1,
                                  0,
                                  camMatch1_T_camQuery1_mono_gt,
                                  matches1,
-                                 &bodyMatch1_T_bodyQuery1_stereo);
+                                 &bodyMatch1_T_bodyQuery1_stereo,
+                                 &inliers_1);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, false);
@@ -640,11 +645,13 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
       true);
 
   gtsam::Pose3 bodyMatch2_T_bodyQuery2_stereo;
+  std::vector<int> inliers_2;
   lcd_detector_->recoverPoseBody(3,
                                  2,
                                  camMatch2_T_camQuery2_gt,
                                  matches2,
-                                 &bodyMatch2_T_bodyQuery2_stereo);
+                                 &bodyMatch2_T_bodyQuery2_stereo,
+                                 &inliers_2);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch2_T_bodyQuery2_gt_, bodyMatch2_T_bodyQuery2_stereo, false);
@@ -680,9 +687,14 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       &matches1,
       true);
 
+  // All matches are inliers for this test
+  std::vector<int> inliers_1;
+  for (size_t i = 0; i < matches1.size(); i++) {
+      inliers_1.push_back(i);
+  }
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
   lcd_detector_->recoverPoseBody(
-      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo, &inliers_1);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, true);
@@ -719,9 +731,14 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
       &matches1,
       true);
 
+  // All matches are inliers for this test
+  std::vector<int> inliers_1;
+  for (size_t i = 0; i < matches1.size(); i++) {
+    inliers_1.push_back(i);
+  }
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
   lcd_detector_->recoverPoseBody(
-      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo);
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo, &inliers_1);
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, false);
 
@@ -929,12 +946,14 @@ TEST_F(LCDFixture, noRefinePosesInMono) {
       true);
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
+  std::vector<int> inliers_1;
   EXPECT_DEATH(
       lcd_detector_->recoverPoseBody(0,
                                      1,
                                      gtsam::Pose3::identity(),
                                      matches1,
-                                     &bodyMatch1_T_bodyQuery1_stereo),
+                                     &bodyMatch1_T_bodyQuery1_stereo,
+                                     &inliers_1),
       "LoopClosureDetector: Error casting to StereoLCDFrame. Cannot have "
       "ransac_use_1point_stereo_ enabled without stereo frontend inputs.");
 }

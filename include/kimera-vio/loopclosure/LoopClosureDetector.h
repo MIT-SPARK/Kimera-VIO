@@ -112,12 +112,14 @@ class LoopClosureDetector {
    * @param[in] cur_id The frame ID of the query image in the database.
    * @param[out] camMatch_T_camQuery_2d The pose between the match frame and
    * the query frame, in the coordinates of the match frame.
+   * @param[out] inliers The IDs of inliers in the keypoint matches.
    * @return True if the verification check passes, false otherwise.
    */
   bool geometricVerificationCam2d2d(const FrameId& ref_id,
                                     const FrameId& cur_id,
                                     const KeypointMatches& matches_query_match,
-                                    gtsam::Pose3* camMatch_T_camQuery_2d);
+                                    gtsam::Pose3* camMatch_T_camQuery_2d,
+                                    std::vector<int>* inliers);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Determine the 3D pose betwen two frames.
@@ -129,13 +131,16 @@ class LoopClosureDetector {
    * @param[out] bodyMatch_T_bodyQuery_3d The 3D pose between the match
    * frame
    *  and the query frame, in the coordinates of the match frame.
+   * @param[out] inliers The inliers to use from the keypoint matches,
+   * determined at the geometricVerificationCam2d2d stage.
    * @return True if the pose is recovered successfully, false otherwise.
    */
   bool recoverPoseBody(const FrameId& ref_id,
                        const FrameId& cur_id,
                        const gtsam::Pose3& camMatch_T_camQuery_2d,
                        const KeypointMatches& matches_query_match,
-                       gtsam::Pose3* bodyMatch_T_bodyQuery_3d);
+                       gtsam::Pose3* bodyMatch_T_bodyQuery_3d,
+                       std::vector<int>* inliers);
 
  public:
   /* ------------------------------------------------------------------------ */

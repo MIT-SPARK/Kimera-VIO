@@ -187,6 +187,10 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
   // Build and add LC factor if result is a loop closure.
   if (loop_result.isLoop()) {
+    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
+            << loop_result.match_id_ << " to keyframe "
+            << loop_result.query_id_;
+
     LoopClosureFactor lc_factor(loop_result.match_id_,
                                 loop_result.query_id_,
                                 loop_result.relative_pose_,
@@ -200,10 +204,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
     auto update_duration = utils::Timer::toc(tic).count();
     stat_pgo_timing.AddSample(update_duration);
-
-    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
-            << loop_result.match_id_ << " to keyframe "
-            << loop_result.query_id_;
   } else {
     VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
             << LoopResult::asString(loop_result.status_);
@@ -518,11 +518,13 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
                 &matches_match_query,
                 true);
 
+            std::vector<int> inliers;
             bool pass_geometric_verification =
                 geometricVerificationCam2d2d(result->match_id_,
                                              result->query_id_,
                                              matches_match_query,
-                                             &camMatch_T_camQuery_2d);
+                                             &camMatch_T_camQuery_2d,
+                                             &inliers);
 
             if (!pass_geometric_verification) {
               result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
@@ -533,7 +535,8 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
                                   result->query_id_,
                                   camMatch_T_camQuery_2d,
                                   matches_match_query,
-                                  &bodyMatch_T_bodyQuery_3d);
+                                  &bodyMatch_T_bodyQuery_3d,
+                                  &inliers);
 
               if (!pass_3d_pose_compute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
@@ -561,8 +564,10 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
     const FrameId& ref_id,
     const FrameId& cur_id,
     const KeypointMatches& matches_match_query,
-    gtsam::Pose3* camMatch_T_camQuery_2d) {
+    gtsam::Pose3* camMatch_T_camQuery_2d,
+    std::vector<int>* inliers) {
   CHECK_NOTNULL(camMatch_T_camQuery_2d);
+  CHECK_NOTNULL(inliers);
 
   TrackingStatusPose result;
   if (matches_match_query.empty()) {
@@ -571,12 +576,11 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
              << "\n reference id: " << ref_id << " current id: " << cur_id;
     result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
   } else {
-    std::vector<int> inliers;
     result = tracker_.geometricOutlierRejection2d2d(
         db_frames_[ref_id]->bearing_vectors_,
         db_frames_[cur_id]->bearing_vectors_,
         matches_match_query,
-        &inliers);
+        inliers);
 
     *camMatch_T_camQuery_2d = result.second;
   }
@@ -596,12 +600,12 @@ bool LoopClosureDetector::recoverPoseBody(
     const FrameId& cur_id,
     const gtsam::Pose3& camMatch_T_camQuery_2d,
     const KeypointMatches& matches_match_query,
-    gtsam::Pose3* bodyMatch_T_bodyQuery_3d) {
+    gtsam::Pose3* bodyMatch_T_bodyQuery_3d,
+    std::vector<int>* inliers) {
   CHECK_NOTNULL(bodyMatch_T_bodyQuery_3d);
+  CHECK_NOTNULL(inliers);
 
   gtsam::Pose3 camMatch_T_camQuery_3d;
-  std::vector<int> inliers;
-
   bool success = false;
   if (lcd_params_.use_pnp_pose_recovery_) {
     gtsam::Pose3 camMatch_T_camQuery_2d_copy(
@@ -609,6 +613,10 @@ bool LoopClosureDetector::recoverPoseBody(
 
     BearingVectors camQuery_bearing_vectors;
     Landmarks camMatch_points;
+    // TODO(marucs): consider adding this back in for ransac from inliers only.
+    // for (const int& i : *inliers) {
+    //   CHECK_LT(i, matches_match_query.size());
+    //   const KeypointMatch& it = matches_match_query.at(i);
     for (const KeypointMatch& it : matches_match_query) {
       const BearingVector& query_bearing =
           db_frames_[cur_id]->bearing_vectors_.at(it.second);
@@ -621,7 +629,7 @@ bool LoopClosureDetector::recoverPoseBody(
     success = tracker_.pnp(camQuery_bearing_vectors,
                            camMatch_points,
                            &camMatch_T_camQuery_3d,
-                           &inliers,
+                           inliers,
                            &camMatch_T_camQuery_2d_copy);
   } else {
     TrackingStatusPose result;
@@ -650,7 +658,7 @@ bool LoopClosureDetector::recoverPoseBody(
               stereo_camera_,
               matches_match_query,
               camMatch_T_camQuery_2d.rotation(),
-              &inliers);
+              inliers);
       result = result_full.first;
       camMatch_T_camQuery_3d = result.second;
     } else {
@@ -658,7 +666,7 @@ bool LoopClosureDetector::recoverPoseBody(
           db_frames_[ref_id]->keypoints_3d_,
           db_frames_[cur_id]->keypoints_3d_,
           matches_match_query,
-          &inliers);
+          inliers);
       camMatch_T_camQuery_3d = result.second;
     }
     if (result.first == TrackingStatus::VALID) success = true;
