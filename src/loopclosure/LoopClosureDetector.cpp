@@ -719,7 +719,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
       std::dynamic_pointer_cast<StereoLCDFrame>(db_frames_.at(ref_id));
   cur_stereo_lcd_frame =
       std::dynamic_pointer_cast<StereoLCDFrame>(db_frames_.at(cur_id));
-  if (ref_stereo_lcd_frame && cur_stereo_lcd_frame) {
+  if (!ref_stereo_lcd_frame || !cur_stereo_lcd_frame) {
     LOG(FATAL) << "LoopClosureDetector: Error casting to StereoLCDFrame. "
                   "Cannot have ransac_use_1point_stereo_ enabled without "
                   "stereo frontend inputs.";
