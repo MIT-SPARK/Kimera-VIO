@@ -35,7 +35,6 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
-// TODO(marcus): clean this and put things in the base ctor
 StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                                      Visualizer3D::UniquePtr&& visualizer,
                                      DisplayBase::UniquePtr&& displayer)
@@ -181,7 +180,6 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
 
-    auto& lcd_module = lcd_module_;
     vio_frontend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),

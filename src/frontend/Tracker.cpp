@@ -165,8 +165,7 @@ void Tracker::featureTracking(Frame* ref_frame,
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
     cur_frame->keypoints_.push_back(px_cur[i]);
     cur_frame->versors_.push_back(
-        UndistorterRectifier::UndistortKeypointAndGetVersor(
-            px_cur[i], ref_frame->cam_param_, R));
+        UndistorterRectifier::GetBearingVector(px_cur[i], ref_frame->cam_param_, R));
   }
 
   // max number of frames in which a feature is seen

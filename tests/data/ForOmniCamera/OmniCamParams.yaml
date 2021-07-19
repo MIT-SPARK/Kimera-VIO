@@ -1,0 +1,23 @@
+%YAML:1.0
+# General sensor definitions.
+camera_id: left_cam
+
+# Sensor extrinsics wrt. the body-frame.
+T_BS:
+  cols: 4
+  rows: 4
+  data: [0.0148655429818, -0.999880929698, 0.00414029679422, -0.0216401454975,
+         0.999557249008, 0.0149672133247, 0.025715529948, -0.064676986768,
+        -0.0257744366974, 0.00375618835797, 0.999660727178, 0.00981073058949,
+         0.0, 0.0, 0.0, 1.0]
+
+# Camera specific definitions.
+rate_hz: 20
+resolution: [2000, 1500]
+camera_model: omni
+intrinsics: [] # must be empty for omni
+distortion_model: omni
+distortion_coefficients: [875.074642516832, 0.0, -0.00030379174233022, -4.81892212543229e-08, 1.71277628064668e-11]
+omni_pol_inv: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+omni_affine: [0.0, 0.0, 1.0]
+omni_distortion_center: [1005.817454205254, 743.034296906609]

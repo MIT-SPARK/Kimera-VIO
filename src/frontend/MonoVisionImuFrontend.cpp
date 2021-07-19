@@ -154,8 +154,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
                                 getTrackerInfo(),
                                 tracker_status_summary_,
                                 mono_frame_km1_->getNrValidKeypoints());
-      // TODO(marcus): Last arg is usually stereo, need to refactor logger
-      // to not require that.
       logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
                                  tracker_status_summary_.lkf_T_k_mono_,
                                  gtsam::Pose3::identity());
@@ -311,11 +309,11 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
     mono_camera_->undistortKeypoints(mono_frame_k_->keypoints_,
                                      &mono_frame_k_->keypoints_undistorted_);
     // Log images if needed.
-    // if (logger_ &&
-    //     (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
-    //   if (FLAGS_log_feature_tracks) sendFeatureTracksToLogger();
-    //   if (FLAGS_log_mono_matching_images) sendMonoTrackingToLogger();
-    // }
+    if (logger_ &&
+        (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
+      if (FLAGS_log_feature_tracks) sendFeatureTracksToLogger();
+      if (FLAGS_log_mono_matching_images) sendMonoTrackingToLogger();
+    }
     if (display_queue_ && FLAGS_visualize_feature_tracks) {
       displayImage(mono_frame_k_->timestamp_,
                    "feature_tracks",
@@ -381,6 +379,61 @@ void MonoVisionImuFrontend::getSmartMonoMeasurements(
     smart_mono_measurements->push_back(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
+}
+
+void MonoVisionImuFrontend::sendFeatureTracksToLogger() const {
+  CHECK(tracker_);
+  cv::Mat img_left =
+      tracker_->getTrackerImage(*mono_frame_lkf_, *mono_frame_k_);
+  logger_->logFrontendImg(mono_frame_k_->id_,
+                          img_left,
+                          "monoFeatureTracksLeft",
+                          "/monoFeatureTracksLeftImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
+}
+
+void MonoVisionImuFrontend::sendMonoTrackingToLogger() const {
+  const Frame& cur_left_frame = *mono_frame_k_;
+  const Frame& ref_left_frame = *mono_frame_lkf_;
+
+  // Find keypoint matches.
+  DMatchVec matches;
+  for (size_t i = 0; i < cur_left_frame.keypoints_.size(); ++i) {
+    if (cur_left_frame.landmarks_.at(i) != -1) {  // if landmark is valid
+      auto it = find(ref_left_frame.landmarks_.begin(),
+                     ref_left_frame.landmarks_.end(),
+                     cur_left_frame.landmarks_.at(i));
+      if (it != ref_left_frame.landmarks_.end()) {  // if landmark was found
+        int nPos = std::distance(ref_left_frame.landmarks_.begin(), it);
+        matches.push_back(cv::DMatch(nPos, i, 0));
+      }
+    }
+  }
+  //############################################################################
+
+  // Plot matches.
+  cv::Mat img_left_lkf_kf =
+      UtilsOpenCV::DrawCornersMatches(ref_left_frame.img_,
+                                      ref_left_frame.keypoints_,
+                                      cur_left_frame.img_,
+                                      cur_left_frame.keypoints_,
+                                      matches,
+                                      false);  // true: random color
+  cv::putText(img_left_lkf_kf,
+              "M:" + std::to_string(keyframe_count_ - 1) + "-" +
+                  std::to_string(keyframe_count_),
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
+              cv::Scalar(0, 255, 0));
+
+  logger_->logFrontendImg(cur_left_frame.id_,
+                          img_left_lkf_kf,
+                          "monoTrackingUnrectified",
+                          "/monoTrackingUnrectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
 }
 
 void MonoVisionImuFrontend::printStatusMonoMeasurements(
