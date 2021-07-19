@@ -24,7 +24,10 @@ LoopClosureDetectorParams::LoopClosureDetectorParams()
 }
 
 bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
-  tracker_params_.parseYAML(filepath);
+  // Use defaults and override the outlier-rejection params required
+  // TODO(marcus + toni): after fix/frontend is merged, just use the
+  // OutlierRejection class as a member and parse params here.
+  // tracker_params_.parseYAML(filepath);
 
   YamlParser yaml_parser(filepath);
 
@@ -85,6 +88,50 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
   yaml_parser.getYamlParam("gnc_alpha", &gnc_alpha_);
 
+  // Now manually change required parameters in tracker
+  yaml_parser.getYamlParam("disparity_threshold",
+                           &tracker_params_.disparityThreshold_);
+
+  yaml_parser.getYamlParam("min_nr_2d2d_inliers",
+                           &tracker_params_.minNrMonoInliers_);
+  yaml_parser.getYamlParam("min_nr_3d3d_inliers",
+                           &tracker_params_.minNrStereoInliers_);
+  yaml_parser.getYamlParam("min_nr_2d3d_inliers",
+                           &tracker_params_.min_pnp_inliers_);
+
+  yaml_parser.getYamlParam("ransac_threshold_2d2d",
+                           &tracker_params_.ransac_threshold_mono_);
+  yaml_parser.getYamlParam("ransac_threshold_3d3d",
+                           &tracker_params_.ransac_threshold_stereo_);
+  yaml_parser.getYamlParam("ransac_threshold_2d3d",
+                           &tracker_params_.ransac_threshold_pnp_);
+  yaml_parser.getYamlParam("ransac_max_iterations",
+                           &tracker_params_.ransac_max_iterations_);
+  yaml_parser.getYamlParam("ransac_probability",
+                           &tracker_params_.ransac_probability_);
+  yaml_parser.getYamlParam("ransac_randomize",
+                           &tracker_params_.ransac_randomize_);
+
+  yaml_parser.getYamlParam("ransac_use_1point_3d3d",
+                           &tracker_params_.ransac_use_1point_stereo_);
+  yaml_parser.getYamlParam("ransac_use_2point_2d2d",
+                           &tracker_params_.ransac_use_2point_mono_);
+
+  int pose_2d2d_algorithm;
+  yaml_parser.getYamlParam("ransac_2d2d_algorithm", &pose_2d2d_algorithm);
+  tracker_params_.pose_2d2d_algorithm_ =
+      static_cast<Pose2d2dAlgorithm>(pose_2d2d_algorithm);
+
+  int pnp_algorithm;
+  yaml_parser.getYamlParam("ransac_2d3d_algorithm", &pnp_algorithm);
+  tracker_params_.pnp_algorithm_ =
+      static_cast<Pose3d2dAlgorithm>(pnp_algorithm);
+
+  yaml_parser.getYamlParam("optimize_2d2d_pose_from_inliers",
+                           &tracker_params_.optimize_2d2d_pose_from_inliers_);
+  yaml_parser.getYamlParam("optimize_3d3d_pose_from_inliers",
+                           &tracker_params_.optimize_3d3d_pose_from_inliers_);
+
   return true;
 }
 
@@ -93,7 +140,6 @@ void LoopClosureDetectorParams::print() const {
 
   std::stringstream out;
   PipelineParams::print(out,
-
                         "use_nss_: ",
                         use_nss_,
                         "alpha_: ",

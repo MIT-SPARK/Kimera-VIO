@@ -51,10 +51,6 @@ enum class LCDStatus : int {
   FAILED_POSE_RECOVERY
 };
 
-enum class GeomVerifOption : int { NISTER, NONE };
-
-enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT };
-
 struct LCDFrame {
   KIMERA_POINTER_TYPEDEFS(LCDFrame);
   LCDFrame() = default;

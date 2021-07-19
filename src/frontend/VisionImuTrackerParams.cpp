@@ -132,6 +132,9 @@ bool TrackerParams::parseYAML(const std::string& filepath) {
 
   yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
 
+  yaml_parser.getYamlParam("optimize_2d3d_pose_from_inliers",
+                           &optimize_2d3d_pose_from_inliers_);
+
   return true;
 }
 
