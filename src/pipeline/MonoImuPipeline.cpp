@@ -113,8 +113,14 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   // TODO(marcus): get rid of fake stereocam
   LOG_IF(FATAL, params.backend_params_->addBetweenStereoFactors_)
       << "addBetweenStereoFactors is set to true, but this is a mono pipeline!";
-  VIO::StereoCamera::Ptr stereo_cam = std::make_shared<VIO::StereoCamera>(
-      params.camera_params_.at(0), params.camera_params_.at(1));
+  const gtsam::Cal3_S2& calib = camera_->getCalibration();
+  StereoCalibPtr stereo_calib = boost::make_shared<gtsam::Cal3_S2Stereo>(
+      calib.fx(),
+      calib.fy(),
+      calib.skew(),
+      calib.px(),
+      calib.py(),
+      0.1);  // TODO(marcus): hardcoded baseline!
   CHECK(backend_params_);
   vio_backend_module_ = VIO::make_unique<VioBackendModule>(
       &backend_input_queue_,
@@ -123,7 +129,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           static_cast<BackendType>(params.backend_type_),
           // These two should be given by parameters.
           camera_->getBodyPoseCam(),
-          stereo_cam->getStereoCalib(),
+          stereo_calib,
           *backend_params_,
           imu_params_,
           backend_output_params,
@@ -162,6 +168,9 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   // }
 
   if (FLAGS_use_lcd) {
+    VIO::StereoCamera::Ptr stereo_cam = std::make_shared<VIO::StereoCamera>(
+        params.camera_params_.at(0), params.camera_params_.at(1));
+
     lcd_module_ = VIO::make_unique<LcdModule>(
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
