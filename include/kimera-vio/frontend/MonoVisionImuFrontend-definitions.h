@@ -26,7 +26,6 @@ namespace VIO {
 using MonoFrontendInputPayload = MonoImuSyncPacket;
 using MonoFrontendParams = FrontendParams;
 
-// TODO(marcus): need to match this with mono Backend!
 using MonoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using MonoMeasurements = std::vector<MonoMeasurement>;
 using MonoMeasurementsUniquePtr = std::unique_ptr<MonoMeasurements>;

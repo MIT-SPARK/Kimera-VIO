@@ -38,7 +38,6 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
                                  Visualizer3D::UniquePtr&& visualizer,
                                  DisplayBase::UniquePtr&& displayer)
     : Pipeline(params), camera_(nullptr) {
-  // TODO(marcus): specify separate params for mono
   // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for
   // MonoImuPipeline.";
   camera_ = std::make_shared<Camera>(params.camera_params_.at(0));
@@ -195,7 +194,6 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
                          // VisualizerParams...
                          // NOTE: use kNone or kPointCloud for now because
                          //   mesher isn't enabled.
-                         // TODO(marcus): handle in params instead!
                          static_cast<VisualizationType>(FLAGS_viz_type),
                          static_cast<BackendType>(params.backend_type_)));
 

@@ -84,11 +84,12 @@ class LoopClosureDetectorParams : public PipelineParams {
       int patch_sze = 31,
       int fast_threshold = 20,
 
-      double betweenRotationPrecision = 1/ (0.01 * 0.01),
+      double betweenRotationPrecision = 1 / (0.01 * 0.01),
       double betweenTranslationPrecision = 1 / (0.1 * 0.1),
 
       double pgo_rot_threshold = 0.01,
-      double pgo_trans_threshold = 0.1);
+      double pgo_trans_threshold = 0.1,
+      int max_lc_cached_before_optimize = 10);
 
  public:
   virtual ~LoopClosureDetectorParams() = default;
@@ -151,7 +152,8 @@ class LoopClosureDetectorParams : public PipelineParams {
       betweenTranslationPrecision_ == rhs.betweenTranslationPrecision_ &&
 
       pgo_rot_threshold_== rhs.pgo_rot_threshold_ &&
-      pgo_trans_threshold_== rhs.pgo_trans_threshold_;
+      pgo_trans_threshold_== rhs.pgo_trans_threshold_ &&
+      max_lc_cached_before_optimize_ == rhs.max_lc_cached_before_optimize_;
   }
 
  public:
@@ -227,6 +229,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   ////////////////////////////// PGO solver params /////////////////////////////
   double pgo_rot_threshold_;
   double pgo_trans_threshold_;
+  int max_lc_cached_before_optimize_;
   //////////////////////////////////////////////////////////////////////////////
 };
 

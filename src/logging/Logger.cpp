@@ -638,8 +638,6 @@ void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
   // We log the full optimized trajectory in csv format.
   std::ofstream& output_stream_traj = output_traj_.ofstream_;
 
-  // TODO(marcus): set the append to false on this one and overwrite EVERY TIME
-
   bool is_header_written = false;
   if (!is_header_written) {
     output_stream_traj << "#timestamp_kf,x,y,z,qw,qx,qy,qz" << std::endl;
