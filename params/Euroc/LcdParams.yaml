@@ -33,6 +33,8 @@ pgo_rot_threshold: 0.001
 pgo_trans_threshold: 0.001
 gnc_alpha: 0.7
 
+max_lc_cached_before_optimize: 10
+
 # matcher_type options:
 #   0: FLANNBASED
 #   1: BRUTEFORCE

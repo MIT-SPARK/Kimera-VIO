@@ -144,7 +144,6 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
                              &stereo_frame->right_keypoints_rectified_);
 
   //! Fill out keypoint depths
-  // TODO(marcus): we are trying to replace this method with something else?
   getDepthFromRectifiedMatches(stereo_frame->left_keypoints_rectified_,
                                stereo_frame->right_keypoints_rectified_,
                                &stereo_frame->keypoints_depth_);

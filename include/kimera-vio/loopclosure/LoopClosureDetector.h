@@ -50,6 +50,8 @@ class LoopClosureDetector {
   KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetector);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using IsBackendQueueFilledCallback = std::function<bool()>;
+
   /* ------------------------------------------------------------------------ */
   /** @brief Constructor: detects loop-closures and updates internal PGO.
    * @param[in] lcd_params Parameters for the instance of LoopClosureDetector.
@@ -70,6 +72,17 @@ class LoopClosureDetector {
    * @return The output payload from the pipeline.
    */
   virtual LcdOutput::UniquePtr spinOnce(const LcdInput& input);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Register callback for checking the size of the input queue. Knowing
+   * this can help determine when to optimize the factor graph and when to wait
+   * for additional inputs to be added first.
+   * @param[in] cb A callback function.
+   */
+  inline void registerIsBackendQueueFilledCallback(
+      const IsBackendQueueFilledCallback& cb) {
+    is_backend_queue_filled_cb_ = cb;
+  }
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single frame and adds it to relevant internal
@@ -372,6 +385,10 @@ class LoopClosureDetector {
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
   gtsam::SharedNoiseModel shared_noise_model_;
+
+  // Queue-checking callback
+  IsBackendQueueFilledCallback is_backend_queue_filled_cb_;
+  size_t num_lc_unoptimized_;
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;

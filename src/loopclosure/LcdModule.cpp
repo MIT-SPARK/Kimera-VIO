@@ -23,6 +23,8 @@ LcdModule::LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
       backend_queue_("lcd_backend_queue"),
       lcd_(std::move(lcd)) {
   CHECK(lcd_);
+  lcd_->registerIsBackendQueueFilledCallback(
+      std::bind(&LcdModule::hasWork, this));
 }
 
 LcdModule::InputUniquePtr LcdModule::getInputPacket() {

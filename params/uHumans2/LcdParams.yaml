@@ -31,6 +31,9 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
 pgo_rot_threshold: 0.01
 pgo_trans_threshold: 0.1
+gnc_alpha: 0.7
+
+max_lc_cached_before_optimize: 10
 
 #TRACKER PARAMETERS for outlier rejection
 disparity_threshold: 0.5

@@ -217,6 +217,59 @@ TEST_F(CameraFixture, backProjectSingleSimple) {
   EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
 }
 
+// Removed because projectOmni is not yet implemented.
+// TEST_F(CameraFixture, projectSingleOmni) {
+//   CameraParams camera_params;
+//   camera_params.parseYAML(FLAGS_test_data_path +
+//                           "/ForOmniCamera/OmniCamParams.yaml");
+//   mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+//   LandmarkCV point_3d(0.2,0.3,3.0);
+//   KeypointCV actual_kpt;
+//   mono_camera_->project(point_3d, &actual_kpt);
+
+//   KeypointCV expected_kpt();
+//   EXPECT_NEAR(expected_kpt.x, actual_kpt.x, 0.0001);
+//   EXPECT_NEAR(expected_kpt.y, actual_kpt.y, 0.0001);
+// }
+
+TEST_F(CameraFixture, backProjectSingleOmni) {
+  CameraParams camera_params;
+  camera_params.parseYAML(FLAGS_test_data_path +
+                          "/ForOmniCamera/OmniCamParams.yaml");
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  KeypointCV kpt(490.397735595703, 423.252136230469);  // From MATLAB
+  LandmarkCV actual_lmk;
+  double depth = 1.0;
+  mono_camera_->backProject(kpt, depth, &actual_lmk);
+
+  LandmarkCV expected_lmk(
+      -0.682794074354265, -0.423626331144069, 1);
+  EXPECT_NEAR(expected_lmk.x, actual_lmk.x, 0.0001);
+  EXPECT_NEAR(expected_lmk.y, actual_lmk.y, 0.0001);
+  EXPECT_NEAR(expected_lmk.z, actual_lmk.z, 0.0001);
+}
+
+TEST_F(CameraFixture, undistortKeypointsOmni) {
+  CameraParams camera_params;
+  camera_params.parseYAML(FLAGS_test_data_path +
+                          "/ForOmniCamera/OmniCamParams.yaml");
+  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+
+  KeypointsCV distorted_kpts;
+  distorted_kpts.push_back(
+      KeypointCV(490.3977355957031, 423.2521362304688));  // From MATLAB
+
+  StatusKeypointsCV actual_kpts;
+  mono_camera_->undistortKeypoints(distorted_kpts, &actual_kpts);
+  KeypointCV actual_kpt = actual_kpts.at(0).second;
+
+  KeypointCV expected_kpt(488.4044442343012, 432.7802516419484);  // From MATLAB
+  EXPECT_NEAR(expected_kpt.x, actual_kpt.x, 0.0001);
+  EXPECT_NEAR(expected_kpt.y, actual_kpt.y, 0.0001);
+}
+
 TEST_F(CameraFixture, backProjectMultipleSimple) {
   // Easy test first, back-project keypoints at the center of the image with
   // different depths.

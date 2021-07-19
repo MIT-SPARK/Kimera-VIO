@@ -10,6 +10,7 @@
  * @file   CameraParams.cpp
  * @brief  Parameters describing a monocular camera.
  * @author Antoni Rosinol
+ * @author Marcus Abate
  */
 
 #include "kimera-vio/frontend/CameraParams.h"
@@ -51,34 +52,69 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 }
 
 void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
-  std::string distortion_model;
+  std::string camera_model, distortion_model;
   yaml_parser.getYamlParam("distortion_model", &distortion_model);
-  yaml_parser.getYamlParam("camera_model", &camera_model_);
-  distortion_model_ = stringToDistortion(distortion_model, camera_model_);
-  CHECK(distortion_model_ == DistortionModel::RADTAN ||
-        distortion_model_ == DistortionModel::EQUIDISTANT)
-      << "Unsupported distortion model. Expected: radtan or equidistant.";
+  yaml_parser.getYamlParam("camera_model", &camera_model);
+  camera_model_ = stringToCameraModel(camera_model);
+  distortion_model_ = stringToDistortionModel(distortion_model, camera_model_);
   yaml_parser.getYamlParam("distortion_coefficients", &distortion_coeff_);
   convertDistortionVectorToMatrix(distortion_coeff_, &distortion_coeff_mat_);
+
+  // For omni cam only
+  if (camera_model_ == CameraModel::OMNI) {
+    std::vector<double> omni_distortion_center, omni_affine;
+    // std::vector<double> omni_pol_inv;  // Not required until omni point
+    // projection is supported
+    yaml_parser.getYamlParam("omni_distortion_center", &omni_distortion_center);
+    CHECK_EQ(omni_distortion_center.size(), 2);
+    omni_distortion_center_ << omni_distortion_center.at(0),
+        omni_distortion_center.at(1);
+
+    // Not required until omni point projection is supported
+    // yaml_parser.getYamlParam("omni_pol_inv", &omni_pol_inv);
+    // CHECK_EQ(omni_pol_inv.size(), 12);
+    // // Assume invpol is of order 12:
+    // for (size_t i = 0; i < 12; i++) {
+    //   omni_pol_inv_(i) = omni_pol_inv.at(i);
+    // }
+
+    yaml_parser.getYamlParam("omni_affine", &omni_affine);
+    CHECK_EQ(omni_affine.size(), 3);  // c, d, and e only
+    omni_affine_ << 1.0, omni_affine.at(0), omni_affine.at(1), omni_affine.at(2);
+    omni_affine_inv_ = omni_affine_.inverse();
+  }
 }
 
-const DistortionModel CameraParams::stringToDistortion(
-    const std::string& distortion_model,
+const CameraModel CameraParams::stringToCameraModel(
     const std::string& camera_model) {
-  std::string lower_case_distortion_model = distortion_model;
   std::string lower_case_camera_model = camera_model;
-
-  std::transform(lower_case_distortion_model.begin(),
-                 lower_case_distortion_model.end(),
-                 lower_case_distortion_model.begin(),
-                 ::tolower);
   std::transform(lower_case_camera_model.begin(),
                  lower_case_camera_model.end(),
                  lower_case_camera_model.begin(),
                  ::tolower);
 
   if (lower_case_camera_model == "pinhole") {
-    if (lower_case_camera_model == std::string("none")) {
+    return CameraModel::PINHOLE;
+  } else if (lower_case_camera_model == "omni") {
+    return CameraModel::OMNI;
+  } else {
+    LOG(FATAL) << "Unrecognized camera model. "
+               << "Valid camera models are 'pinhole' and 'omni'";
+  }
+}
+
+const DistortionModel CameraParams::stringToDistortionModel(
+    const std::string& distortion_model,
+    const CameraModel& camera_model) {
+  std::string lower_case_distortion_model = distortion_model;
+
+  std::transform(lower_case_distortion_model.begin(),
+                 lower_case_distortion_model.end(),
+                 lower_case_distortion_model.begin(),
+                 ::tolower);
+
+  if (camera_model == CameraModel::PINHOLE) {
+    if (lower_case_distortion_model == std::string("none")) {
       return DistortionModel::NONE;
     } else if ((lower_case_distortion_model == std::string("plumb_bob")) ||
                (lower_case_distortion_model ==
@@ -88,14 +124,23 @@ const DistortionModel CameraParams::stringToDistortion(
     } else if (lower_case_distortion_model == std::string("equidistant")) {
       return DistortionModel::EQUIDISTANT;
     } else {
-      LOG(FATAL)
-          << "Unrecognized distortion model for pinhole camera. Valid "
-             "pinhole "
-             "distortion model options are 'none', 'radtan', 'equidistant'.";
+      LOG(FATAL) << "Unrecognized distortion model for pinhole camera: "
+                 << lower_case_distortion_model
+                 << " Valid pinhole distortion model options are 'none', "
+                    "'radtan', 'equidistant'.";
     }
-  } else {
+  } else if (camera_model == CameraModel::OMNI) {
+    if (lower_case_distortion_model == std::string("omni")) {
+      return DistortionModel::OMNI;
+    } else {
+      LOG(FATAL) << "Unrecognized distortion model for omni camera: "
+                 << lower_case_distortion_model
+                 << " Valid omni distortion model options are 'omni'.";
+    }
+  }else {
     LOG(FATAL)
-        << "Unrecognized camera model. Valid camera models are 'pinhole'";
+        << "Unrecognized camera model. "
+        << "Valid camera models are 'pinhole' and 'omni'.";
   }
 }
 
@@ -142,16 +187,37 @@ void CameraParams::parseBodyPoseCam(const YamlParser& yaml_parser,
   *body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 }
 
-void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                         Intrinsics* intrinsics_) {
-  CHECK_NOTNULL(intrinsics_);
+const void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
+                                               Intrinsics* _intrinsics) {
+  CHECK_NOTNULL(_intrinsics);
   std::vector<double> intrinsics;
   yaml_parser.getYamlParam("intrinsics", &intrinsics);
-  CHECK_EQ(intrinsics.size(), intrinsics_->size());
+  if (intrinsics.size() == 4) {
+    CHECK_EQ(intrinsics.size(), _intrinsics->size());
+  } else {
+    if (camera_model_ == CameraModel::OMNI) {
+      CHECK_EQ(intrinsics.size(), 0);
+      intrinsics.resize(4);
+      // Use a more ideal pinhole camera model: based on Matlab impl: see
+      // undistortFisheyePoints from Vision Toolbox
+      // This only occurs if intrinsics are not provided in yaml file
+      // focalLength = min(imageSize) / 2
+      // kpt.x = focalLength * lmk.x + imageSize.y / 2 + 0.5
+      // kpt.y = focalLength * lmk.y + imageSize.x / 2 + 0.5
+      intrinsics.at(0) = std::min(image_size_.width, image_size_.height) / 2.0;
+      intrinsics.at(1) = intrinsics.at(0);
+      intrinsics.at(2) = (image_size_.width / 2.0) + 0.5;
+      intrinsics.at(3) = (image_size_.height / 2.0) + 0.5;
+    } else {
+      LOG(FATAL) << "CameraParams: must have intrinsics specified for non-omni "
+                    "camera!";
+    }
+  }
+
   // Move elements from one to the other.
   std::copy_n(std::make_move_iterator(intrinsics.begin()),
-              intrinsics_->size(),
-              intrinsics_->begin());
+              _intrinsics->size(),
+              _intrinsics->begin());
 }
 
 void CameraParams::convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,

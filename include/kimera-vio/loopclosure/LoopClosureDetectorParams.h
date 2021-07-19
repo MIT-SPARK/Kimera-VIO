@@ -77,7 +77,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_ = 0.7;
 #if CV_VERSION_MAJOR == 3
-  int matcher_type_ = 0;
+  int matcher_type_ = 3;
 #else
   cv::DescriptorMatcher::MatcherType matcher_type_;
 #endif
@@ -107,6 +107,8 @@ class LoopClosureDetectorParams : public PipelineParams {
   double pgo_trans_threshold_ = 0.1;
   double gnc_alpha_ = 0.7;
   //////////////////////////////////////////////////////////////////////////////
+
+  int max_lc_cached_before_optimize_ = 10;
 };
 
 }  // namespace VIO

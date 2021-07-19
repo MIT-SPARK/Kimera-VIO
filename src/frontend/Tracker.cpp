@@ -182,9 +182,8 @@ void Tracker::featureTracking(
     cur_frame->landmarks_age_.push_back(lmk_age);
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
     cur_frame->keypoints_.push_back(px_cur[i]);
-    cur_frame->versors_.push_back(
-        UndistorterRectifier::UndistortKeypointAndGetVersor(
-            px_cur[i], ref_frame->cam_param_, R));
+    cur_frame->versors_.push_back(UndistorterRectifier::GetBearingVector(
+        px_cur[i], ref_frame->cam_param_, R));
   }
 
   // max number of frames in which a feature is seen
@@ -797,14 +796,16 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
   // TODO(Toni): Adapt value of this threshold for different calibration
   // models! // (1e-1)
   if ((point3_i_gtsam - point3_i).norm() > 1e-1) {
-    LOG(WARNING) << "GetPoint3AndCovariance: inconsistent "
-                 << "backprojection results: \n"
-                 << " - point3_i_gtsam: \n"
-                 << point3_i_gtsam << '\n'
-                 << " - point3_i: \n"
-                 << point3_i << '\n'
-                 << "Difference in norm: "
-                 << (point3_i_gtsam - point3_i).norm();
+    if (VLOG_IS_ON(5)) {
+      LOG(WARNING) << "GetPoint3AndCovariance: inconsistent "
+                   << "backprojection results: \n"
+                   << " - point3_i_gtsam: \n"
+                   << point3_i_gtsam << '\n'
+                   << " - point3_i: \n"
+                   << point3_i << '\n'
+                   << "Difference in norm: "
+                   << (point3_i_gtsam - point3_i).norm();
+    }
   }
   if (Rmat) {
     point3_i = (*Rmat) * point3_i;  // optionally rotated to another ref frame

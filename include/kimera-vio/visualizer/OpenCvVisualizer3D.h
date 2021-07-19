@@ -77,9 +77,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
    */
   VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input) override;
 
-  // TODO(marcus): Is there any reason the following two methods must be
-  // private?
-
  public:
   // Visualization calls are public in case the user wants to manually visualize
   // things, instead of running spinOnce and do it automatically.

@@ -13,7 +13,7 @@ max_nrFrames_between_queries: 2
 
 refine_pose: 0
 
-lowe_ratio: 0.9  # TODO(marcus): get rid, not used
+lowe_ratio: 0.2
 matcher_type: 3
 
 nfeatures: 1000
@@ -32,6 +32,8 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 pgo_rot_threshold: 0.001
 pgo_trans_threshold: 0.001
 gnc_alpha: 0.7
+
+max_lc_cached_before_optimize: 10
 
 # matcher_type options:
 #   0: FLANNBASED

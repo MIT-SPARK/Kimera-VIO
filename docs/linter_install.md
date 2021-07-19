@@ -31,6 +31,6 @@ cd SparkVIO
 init_linter_git_hooks
 ```
 
-> For more information about the linter, check [here](https://github.com/ToniRV/linter).
+> For more information about the linter, check [here](https://github.com/MIT-SPARK/linter).
 
 Go back to [Readme](../README.md).

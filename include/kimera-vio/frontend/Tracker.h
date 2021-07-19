@@ -317,8 +317,7 @@ class Tracker {
   // Incremental id assigned to new landmarks.
   LandmarkId landmark_count_;
 
-  // StereoCamera object for the camera we are tracking. We use the left camera.
-  // TODO(marcus): this should be general to all camera types!
+  // Camera object for the camera we are tracking. For stereo, use left.
   Camera::ConstPtr camera_;
 
   // Feature tracking uses the optical flow predictor to have a better guess of

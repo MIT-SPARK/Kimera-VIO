@@ -88,6 +88,9 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
   yaml_parser.getYamlParam("gnc_alpha", &gnc_alpha_);
 
+  yaml_parser.getYamlParam("max_lc_cached_before_optimize",
+                           &max_lc_cached_before_optimize_);
+
   // Now manually change required parameters in tracker
   yaml_parser.getYamlParam("disparity_threshold",
                            &tracker_params_.disparityThreshold_);
@@ -201,7 +204,9 @@ void LoopClosureDetectorParams::print() const {
                         "pgo_trans_threshold_: ",
                         pgo_trans_threshold_,
                         "gnc_alpha_",
-                        gnc_alpha_);
+                        gnc_alpha_,
+                        "max_lc_cached_before_optimize_",
+                        max_lc_cached_before_optimize_);
   LOG(INFO) << out.str();
 }
 
@@ -236,7 +241,8 @@ bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2, dou
                lp2.betweenTranslationPrecision_) <= tol) &&
 
          (fabs(pgo_rot_threshold_ - lp2.pgo_rot_threshold_) <= tol) &&
-         (fabs(pgo_trans_threshold_ - lp2.pgo_trans_threshold_) <= tol);
+         (fabs(pgo_trans_threshold_ - lp2.pgo_trans_threshold_) <= tol) &&
+         (max_lc_cached_before_optimize_ == lp2.max_lc_cached_before_optimize_);
 }
 
 }  // namespace VIO

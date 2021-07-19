@@ -33,6 +33,8 @@ pgo_rot_threshold: 0.005
 pgo_trans_threshold: 0.05
 gnc_alpha: 0.7
 
+max_lc_cached_before_optimize: 10
+
 #TRACKER PARAMETERS for outlier rejection
 disparity_threshold: 0.5
 

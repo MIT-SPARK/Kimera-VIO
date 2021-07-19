@@ -29,10 +29,16 @@
 
 namespace VIO {
 
+enum class CameraModel {
+  PINHOLE,
+  OMNI,
+};
+
 enum class DistortionModel {
   NONE,
   RADTAN,
   EQUIDISTANT,
+  OMNI,
 };
 
 /**
@@ -44,6 +50,10 @@ class CameraParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(CameraParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Fix the omni-camera inverse polynomial order for projecting points here.
+  // Not required until omni point projection is supported
+  // static constexpr int kInversePolynomialOrder = 12;
 
   using CameraId = std::string;
   // fu, fv, cu, cv
@@ -88,7 +98,7 @@ class CameraParams : public PipelineParams {
   CameraId camera_id_;
 
   //! Camera model: pinhole, etc
-  std::string camera_model_;
+  CameraModel camera_model_;
 
   //! fu, fv, cu, cv
   Intrinsics intrinsics_;
@@ -108,6 +118,16 @@ class CameraParams : public PipelineParams {
   std::vector<double> distortion_coeff_;
   cv::Mat distortion_coeff_mat_;
 
+  //! Omnicam only parameters
+  Eigen::Vector2d omni_distortion_center_;
+  Eigen::Matrix2d omni_affine_;      // matrix A in Scaramuzza's paper
+                                     // A = [c,d;e,1]
+  Eigen::Matrix2d omni_affine_inv_;  // inv of A
+
+  // Not required until omni point projection is supported
+  // Eigen::Matrix<double, kInversePolynomialOrder, 1>
+  //     omni_pol_inv_;             // polynomial for Ocamcalib projection
+
  public:
   static void convertDistortionVectorToMatrix(
       const std::vector<double>& distortion_coeffs,
@@ -119,13 +139,16 @@ class CameraParams : public PipelineParams {
                                      gtsam::Cal3DS2* calibration);
 
   /** Taken from: https://github.com/ethz-asl/image_undistort
-   * @brief stringToDistortion
+   * @brief stringToDistortionModel
    * @param distortion_model
    * @param camera_model
    * @return actual distortion model enum class
    */
-  static const DistortionModel stringToDistortion(
+  static const DistortionModel stringToDistortionModel(
       const std::string& distortion_model,
+      const CameraModel& camera_model);
+
+  static const CameraModel stringToCameraModel(
       const std::string& camera_model);
 
  private:
@@ -134,8 +157,8 @@ class CameraParams : public PipelineParams {
   static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
   static void parseBodyPoseCam(const YamlParser& yaml_parser,
                                gtsam::Pose3* body_Pose_cam);
-  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                    Intrinsics* intrinsics_);
+  const void parseCameraIntrinsics(const YamlParser& yaml_parser,
+                                   Intrinsics* _intrinsics);
 };
 // TODO(Toni): this should be a base class, so that stereo camera is a specific
 // type of a multi camera sensor rig, or something along these lines.
