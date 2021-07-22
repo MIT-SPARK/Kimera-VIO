@@ -334,8 +334,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   removeOutliersMono(
       mono_ransac_given_rot_.inliers_, ref_frame, cur_frame, &matches_ref_cur);
 
-  // TODO(Toni):
-  // CHECK QUALITY OF TRACKING
+  // TODO(Toni): CHECK QUALITY OF TRACKING
   TrackingStatus status = TrackingStatus::VALID;
   if (mono_ransac_given_rot_.inliers_.size() <
       tracker_params_.minNrMonoInliers_) {
@@ -1001,7 +1000,6 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
   // Create the central adapter
   AdapterPnp adapter(bearing_vectors, points);
 
-  // TODO(Toni): parametrize
   // Should be similar to current klt_eps, but keep it separate.
   const double& reprojection_error = tracker_params_.ransac_threshold_pnp_;
   const double avg_focal_length =
