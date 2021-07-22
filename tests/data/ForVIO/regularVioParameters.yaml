@@ -44,3 +44,4 @@ useDogLeg: 1
 
 # Method used to generate the initial guess for the pose of the keyframe
 pose_guess_source: 0
+mono_translation_scale_factor: 0.1

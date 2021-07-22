@@ -150,6 +150,7 @@ class BackendParams : public PipelineParams {
 
   //! Source of the initial guess for the keyframe pose
   PoseGuessSource pose_guess_source_ = PoseGuessSource::IMU;
+  double mono_translation_scale_factor_ = 0.1;
 };
 
 }  // namespace VIO

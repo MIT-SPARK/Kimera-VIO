@@ -782,11 +782,15 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     }
     case PoseGuessSource::MONO: {
       if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
-        LOG(WARNING) << "Using mono pose guess source, which is up to scale.";
-        addStateValues(frame_id,
-                       W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
+        gtsam::Pose3 W_Pose_B_k_mono = W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
                            tracker_status.lkf_T_k_mono_ *
-                           B_Pose_leftCamRect_.inverse(),
+                           B_Pose_leftCamRect_.inverse();
+        gtsam::Point3 W_ScaledTranslation_B_k_mono =
+            W_Pose_B_k_mono.translation() *
+            backend_params_.mono_translation_scale_factor_;
+        addStateValues(frame_id,
+                       gtsam::Pose3(W_Pose_B_k_mono.rotation(),
+                                    W_ScaledTranslation_B_k_mono),
                        navstate_k.velocity(),
                        imu_bias_lkf_);
       } else {
