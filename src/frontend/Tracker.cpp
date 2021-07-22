@@ -977,7 +977,6 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
     if (cur_stereo_frame.left_keypoints_rectified_[i].first ==
             KeypointStatus::VALID &&
         lmk_id != -1) {  // why is lmk_id -1 if KeypointStatus is VALID?
-      CHECK_NE(lmk_id, -1);
       //! We have a valid lmk id.
       //! Query our map of optimized landmarks.
       const auto& it = copy_landmarks_map_.find(lmk_id);
@@ -1003,8 +1002,6 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
   AdapterPnp adapter(bearing_vectors, points);
 
   // TODO(Toni): parametrize
-  static constexpr int max_iterations = 100;
-  static constexpr double probability = 0.99;
   // Should be similar to current klt_eps, but keep it separate.
   const double& reprojection_error = tracker_params_.ransac_threshold_pnp_;
   const double avg_focal_length =
@@ -1031,8 +1028,8 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
               opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::
                   TWOPT),
           threshold,
-          max_iterations,
-          probability,
+          tracker_params_.ransac_max_iterations_,
+          tracker_params_.ransac_probability_,
           best_absolute_pose,
           inliers);
       break;
@@ -1045,8 +1042,8 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
               opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::
                   KNEIP),
           threshold,
-          max_iterations,
-          probability,
+          tracker_params_.ransac_max_iterations_,
+          tracker_params_.ransac_probability_,
           best_absolute_pose,
           inliers);
     }
@@ -1058,8 +1055,8 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
               adapter,
               opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::GAO),
           threshold,
-          max_iterations,
-          probability,
+          tracker_params_.ransac_max_iterations_,
+          tracker_params_.ransac_probability_,
           best_absolute_pose,
           inliers);
     }
@@ -1072,8 +1069,8 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
               opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem::
                   EPNP),
           threshold,
-          max_iterations,
-          probability,
+          tracker_params_.ransac_max_iterations_,
+          tracker_params_.ransac_probability_,
           best_absolute_pose,
           inliers);
     }

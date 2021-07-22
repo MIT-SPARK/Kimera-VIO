@@ -68,7 +68,13 @@ struct BackendOutputParams {
  * @brief The PoseGuessSource enum determines which pose is used as initial
  * guess for the keyframe pose.
  */
-enum class PoseGuessSource { IMU = 0, MONO = 1, STEREO = 2, PNP = 3 };
+enum class PoseGuessSource {
+  IMU = 0,
+  MONO = 1,
+  STEREO = 2,
+  PNP = 3,
+  EXTERNAL_ODOM = 4,
+};
 
 class BackendParams : public PipelineParams {
  public:

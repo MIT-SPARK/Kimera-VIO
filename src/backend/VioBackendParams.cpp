@@ -156,6 +156,10 @@ bool BackendParams::parseYAMLVioBackendParams(const YamlParser& yaml_parser) {
       pose_guess_source_ = PoseGuessSource::PNP;
       break;
     }
+    case VIO::to_underlying(PoseGuessSource::EXTERNAL_ODOM): {
+      pose_guess_source_ = PoseGuessSource::EXTERNAL_ODOM;
+      break;
+    }
     default: {
       LOG(FATAL) << "Unknown PoseGuessSource : " << pose_guess_source;
       break;

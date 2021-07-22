@@ -768,7 +768,9 @@ void VioBackend::addStereoMeasurementsToFeatureTracks(
 /* -------------------------------------------------------------------------- */
 void VioBackend::addStateValues(const FrameId& frame_id,
                                 const TrackerStatusSummary& tracker_status,
-                                const gtsam::PreintegrationType& pim) {
+                                const gtsam::PreintegrationType& pim,
+                                boost::optional<gtsam::Pose3> odom_pose,
+                                boost::optional<gtsam::Vector3> odom_vel) {
   gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
   const gtsam::NavState& navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
   debug_info_.navstate_k_ = navstate_k;
@@ -780,6 +782,7 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     }
     case PoseGuessSource::MONO: {
       if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
+        LOG(WARNING) << "Using mono pose guess source, which is up to scale.";
         addStateValues(frame_id,
                        W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
                            tracker_status.lkf_T_k_mono_ *
@@ -816,6 +819,21 @@ void VioBackend::addStateValues(const FrameId& frame_id,
       } else {
         LOG(WARNING) << "PnP tracking failure... Using IMU for pose guess.";
         addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::EXTERNAL_ODOM: {
+      if (odom_pose) {
+        if (odom_vel) {
+          addStateValues(
+              frame_id, odom_pose.get(), odom_vel.get(), imu_bias_lkf_);
+        } else {
+          addStateValues(
+              frame_id, odom_pose.get(), navstate_k.velocity(), imu_bias_lkf_);
+        }
+      } else {
+        LOG(WARNING) << "External odometry tracking failure... Using IMU for "
+                        "pose guess.";
       }
       break;
     }
