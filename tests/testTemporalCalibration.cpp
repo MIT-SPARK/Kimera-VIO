@@ -652,7 +652,7 @@ TEST(temporalCalibration, testPosDelayImuRate) {
   EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
-TEST(temporalCalibration, testNegDelayFrameRate) {
+TEST(temporalCalibration, DISABLED_testNegDelayFrameRate) {
   TestData data = makeTestData(10, 5, 0.1, false, -8);
 
   MockTracker tracker;
@@ -680,7 +680,7 @@ TEST(temporalCalibration, testNegDelayFrameRate) {
   EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
-TEST(temporalCalibration, testPosDelayFrameRate) {
+TEST(temporalCalibration, DISABLED_testPosDelayFrameRate) {
   TestData data = makeTestData(10, 5, 0.1, false, 7);
 
   MockTracker tracker;

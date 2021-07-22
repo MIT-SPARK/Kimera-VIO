@@ -106,6 +106,9 @@ bool ImuParams::equals(const PipelineParams& obj) const {
       acc_noise_density_ == rhs.acc_noise_density_ &&
       acc_random_walk_ == rhs.acc_random_walk_ &&
       imu_time_shift_ == rhs.imu_time_shift_ &&
+      do_imu_rate_time_alignment_ == rhs.do_imu_rate_time_alignment_ &&
+      time_alignment_window_size_s_ == rhs.time_alignment_window_size_s_ &&
+      time_alignment_variance_threshold_scaling_ == rhs.time_alignment_variance_threshold_scaling_ &&
       nominal_sampling_time_s_ == rhs.nominal_sampling_time_s_ &&
       imu_integration_sigma_ == rhs.imu_integration_sigma_ &&
       n_gravity_ == rhs.n_gravity_;
