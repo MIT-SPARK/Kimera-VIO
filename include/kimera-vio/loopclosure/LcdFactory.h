@@ -30,13 +30,19 @@ class LcdFactory {
   static LoopClosureDetector::UniquePtr createLcd(
       const LoopClosureDetectorType& lcd_type,
       const LoopClosureDetectorParams& lcd_params,
-      const StereoCamera::ConstPtr& stereo_camera,
-      const StereoMatchingParams& stereo_matching_params,
+      const CameraParams& tracker_cam_params,
+      const gtsam::Pose3& B_Pose_Cam,
+      const boost::optional<StereoCamera::ConstPtr>& stereo_camera,
+      const boost::optional<StereoMatchingParams>& stereo_matching_params,
       bool log_output) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
-        return VIO::make_unique<LoopClosureDetector>(
-            lcd_params, stereo_camera, stereo_matching_params, log_output);
+        return VIO::make_unique<LoopClosureDetector>(lcd_params,
+                                                     tracker_cam_params,
+                                                     B_Pose_Cam,
+                                                     stereo_camera,
+                                                     stereo_matching_params,
+                                                     log_output);
       }
       default: {
         LOG(FATAL) << "Requested loop closure detector type is not supported.\n"

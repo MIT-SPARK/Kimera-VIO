@@ -166,15 +166,14 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   // }
 
   if (FLAGS_use_lcd) {
-    VIO::StereoCamera::Ptr stereo_cam = std::make_shared<VIO::StereoCamera>(
-        params.camera_params_.at(0), params.camera_params_.at(1));
-
     lcd_module_ = VIO::make_unique<LcdModule>(
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
-                              stereo_cam,
-                              params.frontend_params_.stereo_matching_params_,
+                              camera_->getCamParams(),
+                              camera_->getBodyPoseCam(),
+                              boost::none,
+                              boost::none,
                               FLAGS_log_output));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(

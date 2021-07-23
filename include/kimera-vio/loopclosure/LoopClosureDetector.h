@@ -58,10 +58,15 @@ class LoopClosureDetector {
    * @param[in] log_output Output-logging flag. If set to true, the logger is
    *  instantiated and output/statistics are logged at every spinOnce().
    */
-  LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const StereoCamera::ConstPtr& stereo_camera,
-                      const StereoMatchingParams& stereo_matching_params,
-                      bool log_output = false);
+  LoopClosureDetector(
+      const LoopClosureDetectorParams& lcd_params,
+      const CameraParams& tracker_cam_params,
+      const gtsam::Pose3& B_Pose_Cam,
+      const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera =
+          boost::none,
+      const boost::optional<StereoMatchingParams>& stereo_matching_params =
+          boost::none,
+      bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -365,7 +370,7 @@ class LoopClosureDetector {
 
   // TODO(marcus): want to move outlier-rejection to its own file
   // Tracker for outlier rejection
-  Tracker tracker_;
+  Tracker::UniquePtr tracker_;
 
   // BoW and Loop Detection database and members
   std::unique_ptr<OrbDatabase> db_BoW_;
@@ -377,7 +382,7 @@ class LoopClosureDetector {
   DBoW2::BowVector latest_bowvec_;
 
   // Store camera parameters and StereoFrame stuff once
-  gtsam::Pose3 B_Pose_camLrect_;
+  gtsam::Pose3 B_Pose_Cam_;
   StereoCamera::ConstPtr stereo_camera_;
   StereoMatcher::UniquePtr stereo_matcher_;
 

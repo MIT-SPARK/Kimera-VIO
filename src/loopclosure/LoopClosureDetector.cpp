@@ -47,38 +47,49 @@ namespace VIO {
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
-    const StereoCamera::ConstPtr& stereo_camera,
-    const StereoMatchingParams& stereo_matching_params,
+    const CameraParams& tracker_cam_params,
+    const gtsam::Pose3& B_Pose_Cam,
+    const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
+    const boost::optional<StereoMatchingParams>& stereo_matching_params,
     bool log_output)
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
       log_output_(log_output),
       orb_feature_detector_(),
       orb_feature_matcher_(),
-      tracker_(
-          lcd_params.tracker_params_,
-          std::make_shared<VIO::Camera>(stereo_camera->getLeftCamParams())),
+      tracker_(nullptr),
       db_BoW_(nullptr),
       db_frames_(),
       timestamp_map_(),
       lcd_tp_wrapper_(nullptr),
       latest_bowvec_(),
-      B_Pose_camLrect_(),
-      stereo_camera_(stereo_camera),
+      B_Pose_Cam_(B_Pose_Cam),
+      stereo_camera_(stereo_camera ? stereo_camera.get() : nullptr),
       stereo_matcher_(nullptr),
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
       num_lc_unoptimized_(0),
       logger_(nullptr) {
+  // Shared noise model initialization
   gtsam::Vector6 precisions;
   precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
   shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
-  B_Pose_camLrect_ = stereo_camera_->getBodyPoseLeftCamRect();
 
-  // Sparse stereo reconstruction members
-  stereo_matcher_ =
-      VIO::make_unique<StereoMatcher>(stereo_camera_, stereo_matching_params);
+  // Outlier rejection initialization (inside of tracker)
+  tracker_ = VIO::make_unique<Tracker>(
+      lcd_params.tracker_params_,
+      std::make_shared<VIO::Camera>(tracker_cam_params));
+
+  // Sparse stereo reconstruction members (only if stereo_camera is provided)
+  if (stereo_camera) {
+    VLOG(5) << "LoopClosureDetector initializing in stereo mode.";
+    CHECK(stereo_camera_);
+    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+        stereo_camera_, stereo_matching_params.get());
+  } else {
+    VLOG(5) << "LoopClosureDetector initializing in mono mode.";
+  }
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
@@ -250,13 +261,13 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
     debug_info_.pgo_lc_count_ = pgo_->getNumLC();
     debug_info_.pgo_lc_inliers_ = pgo_->getNumLCInliers();
 
-    debug_info_.mono_input_size_ = tracker_.debug_info_.nrMonoPutatives_;
-    debug_info_.mono_inliers_ = tracker_.debug_info_.nrMonoInliers_;
-    debug_info_.mono_iter_ = tracker_.debug_info_.monoRansacIters_;
+    debug_info_.mono_input_size_ = tracker_->debug_info_.nrMonoPutatives_;
+    debug_info_.mono_inliers_ = tracker_->debug_info_.nrMonoInliers_;
+    debug_info_.mono_iter_ = tracker_->debug_info_.monoRansacIters_;
 
-    debug_info_.stereo_input_size_ = tracker_.debug_info_.nrStereoPutatives_;
-    debug_info_.stereo_inliers_ = tracker_.debug_info_.nrStereoInliers_;
-    debug_info_.stereo_iter_ = tracker_.debug_info_.stereoRansacIters_;
+    debug_info_.stereo_input_size_ = tracker_->debug_info_.nrStereoPutatives_;
+    debug_info_.stereo_inliers_ = tracker_->debug_info_.nrStereoInliers_;
+    debug_info_.stereo_iter_ = tracker_->debug_info_.stereoRansacIters_;
 
     logger_->logTimestampMap(timestamp_map_);
     logger_->logDebugInfo(debug_info_);
@@ -333,7 +344,7 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
         // TODO(marcus): unit test to make sure ref frame is correct for these
         // points
         Landmark cam_keypoint_3d =
-            (W_Pose_Blkf * B_Pose_camLrect_).inverse() * W_points_with_ids.at(id);
+            (W_Pose_Blkf * B_Pose_Cam_).inverse() * W_points_with_ids.at(id);
         keypoints_3d.push_back(cam_keypoint_3d);
       } else {
         VLOG(10) << "ProcessAndAddMonoFrame: landmark id not in world points!";
@@ -577,7 +588,7 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
              << "\n reference id: " << ref_id << " current id: " << cur_id;
     result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
   } else {
-    result = tracker_.geometricOutlierRejection2d2d(
+    result = tracker_->geometricOutlierRejection2d2d(
         db_frames_[ref_id]->bearing_vectors_,
         db_frames_[cur_id]->bearing_vectors_,
         matches_match_query,
@@ -627,14 +638,14 @@ bool LoopClosureDetector::recoverPoseBody(
       camMatch_points.push_back(match_point);
     }
 
-    success = tracker_.pnp(camQuery_bearing_vectors,
+    success = tracker_->pnp(camQuery_bearing_vectors,
                            camMatch_points,
                            &camMatch_T_camQuery_3d,
                            inliers,
                            &camMatch_T_camQuery_2d_copy);
   } else {
     TrackingStatusPose result;
-    if (tracker_.tracker_params_.ransac_use_1point_stereo_) {
+    if (tracker_->tracker_params_.ransac_use_1point_stereo_) {
       // For 1pt we need stereo, so cast to derived form.
       StereoLCDFrame::Ptr ref_stereo_lcd_frame = nullptr;
       StereoLCDFrame::Ptr cur_stereo_lcd_frame = nullptr;
@@ -648,8 +659,9 @@ bool LoopClosureDetector::recoverPoseBody(
                       "stereo frontend inputs.";
       }
 
+      CHECK(stereo_camera_);
       std::pair<TrackingStatusPose, gtsam::Matrix3> result_full =
-          tracker_.geometricOutlierRejection3d3dGivenRotation(
+          tracker_->geometricOutlierRejection3d3dGivenRotation(
               ref_stereo_lcd_frame->left_keypoints_rectified_,
               ref_stereo_lcd_frame->right_keypoints_rectified_,
               cur_stereo_lcd_frame->left_keypoints_rectified_,
@@ -663,7 +675,7 @@ bool LoopClosureDetector::recoverPoseBody(
       result = result_full.first;
       camMatch_T_camQuery_3d = result.second;
     } else {
-      result = tracker_.geometricOutlierRejection3d3d(
+      result = tracker_->geometricOutlierRejection3d3d(
           db_frames_[ref_id]->keypoints_3d_,
           db_frames_[cur_id]->keypoints_3d_,
           matches_match_query,
@@ -693,6 +705,8 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
     const FrameId cur_id,
     const gtsam::Pose3& camMatch_T_camQuery_3d,
     const KeypointMatches& matches_match_query) {
+  const auto& stereo_calib = stereo_camera_->getStereoCalib();
+
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values values;
 
@@ -751,7 +765,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
     SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
 
     stereo_factor_i.add(
-        sp_match_i, key_match, stereo_camera_->getStereoCalib());
+        sp_match_i, key_match, stereo_calib);
 
     KeypointCV undistorted_rectified_left_query_keypoint =
         (cur_stereo_lcd_frame->left_keypoints_rectified_
@@ -768,7 +782,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
 
     stereo_factor_i.add(
-        sp_query_i, key_query, stereo_camera_->getStereoCalib());
+        sp_query_i, key_query, stereo_calib);
 
     nfg.add(stereo_factor_i);
   }
@@ -937,7 +951,7 @@ void LoopClosureDetector::transformCameraPoseToBodyPose(
     gtsam::Pose3* bodyMatch_T_bodyQuery) const {
   CHECK_NOTNULL(bodyMatch_T_bodyQuery);
   *bodyMatch_T_bodyQuery =
-      B_Pose_camLrect_ * camMatch_T_camQuery * B_Pose_camLrect_.inverse();
+      B_Pose_Cam_ * camMatch_T_camQuery * B_Pose_Cam_.inverse();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -946,7 +960,7 @@ void LoopClosureDetector::transformBodyPoseToCameraPose(
     gtsam::Pose3* camMatch_T_camQuery) const {
   CHECK_NOTNULL(camMatch_T_camQuery);
   *camMatch_T_camQuery =
-      B_Pose_camLrect_.inverse() * bodyMatch_T_bodyQuery * B_Pose_camLrect_;
+      B_Pose_Cam_.inverse() * bodyMatch_T_bodyQuery * B_Pose_Cam_;
 }
 
 /* ------------------------------------------------------------------------ */

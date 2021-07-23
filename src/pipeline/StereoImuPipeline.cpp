@@ -172,6 +172,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
+                              stereo_camera_->getLeftCamParams(),
+                              stereo_camera_->getBodyPoseLeftCamRect(),
                               stereo_camera_,
                               params.frontend_params_.stereo_matching_params_,
                               FLAGS_log_output));

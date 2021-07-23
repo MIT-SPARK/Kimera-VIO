@@ -95,6 +95,8 @@ class LCDFixture : public ::testing::Test {
 
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
         lcd_params_,
+        stereo_camera_->getLeftCamParams(),
+        stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_,
         frontend_params_.stereo_matching_params_,
         false);
@@ -298,6 +300,18 @@ class LCDFixture : public ::testing::Test {
 TEST_F(LCDFixture, defaultConstructor) {
   /* Test default constructor to ensure that vocabulary is loaded correctly. */
   CHECK(lcd_detector_);
+  EXPECT_GT(lcd_detector_->getBoWDatabase()->getVocabulary()->size(), 0);
+}
+
+TEST_F(LCDFixture, monoConstructor) {
+  /* Test default constructor when in mono mode. */
+  LoopClosureDetector::UniquePtr lcd = VIO::make_unique<LoopClosureDetector>(
+      lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      boost::none,
+      boost::none,
+      false);
   EXPECT_GT(lcd_detector_->getBoWDatabase()->getVocabulary()->size(), 0);
 }
 
@@ -520,6 +534,8 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
@@ -583,6 +599,8 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = true;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
@@ -676,6 +694,8 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
   lcd_params_.use_pnp_pose_recovery_ = true;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
@@ -721,6 +741,8 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
   lcd_params_.refine_pose_ = false;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
@@ -841,6 +863,8 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
   params.max_lc_cached_before_optimize_ = 1000;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       params,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
