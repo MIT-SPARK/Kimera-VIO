@@ -241,9 +241,12 @@ class VioBackend {
                       const gtsam::Pose3& pose,
                       const gtsam::Velocity3& velocity,
                       const ImuBias& imu_bias);
-  void addStateValues(const FrameId& frame_id,
-                      const TrackerStatusSummary& tracker_status,
-                      const gtsam::PreintegrationType& pim);
+  void addStateValues(
+      const FrameId& frame_id,
+      const TrackerStatusSummary& tracker_status,
+      const gtsam::PreintegrationType& pim,
+      const boost::optional<gtsam::Pose3> odom_pose = boost::none,
+      boost::optional<gtsam::Vector3> odom_vel = boost::none);
   void addStateValuesFromNavState(const FrameId& frame_id,
                                   const gtsam::NavState& nav_state);
 

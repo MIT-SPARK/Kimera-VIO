@@ -16,8 +16,6 @@
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 #include <gflags/gflags.h>
 
-DECLARE_bool(use_external_odometry);
-
 namespace VIO {
 
 using utils::ThreadsafeImuBuffer;

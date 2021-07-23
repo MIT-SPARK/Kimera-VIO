@@ -1091,7 +1091,6 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
     if (cur_stereo_frame.left_keypoints_rectified_[i].first ==
             KeypointStatus::VALID &&
         lmk_id != -1) {  // why is lmk_id -1 if KeypointStatus is VALID?
-      CHECK_NE(lmk_id, -1);
       //! We have a valid lmk id.
       //! Query our map of optimized landmarks.
       const auto& it = copy_W_landmarks_map.find(lmk_id);

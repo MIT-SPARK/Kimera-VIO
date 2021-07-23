@@ -68,7 +68,13 @@ struct BackendOutputParams {
  * @brief The PoseGuessSource enum determines which pose is used as initial
  * guess for the keyframe pose.
  */
-enum class PoseGuessSource { IMU = 0, MONO = 1, STEREO = 2, PNP = 3 };
+enum class PoseGuessSource {
+  IMU = 0,
+  MONO = 1,
+  STEREO = 2,
+  PNP = 3,
+  EXTERNAL_ODOM = 4,
+};
 
 class BackendParams : public PipelineParams {
  public:
@@ -144,6 +150,7 @@ class BackendParams : public PipelineParams {
 
   //! Source of the initial guess for the keyframe pose
   PoseGuessSource pose_guess_source_ = PoseGuessSource::IMU;
+  double mono_translation_scale_factor_ = 0.1;
 };
 
 }  // namespace VIO
