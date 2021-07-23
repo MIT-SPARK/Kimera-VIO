@@ -761,41 +761,31 @@ TEST_F(LCDFixture, detectLoop) {
 
   CHECK(lcd_detector_);
 
-  /* Test the detectLoop method against two images without closure */
-  LoopResult loop_result_0, loop_result_1, loop_result_2, loop_result_3;
-  FrameId frame_id;
-
   CHECK(match1_stereo_frame_);
   CHECK(match2_stereo_frame_);
   CHECK(query1_stereo_frame_);
 
-  frame_id = lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
-  lcd_detector_->detectLoop(frame_id, &loop_result_0);
+  FrameId frame_id_0 =
+      lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
+  FrameId frame_id_1 =
+      lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
+  FrameId frame_id_2 =
+      lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
+
+  /* Test the detectLoop method against two images without closure */
+  LoopResult loop_result_0;
+  lcd_detector_->detectLoop(frame_id_1, &loop_result_0);
   EXPECT_EQ(loop_result_0.isLoop(), false);
 
-  /* Test the detectLoop method against two images that are identical */
-  frame_id = lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
-  lcd_detector_->detectLoop(frame_id, &loop_result_2);
-  EXPECT_EQ(loop_result_2.isLoop(), true);
-  EXPECT_EQ(loop_result_2.query_id_, 1);
-  EXPECT_EQ(loop_result_2.match_id_, 0);
-  EXPECT_TRUE(loop_result_2.relative_pose_.equals(
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(0, 0, 0)), loose_tol))
-        << "loop_result_2.relative_pose_: " << loop_result_2.relative_pose_;
-
-  frame_id = lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
-  lcd_detector_->detectLoop(frame_id, &loop_result_1);
-  EXPECT_EQ(loop_result_1.isLoop(), false);
-
-  /* Test the detectLoop method against two unidentical, similar images */
-  frame_id = lcd_detector_->processAndAddStereoFrame(*query1_stereo_frame_);
-  lcd_detector_->detectLoop(frame_id, &loop_result_3);
-  EXPECT_EQ(loop_result_3.isLoop(), true);
-  EXPECT_EQ(loop_result_3.match_id_, 2);
-  EXPECT_EQ(loop_result_3.query_id_, 3);
+  /* Test the detectLoop method against two non-identical, similar images */
+  LoopResult loop_result_1;
+  lcd_detector_->detectLoop(frame_id_2, &loop_result_1);
+  EXPECT_EQ(loop_result_1.isLoop(), true);
+  EXPECT_EQ(loop_result_1.match_id_, 0);
+  EXPECT_EQ(loop_result_1.query_id_, 2);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      bodyMatch1_T_bodyQuery1_gt_, loop_result_3.relative_pose_, false);
+      bodyMatch1_T_bodyQuery1_gt_, loop_result_1.relative_pose_, false);
 
   EXPECT_LT(error.first, rot_tol_stereo);
   EXPECT_LT(error.second, tran_tol_stereo);
