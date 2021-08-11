@@ -102,7 +102,7 @@ sudo make -j $(nproc) install
 
 > Note: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to 'false' (cmake flag)
 
-> Note: also enable the `GTSAM_BUILD_WITH_MARCH_NATIVE` compile option for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `MARCH_NATIVE` might cause problems that culminates in the form of segfaults when you run the unittests. If you do wish to use this flag, simply add `-DGTSAM_BUILD_WITH_MARCH_NATIVE=On ` to the flags on the `cmake` command. Note that sometimes, the flag it is enabled by default.
+> Note: `GTSAM_BUILD_WITH_MARCH_NATIVE` is on by default which means that Kimera-VIO inherits `-march=native` as a build option. If you build with the option `GTSAM_BUILD_WITH_MARCH_NATIVE=OFF`, you will also have to build opengv without `-march=native` to avoid alignment issues between Kimera-VIO and opengv.
 
 ## Install OpenCV
 
