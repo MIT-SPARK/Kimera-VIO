@@ -362,7 +362,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
                                  matches_ref_cur,
                                  &disparity)) {
         if (disparity < tracker_params_.disparityThreshold_) {
-          LOG(ERROR) << "Low mono disparity.";
+          LOG(INFO) << "Low mono disparity.";
           result.first = TrackingStatus::LOW_DISPARITY;
         }
       } else {
@@ -544,7 +544,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
     }
     // timeMaxSet += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
   }
-  // std::cout << "timeMahalanobis: " << timeMahalanobis << std::endl
+  // LOG(INFO) << "timeMahalanobis: " << timeMahalanobis << std::endl
   //<< "timeAllocate: " << timeAllocate << std::endl
   //<< "timePushBack: " << timePushBack << std::endl
   //<< "timeMaxSet: " << timeMaxSet << std::endl
@@ -570,7 +570,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
   // Sort inliers.
   std::sort(inliers->begin(), inliers->end());
   // UtilsOpenCV::PrintVector<int>(inliers,"inliers");
-  // std::cout << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
+  // LOG(INFO) << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
 
   VLOG(5) << "RANSAC (STEREO): \n"
           << "- #iter = " << 1 << '\n'

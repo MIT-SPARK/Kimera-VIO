@@ -275,7 +275,7 @@ void StereoCamera::distortUnrectifyRightKeypoints(
 void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) const {
   CHECK_NOTNULL(stereo_frame);
   //! Warn if stupid behavior from user
-  LOG_IF(WARNING, stereo_frame->isRectified())
+  VLOG_IF(1, stereo_frame->isRectified())
       << "Rectifying already rectified stereo frame ...";
 
   //! Left img

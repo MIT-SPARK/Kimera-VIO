@@ -29,14 +29,14 @@
 
 #include "kimera-vio/backend/VioBackend.h"
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include <limits>  // for numeric_limits<>
 #include <map>
 #include <string>
 #include <utility>  // for make_pair
 #include <vector>
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
 
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"  // for safeCast
@@ -489,15 +489,16 @@ void VioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
 
   // Add observations to smart factor
   if (VLOG_IS_ON(10)) new_factor->print();
+  std::stringstream ss;
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     const FrameId& frame_id = obs.first;
     const gtsam::Symbol& pose_symbol = gtsam::Symbol(kPoseSymbolChar, frame_id);
     const StereoPoint2& measurement = obs.second;
     new_factor->add(measurement, pose_symbol, stereo_cal_);
 
-    if (VLOG_IS_ON(10)) std::cout << " " << obs.first;
+    if (VLOG_IS_ON(10)) ss << " " << obs.first;
   }
-  if (VLOG_IS_ON(10)) std::cout << std::endl;
+  VLOG(10) << ss.str() << std::endl;
 
   // add new factor to suitable structures:
   new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
@@ -1001,10 +1002,7 @@ void VioBackend::addNoMotionFactor(const FrameId& from_id,
 
   debug_info_.numAddedNoMotionF_++;
 
-  if (VLOG_IS_ON(10)) {
-    std::cout << "No motion detected, adding no relative motion prior"
-              << std::endl;
-  }
+  VLOG(10) << "No motion detected, adding no relative motion prior";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1165,7 +1163,7 @@ bool VioBackend::optimize(
   std::map<Key, double> key_frame_count;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  new_values_) {
-      key_frame_count[key_value.key] = cur_id;
+    key_frame_count[key_value.key] = cur_id;
   }
   DCHECK_EQ(key_frame_count.size(), new_values_.size());
 
@@ -1472,9 +1470,8 @@ bool VioBackend::updateSmoother(Smoother::Result* result,
           sigmas.setConstant(0.1);
           gtsam::SharedNoiseModel noise =
               gtsam::noiseModel::Diagonal::Sigmas(sigmas);
-          nfg.push_back(
-              boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
-                  key, vel, noise));
+          nfg.push_back(boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+              key, vel, noise));
           break;
         }
         default: {
@@ -1874,9 +1871,9 @@ void VioBackend::print() const {
 }
 
 void VioBackend::printFeatureTracks() const {
-  std::cout << "---- Feature tracks: --------- " << std::endl;
+  LOG(INFO) << "---- Feature tracks: --------- ";
   BOOST_FOREACH (auto keyTrack_j, feature_tracks_) {
-    std::cout << "Landmark " << keyTrack_j.first << " having ";
+    LOG(INFO) << "Landmark " << keyTrack_j.first << " having ";
     keyTrack_j.second.print();
   }
 }
@@ -1940,6 +1937,7 @@ void VioBackend::printSmootherInfo(
   LOG(INFO) << "Nr deleted slots: " << delete_slots.size()
             << ", with slots:" << std::endl;
   LOG(INFO) << "[\n\t";
+  std::stringstream ss;
   if (debug_info_.graphToBeDeleted.size() != 0) {
     // If we are storing the graph to be deleted, then print extended info
     // besides the slot to be deleted.
@@ -1955,37 +1953,39 @@ void VioBackend::printSmootherInfo(
                              false,
                              false);
       } else {
-        std::cout << "\tSlot # " << delete_slots.at(i) << ":";
-        std::cout << "\t";
+        ss << "\tSlot # " << delete_slots.at(i) << ":";
+        ss << "\t";
         debug_info_.graphToBeDeleted.at(i)->printKeys();
       }
     }
   } else {
     for (size_t i = 0; i < delete_slots.size(); ++i) {
-      std::cout << delete_slots.at(i) << " ";
+      ss << delete_slots.at(i) << " ";
     }
   }
-  std::cout << std::endl;
+  LOG(INFO) << ss.str();
   LOG(INFO) << " ]" << std::endl;
 
   //////////////////////// Print all values in state. ////////////////////////
   LOG(INFO) << "Nr of values in state_ : " << state_.size() << ", with keys:";
-  std::cout << "[\n\t";
+  std::stringstream state_ss;
+  state_ss << "[\n\t";
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value, state_) {
-    std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    state_ss << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << state_ss.str();
   LOG(INFO) << " ]";
 
   // Print only new values.
   LOG(INFO) << "Nr values in new_values_ : " << new_values_.size()
             << ", with keys:";
-  std::cout << "[\n\t";
+  std::stringstream new_values_ss;
+  new_values_ss << "[\n\t";
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  new_values_) {
-    std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    new_values_ss << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << new_values_ss.str();
   LOG(INFO) << " ]";
 
   if (showDetails) {
@@ -2148,10 +2148,6 @@ void VioBackend::computeSmartFactorStatistics() {
         // Check SF status
         const gtsam::TriangulationResult& result = gsf->point();
         if (result) {
-          if (result.degenerate()) debug_info_.numDegenerate_ += 1;
-          if (result.farPoint()) debug_info_.numFarPoints_ += 1;
-          if (result.outlier()) debug_info_.numOutliers_ += 1;
-          if (result.behindCamera()) debug_info_.numCheirality_ += 1;
           if (result.valid()) {
             debug_info_.numValid_ += 1;
             // Check track length
@@ -2163,6 +2159,10 @@ void VioBackend::computeSmartFactorStatistics() {
           }
         } else {
           VLOG(5) << "Triangulation result is not initialized...";
+          if (result.degenerate()) debug_info_.numDegenerate_ += 1;
+          if (result.farPoint()) debug_info_.numFarPoints_ += 1;
+          if (result.outlier()) debug_info_.numOutliers_ += 1;
+          if (result.behindCamera()) debug_info_.numCheirality_ += 1;
           debug_info_.numNonInitialized_ += 1;
         }
       }

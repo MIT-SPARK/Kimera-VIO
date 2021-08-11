@@ -232,7 +232,6 @@ if(KIMERA_BUILD_TESTS)
     tests/testCodesignIdeas.cpp
     tests/testExternalOdometryFrontend.cpp
     tests/testFrame.cpp # NEEDS UPDATE
-    tests/testRgbdCamera.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testImuFrontend.cpp
@@ -253,6 +252,8 @@ if(KIMERA_BUILD_TESTS)
     tests/testPointPlaneFactor.cpp
     #tests/testRegularVioBackend.cpp # rotten
     tests/testRegularVioBackendParams.cpp
+    tests/testRgbdCamera.cpp
+    tests/testRgbdVisionImuFrontend.cpp
     tests/testStereoFrame.cpp # NEEDS UPDATE
     tests/testStereoMatcher.cpp
     tests/testStereoProvider.cpp

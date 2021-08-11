@@ -23,8 +23,8 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
-#include "kimera-vio/frontend/rgbd/RgbdCamera.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdCamera.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -53,8 +53,8 @@ class RgbdCameraFixture : public ::testing::Test {
     vio_params_.parallel_run_ = false;
 
     // Create RGB-D camera
-    rgbd_camera_ =
-        VIO::make_unique<RgbdCamera>(vio_params_.camera_params_.at(0));
+    rgbd_camera_ = VIO::make_unique<RgbdCamera>(
+        vio_params_.camera_params_.at(0), DepthCameraParams());
 
     // Create visualizer
     VisualizationType viz_type = VisualizationType::kPointcloud;
@@ -169,7 +169,7 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
       VIO::make_unique<Frame>(0u, 0u, cam_params, intensity_img);
   DepthFrame::UniquePtr depth_frame =
       VIO::make_unique<DepthFrame>(0u, 0u, depth_map);
-  RgbdFrame rgbd_frame(0u, 0u, std::move(frame), std::move(depth_frame));
+  RgbdFrame rgbd_frame(0u, 0u, *frame, *depth_frame);
   cv::Mat actual_cloud;
   cv::Mat colors;
   rgbd_camera_->convertRgbdToPointcloud(rgbd_frame, &actual_cloud, &colors);

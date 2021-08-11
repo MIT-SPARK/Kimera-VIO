@@ -102,6 +102,7 @@ class LCDFixture : public ::testing::Test {
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_,
         frontend_params_.stereo_matching_params_,
+        boost::none,
         false);
 
     lcd_detector_->registerIsBackendQueueFilledCallback(
@@ -315,6 +316,7 @@ TEST_F(LCDFixture, monoConstructor) {
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
+      boost::none,
       boost::none,
       boost::none,
       false);
@@ -544,6 +546,7 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
+      boost::none,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -609,6 +612,7 @@ TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
+      boost::none,
       false);
 
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_gt, camMatch1_T_camQuery1_gt;
@@ -705,6 +709,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
+      boost::none,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -752,6 +757,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
+      boost::none,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -877,6 +883,7 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
+      boost::none,
       false);
   lcd_detector_->registerIsBackendQueueFilledCallback(
       std::bind(&LCDFixture::lcdInputQueueCb, this));

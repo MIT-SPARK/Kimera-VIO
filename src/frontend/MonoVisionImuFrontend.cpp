@@ -447,9 +447,9 @@ void MonoVisionImuFrontend::printStatusMonoMeasurements(
   LOG(INFO) << " stereo points:";
   const MonoMeasurements& mono_measurements = status_mono_measurements.second;
   for (const auto& meas : mono_measurements) {
-    std::cout << " " << meas.second << " ";
+    LOG(INFO) << " " << meas.second << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << std::endl;
 }
 
 }  // namespace VIO

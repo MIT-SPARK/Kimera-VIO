@@ -10,31 +10,44 @@
  * @file   RgbdFrame.h
  * @brief  Class describing a combination of an RGB image + a Depth image
  * @author Antoni Rosinol
+ * @author Nathan Hughes
  */
 
 #pragma once
 
+#include "kimera-vio/frontend/DepthFrame.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/rgbd/DepthFrame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
 
 namespace VIO {
 
+// forward declarations to break dependency on RgbdFrame in RgbdCamera
+class RgbdCamera;
+class DepthCameraParams;
+
 class RgbdFrame : public PipelinePayload {
  public:
-  KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdFrame);
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdFrame);
   KIMERA_POINTER_TYPEDEFS(RgbdFrame);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   RgbdFrame(const FrameId& id,
             const Timestamp& timestamp,
-            Frame::UniquePtr intensity_img,
-            DepthFrame::UniquePtr depth_img);
+            const Frame& intensity_img,
+            const DepthFrame& depth_img);
+
+  RgbdFrame(const RgbdFrame& other);
+
+  StereoFrame::Ptr getStereoFrame() const;
+
+  void fillStereoFrame(const RgbdCamera& camera,
+                       StereoFrame& stereo_frame) const;
 
  public:
   const FrameId id_;
-  Frame::UniquePtr intensity_img_;
-  DepthFrame::UniquePtr depth_img_;
+  Frame intensity_img_;
+  DepthFrame depth_img_;
 };
 
 }  // namespace VIO

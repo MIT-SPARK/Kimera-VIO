@@ -226,9 +226,9 @@ class StereoVisionImuFrontendFixture : public ::testing::Test {
                         double tolerance = 3.0) {
     for (size_t i = 0u; i < pt_set.size(); i++) {
       // check inf norm to make sure all elements are within tolerance
-      // std::cout << "checking correspondences" << std::endl;
-      // std::cout << pt_set[i] << std::endl;
-      // std::cout << pt_query << std::endl;
+      // LOG(INFO) << "checking correspondences" << std::endl;
+      // LOG(INFO) << pt_set[i] << std::endl;
+      // LOG(INFO) << pt_query << std::endl;
       if ((pt_set[i] - pt_query).lpNorm<Eigen::Infinity>() < tolerance) {
         return i;
       }

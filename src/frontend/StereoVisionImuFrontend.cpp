@@ -439,19 +439,19 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
             inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
           tracker_status_summary_.kfTracking_status_pnp_ =
               TrackingStatus::VALID;
-          LOG(WARNING) << "PnP tracking success:\n"
+          VLOG(5) << "PnP tracking success:\n"
                        << "- # inliers: " << inliers.size() << '\n'
                        << "- # outliers: "
                        << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
                        << '\n'
                        << "Total: " << stereoFrame_k_->keypoints_3d_.size();
         } else {
-          LOG(ERROR) << "PnP tracking failed...\n"
-                     << "- # inliers: " << inliers.size() << '\n'
-                     << "- # outliers: "
-                     << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
-                     << '\n'
-                     << "Total: " << stereoFrame_k_->keypoints_3d_.size();
+          VLOG(5) << "PnP tracking failed...\n"
+                  << "- # inliers: " << inliers.size() << '\n'
+                  << "- # outliers: "
+                  << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
+                  << '\n'
+                  << "Total: " << stereoFrame_k_->keypoints_3d_.size();
           tracker_status_summary_.kfTracking_status_pnp_ =
               TrackingStatus::FEW_MATCHES;
         }
@@ -825,9 +825,9 @@ void StereoVisionImuFrontend::printStatusStereoMeasurements(
   LOG(INFO) << " stereo points:";
   const StereoMeasurements& smartStereoMeas = statusStereoMeasurements.second;
   for (const auto& smart_stereo_meas : smartStereoMeas) {
-    std::cout << " " << smart_stereo_meas.second << " ";
+    LOG(INFO) << " " << smart_stereo_meas.second << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << std::endl;
 }
 
 }  // namespace VIO

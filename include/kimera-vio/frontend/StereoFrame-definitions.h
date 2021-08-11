@@ -45,9 +45,4 @@ using KeypointsWithDepth = std::vector<KeypointWithDepth>;
 // Definitions relevant to StereoFrame type.
 using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
-enum class VisionSensorType { 
-STEREO = 0,
-RGBD = 1
-};
-
 }  // namespace VIO

@@ -27,8 +27,8 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/dataprovider/MonoDataProviderModule.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
-#include "kimera-vio/frontend/rgbd/RgbdImuSyncPacket.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdImuSyncPacket.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
@@ -59,6 +59,7 @@ class RgbdDataProviderModule : public MonoDataProviderModule {
     CHECK(depth_frame);
     depth_frame_queue_.push(std::move(depth_frame));
   }
+
   //! Callbacks to fill queues but they block if queues are getting full.
   //! Blocking call in case you want to avoid overfilling the input queues.
   //! This is useful when parsing datasets files, since parsing is much faster
@@ -91,6 +92,7 @@ class RgbdDataProviderModule : public MonoDataProviderModule {
  private:
   //! Input data
   ThreadsafeQueue<DepthFrame::UniquePtr> depth_frame_queue_;
+  cv::Mat depth_mask_;
 };
 
 }  // namespace VIO

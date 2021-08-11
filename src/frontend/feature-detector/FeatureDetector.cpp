@@ -182,7 +182,13 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // longer good quality or visible early on if they don't have detected
   // keypoints nearby by! The mask is interpreted as: 255 -> consider, 0 ->
   // don't consider.
-  cv::Mat mask(cur_frame.img_.size(), CV_8U, cv::Scalar(255));
+  cv::Mat mask;
+  if (cur_frame.detection_mask_.empty()) {
+    mask = cv::Mat(cur_frame.img_.size(), CV_8U, cv::Scalar(255));
+  } else {
+    mask = cur_frame.detection_mask_;
+  }
+
   for (size_t i = 0u; i < cur_frame.keypoints_.size(); ++i) {
     if (cur_frame.landmarks_.at(i) != -1) {
       // Only mask keypoints that are being triangulated (I guess

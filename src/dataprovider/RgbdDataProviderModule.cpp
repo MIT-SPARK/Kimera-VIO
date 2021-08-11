@@ -16,7 +16,13 @@
 #include "kimera-vio/dataprovider/RgbdDataProviderModule.h"
 
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
-#include "kimera-vio/frontend/rgbd/RgbdImuSyncPacket.h"
+#include "kimera-vio/frontend/RgbdImuSyncPacket.h"
+
+#include <gflags/gflags.h>
+
+DEFINE_string(depth_image_mask,
+              "",
+              "mask for depth image to remove invalid regions");
 
 namespace VIO {
 
@@ -24,7 +30,15 @@ RgbdDataProviderModule::RgbdDataProviderModule(OutputQueue* output_queue,
                                                const std::string& name_id,
                                                const bool& parallel_run)
     : MonoDataProviderModule(output_queue, name_id, parallel_run),
-      depth_frame_queue_("data_provider_depth_frame_queue") {}
+      depth_frame_queue_("data_provider_depth_frame_queue") {
+  if (!FLAGS_depth_image_mask.empty()) {
+    depth_mask_ = cv::imread(FLAGS_depth_image_mask, cv::IMREAD_GRAYSCALE);
+    if (depth_mask_.empty()) {
+      LOG(WARNING) << "Invalid mask path: " << FLAGS_depth_image_mask
+                   << ". Defaulting to not using a mask";
+    }
+  }
+}
 
 RgbdDataProviderModule::InputUniquePtr
 RgbdDataProviderModule::getInputPacket() {
@@ -49,16 +63,32 @@ RgbdDataProviderModule::getInputPacket() {
   }
   CHECK(depth_frame_payload);
 
+  if (!depth_mask_.empty()) {
+    cv::Mat result(depth_frame_payload->depth_img_.rows,
+                   depth_frame_payload->depth_img_.cols,
+                   depth_frame_payload->depth_img_.type());
+    result.setTo(0);
+
+    cv::bitwise_or(depth_frame_payload->depth_img_,
+                   depth_frame_payload->depth_img_,
+                   result,
+                   depth_mask_);
+    const auto id = depth_frame_payload->id_;
+    const auto stamp = depth_frame_payload->timestamp_;
+    depth_frame_payload.reset(new DepthFrame(id, stamp, result));
+  }
+
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);
     vio_pipeline_callback_(VIO::make_unique<RgbdImuSyncPacket>(
         timestamp,
         VIO::make_unique<RgbdFrame>(left_frame_id,
                                     timestamp,
-                                    std::move(mono_imu_sync_packet->frame_),
-                                    std::move(depth_frame_payload)),
+                                    *mono_imu_sync_packet->frame_,
+                                    *depth_frame_payload),
         mono_imu_sync_packet->imu_stamps_,
-        mono_imu_sync_packet->imu_accgyrs_));
+        mono_imu_sync_packet->imu_accgyrs_,
+        mono_imu_sync_packet->world_NavState_ext_odom_));
   }
 
   // Push the synced messages to the Frontend's input queue

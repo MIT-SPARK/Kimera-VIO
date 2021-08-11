@@ -17,18 +17,9 @@
 #include <gtsam/navigation/NavState.h>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/FrontendType.h"
 
 namespace VIO {
-
-enum class FrontendType {
-  //! Frontend that works with Mono camera and Imu
-  kMonoImu = 0,
-  //! Frontend that works with Stereo camera and Imu
-  kStereoImu = 1,
-  //! Frontend that works with RGB + Depth camera and Imu
-  kRgbdImu = 2
-};
-
 
 // TODO(marcus): this could probably move somewhere else once refactor happens
 struct ExternalOdomMeasurement {

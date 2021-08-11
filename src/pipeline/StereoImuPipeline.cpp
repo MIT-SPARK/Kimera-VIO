@@ -178,6 +178,7 @@ StereoImuPipeline::StereoImuPipeline(
                               stereo_camera_->getBodyPoseLeftCamRect(),
                               stereo_camera_,
                               params.frontend_params_.stereo_matching_params_,
+                              boost::none,
                               FLAGS_log_output,
                               std::move(preloaded_vocab)));
     //! Register input callbacks

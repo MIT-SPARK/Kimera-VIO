@@ -287,7 +287,7 @@ class OpenCvVisualizer3D : public Visualizer3D {
   void visualizeFactorGraph(const gtsam::Values& state,
                             const gtsam::NonlinearFactorGraph& factor_graph,
                             const gtsam::Pose3& body_pose_camLrect,
-                            const gtsam::Pose3& body_pose_camRrect,
+                            const gtsam::Pose3* body_pose_camRrect,
                             WidgetsMap* widgets);
 
   //! Remove line widgets from plane to lmks, for lines that are not pointing

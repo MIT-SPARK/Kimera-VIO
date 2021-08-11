@@ -13,19 +13,13 @@
  */
 
 #pragma once
-
-#include <Eigen/Core>
-
-#include <opencv2/calib3d.hpp>
-#include <opencv2/core.hpp>
-
-#include <gtsam/geometry/Pose3.h>
-
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/frontend/CameraParams.h"
-#include "kimera-vio/frontend/UndistorterRectifier.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/DepthCameraParams.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/utils/Macros.h"
+
+#include <opencv2/core.hpp>
 
 namespace VIO {
 
@@ -62,12 +56,55 @@ class RgbdCamera : public Camera {
    * @brief RgbdCamera definition of what a Rgbd Camera is. Computes
    * rectification and undistortion parameters that can be readily applied
    * to stereo images.
-   * @param left_cam_params
-   * @param depth_cam_params
+   * @param left_cam_params color camera matrix
+   * @param depth_camera_matrix depth camera matrix
+   * @param T_color_depth transfrom between the cameras
    */
-  RgbdCamera(const CameraParams& cam_params) : Camera(cam_params) {}
+  RgbdCamera(const CameraParams& cam_params,
+             const DepthCameraParams& depth_params,
+             const cv::Mat& depth_camera_matrix,
+             const gtsam::Pose3& T_color_depth,
+             bool is_registered)
+      : Camera(cam_params),
+        depth_params_(depth_params),
+        depth_camera_matrix_(depth_camera_matrix),
+        T_color_depth_(T_color_depth),
+        is_registered_(is_registered) {}
+
+  /**
+   * @brief RgbdCamera constructor for registered (colacated depth and color)
+   * camera
+   * @param left_cam_params color camera matrix
+   */
+  RgbdCamera(const CameraParams& cam_params,
+             const DepthCameraParams& depth_params)
+      : RgbdCamera(cam_params,
+                   depth_params,
+                   cam_params.K_,
+                   gtsam::Pose3::identity(),
+                   true) {}
 
   virtual ~RgbdCamera() = default;
+
+  /**
+   * @brief Distort keypoints according to camera distortion model
+   * @note used for creating fake keypoints in the hallucinated right frame. May
+   * not be needed
+   */
+  inline void distortKeypoints(const StatusKeypointsCV& keypoints_undistorted,
+                               KeypointsCV* keypoints) const {
+    undistorter_->distortUnrectifyKeypoints(keypoints_undistorted, keypoints);
+  }
+
+  inline StereoCalibPtr getFakeStereoCalib() const {
+    return StereoCalibPtr(
+        new gtsam::Cal3_S2Stereo(calibration_.fx(),
+                                 calibration_.fy(),
+                                 calibration_.skew(),
+                                 calibration_.px(),
+                                 calibration_.py(),
+                                 depth_params_.virtual_baseline_));
+  }
 
  public:
   /**
@@ -86,19 +123,17 @@ class RgbdCamera : public Camera {
                                cv::Mat* colors) {
     CHECK_NOTNULL(cloud);
     CHECK_NOTNULL(colors);
-    CHECK(rgbd_frame.intensity_img_);
-    CHECK(rgbd_frame.depth_img_);
-    const auto& depth_type = rgbd_frame.depth_img_->depth_img_.type();
+    const auto& depth_type = rgbd_frame.depth_img_.depth_img_.type();
     if (depth_type == CV_16UC1) {
-      return convert<uint16_t>(rgbd_frame.intensity_img_->img_,
-                               rgbd_frame.depth_img_->depth_img_,
+      return convert<uint16_t>(rgbd_frame.intensity_img_.img_,
+                               rgbd_frame.depth_img_.depth_img_,
                                cam_params_.intrinsics_,
                                depth_factor_,
                                cloud,
                                colors);
     } else if (depth_type == CV_32FC1) {
-      return convert<float>(rgbd_frame.intensity_img_->img_,
-                            rgbd_frame.depth_img_->depth_img_,
+      return convert<float>(rgbd_frame.intensity_img_.img_,
+                            rgbd_frame.depth_img_.depth_img_,
                             cam_params_.intrinsics_,
                             static_cast<float>(depth_factor_),
                             cloud,
@@ -108,6 +143,18 @@ class RgbdCamera : public Camera {
       LOG(FATAL) << "Unrecognized depth image type.";
     }
   }
+
+  inline gtsam::Pose3 getDepthCamTransform() const { return T_color_depth_; }
+
+  inline const DepthCameraParams& getDepthCameraParams() const {
+    return depth_params_;
+  }
+
+  inline const cv::Mat& getDepthCamMatrix() const {
+    return depth_camera_matrix_;
+  }
+
+  inline bool isRegistered() const { return is_registered_; }
 
  private:
   template <typename T>
@@ -174,8 +221,13 @@ class RgbdCamera : public Camera {
   }
 
  protected:
+  DepthCameraParams depth_params_;
   // TODO(Toni): put this in the DepthCameraParams struct
   uint16_t depth_factor_ = 1u;
+
+  const cv::Mat depth_camera_matrix_;
+  const gtsam::Pose3 T_color_depth_;
+  bool is_registered_;
 };
 
 }  // namespace VIO

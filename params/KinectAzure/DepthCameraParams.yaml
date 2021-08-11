@@ -1,0 +1,5 @@
+%YAML:1.0
+virtual_baseline: 0.3
+min_depth: 0.0
+depth_to_meters: 1.0
+max_depth: 10.0

@@ -58,8 +58,6 @@ TEST(testVisionImuFrontendParams, FrontendParamParseYAML) {
   EXPECT_EQ(tp.stereo_matching_params_.templ_cols_, 103);
   EXPECT_EQ(tp.stereo_matching_params_.templ_rows_, 5);
   EXPECT_EQ(tp.stereo_matching_params_.stripe_extra_rows_, 2);
-  EXPECT_EQ(tp.stereo_matching_params_.min_depth_factor_, 0.3);
-  EXPECT_EQ(tp.stereo_matching_params_.map_depth_factor_, 0.001);
   EXPECT_EQ(tp.stereo_matching_params_.bidirectional_matching_, true);
 
   EXPECT_EQ(tp.min_intra_keyframe_time_ns_, 0.5 * 1e9);

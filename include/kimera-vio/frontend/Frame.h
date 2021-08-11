@@ -183,6 +183,8 @@ class Frame : public PipelinePayload {
   BearingVectors versors_;
   //! Not currently used
   cv::Mat descriptors_;
+  //! Optional mask for feature detection. Note that can change when the frame is const
+  mutable cv::Mat detection_mask_;
 
  protected:
   Frame(const FrameId& id,

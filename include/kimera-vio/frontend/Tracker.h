@@ -263,7 +263,7 @@ class Tracker {
     ransac.sac_model_ = sample_consensus_problem_ptr;
 
     //! Run ransac
-    bool success = ransac.computeModel(VLOG_IS_ON(1) ? 1 : 0);
+    bool success = ransac.computeModel(VLOG_IS_ON(10) ? 1 : 0);
 
     if (success) {
       if (ransac.iterations_ >= max_iterations && ransac.inliers_.empty()) {
