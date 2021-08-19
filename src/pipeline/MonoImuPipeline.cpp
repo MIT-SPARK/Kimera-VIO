@@ -143,6 +143,11 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
 
+  vio_backend_module_->registerMapUpdateCallback(
+      std::bind(&VisionImuFrontendModule::updateMap,
+                std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
+                std::placeholders::_1));
+
   // TOOD(marcus): enable use of mesher for mono pipeline
   // if (static_cast<VisualizationType>(FLAGS_viz_type) ==
   //     VisualizationType::kMesh2dTo3dSparse) {
