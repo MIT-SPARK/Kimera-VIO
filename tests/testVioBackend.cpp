@@ -62,6 +62,10 @@ class BackendFixture : public ::testing::Test {
         ImuPreintegrationType::kPreintegratedImuMeasurements;
   }
 
+  void map_update_cb(const LandmarksMap& map) {
+    // Do nothing
+  }
+
  protected:
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -240,6 +244,8 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
                                    false);
   vio_backend->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontend::updateBias, std::ref(imu_frontend), std::placeholders::_1));
+  vio_backend->registerMapUpdateCallback(
+      std::bind(&BackendFixture::map_update_cb, this, std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
   Timestamp timestamp_km1 = t_start_ - before_start_imu_msgs_ * imu_time_step_;
@@ -427,6 +433,8 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
                                    VIO::OdometryParams());
   vio_backend->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontend::updateBias, std::ref(imu_frontend), std::placeholders::_1));
+  vio_backend->registerMapUpdateCallback(
+      std::bind(&BackendFixture::map_update_cb, this, std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
   Timestamp timestamp_km1 = t_start_ - before_start_imu_msgs_ * imu_time_step_;
