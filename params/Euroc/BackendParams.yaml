@@ -62,10 +62,10 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 # OPTIMIZATION PARAMETERS #####################################################
 relinearizeThreshold: 0.01
 relinearizeSkip: 1
-zeroVelocitySigma: 0.001
-noMotionPositionSigma: 0.001
-noMotionRotationSigma: 0.0001
-constantVelSigma: 0.01
+zeroVelocityPrecision: 1000
+noMotionPositionPrecision: 1000
+noMotionRotationPrecision: 10000
+constantVelPrecision: 100
 numOptimize: 10
 horizon: 6 # In seconds.
 # ISAM2GaussNewtonParams: continue updating the linear delta only when

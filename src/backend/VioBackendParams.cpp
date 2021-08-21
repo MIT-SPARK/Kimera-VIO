@@ -128,10 +128,10 @@ bool BackendParams::parseYAMLVioBackendParams(const YamlParser& yaml_parser) {
   // OPTIMIZATION PARAMS
   yaml_parser.getYamlParam("relinearizeThreshold", &relinearizeThreshold_);
   yaml_parser.getYamlParam("relinearizeSkip", &relinearizeSkip_);
-  yaml_parser.getYamlParam("zeroVelocitySigma", &zeroVelocitySigma_);
-  yaml_parser.getYamlParam("noMotionPositionSigma", &noMotionPositionSigma_);
-  yaml_parser.getYamlParam("noMotionRotationSigma", &noMotionRotationSigma_);
-  yaml_parser.getYamlParam("constantVelSigma", &constantVelSigma_);
+  yaml_parser.getYamlParam("zeroVelocityPrecision", &zeroVelocityPrecision_);
+  yaml_parser.getYamlParam("noMotionPositionPrecision", &noMotionPositionPrecision_);
+  yaml_parser.getYamlParam("noMotionRotationPrecision", &noMotionRotationPrecision_);
+  yaml_parser.getYamlParam("constantVelPrecision", &constantVelPrecision_);
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
   yaml_parser.getYamlParam("horizon", &horizon_);
   yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
@@ -203,10 +203,10 @@ bool BackendParams::equalsVioBackendParams(const BackendParams& vp2,
       // OPTIMIZATION PARAMS
       (fabs(relinearizeThreshold_ - vp2.relinearizeThreshold_) <= tol) &&
       (relinearizeSkip_ == vp2.relinearizeSkip_) &&
-      (fabs(zeroVelocitySigma_ - vp2.zeroVelocitySigma_) <= tol) &&
-      (fabs(noMotionPositionSigma_ - vp2.noMotionPositionSigma_) <= tol) &&
-      (fabs(noMotionRotationSigma_ - vp2.noMotionRotationSigma_) <= tol) &&
-      (fabs(constantVelSigma_ - vp2.constantVelSigma_) <= tol) &&
+      (fabs(zeroVelocityPrecision_ - vp2.zeroVelocityPrecision_) <= tol) &&
+      (fabs(noMotionPositionPrecision_ - vp2.noMotionPositionPrecision_) <= tol) &&
+      (fabs(noMotionRotationPrecision_ - vp2.noMotionRotationPrecision_) <= tol) &&
+      (fabs(constantVelPrecision_ - vp2.constantVelPrecision_) <= tol) &&
       (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
       (wildfire_threshold_ == vp2.wildfire_threshold_) &&
       (useDogLeg_ == vp2.useDogLeg_) &&
@@ -266,14 +266,14 @@ void BackendParams::printVioBackendParams() const {
       relinearizeThreshold_,
       "Relinearize Skip",
       relinearizeSkip_,
-      "Zero Velocity Sigma",
-      zeroVelocitySigma_,
-      "No Motion Position Sigma",
-      noMotionPositionSigma_,
-      "No Motion Rotation Sigma",
-      noMotionRotationSigma_,
-      "Constant Velocity Sigma",
-      constantVelSigma_,
+      "Zero Velocity Precision",
+      zeroVelocityPrecision_,
+      "No Motion Position Precision",
+      noMotionPositionPrecision_,
+      "No Motion Rotation Precision",
+      noMotionRotationPrecision_,
+      "Constant Velocity Precision",
+      constantVelPrecision_,
       "Optimization Iterations",
       numOptimize_,
       "Horizon",

@@ -378,8 +378,8 @@ class VioBackend {
       const double& outlier_rejection,
       gtsam::SmartStereoProjectionParams* smart_factors_params);
 
-  void setNoMotionFactorsParams(const double& rotation_sigma,
-                                const double& position_sigma,
+  void setNoMotionFactorsParams(const double& rotation_precision,
+                                const double& position_precision,
                                 gtsam::SharedNoiseModel* no_motion_prior_noise);
 
   /// Private printers.

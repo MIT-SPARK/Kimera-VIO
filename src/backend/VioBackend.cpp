@@ -1743,17 +1743,21 @@ void VioBackend::setFactorsParams(
                               vio_params.outlierRejection_,
                               smart_factors_params);
 
-  setNoMotionFactorsParams(vio_params.noMotionPositionSigma_,
-                           vio_params.noMotionRotationSigma_,
+  setNoMotionFactorsParams(vio_params.noMotionPositionPrecision_,
+                           vio_params.noMotionRotationPrecision_,
                            no_motion_prior_noise);
 
   // Zero velocity factors settings
+  gtsam::Vector3 zero_velocity_precisions;
+  zero_velocity_precisions.setConstant(vio_params.zeroVelocityPrecision_);
   *zero_velocity_prior_noise =
-      gtsam::noiseModel::Isotropic::Sigma(3u, vio_params.zeroVelocitySigma_);
+      gtsam::noiseModel::Diagonal::Precisions(zero_velocity_precisions);
 
   // Constant velocity factors settings
+  gtsam::Vector3 constant_velocity_precisions;
+  constant_velocity_precisions.setConstant(vio_params.constantVelPrecision_);
   *constant_velocity_prior_noise =
-      gtsam::noiseModel::Isotropic::Sigma(3u, vio_params.constantVelSigma_);
+      gtsam::noiseModel::Diagonal::Precisions(constant_velocity_precisions);
 }
 
 void VioBackend::setSmartStereoFactorsNoiseModel(
@@ -1789,14 +1793,14 @@ void VioBackend::setSmartStereoFactorsParams(
 }
 
 void VioBackend::setNoMotionFactorsParams(
-    const double& position_sigma,
-    const double& rotation_sigma,
+    const double& position_precision,
+    const double& rotation_precision,
     gtsam::SharedNoiseModel* no_motion_prior_noise) {
   CHECK_NOTNULL(no_motion_prior_noise);
-  gtsam::Vector6 sigmas;
-  sigmas.head<3>().setConstant(rotation_sigma);
-  sigmas.tail<3>().setConstant(position_sigma);
-  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+  gtsam::Vector6 precisions;
+  precisions.head<3>().setConstant(rotation_precision);
+  precisions.tail<3>().setConstant(position_precision);
+  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Precisions(precisions);
 }
 
 /* --------------------------- PRINTERS ------------------------------------- */
