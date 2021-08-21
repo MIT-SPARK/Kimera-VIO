@@ -112,7 +112,7 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
   lmParams.setlambdaInitial(0.0);     // same as GN
   lmParams.setlambdaLowerBound(0.0);  // same as GN
   lmParams.setlambdaUpperBound(0.0);  // same as GN)
-  smoother_ = VIO::make_unique<Smoother>(vioParams.horizon_, lmParams);
+  smoother_ = VIO::make_unique<Smoother>(backend_params.horizon_, lmParams);
 #endif
 
   // Set parameters for all factors.
@@ -295,7 +295,11 @@ bool VioBackend::addVisualInertialStateAndOptimize(
           << " (nsec).";
 
   // Add initial guess.
-  addStateValues(curr_kf_id_, status_smart_stereo_measurements_kf.first, pim);
+  addStateValues(curr_kf_id_,
+                 status_smart_stereo_measurements_kf.first,
+                 pim,
+                 odometry_body_pose,
+                 odometry_vel);
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Add imu factors between consecutive keyframe states
@@ -346,8 +350,19 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     case TrackingStatus::LOW_DISPARITY: {
       LOG(WARNING)
           << "Low disparity: adding zero velocity and no motion factors.";
-      addZeroVelocityPrior(curr_kf_id_);
-      addNoMotionFactor(last_kf_id_, curr_kf_id_);
+      if (backend_params_.zeroVelocityPrecision_ > 0) {
+        addZeroVelocityPrior(curr_kf_id_);
+      } else {
+        LOG(ERROR) << "Low disparity: not adding addZeroVelocityPrior because "
+                      "precision is zero.";
+      }
+      if (backend_params_.noMotionPositionPrecision_ > 0 ||
+          backend_params_.noMotionRotationPrecision_ > 0) {
+        addNoMotionFactor(last_kf_id_, curr_kf_id_);
+      } else {
+        LOG(ERROR) << "Low disparity: not adding addNoMotionFactor because "
+                      "precision is zero.";
+      }
       break;
     }
 
@@ -356,7 +371,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     //  trust features
     //    if (verbosity_ >= 7) {printf("Add constant velocity factor
     //    (monoRansac is INVALID)\n");}
-    //    addConstantVelocityFactor(last_id_, cur_id_); break;
+    //    if (backend_params_.constantVelPrecision_ > 0) {
+    //      addConstantVelocityFactor(last_id_, cur_id_); break;
+    //    }
 
     // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
     // we add features in VIO
@@ -379,7 +396,7 @@ bool VioBackend::addVisualInertialStateAndOptimize(
                      odom_params_->betweenTranslationPrecision_);
   }
   if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
-    LOG_FIRST_N(WARNING, 1)
+    LOG(FATAL)
         << "Using velocity priors from external odometry: "
         << "This only works if you have velocity estimates in the world frame! "
         << "(not provided by typical odometry sensors)";
@@ -404,8 +421,7 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
       input.body_lkf_OdomPose_body_kf_,
-      input.body_kf_world_OdomVel_body_kf_);  // optional: pose estimate from
-                                              // stereo ransac
+      input.body_kf_world_OdomVel_body_kf_);
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;
@@ -828,16 +844,22 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     }
     case PoseGuessSource::EXTERNAL_ODOM: {
       if (odom_pose) {
-        if (odom_vel) {
+        // odom_pose is relative (body_lkf_odomPose_body_kf)
+        gtsam::Pose3 W_Pose_B_odom = W_Pose_B_lkf_ * odom_pose.get();
+        if (odom_vel && odom_params_->velocityPrecision_ > 0) {
+          LOG(FATAL) << "Using external odometry velocity is not "
+                        "recommended! Set odomVelPrecision = 0. Uncomment this "
+                        "only after serious consideration.";
           addStateValues(
-              frame_id, odom_pose.get(), odom_vel.get(), imu_bias_lkf_);
+              frame_id, W_Pose_B_odom, odom_vel.get(), imu_bias_lkf_);
         } else {
           addStateValues(
-              frame_id, odom_pose.get(), navstate_k.velocity(), imu_bias_lkf_);
+              frame_id, W_Pose_B_odom, navstate_k.velocity(), imu_bias_lkf_);
         }
       } else {
-        LOG(WARNING) << "External odometry tracking failure... Using IMU for "
-                        "pose guess.";
+        LOG(WARNING) << "External odometry tracking failure (no odom pose "
+                        "provided)... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
       }
       break;
     }
