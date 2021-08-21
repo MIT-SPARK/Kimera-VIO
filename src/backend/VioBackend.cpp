@@ -1394,8 +1394,10 @@ bool VioBackend::updateSmoother(Smoother::Result* result,
     gtsam::Symbol first_key = values.keys().at(0);
     gtsam::NonlinearFactorGraph nfg;
     for (const gtsam::Symbol& key : values.keys()) {
-      // Only add priors on first state
-      if (key.index() == first_key.index()) {
+      // Only add priors on first state and the state nearest the failure
+      // if (key.index() == first_key.index()) {
+      if (key.index() == symb.index() || key.index() == first_key.index()) {
+        LOG(ERROR) << "Adding prior on key: " << key.chr() << key.index();
         switch (key.chr()) {
           case 'x': {
             gtsam::Pose3 pose = values.at<gtsam::Pose3>(key);
@@ -1452,7 +1454,7 @@ bool VioBackend::updateSmoother(Smoother::Result* result,
           new_factors_mutable, new_values, timestamps, delete_slots);
     } catch (...) {
       // Catch the rest of exceptions.
-      LOG(ERROR) << "Smoother recovery failed Most likely, the additional "
+      LOG(ERROR) << "Smoother recovery failed. Most likely, the additional "
                     "prior factors were insufficient to keep the system from "
                     "becoming indeterminant.";
       return false;
