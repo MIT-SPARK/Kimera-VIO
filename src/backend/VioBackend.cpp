@@ -195,10 +195,10 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
     if (map_update_callback_) {
       map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
     } else {
-      LOG_FIRST_N(INFO, 1) << "Did you forget to register the Map "
-                              "Update callback for at least the "
-                              "Frontend? Do so by using "
-                              "registerMapUpdateCallback function.";
+      LOG(FATAL) << "Did you forget to register the Map "
+                    "Update callback for at least the "
+                    "Frontend? Do so by using "
+                    "registerMapUpdateCallback function.";
     }
 
     // Create Backend Output Payload.
@@ -1062,6 +1062,7 @@ bool VioBackend::optimize(
         // (longer than factor graph's time horizon), than the factor has been
         // removed from the optimization.
         // Erase this factor and feature track, as it has gone past the horizon.
+        // TODO(marcus): check with toni if this needs a warning
         old_smart_factors_.erase(old_smart_factor_it);
         CHECK(deleteLmkFromFeatureTracks(lmk_id));
         // TODO(Toni): we should as well remove it from new_smart_factors_!!
@@ -1353,19 +1354,87 @@ bool VioBackend::updateSmoother(Smoother::Result* result,
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     LOG(ERROR) << e.what();
-
     const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb(var);
-
     LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
                << "and index " << symb.index() << std::endl;
 
-    smoother_->getFactors().print("Smoother's factors:\n[\n\t");
-    LOG(INFO) << " ]";
-    state_.print("State values\n[\n\t");
-    LOG(INFO) << " ]";
-    printSmootherInfo(new_factors, delete_slots);
-    return false;
+    if (VLOG_IS_ON(1)) {
+      smoother_->getFactors().print("Smoother's factors:\n[\n\t");
+      LOG(INFO) << " ]";
+      state_.print("State values\n[\n\t");
+      LOG(INFO) << " ]";
+      printSmootherInfo(new_factors, delete_slots);
+    }
+
+    // Add priors on all variables to fix indeterminant linear system
+    gtsam::Values values = smoother_->calculateEstimate();
+    gtsam::Symbol first_key = values.keys().at(0);
+    gtsam::NonlinearFactorGraph nfg;
+    for (const gtsam::Symbol& key : values.keys()) {
+      // Only add priors on first state
+      if (key.index() == first_key.index()) {
+        switch (key.chr()) {
+          case 'x': {
+            gtsam::Pose3 pose = values.at<gtsam::Pose3>(key);
+            gtsam::Vector6 sigmas;
+            sigmas.head<3>().setConstant(0.01);  // rotation
+            sigmas.tail<3>().setConstant(0.1);   // translation
+            gtsam::SharedNoiseModel noise =
+                gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+            nfg.push_back(boost::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(
+                key, pose, noise));
+            break;
+          }
+          case 'b': {
+            gtsam::imuBias::ConstantBias bias =
+                values.at<gtsam::imuBias::ConstantBias>(key);
+            gtsam::Vector6 sigmas;
+            sigmas.head<3>().setConstant(backend_params_.initialAccBiasSigma_);
+            sigmas.tail<3>().setConstant(backend_params_.initialGyroBiasSigma_);
+            gtsam::SharedNoiseModel noise =
+                gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+            nfg.push_back(boost::make_shared<
+                          gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
+                key, bias, noise));
+            break;
+          }
+          case 'v': {
+            gtsam::Vector3 vel = values.at<gtsam::Vector3>(key);
+            gtsam::Vector3 sigmas;
+            sigmas.setConstant(0.1);
+            gtsam::SharedNoiseModel noise =
+                gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+            nfg.push_back(
+                boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+                    key, vel, noise));
+            break;
+          }
+          default: {
+            LOG(FATAL)
+                << "Key not recognized in indeterminant exception handling.";
+          }
+        }
+      }
+    }
+    gtsam::NonlinearFactorGraph new_factors_mutable;
+    new_factors_mutable.push_back(new_factors.begin(), new_factors.end());
+    new_factors_mutable.push_back(nfg.begin(), nfg.end());
+
+    // Update with graph and GN optimized values
+    try {
+      // Update smoother
+      LOG(ERROR) << "Attempting to update smoother with added prior factors";
+      *smoother_ = smoother_backup;  // reset isam to backup
+      *result = smoother_->update(
+          new_factors_mutable, new_values, timestamps, delete_slots);
+    } catch (...) {
+      // Catch the rest of exceptions.
+      LOG(ERROR) << "Smoother recovery failed Most likely, the additional "
+                    "prior factors were insufficient to keep the system from "
+                    "becoming indeterminant.";
+      return false;
+    }
   } catch (const gtsam::InvalidNoiseModel& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
