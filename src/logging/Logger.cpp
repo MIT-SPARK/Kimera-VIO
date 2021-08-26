@@ -662,7 +662,7 @@ void LoopClosureDetectorLogger::logGeometricVerification(
 void LoopClosureDetectorLogger::logPoseRecovery(
     const Timestamp& timestamp_query,
     const Timestamp& timestamp_match,
-    const gtsam::Pose3& bodyRef_Pose_bodyCur) {
+    const gtsam::Pose3& camMatch_T_camQuery_3d) {
   // We log 2d2d ransac result pose in csv format.
   std::ofstream& output_stream_lcd = output_pose_recovery_.ofstream_;
   bool& is_header_written = is_header_written_pose_recovery_;
@@ -673,9 +673,9 @@ void LoopClosureDetectorLogger::logPoseRecovery(
     is_header_written = true;
   }
 
-  const gtsam::Point3& rel_trans = bodyRef_Pose_bodyCur.translation();
+  const gtsam::Point3& rel_trans = camMatch_T_camQuery_3d.translation();
   const gtsam::Quaternion& rel_quat =
-      bodyRef_Pose_bodyCur.rotation().toQuaternion();
+      camMatch_T_camQuery_3d.rotation().toQuaternion();
 
   output_stream_lcd << timestamp_query << "," << timestamp_match << ","
                     << rel_trans.x() << "," << rel_trans.y() << ","

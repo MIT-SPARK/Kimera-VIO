@@ -689,13 +689,13 @@ bool LoopClosureDetector::recoverPoseBody(
         ref_id, cur_id, camMatch_T_camQuery_3d, matches_match_query);
   }
 
-  transformCameraPoseToBodyPose(camMatch_T_camQuery_3d,
-                                bodyMatch_T_bodyQuery_3d);
-
   if (logger_)
     logger_->logPoseRecovery(db_frames_[cur_id]->timestamp_,
                              db_frames_[ref_id]->timestamp_,
-                             *bodyMatch_T_bodyQuery_3d);
+                             camMatch_T_camQuery_3d);
+
+  transformCameraPoseToBodyPose(camMatch_T_camQuery_3d,
+                                bodyMatch_T_bodyQuery_3d);
 
   return success;
 }
