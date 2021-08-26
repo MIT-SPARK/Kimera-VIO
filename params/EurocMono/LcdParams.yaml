@@ -13,7 +13,7 @@ max_nrFrames_between_queries: 2
 
 refine_pose: 0
 
-lowe_ratio: 0.2
+lowe_ratio: 0.9
 matcher_type: 3
 
 nfeatures: 1000

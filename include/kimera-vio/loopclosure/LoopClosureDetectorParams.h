@@ -72,6 +72,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   /////////////////////////// 3D Pose Recovery Params //////////////////////////
   bool refine_pose_ = true;
   bool use_pnp_pose_recovery_ = false;
+  static constexpr double max_pose_recovery_translation_ = 1e3;
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature matching params ////////////////////////
