@@ -67,7 +67,7 @@ Histogram::~Histogram() {
   delete[] channels_;
   delete[] hist_size_;
   for (int dim = 0; dim < dims_; dim++) {
-    delete ranges_[dim];
+    delete[] ranges_[dim];
   }
   delete[] ranges_;
 }
