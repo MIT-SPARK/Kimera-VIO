@@ -133,21 +133,19 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
   if (VLOG_IS_ON(10)) input.print();
 
   bool backend_status = false;
-  switch (backend_state_) {
-    case BackendState::Bootstrap: {
+  if(backend_state_ == BackendState::Bootstrap)
+  {
       initializeBackend(input);
       backend_status = true;
-      break;
-    }
-    case BackendState::Nominal: {
+  }
+  else if (backend_state_ == BackendState::Nominal)
+  {
       // Process data with VIO.
       backend_status = addVisualInertialStateAndOptimize(input);
-      break;
-    }
-    default: {
+  }
+  else
+  {
       LOG(FATAL) << "Unrecognized Backend state.";
-      break;
-    }
   }
 
   // Fill ouput_payload (it will remain nullptr if the backend_status is not ok)

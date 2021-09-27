@@ -167,12 +167,12 @@ class MeshOptimization {
  private:
   const MeshOptimizerType mesh_optimizer_type_;
 
-  static constexpr bool kUseSpringEnergies = false;
-  static constexpr float kSpringNoiseSigma = 0.5f;
-  static constexpr float kDepthMeasNoiseSigma = 0.1f;
-  static constexpr float kMissingZ = 10000.0f;
-  static constexpr float kMinZ = 0.00001f;
-  static constexpr float kMaxZ = 10.0f;
+  const bool kUseSpringEnergies = false;
+  const float kSpringNoiseSigma = 0.5f;
+  const float kDepthMeasNoiseSigma = 0.1f;
+  const float kMissingZ = 10000.0f;
+  const float kMinZ = 0.00001f;
+  const float kMaxZ = 10.0f;
 
   //! Camera with which the noisy point cloud and the 2d mesh were generated.
   Camera::ConstPtr mono_camera_;

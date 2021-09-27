@@ -53,17 +53,15 @@ VisionImuFrontend::~VisionImuFrontend() {
 
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
-  switch (frontend_state_) {
-    case FrontendState::Bootstrap: {
+  if (frontend_state_ == FrontendState::Bootstrap) {
       return bootstrapSpin(std::move(input));
-    } break;
-    case FrontendState::Nominal: {
+    }
+  else if (frontend_state_ == FrontendState::Nominal) {
       return nominalSpin(std::move(input));
-    } break;
-    default: {
+    }
+  else {
       LOG(FATAL) << "Unrecognized Frontend state.";
-    } break;
-  }
+    }
 }
 
 void VisionImuFrontend::outlierRejectionMono(
