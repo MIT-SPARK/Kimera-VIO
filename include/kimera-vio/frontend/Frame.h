@@ -60,6 +60,7 @@ class Frame : public PipelinePayload {
         cam_param_(cam_param),
         img_(img),
         isKeyframe_(false),
+	isDisparityLow(false),
         keypoints_(),
         keypoints_undistorted_(),
         scores_(),
@@ -76,6 +77,7 @@ class Frame : public PipelinePayload {
         cam_param_(frame.cam_param_),
         img_(frame.img_),
         isKeyframe_(frame.isKeyframe_),
+	isDisparityLow(false),
         keypoints_(frame.keypoints_),
         keypoints_undistorted_(frame.keypoints_undistorted_),
         scores_(frame.scores_),
@@ -171,6 +173,8 @@ class Frame : public PipelinePayload {
 
   // Results of image processing.
   bool isKeyframe_ = false;
+
+  bool isDisparityLow = false;
 
   // These containers must have same size.
   KeypointsCV keypoints_;

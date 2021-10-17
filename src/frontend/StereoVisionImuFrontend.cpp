@@ -345,10 +345,35 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   const bool nr_features_low =
       nr_valid_features <= tracker_->tracker_params_.min_number_features_;
 
+  // check for large enough disparity
+  double current_disparity; 
+  KeypointMatches matches_ref_cur;
+  //tracker_status_summary kftracking status_mono, check if has been populated
+
+  //TODO (Dominic) currently just using left frame
+  tracker_ ->findMatchingKeypoints(stereoFrame_lkf_->left_frame_, cur_frame.left_frame_, &matches_ref_cur);// already done by featureTracking, use tracker_
+  tracker_ ->computeMedianDisparity(stereoFrame_lkf_ -> left_frame_.keypoints_,
+                         cur_frame.left_frame_.keypoints_,
+                         matches_ref_cur,
+                         &current_disparity);
+ 
+ const double disparityThreshold = tracker_ ->tracker_params_.disparityThreshold_; // TODO (Dominic) do we want a new parameter for this?
+ const bool is_disparity_low = current_disparity < disparityThreshold;
+ const bool is_disparity_low_second_time = is_disparity_low && stereoFrame_lkf_-> isDisparityLow(); // check in tracker status
+ const bool enough_disparity = !is_disparity_low_second_time; 
+
+  // this is true if current frame
+ // has enough disparity (!is_disparity_low) or
+ // the previous frame had enough disparity (!stereoFrame_lkf_-> disparity_low)
+ if (enough_disparity){
+   stereoFrame_k_->setIsDisparityLow(true); // TODO: consider consequences if frame is not added 
+   //                                            and displarity low is set to true
+ }
+
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
-  if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
+  if ((enough_disparity && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "

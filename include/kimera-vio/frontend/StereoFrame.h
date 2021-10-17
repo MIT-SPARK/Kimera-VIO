@@ -68,11 +68,15 @@ class StereoFrame {
   inline void setIsRectified(bool is_rect) {
     is_rectified_ = is_rect;
   }
+  inline void setIsDisparityLow(bool low_disp) {
+    is_disparity_low = low_disp;
+  }
   void setRectifiedImages(const cv::Mat& left_rectified_img,
                           const cv::Mat& right_rectified_img);
 
   inline bool isKeyframe() const { return is_keyframe_; }
   inline bool isRectified() const { return is_rectified_; }
+  inline bool isDisparityLow() const { return is_disparity_low; }
 
   //! Return rectified images, assumes the images have already been computed.
   //! Note that we return const images, since these should not be modified
@@ -140,6 +144,7 @@ class StereoFrame {
   // Can only be rectified if rectified images are filled.
   bool is_keyframe_;
   bool is_rectified_;
+  bool is_disparity_low;
 
   //! Rectified undistorted images for sparse stereo epipolar matching
   //! If the flag is_rectified_ is not true,
