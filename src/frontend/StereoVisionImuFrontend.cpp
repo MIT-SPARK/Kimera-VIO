@@ -348,27 +348,27 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // check for large enough disparity
   double current_disparity; 
   KeypointMatches matches_ref_cur;
-  //tracker_status_summary kftracking status_mono, check if has been populated
 
-  //TODO (Dominic) currently just using left frame
-  tracker_ ->findMatchingKeypoints(stereoFrame_lkf_->left_frame_, cur_frame.left_frame_, &matches_ref_cur);// already done by featureTracking, use tracker_
+  tracker_ ->findMatchingKeypoints(stereoFrame_lkf_->left_frame_, cur_frame.left_frame_, &matches_ref_cur);
   tracker_ ->computeMedianDisparity(stereoFrame_lkf_ -> left_frame_.keypoints_,
                          cur_frame.left_frame_.keypoints_,
                          matches_ref_cur,
                          &current_disparity);
  
- const double disparityThreshold = tracker_ ->tracker_params_.disparityThreshold_; // TODO (Dominic) do we want a new parameter for this?
+ const double disparityThreshold = tracker_ ->tracker_params_.disparityThreshold_;
  const bool is_disparity_low = current_disparity < disparityThreshold;
- const bool is_disparity_low_second_time = is_disparity_low && stereoFrame_lkf_-> isDisparityLow(); // check in tracker status
+ 
+ // if we don't use this line then disparityThreshold_ must be used here since it's used for tracker status 
+ //const bool is_disparity_low_second_time = is_disparity_low && stereoFrame_lkf_-> isDisparityLow(); // check in tracker status
+ const bool is_disparity_low_second_time = is_disparity_low && (tracker_status_summary_.kfTrackingStatus_mono_ == TrackingStatus::LOW_DISPARITY);
  const bool enough_disparity = !is_disparity_low_second_time; 
 
   // this is true if current frame
  // has enough disparity (!is_disparity_low) or
  // the previous frame had enough disparity (!stereoFrame_lkf_-> disparity_low)
- if (enough_disparity){
-   stereoFrame_k_->setIsDisparityLow(true); // TODO: consider consequences if frame is not added 
-   //                                            and displarity low is set to true
- }
+//  if (enough_disparity){
+//    stereoFrame_k_->setIsDisparityLow(true);
+//  }
 
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
