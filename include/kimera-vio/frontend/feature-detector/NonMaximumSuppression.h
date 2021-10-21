@@ -10,6 +10,7 @@
  * @file   NonMaximumSuppression.h
  * @brief  Base class for non maximum suppresion interface
  * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
@@ -52,6 +53,7 @@ enum class AnmsAlgorithmType : unsigned int {
   KdTree = 3,
   RangeTree = 4,
   Ssc = 5,
+  binning = 6
 };
 
 /**
@@ -61,6 +63,7 @@ enum class AnmsAlgorithmType : unsigned int {
  Bogdan, Oleksandr and Kweon, In So
  * "Efficient adaptive non-maximal suppression algorithms for homogeneous
  spatial keypoint distribution}, Pattern Recognition Letters
+ with an extra option to do feature binning as an alternative nms approach.
  */
 class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
  public:
@@ -77,6 +80,13 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& cols,
       const int& rows) override;
 
+  std::vector<cv::KeyPoint> binning(
+      const std::vector<cv::KeyPoint>& keyPoints,
+      const int& numRetPoints,
+      const float& tolerance,
+      const int& cols,
+      const int& rows) override;
+  }
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the
    * ANMS algorithm (not sure why someone would do that, but here it is).

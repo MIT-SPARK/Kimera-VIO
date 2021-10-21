@@ -158,8 +158,12 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
       non_max_suppression_type_ = AnmsAlgorithmType::Ssc;
       break;
     }
+    case VIO::to_underlying(AnmsAlgorithmType::binning): {
+      non_max_suppression_type_ = AnmsAlgorithmType::binning;
+      break;
+    }
     default: {
-      LOG(FATAL) << "Unknown Non Maximum Suppresion Type: "
+      LOG(FATAL) << "Unknown Non Maximum Suppression Type: "
                  << non_max_suppression_type;
     }
   }
