@@ -113,6 +113,12 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
   return keypoints;
 }
 
+// ---------------------------------------------------------------------------------
+bool AdaptiveNonMaximumSuppression::CompareScores(const cv::KeyPoint& kpt1, const cv::KeyPoint& kpt2)  {
+  return kpt1.response > kpt2.response;
+}
+
+// ---------------------------------------------------------------------------------
 std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
     const std::vector<cv::KeyPoint>& keyPoints, const int& numRetPoints,
     const float& tolerance, const int& cols, const int& rows){
@@ -124,22 +130,46 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
   size_t nrHorizontalBins = 5;
   size_t nrVerticalBins = 5;
 
-  // assign keypoints to bins
-  std::map<size_t, cv::KeyPoint> bin_to_keypoint_map;
+  float binRowSize = float(rows) / float(nrVerticalBins);
+  float binColSize = float(cols) / float(nrHorizontalBins);
 
-  // compute how many features we want to retain in each bin nrFeaturesPerBin
+  // 1. assign keypoints to bins
+  // 1a: allocate bins
+  std::vector< std::vector <std::vector<cv::KeyPoint> > > bin_to_keypoints_map;
+  for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
+      for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
+	  bin_to_keypoints_map[binRowInd][binColInd] = std::vector<cv::KeyPoint>(0); //allocation
+      }
+  }
+  // 1b: assign kpts to bins
   for (int i = 0; i < keyPoints.size(); i++){
-
+      const size_t binRowInd = static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
+      const size_t binColInd = static_cast<size_t>(keyPoints[i].pt.x / binColSize);
+      bin_to_keypoints_map[binRowInd][binColInd].push_back(keyPoints[i]);
   }
 
-  // select top nrFeaturesPerBin for each bin
+  // 2. sort features in each bin by their score
+  for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
+      for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
+	    std::sort (bin_to_keypoints_map[binRowInd][binColInd].begin (),
+		       bin_to_keypoints_map[binRowInd][binColInd].end (),
+		       CompareScores); // sort by decreasing scores
+      }
+  }
 
-  // package and return:
-  std::vector<cv::KeyPoint> kp;
-  for (int i = 0; i < numRetPoints; i++)
-    kp.push_back(keyPoints[i]);
+  // 3. compute how many features we want to retain in each bin numRetPointsPerBin
+  const int numRetPointsPerBin = std::ceil( float(numRetPoints) / float(nrHorizontalBins*nrVerticalBins) );
 
-  return kp;
+  // 4. select top numRetPointsPerBin for each bin
+  std::vector<cv::KeyPoint> binnedKpts; // binned keypoints we want to output
+  for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
+      for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
+	  for(int i=0; i<numRetPointsPerBin; i++){
+	      binnedKpts.push_back(bin_to_keypoints_map[binRowInd][binColInd][i]);
+	  }
+      }
+  }
+  return binnedKpts;
 }
 
 }  // namespace VIO

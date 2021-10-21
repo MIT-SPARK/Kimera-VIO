@@ -80,13 +80,16 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& cols,
       const int& rows) override;
 
+  static bool CompareScores (const cv::KeyPoint &kpt1,
+			     const cv::KeyPoint &kpt2);
+
   std::vector<cv::KeyPoint> binning(
       const std::vector<cv::KeyPoint>& keyPoints,
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) override;
-  }
+      const int& rows);
+
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the
    * ANMS algorithm (not sure why someone would do that, but here it is).
