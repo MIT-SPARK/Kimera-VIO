@@ -269,6 +269,22 @@ class StereoVisionImuFrontendFixture : public ::testing::Test {
   std::string stereo_FLAGS_test_data_path;
 };
 
+void get_undistorted_points(gtsam::Point2 distorted, const VIO::CameraParams cam_params, VIO::StereoCamera::ConstPtr stereo_camera, std::vector<cv::Point2d> &undistorted){
+    double distorted_x = distorted.x();
+    double distorted_y = distorted.y();
+    std::vector<cv::Point2d> distorted_cv;
+    distorted_cv.push_back(cv::Point2d(distorted_x,distorted_y));
+    cv::Mat intrinsics = cv::Mat::zeros(3,3, CV_64F);
+    cv::Mat dist_coeffs = cv::Mat::zeros(1,4, CV_64F);
+    intrinsics.at<double>(2,2) = 1;
+    intrinsics.at<double>(0,0) = cam_params.intrinsics_[0]; //fx
+    intrinsics.at<double>(1,1) = cam_params.intrinsics_[1]; //fy
+    intrinsics.at<double>(0,2) = cam_params.intrinsics_[2]; //cx
+    intrinsics.at<double>(1,2) = cam_params.intrinsics_[3]; //cy
+
+    cv::undistortPoints(distorted_cv, undistorted, intrinsics, cam_params.distortion_coeff_mat_, stereo_camera ->getR1(), stereo_camera ->getP1());
+}
+
 /* This test is flawed in that it is using private members of the Frontend...
  * There is three ways to go around this:
  * 1) Proper way: test getRelativePoseBodyStereo by just using the public
@@ -475,6 +491,9 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   // Load the expected corners
   std::vector<gtsam::Point2> left_distort_corners =
       loadCorners(synthetic_stereo_path + "/corners_normal_left.txt");
+  
+  std::vector<gtsam::Point2> right_distort_corners =
+     loadCorners(synthetic_stereo_path + "/corners_normal_right.txt");
 
   // Call StereoVisionImuFrontend::Process first frame!
   VIO::Camera::ConstPtr left_camera = std::make_shared<VIO::Camera>(cam_params_left);
@@ -507,6 +526,7 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   // Check feature detection results!
   // landmarks_, landmarksAge_, keypoints_, versors_
   const Frame& left_frame = sf.left_frame_;
+  const Frame& right_frame = sf.right_frame_;
   const size_t& num_corners = left_frame.landmarks_.size();
   EXPECT_EQ(num_corners, left_frame.landmarks_age_.size());
   EXPECT_EQ(num_corners, left_frame.keypoints_.size());
@@ -518,9 +538,21 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
     EXPECT_GE(lmk, 0);
   }
 
+  // const size_t& num_cornersr = right_frame.landmarks_.size();
+  // std::cout << num_cornersr << "right corners" << std::endl;
+  // EXPECT_EQ(num_cornersr, right_frame.landmarks_age_.size());
+  // EXPECT_EQ(num_cornersr, right_frame.keypoints_.size());
+  // EXPECT_EQ(num_cornersr, right_frame.versors_.size());
+  // for (const auto& lmk_age : right_frame.landmarks_age_) {
+  //   EXPECT_EQ(lmk_age, 1u);
+  // }
+  // for (const auto& lmk : right_frame.landmarks_) {
+  //   EXPECT_GE(lmk, 0);
+  // }
+
   // Fill corner id map, useful for the tests later
   std::vector<int> corner_id_map_frame2gt;
-  corner_id_map_frame2gt.reserve(num_corners);
+  {corner_id_map_frame2gt.reserve(num_corners);
   for (size_t i = 0u; i < num_corners; i++) {
     const KeypointCV& kp = left_frame.keypoints_[i];
     gtsam::Point2 gtsam_kp(kp.x, kp.y);
@@ -528,7 +560,18 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
     //std::cout << idx << ", idx  " << std::endl;
     EXPECT_NE(idx, -1);
     corner_id_map_frame2gt.push_back(idx);
-  }
+  }}
+
+  // std::vector<int> right_corner_id_map_frame2gt;
+  // {right_corner_id_map_frame2gt.reserve(num_corners);
+  // for (size_t i = 0u; i < num_corners; i++) {
+  //   const KeypointCV& kp = right_frame.keypoints_[i];
+  //   gtsam::Point2 gtsam_kp(kp.x, kp.y);
+  //   int idx = findPointInVector(gtsam_kp, right_distort_corners);
+  //   std::cout << idx << ", idx  " << std::endl;
+  //   EXPECT_NE(idx, -1);
+  //   right_corner_id_map_frame2gt.push_back(idx);
+  // }}
 
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
@@ -553,128 +596,74 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   EXPECT_TRUE(sf.isRectified());
 
   // left_keypoints_rectified!
-  std::vector<gtsam::Point2> left_undistort_corners =
-      loadCorners(synthetic_stereo_path + "/corners_undistort_left.txt");
   const CameraParams& left_cam_params = sf.left_frame_.cam_param_;
-  gtsam::Cal3DS2 gtsam_left_cam_calib;
-  CameraParams::createGtsamCalibration(left_cam_params.distortion_coeff_mat_,
-                                       left_cam_params.intrinsics_,
-                                       &gtsam_left_cam_calib);
-  std::vector<gtsam::Point2> left_rect_corners =
-      convertCornersAcrossCameras(left_undistort_corners,
-                                  gtsam_left_cam_calib,
-                                  left_camera->getCalibration());
-  cv::Mat image = cv::imread(synthetic_stereo_path + "/img_distort_left.png"); //TODO remove
+
   for (size_t i = 0u; i < num_corners; i++) {
-     int idx_gt = corner_id_map_frame2gt[i]; 
-  // CameraParams::createGtsamCalibration(left_cam_params.distortion_coeff_mat_,
-  //                                      left_cam_params.intrinsics_,
-  //                                      &gtsam_left_cam_calib);
-  // std::vector<gtsam::Point2> left_rect_corners =
-  //     convertCornersAcrossCameras(left_undistort_corners,
-  //                                 gtsam_left_cam_calib,
-  //                                 left_camera->getCalibration());
-    const double x = left_distort_corners[idx_gt].x();
-    const double y = left_distort_corners[idx_gt].y();
-    //cv::Mat distorted_mat = (cv::Mat_<double>(1,2) << x, y);
-    //cv::InputArray distorted = cv::InputArray(distorted_mat);
-    std::vector<cv::Point2d> distorted;
-    distorted.push_back(cv::Point2d(x,y));
-    cv::Mat intrinsics = cv::Mat::zeros(3,3, CV_64F);
-    cv::Mat dist_coeffs = cv::Mat::zeros(1,4, CV_64F);
-    intrinsics.at<double>(2,2) = 1;
-    intrinsics.at<double>(0,0) = left_cam_params.intrinsics_[0]; //fx
-    intrinsics.at<double>(1,1) = left_cam_params.intrinsics_[1]; //fy
-    intrinsics.at<double>(0,2) = left_cam_params.intrinsics_[2]; //cx
-    intrinsics.at<double>(1,2) = left_cam_params.intrinsics_[3]; //cy
-    // dist_coeffs.at<double>(0,0) = 
-    // dist_coeffs.at<double>(0,1) = 
-    // dist_coeffs.at<double>(0,2) = 
-    // dist_coeffs.at<double>(0,3) = 
-
-
+    int idx_gt = corner_id_map_frame2gt[i]; 
     std::vector<cv::Point2d> undistorted;
-    std::cout << x << ", " << y << "distorted points" << std::endl;
-    std::cout << intrinsics << std::endl;
-    std::cout << left_cam_params.distortion_coeff_mat_ << std::endl;
-    std::cout << stereo_camera ->getP1() << "printing P1" << std::endl;
-    cv::undistortPoints(distorted, undistorted, intrinsics, left_cam_params.distortion_coeff_mat_, cv::noArray(), stereo_camera ->getP1()); //TODO use getCalibration for the second one
-    std::cout << undistorted<< "undistorted points" << std::endl;
+    EXPECT_TRUE(gtsam::assert_equal(left_distort_corners[idx_gt], gtsam::Point2(sf.left_frame_.keypoints_[i].x, sf.left_frame_.keypoints_[i].y ), 2));
+
+    get_undistorted_points(left_distort_corners[idx_gt], left_cam_params, stereo_camera, undistorted);
     gtsam::Point2 pt_expect;
     pt_expect.x() = undistorted[0].x;
     pt_expect.y() = undistorted[0].y;
-    //const gtsam::Point2& pt_expect = left_rect_corners[idx_gt];
+
     gtsam::Point2 pt_actual(sf.left_keypoints_rectified_[i].second.x,
                             sf.left_keypoints_rectified_[i].second.y);
-    
-    ////////////
-    cv::Point centerCircle1(x,y);
-    int radiusCircle = 3;
-    cv::Scalar colorCircle1(0,0,255);
-    int thicknessCircle1 = 2;
-    cv::circle(image, centerCircle1, radiusCircle, colorCircle1, thicknessCircle1);
+
     EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
   }
-  // cv::namedWindow("distorted"); // Create a window
-
-  // cv::imshow("distorted", image); // Show our image inside the created window.
-
-  // cv::waitKey(0); // Wait for any keystroke in the window
-
-  // cv::destroyWindow("distorted"); //destroy the created window
-   std::cout << left_camera->getCalibration() << "left_camera->getCalibration()" << std::endl;
-   std::cout <<  gtsam_left_cam_calib << std::endl;
-   left_cam_params.print();
 
   // // right_keypoints_rectified
-  // const CameraParams& right_cam_params = sf.right_frame_.cam_param_;
-  // gtsam::Cal3DS2 gtsam_right_cam_calib;
-  // CameraParams::createGtsamCalibration(right_cam_params.distortion_coeff_mat_,
-  //                                      right_cam_params.intrinsics_,
-  //                                      &gtsam_right_cam_calib);
-  // std::vector<gtsam::Point2> right_undistort_corners =
-  //     loadCorners(synthetic_stereo_path + "/corners_undistort_right.txt");
-  // std::vector<gtsam::Point2> right_rect_corners =
-  //     convertCornersAcrossCameras(right_undistort_corners,
-  //                                 gtsam_right_cam_calib,
-  //                                 right_camera->getCalibration());
-  // for (size_t i = 0u; i < num_corners; i++) {
-  //   int idx_gt = corner_id_map_frame2gt[i];
-  //   const gtsam::Point2& pt_expect = right_rect_corners[idx_gt];
-  //   gtsam::Point2 pt_actual(sf.right_keypoints_rectified_[i].second.x,
-  //                           sf.right_keypoints_rectified_[i].second.y);
-  //   EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
+  //   const CameraParams& right_cam_params = sf.right_frame_.cam_param_;
+  //   for (size_t i = 0u; i < 1; i++) {
+  //     int idx_gt = right_corner_id_map_frame2gt[i]; 
+  //     std::cout << right_distort_corners[idx_gt] << " idx_gt" << std::endl;
+  //     std::vector<cv::Point2d> undistorted;
+  //     get_undistorted_points(right_distort_corners[idx_gt], right_cam_params, stereo_camera, undistorted);
+  //     gtsam::Point2 pt_expect;
+  //     pt_expect.x() = undistorted[0].x;
+  //     pt_expect.y() = undistorted[0].y;
+
+  //     gtsam::Point2 pt_actual(sf.right_keypoints_rectified_[i].second.x,
+  //                             sf.right_keypoints_rectified_[i].second.y);
+
+  //     //EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
   // }
 
   // // right_keypoints_status_
   // for (const auto& status : sf.right_keypoints_rectified_) {
+  //   EXPECT_EQ(status.first, KeypointStatus::NO_RIGHT_RECT);
+  //   EXPECT_EQ(status.first, KeypointStatus::NO_LEFT_RECT);
+  //   EXPECT_EQ(status.first, KeypointStatus::FAILED_ARUN);
+  //   EXPECT_EQ(status.first, KeypointStatus::NO_DEPTH);
   //   EXPECT_EQ(status.first, KeypointStatus::VALID);
   // }
 
-  // // keypoints depth
-  // std::vector<double> depth_gt =
-  //     loadDepth(synthetic_stereo_path + "/depth_left.txt");
+//   // keypoints depth
+//   std::vector<double> depth_gt =
+//       loadDepth(synthetic_stereo_path + "/depth_left.txt");
 
-  // for (size_t i = 0u; i < num_corners; i++) {
-  //   int idx_gt = corner_id_map_frame2gt[i];
-  //   double depth_expect = depth_gt[idx_gt];
-  //   double depth_actual = sf.keypoints_3d_[i](2);
-  //   EXPECT_NEAR(depth_expect, depth_actual, 1e-2);
-  // }
+//   for (size_t i = 0u; i < num_corners; i++) {
+//     int idx_gt = corner_id_map_frame2gt[i];
+//     double depth_expect = depth_gt[idx_gt];
+//     double depth_actual = sf.keypoints_3d_[i](2);
+//     //EXPECT_NEAR(depth_expect, depth_actual, 1e-2);
+//   }
 
-  // // keypoints 3d
-  // for (size_t i = 0u; i < num_corners; i++) {
-  //   int idx_gt = corner_id_map_frame2gt[i];
-  //   double depth_expect = depth_gt[idx_gt];
-  //   double depth_actual = sf.keypoints_3d_[i](2);
-  //   Vector3 v_expected =
-  //       UndistorterRectifier::GetBearingVector(KeypointCV(left_distort_corners[idx_gt].x(),
-  //                                        left_distort_corners[idx_gt].y()),
-  //                             left_frame.cam_param_);
-  //   v_expected = v_expected * (depth_gt[idx_gt]);
-  //   gtsam::Vector3 v_actual = sf.keypoints_3d_[i];
-  //   EXPECT_LT((v_expected - v_actual).norm(), 0.1);
-  // }
+//   // keypoints 3d
+//   for (size_t i = 0u; i < num_corners; i++) {
+//     int idx_gt = corner_id_map_frame2gt[i];
+//     double depth_expect = depth_gt[idx_gt];
+//     double depth_actual = sf.keypoints_3d_[i](2);
+//     Vector3 v_expected =
+//         UndistorterRectifier::GetBearingVector(KeypointCV(left_distort_corners[idx_gt].x(),
+//                                          left_distort_corners[idx_gt].y()),
+//                               left_frame.cam_param_);
+//     v_expected = v_expected * (depth_gt[idx_gt]);
+//     gtsam::Vector3 v_actual = sf.keypoints_3d_[i];
+//     //EXPECT_LT((v_expected - v_actual).norm(), 0.1);
+//   }
 }
 
-}  // namespace VIO
+} // namespace VIO
