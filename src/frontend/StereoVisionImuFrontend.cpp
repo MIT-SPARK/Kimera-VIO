@@ -258,6 +258,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
 // stereoFrame_km1_, stereoFrame_lkf_, stereoFrame_k_, etc...
 void StereoVisionImuFrontend::processFirstStereoFrame(
     const StereoFrame& firstFrame) {
+  std::cout <<"inside processFirstStereoFrame" << std::endl;
   VLOG(2) << "Processing first stereo frame \n";
   stereoFrame_k_ =
       std::make_shared<StereoFrame>(firstFrame);  // TODO this can be optimized!
@@ -297,6 +298,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     const StereoFrame& cur_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
     cv::Mat* feature_tracks) {
+  std::cout <<"inside processStereoFrame" << std::endl;
   CHECK(tracker_);
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "

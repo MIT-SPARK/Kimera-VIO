@@ -60,6 +60,7 @@ VisionImuFrontend::~VisionImuFrontend() {
 
 FrontendOutputPacketBase::UniquePtr VisionImuFrontend::spinOnce(
     FrontendInputPacketBase::UniquePtr&& input) {
+  std::cout << "inside spinonce" << std::endl;
   const FrontendState& frontend_state = frontend_state_;
   switch (frontend_state) {
     case FrontendState::Bootstrap:

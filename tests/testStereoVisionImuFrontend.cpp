@@ -511,6 +511,7 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   VIO::FrontendInputPacketBase::UniquePtr input =
       VIO::make_unique<StereoImuSyncPacket>(
           first_stereo_frame, fake_imu_stamps, fake_imu_acc_gyr);
+  std::cout << "getting ready to spinonce" << std::endl;
   VIO::FrontendOutputPacketBase::UniquePtr output_base = st.spinOnce(std::move(input));
   VIO::StereoFrontendOutput::UniquePtr output =
       VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
@@ -566,12 +567,14 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   // {right_corner_id_map_frame2gt.reserve(num_corners);
   // for (size_t i = 0u; i < num_corners; i++) {
   //   const KeypointCV& kp = right_frame.keypoints_[i];
+  //   std::cout <<"rkpts " << kp <<std::endl;
+  //   std::cout <<"status " << (int)sf.right_keypoints_rectified_[i].first <<std::endl;
   //   gtsam::Point2 gtsam_kp(kp.x, kp.y);
   //   int idx = findPointInVector(gtsam_kp, right_distort_corners);
   //   std::cout << idx << ", idx  " << std::endl;
   //   EXPECT_NE(idx, -1);
   //   right_corner_id_map_frame2gt.push_back(idx);
-  // }}
+  // }}// maxPointDist!!!!!!!! 
 
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
@@ -631,14 +634,19 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   //     //EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
   // }
 
-  // // right_keypoints_status_
-  // for (const auto& status : sf.right_keypoints_rectified_) {
-  //   EXPECT_EQ(status.first, KeypointStatus::NO_RIGHT_RECT);
-  //   EXPECT_EQ(status.first, KeypointStatus::NO_LEFT_RECT);
-  //   EXPECT_EQ(status.first, KeypointStatus::FAILED_ARUN);
-  //   EXPECT_EQ(status.first, KeypointStatus::NO_DEPTH);
-  //   EXPECT_EQ(status.first, KeypointStatus::VALID);
-  // }
+    // right_keypoints_status_
+  for (const auto& status : sf.left_keypoints_rectified_) {
+    EXPECT_EQ(status.first, KeypointStatus::VALID);
+  }
+
+  // right_keypoints_status_
+  for (const auto& status : sf.right_keypoints_rectified_) {
+    // EXPECT_EQ(status.first, KeypointStatus::NO_RIGHT_RECT);
+    // EXPECT_EQ(status.first, KeypointStatus::NO_LEFT_RECT);
+    // EXPECT_EQ(status.first, KeypointStatus::FAILED_ARUN);
+    EXPECT_EQ(status.first, KeypointStatus::NO_DEPTH);
+    // EXPECT_EQ(status.first, KeypointStatus::VALID);
+  }
 
 //   // keypoints depth
 //   std::vector<double> depth_gt =
