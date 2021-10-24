@@ -473,6 +473,7 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
       0.05;
   p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
+  p.stereo_matching_params_.max_point_dist_ = 500;
 
   StereoFrame first_stereo_frame(
       0,
@@ -539,18 +540,6 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
     EXPECT_GE(lmk, 0);
   }
 
-  // const size_t& num_cornersr = right_frame.landmarks_.size();
-  // std::cout << num_cornersr << "right corners" << std::endl;
-  // EXPECT_EQ(num_cornersr, right_frame.landmarks_age_.size());
-  // EXPECT_EQ(num_cornersr, right_frame.keypoints_.size());
-  // EXPECT_EQ(num_cornersr, right_frame.versors_.size());
-  // for (const auto& lmk_age : right_frame.landmarks_age_) {
-  //   EXPECT_EQ(lmk_age, 1u);
-  // }
-  // for (const auto& lmk : right_frame.landmarks_) {
-  //   EXPECT_GE(lmk, 0);
-  // }
-
   // Fill corner id map, useful for the tests later
   std::vector<int> corner_id_map_frame2gt;
   {corner_id_map_frame2gt.reserve(num_corners);
@@ -558,23 +547,9 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
     const KeypointCV& kp = left_frame.keypoints_[i];
     gtsam::Point2 gtsam_kp(kp.x, kp.y);
     int idx = findPointInVector(gtsam_kp, left_distort_corners);
-    //std::cout << idx << ", idx  " << std::endl;
     EXPECT_NE(idx, -1);
     corner_id_map_frame2gt.push_back(idx);
   }}
-
-  // std::vector<int> right_corner_id_map_frame2gt;
-  // {right_corner_id_map_frame2gt.reserve(num_corners);
-  // for (size_t i = 0u; i < num_corners; i++) {
-  //   const KeypointCV& kp = right_frame.keypoints_[i];
-  //   std::cout <<"rkpts " << kp <<std::endl;
-  //   std::cout <<"status " << (int)sf.right_keypoints_rectified_[i].first <<std::endl;
-  //   gtsam::Point2 gtsam_kp(kp.x, kp.y);
-  //   int idx = findPointInVector(gtsam_kp, right_distort_corners);
-  //   std::cout << idx << ", idx  " << std::endl;
-  //   EXPECT_NE(idx, -1);
-  //   right_corner_id_map_frame2gt.push_back(idx);
-  // }}// maxPointDist!!!!!!!! 
 
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
@@ -617,61 +592,58 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
     EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
   }
 
-  // // right_keypoints_rectified
-  //   const CameraParams& right_cam_params = sf.right_frame_.cam_param_;
-  //   for (size_t i = 0u; i < 1; i++) {
-  //     int idx_gt = right_corner_id_map_frame2gt[i]; 
-  //     std::cout << right_distort_corners[idx_gt] << " idx_gt" << std::endl;
-  //     std::vector<cv::Point2d> undistorted;
-  //     get_undistorted_points(right_distort_corners[idx_gt], right_cam_params, stereo_camera, undistorted);
-  //     gtsam::Point2 pt_expect;
-  //     pt_expect.x() = undistorted[0].x;
-  //     pt_expect.y() = undistorted[0].y;
+  // right_keypoints_rectified
+  const CameraParams& right_cam_params = sf.right_frame_.cam_param_;
 
-  //     gtsam::Point2 pt_actual(sf.right_keypoints_rectified_[i].second.x,
-  //                             sf.right_keypoints_rectified_[i].second.y);
+  for (size_t i = 0u; i < num_corners; i++) {
+    int idx_gt = corner_id_map_frame2gt[i]; 
+    std::vector<cv::Point2d> undistorted;
+    EXPECT_TRUE(gtsam::assert_equal(left_distort_corners[idx_gt], gtsam::Point2(sf.left_frame_.keypoints_[i].x, sf.left_frame_.keypoints_[i].y ), 2));
 
-  //     //EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
-  // }
+    get_undistorted_points(right_distort_corners[idx_gt], right_cam_params, stereo_camera, undistorted);
+    gtsam::Point2 pt_expect;
+    pt_expect.x() = undistorted[0].x;
+    pt_expect.y() = undistorted[0].y;
 
-    // right_keypoints_status_
+    gtsam::Point2 pt_actual(sf.right_keypoints_rectified_[i].second.x,
+                            sf.right_keypoints_rectified_[i].second.y);
+
+    EXPECT_TRUE(gtsam::assert_equal(pt_expect, pt_actual, 2));
+  }
+
+  // right_keypoints_status_
   for (const auto& status : sf.left_keypoints_rectified_) {
     EXPECT_EQ(status.first, KeypointStatus::VALID);
   }
 
   // right_keypoints_status_
   for (const auto& status : sf.right_keypoints_rectified_) {
-    // EXPECT_EQ(status.first, KeypointStatus::NO_RIGHT_RECT);
-    // EXPECT_EQ(status.first, KeypointStatus::NO_LEFT_RECT);
-    // EXPECT_EQ(status.first, KeypointStatus::FAILED_ARUN);
-    EXPECT_EQ(status.first, KeypointStatus::NO_DEPTH);
-    // EXPECT_EQ(status.first, KeypointStatus::VALID);
+    EXPECT_EQ(status.first, KeypointStatus::VALID);
   }
 
-//   // keypoints depth
-//   std::vector<double> depth_gt =
-//       loadDepth(synthetic_stereo_path + "/depth_left.txt");
+  // keypoints depth
+  std::vector<double> depth_gt =
+      loadDepth(synthetic_stereo_path + "/depth_left.txt");
 
-//   for (size_t i = 0u; i < num_corners; i++) {
-//     int idx_gt = corner_id_map_frame2gt[i];
-//     double depth_expect = depth_gt[idx_gt];
-//     double depth_actual = sf.keypoints_3d_[i](2);
-//     //EXPECT_NEAR(depth_expect, depth_actual, 1e-2);
-//   }
+  for (size_t i = 0u; i < num_corners; i++) {
+    int idx_gt = corner_id_map_frame2gt[i];
+    double depth_expect = depth_gt[idx_gt];
+    double depth_actual = sf.keypoints_3d_[i](2);
+    
+    EXPECT_NEAR(depth_expect, depth_actual, 4);
+  }
 
-//   // keypoints 3d
-//   for (size_t i = 0u; i < num_corners; i++) {
-//     int idx_gt = corner_id_map_frame2gt[i];
-//     double depth_expect = depth_gt[idx_gt];
-//     double depth_actual = sf.keypoints_3d_[i](2);
-//     Vector3 v_expected =
-//         UndistorterRectifier::GetBearingVector(KeypointCV(left_distort_corners[idx_gt].x(),
-//                                          left_distort_corners[idx_gt].y()),
-//                               left_frame.cam_param_);
-//     v_expected = v_expected * (depth_gt[idx_gt]);
-//     gtsam::Vector3 v_actual = sf.keypoints_3d_[i];
-//     //EXPECT_LT((v_expected - v_actual).norm(), 0.1);
-//   }
+  // keypoints 3d
+  for (size_t i = 0u; i < num_corners; i++) {
+    int idx_gt = corner_id_map_frame2gt[i];
+    double depth_expect = depth_gt[idx_gt];
+    double depth_actual = sf.keypoints_3d_[i](2);
+    gtsam::Vector3 v_actual = sf.keypoints_3d_[i];
+    Vector3 versor = left_frame.versors_[i];
+    Vector3 v_expected = versor * depth_gt[idx_gt] / versor(2);
+
+    EXPECT_LT((v_expected - v_actual).norm(), 5);
+  }
 }
 
 } // namespace VIO
