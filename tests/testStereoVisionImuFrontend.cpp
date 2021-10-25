@@ -474,7 +474,8 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
   p.stereo_matching_params_.max_point_dist_ = 500;
-
+  p.stereo_matching_params_.templ_cols_ = 9;
+  
   StereoFrame first_stereo_frame(
       0,
       0,
@@ -512,7 +513,6 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   VIO::FrontendInputPacketBase::UniquePtr input =
       VIO::make_unique<StereoImuSyncPacket>(
           first_stereo_frame, fake_imu_stamps, fake_imu_acc_gyr);
-  std::cout << "getting ready to spinonce" << std::endl;
   VIO::FrontendOutputPacketBase::UniquePtr output_base = st.spinOnce(std::move(input));
   VIO::StereoFrontendOutput::UniquePtr output =
       VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
@@ -578,6 +578,8 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
 
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i]; 
+    std::cout << sf.left_keypoints_rectified_[i].second << " left keypoints rectified" << std::endl;
+    std::cout << (int)sf.left_keypoints_rectified_[i].first << " status" << std::endl;
     std::vector<cv::Point2d> undistorted;
     EXPECT_TRUE(gtsam::assert_equal(left_distort_corners[idx_gt], gtsam::Point2(sf.left_frame_.keypoints_[i].x, sf.left_frame_.keypoints_[i].y ), 2));
 
@@ -598,7 +600,8 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i]; 
     std::vector<cv::Point2d> undistorted;
-    EXPECT_TRUE(gtsam::assert_equal(left_distort_corners[idx_gt], gtsam::Point2(sf.left_frame_.keypoints_[i].x, sf.left_frame_.keypoints_[i].y ), 2));
+    //std::cout << right_distort_corners[idx_gt] << " distorted correct " << idx_gt << std::endl;
+    EXPECT_TRUE(gtsam::assert_equal(right_distort_corners[idx_gt], gtsam::Point2(sf.right_frame_.keypoints_[i].x, sf.right_frame_.keypoints_[i].y ), 2));
 
     get_undistorted_points(right_distort_corners[idx_gt], right_cam_params, stereo_camera, undistorted);
     gtsam::Point2 pt_expect;
