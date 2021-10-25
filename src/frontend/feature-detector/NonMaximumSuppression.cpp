@@ -120,52 +120,50 @@ bool AdaptiveNonMaximumSuppression::CompareScores(const cv::KeyPoint& kpt1, cons
 
 // ---------------------------------------------------------------------------------
 std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
-    const std::vector<cv::KeyPoint>& keyPoints, const int& numRetPoints,
-    const float& tolerance, const int& cols, const int& rows){
+    const std::vector<cv::KeyPoint>& keyPoints, const int& numKptsToRetain,
+    const float& tolerance, const int& imgCols, const int& imgRows){
 
-  if (numRetPoints > keyPoints.size()) {
+  if (numKptsToRetain > keyPoints.size()) {
     return keyPoints;
   }
 
   size_t nrHorizontalBins = 5;
   size_t nrVerticalBins = 5;
 
-  float binRowSize = float(rows) / float(nrVerticalBins);
-  float binColSize = float(cols) / float(nrHorizontalBins);
+  float binRowSize = float(imgRows) / float(nrVerticalBins);
+  float binColSize = float(imgCols) / float(nrHorizontalBins);
+
+  // 0. sort features by score (will ensure they will be sorted also within each bin)
+  std::vector<cv::KeyPoint> sortedKpts = keyPoints;
+  std::sort (sortedKpts.begin(),sortedKpts.end(), &CompareScores); // sort by decreasing scores
 
   // 1. assign keypoints to bins
   // 1a: allocate bins
-  std::vector< std::vector <std::vector<cv::KeyPoint> > > bin_to_keypoints_map;
+  std::vector< std::vector <std::vector<cv::KeyPoint> > > keypoints_at_bin_ij;
   for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
       for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
-	  bin_to_keypoints_map[binRowInd][binColInd] = std::vector<cv::KeyPoint>(0); //allocation
+	  keypoints_at_bin_ij[binRowInd][binColInd] = std::vector<cv::KeyPoint>(0); //allocation
       }
   }
-  // 1b: assign kpts to bins
-  for (int i = 0; i < keyPoints.size(); i++){
-      const size_t binRowInd = static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
-      const size_t binColInd = static_cast<size_t>(keyPoints[i].pt.x / binColSize);
-      bin_to_keypoints_map[binRowInd][binColInd].push_back(keyPoints[i]);
+  // 1b: assign each kpt to bins
+  for (int i = 0; i < sortedKpts.size(); i++){
+      const size_t binRowInd = static_cast<size_t>(sortedKpts[i].pt.y / binRowSize);
+      const size_t binColInd = static_cast<size_t>(sortedKpts[i].pt.x / binColSize);
+      keypoints_at_bin_ij[binRowInd][binColInd].push_back(sortedKpts[i]);
+      std::cout  << " binColInd "  << binColInd << "binRowInd " << binRowInd << " xy = (" << sortedKpts[i].pt.x << "," << sortedKpts[i].pt.y << std::endl;
   }
 
-  // 2. sort features in each bin by their score
-  for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
-      for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
-	    std::sort (bin_to_keypoints_map[binRowInd][binColInd].begin (),
-		       bin_to_keypoints_map[binRowInd][binColInd].end (),
-		       CompareScores); // sort by decreasing scores
-      }
-  }
+  // 2. compute how many features we want to retain in each bin numRetPointsPerBin
+  const int numRetPointsPerBin = std::ceil( float(numKptsToRetain) / float(nrHorizontalBins*nrVerticalBins) );
+  std::cout << " numRetPointsPerBin " << numRetPointsPerBin<< std::endl;
 
-  // 3. compute how many features we want to retain in each bin numRetPointsPerBin
-  const int numRetPointsPerBin = std::ceil( float(numRetPoints) / float(nrHorizontalBins*nrVerticalBins) );
-
-  // 4. select top numRetPointsPerBin for each bin
+  // 3. select top numRetPointsPerBin for each bin
   std::vector<cv::KeyPoint> binnedKpts; // binned keypoints we want to output
   for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
       for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
-	  for(int i=0; i<numRetPointsPerBin; i++){
-	      binnedKpts.push_back(bin_to_keypoints_map[binRowInd][binColInd][i]);
+	  int nrKptsInBin = keypoints_at_bin_ij[binRowInd][binColInd].size();
+	  for(int i=0; i< std::min(numRetPointsPerBin,nrKptsInBin); i++){
+	      binnedKpts.push_back(keypoints_at_bin_ij[binRowInd][binColInd][i]);
 	  }
       }
   }
