@@ -72,7 +72,9 @@ void FrontendParams::print() const {
                         useStereoTracking_,
                         // OTHER parameters
                         "disparityThreshold_: ",
-                        disparityThreshold_);
+                        disparityThreshold_,
+                        "maxDisparity_: ",
+                        maxDisparity_);
   LOG(INFO) << out.str();
 
   feature_detector_params_.print();
@@ -117,6 +119,7 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   min_number_features_ = static_cast<size_t>(min_number_features);
   yaml_parser.getYamlParam("useStereoTracking", &useStereoTracking_);
   yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
+  yaml_parser.getYamlParam("maxDisparity", &maxDisparity_);
 
   int optical_flow_predictor_type;
   yaml_parser.getYamlParam("optical_flow_predictor_type",
@@ -165,7 +168,8 @@ bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
          (useStereoTracking_ == tp2.useStereoTracking_) &&
          // others:
          (optical_flow_predictor_type_ == tp2.optical_flow_predictor_type_) &&
-         (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
+         (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol) &&
+         (fabs(maxDisparity_ - tp2.maxDisparity_) <= tol);
 }
 
 }  // namespace VIO
