@@ -89,6 +89,9 @@ protected:
   // max disparity under which we consider the vehicle steady
   double disparityThreshold_ = 0.5;
 
+  // ensure a keyframe is added if maxDisparity is reached
+  double maxDisparity_ = 10.0;
+
   OpticalFlowPredictorType optical_flow_predictor_type_ =
       OpticalFlowPredictorType::kNoPrediction;
 };
