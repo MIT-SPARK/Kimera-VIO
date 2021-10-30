@@ -130,30 +130,18 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
 
   // 0. Note: features should be already sorted by score at this point from detect
 
-  // 1. assign keypoints to bins
-  // 1a: allocate bins
-  std::vector<std::vector<std::vector<cv::KeyPoint> > > keypoints_at_bin_ij (
-      nr_vertical_bins,
-      std::vector <std::vector<cv::KeyPoint> >(nr_horizontal_bins, std::vector<cv::KeyPoint>(0)));
+  // 1. compute how many features we want to retain in each bin numRetPointsPerBin
+  const int numRetPointsPerBin = std::ceil( float(numKptsToRetain) / float(nr_horizontal_bins*nr_vertical_bins) );
 
-  // 1b: assign each kpt to bins
+  // 2. assign keypoints to bins and retrain top numRetPointsPerBin for each bin
+  std::vector<cv::KeyPoint> binnedKpts; // binned keypoints we want to output
+  gtsam::Matrix nrKptsInBin = gtsam::Matrix::Zero(nr_vertical_bins,nr_horizontal_bins); // store number of kpts for each bin
   for (int i = 0; i < keyPoints.size(); i++){
       const size_t binRowInd = static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
       const size_t binColInd = static_cast<size_t>(keyPoints[i].pt.x / binColSize);
-      keypoints_at_bin_ij[binRowInd][binColInd].push_back(keyPoints[i]);
-  }
-
-  // 2. compute how many features we want to retain in each bin numRetPointsPerBin
-  const int numRetPointsPerBin = std::ceil( float(numKptsToRetain) / float(nr_horizontal_bins*nr_vertical_bins) );
-
-  // 3. select top numRetPointsPerBin for each bin
-  std::vector<cv::KeyPoint> binnedKpts; // binned keypoints we want to output
-  for(int binRowInd=0; binRowInd<nr_vertical_bins; binRowInd++){
-      for(int binColInd=0; binColInd<nr_horizontal_bins; binColInd++){
-	  int nrKptsInBin = keypoints_at_bin_ij[binRowInd][binColInd].size();
-	  for(int i=0; i< std::min(numRetPointsPerBin,nrKptsInBin); i++){
-	      binnedKpts.push_back(keypoints_at_bin_ij[binRowInd][binColInd][i]);
-	  }
+      if( nrKptsInBin(binRowInd,binColInd) < numRetPointsPerBin){ // if we need more kpts in that bin
+	  binnedKpts.push_back(keyPoints[i]);
+	  nrKptsInBin(binRowInd,binColInd) += 1;
       }
   }
   return binnedKpts;
