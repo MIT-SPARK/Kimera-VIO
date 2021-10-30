@@ -104,6 +104,8 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
     if (cur_frame->landmarks_[i] != -1) ++n_existing;
     // features that have been tracked so far have Age+1
     cur_frame->landmarks_age_.at(i)++;
+    // Note: this is done here (rather than the tracker) since the detection is done at keyframes
+    // and landmarks_age_ counts the nr of keyframes a keypoint is observed in
   }
 
   // Detect new features in image.
@@ -169,12 +171,10 @@ std::vector<cv::KeyPoint> FeatureDetector::rawFeatureDetection(
 
 KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
                                               const int& need_n_corners) {
-  // TODO(TONI) need to do grid based approach!
-
   // cv::namedWindow("Input Image", cv::WINDOW_AUTOSIZE);
   // cv::imshow("Input Image", cur_frame.img_);
 
-  // TODO(TONI): instead of using this mask, find all features,
+  // TODO(TONI): an alternative approach is to find all features,
   // do max-suppression, and then remove those detections that are close to
   // the already found ones, even you could cut feature tracks that are no
   // longer good quality or visible early on if they don't have detected
