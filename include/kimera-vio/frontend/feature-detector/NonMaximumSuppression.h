@@ -40,7 +40,9 @@ class NonMaximumSuppression {
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) = 0;
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins) = 0;
 };
 
 /**
@@ -78,17 +80,18 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) override;
-
-  static bool CompareScores (const cv::KeyPoint &kpt1,
-			     const cv::KeyPoint &kpt2);
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins) override;
 
   std::vector<cv::KeyPoint> binning(
       const std::vector<cv::KeyPoint>& keyPoints,
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows);
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins);
 
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the

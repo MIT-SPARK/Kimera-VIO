@@ -220,7 +220,9 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
                                                          need_n_corners,
                                                          tolerance,
                                                          cur_frame.img_.cols,
-                                                         cur_frame.img_.rows);
+                                                         cur_frame.img_.rows,
+							 feature_detector_params_.nr_horizontal_bins_,
+							 feature_detector_params_.nr_vertical_bins_);
   }
   // NOTE: if we don't use max_suppression we may end with more corners than
   // requested...
@@ -230,9 +232,9 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   cv::drawKeypoints(cur_frame.img_,
 		    keypoints,
 		    fastDetectionResults,
-		    cv::Scalar(94.0, 206.0, 165.0, 0.0));
-  int nrVerticalBins = 5;
-  int nrHorizontalBins = 5;
+		    cv::Scalar(234.0, 6.0, 5.0));
+  int nrVerticalBins = feature_detector_params_.nr_vertical_bins_;
+  int nrHorizontalBins = feature_detector_params_.nr_horizontal_bins_;
   float binRowSize = float(cur_frame.img_.rows) / float(nrVerticalBins);
   float binColSize = float(cur_frame.img_.cols) / float(nrHorizontalBins);
   for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){

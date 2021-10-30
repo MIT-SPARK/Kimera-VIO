@@ -29,7 +29,7 @@ bidirectionalMatching: 1
 enable_non_max_suppression: 1
 non_max_suppression_type: 4
 nr_horizontal_bins: 5
-nr_vertical_bins: 5
+nr_vertical_bins: 2
 
 enable_subpixel_corner_finder: 1
 max_iters: 42
