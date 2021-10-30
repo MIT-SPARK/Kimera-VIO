@@ -10,6 +10,7 @@
  * @file   FeatureDetectorParams.h
  * @brief  Parameters for feature detection.
  * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
@@ -83,9 +84,12 @@ struct FeatureDetectorParams : public PipelineParams {
   //! Minimum distance between the already tracked features and the new
   //! features to be detected. This avoids detections near tracked features.
   int min_distance_btw_tracked_and_detected_features_ = 10;
+  //! Number of horizontal bins for feature binning
+  int nr_horizontal_bins_ = 5;
+  //! Number of vertical bins for feature binning
+  int nr_vertical_bins_ = 5;
 
   // GFTT specific parameters
-  // TODO(Toni): add comments on each parameter
   double quality_level_ = 0.001;
   int block_size_ = 3;
   bool use_harris_corner_detector_ = false;

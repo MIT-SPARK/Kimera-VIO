@@ -40,6 +40,8 @@ TEST(testFeatureDetectorParams, FeatureDetectorParamParseYAML) {
   EXPECT_TRUE(tp.subpixel_corner_finder_params_.equals(expected_subpixel_params));
   EXPECT_EQ(tp.enable_non_max_suppression_, true);
   EXPECT_EQ(VIO::to_underlying(tp.non_max_suppression_type_), 4);
+  EXPECT_EQ(tp.nr_horizontal_bins_, 5);
+  EXPECT_EQ(tp.nr_vertical_bins_, 2);
   EXPECT_EQ(tp.quality_level_, 0.5);
   EXPECT_EQ(tp.block_size_, 3);
   EXPECT_EQ(tp.use_harris_corner_detector_, 0);

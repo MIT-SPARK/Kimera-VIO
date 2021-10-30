@@ -40,7 +40,9 @@ class NonMaximumSuppression {
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) = 0;
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins) = 0;
 };
 
 /**
@@ -53,7 +55,7 @@ enum class AnmsAlgorithmType : unsigned int {
   KdTree = 3,
   RangeTree = 4,
   Ssc = 5,
-  binning = 6
+  Binning = 6
 };
 
 /**
@@ -78,15 +80,19 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) override;
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins) override;
 
   std::vector<cv::KeyPoint> binning(
       const std::vector<cv::KeyPoint>& keyPoints,
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) override;
-  }
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins);
+
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the
    * ANMS algorithm (not sure why someone would do that, but here it is).
