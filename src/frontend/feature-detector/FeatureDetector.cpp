@@ -197,15 +197,15 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
       rawFeatureDetection(cur_frame.img_, mask);
   VLOG(1) << "Number of points detected : " << keypoints.size();
 
-  // cv::Mat fastDetectionResults;  // draw FAST detections
-  // cv::drawKeypoints(cur_frame.img_,
-  //                  keyPoints,
-  //                  fastDetectionResults,
-  //                  cv::Scalar(94.0, 206.0, 165.0, 0.0));
-  // cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
-  // cv::imshow("FAST Detections", fastDetectionResults);
-  // cv::imshow("MASK Detections", mask);
-  // cv::waitKey(0);
+  //   cv::Mat fastDetectionResults;  // draw FAST detections
+  //   cv::drawKeypoints(cur_frame.img_,
+  //		     keypoints,
+  //                    fastDetectionResults,
+  //                    cv::Scalar(94.0, 206.0, 165.0, 0.0));
+  //   cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
+  //   cv::imshow("FAST Detections", fastDetectionResults);
+  //   cv::imshow("MASK Detections", mask);
+  //   cv::waitKey(0);
 
   VLOG(1) << "Need n corners: " << need_n_corners;
   // Tolerance of the number of returned points in percentage.
