@@ -53,7 +53,7 @@ enum class AnmsAlgorithmType : unsigned int {
   KdTree = 3,
   RangeTree = 4,
   Ssc = 5,
-  binning = 6
+  Binning = 6
 };
 
 /**

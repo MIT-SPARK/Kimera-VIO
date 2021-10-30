@@ -27,6 +27,8 @@ FeatureDetector::FeatureDetector(
     non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
         feature_detector_params.non_max_suppression_type_);
   }
+  int nr_features_upper_bound = 1000; // we always try to extract this number of features
+  // and then prune them to feature_detector_params_.max_features_per_frame_ in the nonmax suppression
 
   // TODO(Toni): find a way to pass params here using args lists
   switch (feature_detector_params.feature_detector_type_) {
@@ -51,7 +53,7 @@ FeatureDetector::FeatureDetector(
 #endif
       static constexpr int patch_size = 2;  // We don't use descriptors (yet).
       feature_detector_ =
-          cv::ORB::create(feature_detector_params_.max_features_per_frame_,
+          cv::ORB::create(nr_features_upper_bound,
                           scale_factor,
                           n_levels,
                           edge_threshold,
@@ -69,7 +71,7 @@ FeatureDetector::FeatureDetector(
     case FeatureDetectorType::GFTT: {
       // goodFeaturesToTrack detector.
       feature_detector_ = cv::GFTTDetector::create(
-          feature_detector_params_.max_features_per_frame_,
+	  nr_features_upper_bound,
           feature_detector_params_.quality_level_,
           feature_detector_params_
               .min_distance_btw_tracked_and_detected_features_,

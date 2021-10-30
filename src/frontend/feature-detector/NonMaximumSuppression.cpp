@@ -97,7 +97,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
           anms::Ssc(keyPointsSorted, numRetPoints, tolerance, cols, rows);
       break;
     };
-    case AnmsAlgorithmType::binning: {
+    case AnmsAlgorithmType::Binning: {
       VLOG(1) << "Running Binning: " << VIO::to_underlying(anms_algorithm_type_);
       keypoints = binning(keyPointsSorted, numRetPoints, tolerance, cols, rows);
       break;
