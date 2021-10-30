@@ -22,12 +22,12 @@ FeatureDetector::FeatureDetector(
       non_max_suppression_(nullptr),
       feature_detector_() {
   // TODO(Toni): parametrize as well whether we use bucketing or anms...
-  // Right now we asume we want anms not bucketing...
+  // Right now we assume we want anms not bucketing...
   if (feature_detector_params.enable_non_max_suppression_) {
     non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
         feature_detector_params.non_max_suppression_type_);
   }
-  int nr_features_upper_bound = 1000; // we always try to extract this number of features
+  int nr_features_upper_bound = 2000; // we always try to extract this number of features and then pass to nonmax suppression
   // and then prune them to feature_detector_params_.max_features_per_frame_ in the nonmax suppression
 
   // TODO(Toni): find a way to pass params here using args lists
@@ -225,6 +225,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // NOTE: if we don't use max_suppression we may end with more corners than
   // requested...
 
+  /*{
   cv::Mat fastDetectionResults;  // draw FAST detections
   cv::drawKeypoints(cur_frame.img_,
 		    keypoints,
@@ -249,6 +250,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   cv::namedWindow("After NMS", cv::WINDOW_AUTOSIZE);
   cv::imshow("After NMS", fastDetectionResults);
   cv::waitKey(0);
+  }*/
 
   // TODO(Toni): we should be using cv::KeyPoint... not cv::Point2f...
   KeypointsCV new_corners;

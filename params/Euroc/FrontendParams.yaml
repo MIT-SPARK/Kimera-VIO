@@ -37,6 +37,8 @@ bidirectionalMatching: 0
 # Non-maximum suppression params
 enable_non_max_suppression: 0
 non_max_suppression_type: 4
+nr_horizontal_bins: 5
+nr_vertical_bins: 5
 
 # Subpixel corner refinement for the monocular case
 enable_subpixel_corner_finder: 1
