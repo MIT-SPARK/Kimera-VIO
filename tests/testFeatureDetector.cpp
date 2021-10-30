@@ -87,7 +87,20 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning) {
   feature_detector.featureDetection(f.get());
 
   // Compare results: since we specify features per bin, we might get a bit less than desired (e.g. a big might have low response)
-  EXPECT_EQ(f->keypoints_.size(), 25); // 1 feature per bin
+  EXPECT_EQ(f->keypoints_.size(), 20); // 1 feature per bin
+
+  // check that frequency of features per bin is correct
+  float binRowSize = float(f->img_.rows) / float(tp.nr_vertical_bins_);
+  float binColSize = float(f->img_.cols) / float(tp.nr_horizontal_bins_);
+
+  gtsam::Matrix binFrequency = gtsam::Matrix::Zero(tp.nr_vertical_bins_,tp.nr_horizontal_bins_); // grid of bins according to the yaml
+  for (int i = 0; i < f->keypoints_.size(); i++){
+      const size_t binRowInd = static_cast<size_t>(f->keypoints_[i].y / binRowSize);
+      const size_t binColInd = static_cast<size_t>(f->keypoints_[i].x / binColSize);
+      binFrequency(binRowInd,binColInd) += 1;
+  }
+  // we expect 1 feature per bin
+  CHECK(gtsam::assert_equal(binFrequency,gtsam::Matrix::Ones(5,4),1e-9));
 }
 
 }  // namespace VIO

@@ -12,7 +12,7 @@ maxFeatureAge: 25
 # 2: AGAST
 # 3: GFTT, aka Good Features To Track
 feature_detector_type: 3
-maxFeaturesPerFrame: 25
+maxFeaturesPerFrame: 20
 
 # Good Features To Track specific parameters
 quality_level: 0.0001
@@ -37,7 +37,7 @@ bidirectionalMatching: 0
 # Non-maximum suppression params
 enable_non_max_suppression: 1
 non_max_suppression_type: 6
-nr_horizontal_bins: 5
+nr_horizontal_bins: 4
 nr_vertical_bins: 5
 
 # Subpixel corner refinement for the monocular case

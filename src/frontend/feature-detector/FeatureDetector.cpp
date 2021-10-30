@@ -232,7 +232,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   cv::drawKeypoints(cur_frame.img_,
 		    keypoints,
 		    fastDetectionResults,
-		    cv::Scalar(234.0, 6.0, 5.0));
+		    cv::Scalar(234.0, 60.0, 5.0));
   int nrVerticalBins = feature_detector_params_.nr_vertical_bins_;
   int nrHorizontalBins = feature_detector_params_.nr_horizontal_bins_;
   float binRowSize = float(cur_frame.img_.rows) / float(nrVerticalBins);
