@@ -74,8 +74,6 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning) {
   FeatureDetectorParams tp;
   tp.parseYAML(FLAGS_test_data_path + "/ForFeatureDetector/frontendParams-NMS-Binning.yaml");
 
-  tp.print();
-
   // create a frame
   CameraParams cam_params;
   cam_params.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
@@ -88,10 +86,8 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning) {
   FeatureDetector feature_detector(tp);
   feature_detector.featureDetection(f.get());
 
-  // Compare results: we get exactly as many keypoints as we asked for in the yaml
-  EXPECT_EQ(f->keypoints_.size(), 300);
+  // Compare results: since we specify features per bin, we might get a bit less than desired (e.g. a big might have low response)
+  EXPECT_EQ(f->keypoints_.size(), 25); // 1 feature per bin
 }
-
-
 
 }  // namespace VIO

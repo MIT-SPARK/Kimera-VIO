@@ -114,11 +114,6 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
 }
 
 // ---------------------------------------------------------------------------------
-bool AdaptiveNonMaximumSuppression::CompareScores(const cv::KeyPoint& kpt1, const cv::KeyPoint& kpt2)  {
-  return kpt1.response > kpt2.response;
-}
-
-// ---------------------------------------------------------------------------------
 std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
     const std::vector<cv::KeyPoint>& keyPoints, const int& numKptsToRetain,
     const float& tolerance, const int& imgCols, const int& imgRows){
@@ -133,29 +128,22 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
   float binRowSize = float(imgRows) / float(nrVerticalBins);
   float binColSize = float(imgCols) / float(nrHorizontalBins);
 
-  // 0. sort features by score (will ensure they will be sorted also within each bin)
-  std::vector<cv::KeyPoint> sortedKpts = keyPoints;
-  std::sort (sortedKpts.begin(),sortedKpts.end(), &CompareScores); // sort by decreasing scores
-
+  // 0. Note: features should be already sorted by score at this point from detect
   // 1. assign keypoints to bins
   // 1a: allocate bins
-  std::vector< std::vector <std::vector<cv::KeyPoint> > > keypoints_at_bin_ij;
-  for(int binRowInd=0; binRowInd<nrVerticalBins; binRowInd++){
-      for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
-	  keypoints_at_bin_ij[binRowInd][binColInd] = std::vector<cv::KeyPoint>(0); //allocation
-      }
-  }
+  std::vector<std::vector<std::vector<cv::KeyPoint> > > keypoints_at_bin_ij (
+      nrVerticalBins,
+      std::vector <std::vector<cv::KeyPoint> >(nrHorizontalBins, std::vector<cv::KeyPoint>(0)));
+
   // 1b: assign each kpt to bins
-  for (int i = 0; i < sortedKpts.size(); i++){
-      const size_t binRowInd = static_cast<size_t>(sortedKpts[i].pt.y / binRowSize);
-      const size_t binColInd = static_cast<size_t>(sortedKpts[i].pt.x / binColSize);
-      keypoints_at_bin_ij[binRowInd][binColInd].push_back(sortedKpts[i]);
-      std::cout  << " binColInd "  << binColInd << "binRowInd " << binRowInd << " xy = (" << sortedKpts[i].pt.x << "," << sortedKpts[i].pt.y << std::endl;
+  for (int i = 0; i < keyPoints.size(); i++){
+      const size_t binRowInd = static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
+      const size_t binColInd = static_cast<size_t>(keyPoints[i].pt.x / binColSize);
+      keypoints_at_bin_ij[binRowInd][binColInd].push_back(keyPoints[i]);
   }
 
   // 2. compute how many features we want to retain in each bin numRetPointsPerBin
   const int numRetPointsPerBin = std::ceil( float(numKptsToRetain) / float(nrHorizontalBins*nrVerticalBins) );
-  std::cout << " numRetPointsPerBin " << numRetPointsPerBin<< std::endl;
 
   // 3. select top numRetPointsPerBin for each bin
   std::vector<cv::KeyPoint> binnedKpts; // binned keypoints we want to output
@@ -167,6 +155,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
 	  }
       }
   }
+
   return binnedKpts;
 }
 
