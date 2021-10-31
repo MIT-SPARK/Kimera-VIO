@@ -66,5 +66,5 @@ optical_flow_predictor_type: 0
 # 2D-3D pose estimation method
 use_pnp_tracking: true
 pnp_method: 3 # EPNP
-min_pnp_inliers: 10 #TODO
-ransac_threshold_pnp: 1 #TODO
+min_pnp_inliers: 10
+ransac_threshold_pnp: 1.0 # pixels
