@@ -44,7 +44,7 @@ VioParams::VioParams(const std::string& params_folder_path)
                 params_folder_path + '/' + kLcdFilename,
                 params_folder_path + '/' + kDisplayFilename,
                 FLAGS_use_external_odometry
-                    ? boost::optional<std::string>(params_folder_path +
+                    ? boost::optional<std::string>(params_folder_path + '/' +
                                                    kOdometryFilename)
                     : boost::none,
                 !params_folder_path.empty()) {}
