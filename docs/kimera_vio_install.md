@@ -42,7 +42,7 @@ sudo apt-get install -y libboost-all-dev
 - OpenCV dependencies:
   - on Mac:
 ```bash
-brew install vtk # (to check)
+brew install vtk
 ```
 
   - On Ubuntu 18.04
