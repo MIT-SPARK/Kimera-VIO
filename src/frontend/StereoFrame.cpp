@@ -29,7 +29,6 @@ StereoFrame::StereoFrame(const FrameId& id,
                          const Frame& right_frame)
     : is_keyframe_(false),
       is_rectified_(false),
-      is_disparity_low(false),
       left_img_rectified_(),
       right_img_rectified_(),
       id_(id),

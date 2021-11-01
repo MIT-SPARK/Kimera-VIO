@@ -434,7 +434,6 @@ void StereoMatcher::getDepthFromRectifiedMatches(
     StatusKeypointsCV& left_keypoints_rectified,
     StatusKeypointsCV& right_keypoints_rectified,
     std::vector<double>* keypoints_depth) const {
-  std::cout << "inside getDepthFromRectifiedMatches" << std::endl;
   CHECK_NOTNULL(keypoints_depth)->clear();
   // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
   double fx_b =
@@ -461,18 +460,15 @@ void StereoMatcher::getDepthFromRectifiedMatches(
             depth > stereo_matching_params_.max_point_dist_) {
           right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
           keypoints_depth->push_back(0.0);
-          std::cout << "first no depth" << std::endl;
         } else {
           keypoints_depth->push_back(depth);
-        }// DOMINIC check here
+        }
       } else {
         // Right match was wrong.
-        std::cout << "second no depth" << std::endl;
         right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
         keypoints_depth->push_back(0.0);
       }
     } else {
-      std::cout << "last else" << std::endl;
       // Something is wrong.
       if (left_keypoints_rectified[i].first != KeypointStatus::VALID &&
           right_keypoints_rectified.at(i).first != 
