@@ -395,7 +395,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         std::vector<int> inliers;
         if (tracker_->pnp(*stereoFrame_k_, &best_absolute_pose, &inliers) &&
             inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
-          tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::VALID;
+          tracker_status_summary_.kfTracking_status_pnp_ = TrackingStatus::VALID;
           LOG(WARNING) << "PnP tracking success:\n"
                        << "- # inliers: " << inliers.size() << '\n'
                        << "- # outliers: "
@@ -409,13 +409,13 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                      << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
                      << '\n'
                      << "Total: " << stereoFrame_k_->keypoints_3d_.size();
-          tracker_status_summary_.tracking_status_pnp_ =
+          tracker_status_summary_.kfTracking_status_pnp_ =
               TrackingStatus::FEW_MATCHES;
         }
         tracker_status_summary_.W_T_k_pnp_ = best_absolute_pose;
         // TODO(Toni): remove outliers from the tracking?
       } else {
-        tracker_status_summary_.tracking_status_pnp_ = TrackingStatus::INVALID;
+        tracker_status_summary_.kfTracking_status_pnp_ = TrackingStatus::INVALID;
         tracker_status_summary_.W_T_k_pnp_ = gtsam::Pose3::identity();
       }
 

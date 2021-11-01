@@ -40,23 +40,24 @@
 
 namespace VIO {
 
-// Mono
+// Mono (2d2d)
 // 5-point ransac
 using ProblemMono =
 opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
 using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
 
-// MonoTranslationOnly: TranslationOnlySacProblem
+// Mono (2d2d, with given rotation) MonoTranslationOnly: TranslationOnlySacProblem
 // 2-point ransac
 using ProblemMonoGivenRot =
 opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
 using AdapterMonoGivenRot = opengv::relative_pose::CentralRelativeAdapter;
 
-// Stereo
+// Stereo (3d3d)
 // Arun's problem (3-point ransac)
 using ProblemStereo = opengv::sac_problems::point_cloud::PointCloudSacProblem;
 using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
 
+// PnP (2d3d)
 using ProblemPnp = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
 using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
 
@@ -133,7 +134,7 @@ public:
  TrackerStatusSummary()
      : kfTrackingStatus_mono_(TrackingStatus::INVALID),
        kfTrackingStatus_stereo_(TrackingStatus::INVALID),
-       tracking_status_pnp_(TrackingStatus::INVALID),
+       kfTracking_status_pnp_(TrackingStatus::INVALID),
        lkf_T_k_mono_(gtsam::Pose3::identity()),
        lkf_T_k_stereo_(gtsam::Pose3::identity()),
        W_T_k_pnp_(gtsam::Pose3::identity()),
@@ -171,7 +172,7 @@ public:
 public:
   TrackingStatus kfTrackingStatus_mono_;
   TrackingStatus kfTrackingStatus_stereo_;
-  TrackingStatus tracking_status_pnp_;
+  TrackingStatus kfTracking_status_pnp_;
   gtsam::Pose3 lkf_T_k_mono_;
   gtsam::Pose3 lkf_T_k_stereo_;
   gtsam::Pose3 W_T_k_pnp_;
