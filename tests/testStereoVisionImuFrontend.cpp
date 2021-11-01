@@ -578,8 +578,6 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
 
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i]; 
-    std::cout << sf.left_keypoints_rectified_[i].second << " left keypoints rectified" << std::endl;
-    std::cout << (int)sf.left_keypoints_rectified_[i].first << " status" << std::endl;
     std::vector<cv::Point2d> undistorted;
     EXPECT_TRUE(gtsam::assert_equal(left_distort_corners[idx_gt], gtsam::Point2(sf.left_frame_.keypoints_[i].x, sf.left_frame_.keypoints_[i].y ), 2));
 
@@ -600,7 +598,6 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   for (size_t i = 0u; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i]; 
     std::vector<cv::Point2d> undistorted;
-    //std::cout << right_distort_corners[idx_gt] << " distorted correct " << idx_gt << std::endl;
     EXPECT_TRUE(gtsam::assert_equal(right_distort_corners[idx_gt], gtsam::Point2(sf.right_frame_.keypoints_[i].x, sf.right_frame_.keypoints_[i].y ), 2));
 
     get_undistorted_points(right_distort_corners[idx_gt], right_cam_params, stereo_camera, undistorted);
@@ -651,14 +648,15 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
 
 TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   // Things to test:
+  // check keyframe if current frame has low disparity but the last keyframe did not
+  // check not keyframe if current frame has low disparity and last keyframe had low disparity
+  // check keyframe if disparity is high and min time between keyframes is reached
+  // check keyframe if max disparity thresehold reached (and min time between keyframes has not passed)
 
   CameraParams cam_params_left, cam_params_right;
   std::string synthetic_stereo_path(FLAGS_test_data_path + "/ForStereoTracker");
   cam_params_left.parseYAML(synthetic_stereo_path + "/camLeftEuroc.yaml");
   cam_params_right.parseYAML(synthetic_stereo_path + "/camRightEuroc.yaml");
-
-  std::string img_name_left = synthetic_stereo_path + "/left_frame0000.jpg";
-  std::string img_name_right = synthetic_stereo_path + "/right_frame0000.jpg";
 
   Pose3 camL_Pose_camR =
       cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
@@ -672,9 +670,12 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
   p.stereo_matching_params_.max_point_dist_ = 500;
-  p.maxDisparity_ = 30;
-  //p.stereo_matching_params_.templ_cols_ = 9;
+  p.maxDisparity_ = 30; //higher than what would be put into practice, but used to make testing easier
   
+  ///// make initial stereo frame /////
+  std::string img_name_left = synthetic_stereo_path + "/left_frame0000.jpg";
+  std::string img_name_right = synthetic_stereo_path + "/right_frame0000.jpg";
+
   StereoFrame zeroth_stereo_frame(
       0,
       0,
@@ -689,7 +690,6 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
             UtilsOpenCV::ReadAndConvertToGrayScale(
                 img_name_right, p.stereo_matching_params_.equalize_image_)));
 
-  // Call StereoVisionImuFrontend::Process first frame!
   VIO::Camera::ConstPtr left_camera = std::make_shared<VIO::Camera>(cam_params_left);
   VIO::Camera::ConstPtr right_camera = std::make_shared<VIO::Camera>(cam_params_right);
   VIO::StereoCamera::ConstPtr stereo_camera =
@@ -712,7 +712,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   const StereoFrame& sf0 = output0->stereo_frame_lkf_;
   EXPECT_TRUE(sf0.isKeyframe());
 
-  std::cout << sf0.left_frame_.isDisparityLow << " disparity of first frame " << std::endl;
+  ///// make next stereo frame - disparity is low and is keyframe /////
   img_name_left = synthetic_stereo_path + "/left_frame0000.jpg";
   img_name_right = synthetic_stereo_path + "/right_frame0000.jpg";
 
@@ -746,8 +746,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
 
   EXPECT_TRUE(sf1.isKeyframe());
 
-  std::cout << "ran second frame" << std::endl;
-
+  ///// make next stereo frame - disparity is high and is keyframe /////
   img_name_left = synthetic_stereo_path + "/left_frame0001.jpg";
   img_name_right = synthetic_stereo_path + "/right_frame0001.jpg";
   StereoFrame second_stereo_frame(
@@ -777,13 +776,13 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   EXPECT_TRUE(st.isInitialized());
   ASSERT_TRUE(output2);
   const StereoFrame& sf2 = output2->stereo_frame_lkf_;
-  std::cout << "ran third frame" << std::endl;
-  std::cout << output2->stereo_frame_lkf_.id_ << std::endl;
 
   EXPECT_TRUE(sf2.isKeyframe());
 
- img_name_left = synthetic_stereo_path + "/left_frame0008.jpg";
- img_name_right = synthetic_stereo_path + "/right_frame0008.jpg";
+  ///// make next stereo frame - disparity is very high, above max disparity threshold
+  //                             while min time has not passed between keyframes - is keyframe
+  img_name_left = synthetic_stereo_path + "/left_frame0008.jpg";
+  img_name_right = synthetic_stereo_path + "/right_frame0008.jpg";
   StereoFrame third_stereo_frame(
       3,
       6.11e+6,
@@ -814,6 +813,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
 
   EXPECT_TRUE(sf3.isKeyframe());
 
+  ///// make next stereo frame - disparity is low but is keyframe since prior keyframe didn't have low disparity /////
   img_name_left = synthetic_stereo_path + "/left_frame0008.jpg";
   img_name_right = synthetic_stereo_path + "/right_frame0008.jpg";
   StereoFrame fourth_stereo_frame(
@@ -846,6 +846,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
 
   EXPECT_TRUE(sf4.isKeyframe());
 
+  ///// make next stereo frame - disparity is low and is not keyframe /////
   img_name_left = synthetic_stereo_path + "/left_frame0008.jpg";
   img_name_right = synthetic_stereo_path + "/right_frame0008.jpg";
   StereoFrame fifth_stereo_frame(

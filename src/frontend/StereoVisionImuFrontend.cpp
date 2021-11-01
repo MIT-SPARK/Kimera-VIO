@@ -298,7 +298,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     const StereoFrame& cur_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
     cv::Mat* feature_tracks) {
-  std::cout <<"inside processStereoFrame" << std::endl;
   CHECK(tracker_);
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
@@ -333,10 +332,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
 
-  // Not tracking at all in this phase.
-  // tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
-  // tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
-
   // This will be the info we actually care about
   StereoMeasurements smart_stereo_measurements;
 
@@ -363,17 +358,10 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
 
  const bool max_disparity_reached = current_disparity > tracker_ ->tracker_params_.maxDisparity_;
 
- std::cout<< "disparity: " << current_disparity << std::endl;
- std::cout<< "current is_disparity_low : " << is_disparity_low << std::endl;
- std::cout << "is_disparity_low_second_time: " << is_disparity_low_second_time << std::endl;
- std::cout<< "time since last keyframe: " << stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ << std::endl;
- std::cout << "min time for keypoint" << tracker_->tracker_params_.intra_keyframe_time_ns_ << std::endl;
-
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
-  // If max time elaspsed and not able to track feature -> create new keyframe
+  // determine if frame should be a keyframe
   if (max_disparity_reached || (enough_disparity && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
-    std::cout << "MAKING THIS A KEY FRAME" << std::endl;
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "
@@ -481,7 +469,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
             << "timeGetMeasurements: " << get_smart_stereo_meas_time;
   } else {
     CHECK_EQ(smart_stereo_measurements.size(), 0u);
-    std::cout << "NOT SET AS KEYFRAME" << std::endl;
     stereoFrame_k_->setIsKeyframe(false);
   }
 
