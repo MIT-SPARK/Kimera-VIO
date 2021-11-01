@@ -15,7 +15,6 @@
 #pragma once
 
 #include <Eigen/Eigen>
-
 #include <opencv2/features2d.hpp>
 
 #include "kimera-vio/frontend/Frame.h"

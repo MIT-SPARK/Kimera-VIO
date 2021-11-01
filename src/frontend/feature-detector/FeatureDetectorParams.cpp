@@ -13,6 +13,7 @@
  */
 
 #include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
+
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
@@ -79,10 +80,10 @@ void FeatureDetectorParams::print() const {
                         VIO::to_underlying(non_max_suppression_type_),
                         "Min dist btw tracked/detected features",
                         min_distance_btw_tracked_and_detected_features_,
-			"Nr of horizontal bins for feature binning",
-			nr_horizontal_bins_,
-			"Nr of vertical bins for feature binning",
-			nr_vertical_bins_,
+                        "Nr of horizontal bins for feature binning",
+                        nr_horizontal_bins_,
+                        "Nr of vertical bins for feature binning",
+                        nr_vertical_bins_,
                         "quality_level_: ",
                         quality_level_,
                         "block_size_: ",
@@ -202,10 +203,8 @@ bool FeatureDetectorParams::equals(const FeatureDetectorParams& tp2,
              tp2.subpixel_corner_finder_params_)) &&
          (fabs(min_distance_btw_tracked_and_detected_features_ -
                tp2.min_distance_btw_tracked_and_detected_features_) <= tol) &&
-	 (fabs(nr_horizontal_bins_ -
-	       tp2.nr_horizontal_bins_) <= tol) &&
-	 (fabs(nr_vertical_bins_ -
-	       tp2.nr_vertical_bins_) <= tol) &&
+         (fabs(nr_horizontal_bins_ - tp2.nr_horizontal_bins_) <= tol) &&
+         (fabs(nr_vertical_bins_ - tp2.nr_vertical_bins_) <= tol) &&
          (fabs(quality_level_ - tp2.quality_level_) <= tol) &&
          (block_size_ == tp2.block_size_) &&
          (use_harris_corner_detector_ == tp2.use_harris_corner_detector_) &&

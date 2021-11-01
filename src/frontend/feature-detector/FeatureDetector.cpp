@@ -7,12 +7,11 @@
 #include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 
 #include <algorithm>
+#include <numeric>
 
 #include "kimera-vio/frontend/UndistorterRectifier.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"  // Just for ExtractCorners...
-
-#include <numeric>
 
 namespace VIO {
 
@@ -27,8 +26,10 @@ FeatureDetector::FeatureDetector(
     non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
         feature_detector_params.non_max_suppression_type_);
   }
-  int nr_features_upper_bound = 2000; // we always try to extract this number of features and then pass to nonmax suppression
-  // and then prune them to feature_detector_params_.max_features_per_frame_ in the nonmax suppression
+  // We always try to extract this number of features and then pass to
+  // nonmax suppression and then prune them to
+  // feature_detector_params_.max_features_per_frame_ in the nonmax suppression
+  int nr_features_upper_bound = 2000;
 
   // TODO(Toni): find a way to pass params here using args lists
   switch (feature_detector_params.feature_detector_type_) {
@@ -52,16 +53,15 @@ FeatureDetector::FeatureDetector(
           cv::ORB::ScoreType::HARRIS_SCORE;
 #endif
       static constexpr int patch_size = 2;  // We don't use descriptors (yet).
-      feature_detector_ =
-          cv::ORB::create(nr_features_upper_bound,
-                          scale_factor,
-                          n_levels,
-                          edge_threshold,
-                          first_level,
-                          WTA_K,
-                          score_type,
-                          patch_size,
-                          feature_detector_params.fast_thresh_);
+      feature_detector_ = cv::ORB::create(nr_features_upper_bound,
+                                          scale_factor,
+                                          n_levels,
+                                          edge_threshold,
+                                          first_level,
+                                          WTA_K,
+                                          score_type,
+                                          patch_size,
+                                          feature_detector_params.fast_thresh_);
       break;
     }
     case FeatureDetectorType::AGAST: {
@@ -71,7 +71,7 @@ FeatureDetector::FeatureDetector(
     case FeatureDetectorType::GFTT: {
       // goodFeaturesToTrack detector.
       feature_detector_ = cv::GFTTDetector::create(
-	  nr_features_upper_bound,
+          nr_features_upper_bound,
           feature_detector_params_.quality_level_,
           feature_detector_params_
               .min_distance_btw_tracked_and_detected_features_,
@@ -104,8 +104,9 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
     if (cur_frame->landmarks_[i] != -1) ++n_existing;
     // features that have been tracked so far have Age+1
     cur_frame->landmarks_age_.at(i)++;
-    // Note: this is done here (rather than the tracker) since the detection is done at keyframes
-    // and landmarks_age_ counts the nr of keyframes a keypoint is observed in
+    // Note: this is done here (rather than the tracker) since the detection is
+    // done at keyframes and landmarks_age_ counts the nr of keyframes a
+    // keypoint is observed in
   }
 
   // Detect new features in image.
@@ -145,7 +146,8 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
       cur_frame->landmarks_age_.push_back(1u);
       cur_frame->keypoints_.push_back(corner);
       cur_frame->scores_.push_back(0.0);  // NOT IMPLEMENTED
-      cur_frame->versors_.push_back(UndistorterRectifier::GetBearingVector(corner, cam_param, R));
+      cur_frame->versors_.push_back(
+          UndistorterRectifier::GetBearingVector(corner, cam_param, R));
       ++lmk_id;
     }
     VLOG(10) << "featureExtraction: frame " << cur_frame->id_
@@ -199,30 +201,31 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
       rawFeatureDetection(cur_frame.img_, mask);
   VLOG(1) << "Number of points detected : " << keypoints.size();
 
-   /*{
-    cv::Mat fastDetectionResults;  // draw FAST detections
-    cv::drawKeypoints(cur_frame.img_,
-  		    keypoints,
-  		    fastDetectionResults,
-  		    cv::Scalar(94.0, 206.0, 165.0, 0.0));
-    cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
-    cv::imshow("FAST Detections", fastDetectionResults);
-    cv::imshow("MASK Detections", mask);
-    cv::waitKey(0);
-   }*/
+  /*{
+   cv::Mat fastDetectionResults;  // draw FAST detections
+   cv::drawKeypoints(cur_frame.img_,
+                   keypoints,
+                   fastDetectionResults,
+                   cv::Scalar(94.0, 206.0, 165.0, 0.0));
+   cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
+   cv::imshow("FAST Detections", fastDetectionResults);
+   cv::imshow("MASK Detections", mask);
+   cv::waitKey(0);
+  }*/
 
   VLOG(1) << "Need n corners: " << need_n_corners;
   // Tolerance of the number of returned points in percentage.
   std::vector<cv::KeyPoint>& max_keypoints = keypoints;
   if (non_max_suppression_) {
     static constexpr float tolerance = 0.1;
-    max_keypoints = non_max_suppression_->suppressNonMax(keypoints,
-                                                         need_n_corners,
-                                                         tolerance,
-                                                         cur_frame.img_.cols,
-                                                         cur_frame.img_.rows,
-							 feature_detector_params_.nr_horizontal_bins_,
-							 feature_detector_params_.nr_vertical_bins_);
+    max_keypoints = non_max_suppression_->suppressNonMax(
+        keypoints,
+        need_n_corners,
+        tolerance,
+        cur_frame.img_.cols,
+        cur_frame.img_.rows,
+        feature_detector_params_.nr_horizontal_bins_,
+        feature_detector_params_.nr_vertical_bins_);
   }
   // NOTE: if we don't use max_suppression we may end with more corners than
   // requested...
@@ -230,9 +233,9 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   /*{
   cv::Mat fastDetectionResults;  // draw FAST detections
   cv::drawKeypoints(cur_frame.img_,
-		    keypoints,
-		    fastDetectionResults,
-		    cv::Scalar(234.0, 60.0, 5.0));
+                    keypoints,
+                    fastDetectionResults,
+                    cv::Scalar(234.0, 60.0, 5.0));
   int nrVerticalBins = feature_detector_params_.nr_vertical_bins_;
   int nrHorizontalBins = feature_detector_params_.nr_horizontal_bins_;
   float binRowSize = float(cur_frame.img_.rows) / float(nrVerticalBins);
@@ -241,13 +244,15 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
       float xmin = 0;
       float xmax = cur_frame.img_.cols;
       float y = binRowInd*binRowSize;
-      cv::line(fastDetectionResults,cv::Point2f(xmin,y),cv::Point2f(xmax,y), cv::Scalar(94.0, 206.0, 165.0), 2, cv::LINE_AA);
+      cv::line(fastDetectionResults,cv::Point2f(xmin,y),cv::Point2f(xmax,y),
+  cv::Scalar(94.0, 206.0, 165.0), 2, cv::LINE_AA);
   }
   for(int binColInd=0; binColInd<nrHorizontalBins; binColInd++){
       float ymin = 0;
       float ymax = cur_frame.img_.rows;
       float x = binColInd*binColSize;
-      cv::line(fastDetectionResults,cv::Point2f(x,ymin),cv::Point2f(x,ymax), cv::Scalar(94.0, 206.0, 165.0), 2, cv::LINE_AA);
+      cv::line(fastDetectionResults,cv::Point2f(x,ymin),cv::Point2f(x,ymax),
+  cv::Scalar(94.0, 206.0, 165.0), 2, cv::LINE_AA);
   }
   cv::namedWindow("After NMS", cv::WINDOW_AUTOSIZE);
   cv::imshow("After NMS", fastDetectionResults);

@@ -15,12 +15,11 @@
 
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 
-#include <numeric>
-#include <vector>
-
-#include <opencv2/opencv.hpp>
-
 #include <glog/logging.h>
+
+#include <numeric>
+#include <opencv2/opencv.hpp>
+#include <vector>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/feature-detector/anms/anms.h"
@@ -100,8 +99,15 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
       break;
     };
     case AnmsAlgorithmType::Binning: {
-      VLOG(1) << "Running Binning: " << VIO::to_underlying(anms_algorithm_type_);
-      keypoints = binning(keyPointsSorted, numRetPoints, tolerance, cols, rows, nr_horizontal_bins, nr_vertical_bins);
+      VLOG(1) << "Running Binning: "
+              << VIO::to_underlying(anms_algorithm_type_);
+      keypoints = binning(keyPointsSorted,
+                          numRetPoints,
+                          tolerance,
+                          cols,
+                          rows,
+                          nr_horizontal_bins,
+                          nr_vertical_bins);
       break;
     };
     default: {
@@ -117,10 +123,13 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
 
 // ---------------------------------------------------------------------------------
 std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
-    const std::vector<cv::KeyPoint>& keyPoints, const int& numKptsToRetain,
-    const float& tolerance, const int& imgCols, const int& imgRows,
-    const int& nr_horizontal_bins, const int& nr_vertical_bins){
-
+    const std::vector<cv::KeyPoint>& keyPoints,
+    const int& numKptsToRetain,
+    const float& tolerance,
+    const int& imgCols,
+    const int& imgRows,
+    const int& nr_horizontal_bins,
+    const int& nr_vertical_bins) {
   if (numKptsToRetain > keyPoints.size()) {
     return keyPoints;
   }
@@ -128,21 +137,29 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
   float binRowSize = float(imgRows) / float(nr_vertical_bins);
   float binColSize = float(imgCols) / float(nr_horizontal_bins);
 
-  // 0. Note: features should be already sorted by score at this point from detect
+  // 0. Note: features should be already sorted by score at this point from
+  // detect
 
-  // 1. compute how many features we want to retain in each bin numRetPointsPerBin
-  const int numRetPointsPerBin = std::ceil( float(numKptsToRetain) / float(nr_horizontal_bins*nr_vertical_bins) );
+  // 1. compute how many features we want to retain in each bin
+  // numRetPointsPerBin
+  const int numRetPointsPerBin = std::round(
+      float(numKptsToRetain) / float(nr_horizontal_bins * nr_vertical_bins));
 
-  // 2. assign keypoints to bins and retrain top numRetPointsPerBin for each bin
-  std::vector<cv::KeyPoint> binnedKpts; // binned keypoints we want to output
-  gtsam::Matrix nrKptsInBin = gtsam::Matrix::Zero(nr_vertical_bins,nr_horizontal_bins); // store number of kpts for each bin
-  for (int i = 0; i < keyPoints.size(); i++){
-      const size_t binRowInd = static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
-      const size_t binColInd = static_cast<size_t>(keyPoints[i].pt.x / binColSize);
-      if( nrKptsInBin(binRowInd,binColInd) < numRetPointsPerBin){ // if we need more kpts in that bin
-	  binnedKpts.push_back(keyPoints[i]);
-	  nrKptsInBin(binRowInd,binColInd) += 1;
-      }
+  // 2. assign keypoints to bins and retain top numRetPointsPerBin for each bin
+  std::vector<cv::KeyPoint> binnedKpts;  // binned keypoints we want to output
+  gtsam::Matrix nrKptsInBin = gtsam::Matrix::Zero(
+      nr_vertical_bins,
+      nr_horizontal_bins);  // store number of kpts for each bin
+  for (int i = 0; i < keyPoints.size(); i++) {
+    const size_t binRowInd =
+        static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
+    const size_t binColInd =
+        static_cast<size_t>(keyPoints[i].pt.x / binColSize);
+    if (nrKptsInBin(binRowInd, binColInd) <
+        numRetPointsPerBin) {  // if we need more kpts in that bin
+      binnedKpts.push_back(keyPoints[i]);
+      nrKptsInBin(binRowInd, binColInd) += 1;
+    }
   }
   return binnedKpts;
 }

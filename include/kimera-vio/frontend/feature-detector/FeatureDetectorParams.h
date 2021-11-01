@@ -50,7 +50,6 @@ struct SubPixelCornerFinderParams : public PipelineParams {
   cv::Size zero_zone_ = cv::Size(-1, -1);
 };
 
-
 struct FeatureDetectorParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(FeatureDetectorParams);

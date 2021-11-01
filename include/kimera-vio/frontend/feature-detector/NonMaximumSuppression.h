@@ -15,9 +15,8 @@
 
 #pragma once
 
-#include <vector>
-
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 #include "kimera-vio/utils/Macros.h"
 
@@ -84,14 +83,13 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& nr_horizontal_bins,
       const int& nr_vertical_bins) override;
 
-  std::vector<cv::KeyPoint> binning(
-      const std::vector<cv::KeyPoint>& keyPoints,
-      const int& numRetPoints,
-      const float& tolerance,
-      const int& cols,
-      const int& rows,
-      const int& nr_horizontal_bins,
-      const int& nr_vertical_bins);
+  std::vector<cv::KeyPoint> binning(const std::vector<cv::KeyPoint>& keyPoints,
+                                    const int& numRetPoints,
+                                    const float& tolerance,
+                                    const int& cols,
+                                    const int& rows,
+                                    const int& nr_horizontal_bins,
+                                    const int& nr_vertical_bins);
 
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the
