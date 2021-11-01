@@ -86,7 +86,7 @@ protected:
   bool useStereoTracking_ = true;
 
   // PnP tracking parameters
-  bool use_pnp_tracking_ = true;
+  bool use_pnp_tracking_ = false;
   PnpMethod pnp_method_ = PnpMethod::EPNP;
   int min_pnp_inliers_ = 10;
   double ransac_threshold_pnp_ = 1.0;  //! Max reprojection error for inliers
