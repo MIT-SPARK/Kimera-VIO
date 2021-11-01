@@ -42,8 +42,9 @@ sudo apt-get install -y libboost-all-dev
 - OpenCV dependencies:
   - on Mac:
 ```bash
-homebrew install vtk # (to check)
+brew install vtk # (to check)
 ```
+
   - On Ubuntu 18.04
 ```bash
 # (libvtk5-dev, libgtk2.0-dev in ubuntu 16.04)
@@ -124,6 +125,31 @@ sudo make -j $(nproc) install
 ```
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
+
+  - Known issues on Mac:
+Sometimes VTK is not correctly detected when running opencv cmake: if you see `-- VTK is not found` in the cmake trace (a somewhat common [issue on mac](https://github.com/opencv/opencv/issues/17401)), 
+consider going back and reinstalling VTK from source as follows.
+Clone VTK from `https://gitlab.kitware.com/vtk/vtk` and check-out tag 7.1.0. In the VTK folder execute:
+
+```bash
+brew install vtk # uninstall other vtk versions
+mkdir build
+cd build
+sudo make -j $(nproc) install
+```	
+
+Finally, go to the opencv build folder and build and install OpenCV:
+```bash
+cmake -DWITH_VTK=On .. # now VTK should be correctly detected
+sudo make -j $(nproc) install
+```
+
+Another common issue on mac is that OpenCV does not compile from source due to `ffmpeg` version issues. In that case, a potential solution is this (borrowed from [this stackoverflow page](https://stackoverflow.com/questions/46884682/error-in-building-opencv-with-ffmpeg)): copy-paste the following 3 lines at the top of `opencv-3.3.0/modules/videoio/src/cap_ffmpeg_impl.hpp`:
+```bash
+#define AV_CODEC_FLAG_GLOBAL_HEADER (1 << 22)
+#define CODEC_FLAG_GLOBAL_HEADER AV_CODEC_FLAG_GLOBAL_HEADER
+#define AVFMT_RAWPICTURE 0x0020
+```
 
 ## Install OpenGV
 Clone the repo:
