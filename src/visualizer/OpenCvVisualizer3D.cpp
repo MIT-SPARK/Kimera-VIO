@@ -466,7 +466,7 @@ void OpenCvVisualizer3D::visualizeStereoFrontend(
         status_stereo_measurements->first;
 
     //! Draw Pnp guess.
-    if (tracking_status.tracking_status_pnp_ == TrackingStatus::VALID) {
+    if (tracking_status.kfTracking_status_pnp_ == TrackingStatus::VALID) {
       std::string pnp_cam_id =
           "pnp pose " + std::to_string(stereo_frontend_output->timestamp_);
       (*widgets)[pnp_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
