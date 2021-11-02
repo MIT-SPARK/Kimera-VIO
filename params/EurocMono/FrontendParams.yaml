@@ -68,7 +68,7 @@ optical_flow_predictor_type: 1
 
 # 2D-2D pose estimation method
 use_2d2d_tracking: 1
-2d2d_algorithm: 0 # STEWENIUS
+2d2d_algorithm: 1 # Nister
 optimize_2d2d_pose_from_inliers: 0
 
 # 3D-3D pose estimation
