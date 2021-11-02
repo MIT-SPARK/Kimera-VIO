@@ -328,9 +328,13 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     // if it is sent to the tracker.
     *feature_tracks = tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_,
                                                 stereoFrame_k_->left_frame_);
+                                                
   }
   VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
+
+  // tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
+  // tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
 
   // This will be the info we actually care about
   StereoMeasurements smart_stereo_measurements;
@@ -357,12 +361,16 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
  const bool enough_disparity = !is_disparity_low_second_time; 
 
  const bool max_disparity_reached = current_disparity > tracker_ ->tracker_params_.maxDisparity_;
+ if (!enough_disparity){
+   std::cout << "not enough disparity" << std::endl;
+ }
 
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
   if (max_disparity_reached || (enough_disparity && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
+    std::cout << "made a keyframe !!!!!" << std::endl;
 
     VLOG(2) << "Keyframe after [s]: "
             << UtilsNumerical::NsecToSec(stereoFrame_k_->timestamp_ -
