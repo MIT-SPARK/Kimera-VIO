@@ -42,8 +42,6 @@ if(NOT TARGET DBoW2::DBoW2)
   INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
 endif()
 find_package(KimeraRPGO REQUIRED)
-# Pangolin is optional
-find_package(Pangolin QUIET)
 
 include(VerifyGtsamConfig)
 option(KIMERA_VERIFY_GTSAM_CONFIG "Check that GTSAM was compiled with the right options" ON)
@@ -152,21 +150,6 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-
-# Pangolin is optional
-if(Pangolin_FOUND)
-  target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-      ${Pangolin_LIBRARIES}
-  )
-  target_include_directories(${PROJECT_NAME}
-    PUBLIC
-      ${Pangolin_INCLUDE_DIRS}
-  )
-  target_compile_definitions(${PROJECT_NAME} PRIVATE Pangolin_FOUND=1)
-else(Pangolin_FOUND)
-  message(STATUS "Pangolin not found.")
-endif(Pangolin_FOUND)
 
 target_compile_options(${PROJECT_NAME}
   PRIVATE -Wall -pipe
