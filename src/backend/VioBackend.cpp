@@ -1041,15 +1041,17 @@ bool VioBackend::optimize(
   // to determine if the variable should be marginalized.
   // Needs to use DOUBLE because gtsam works with that, but we are working
   // with int64_t (nsecs).
-  std::map<Key, double> timestamps;
+  //std::map<Key, double> timestamps;
+  std::map<Key, double> keyFrameCount;
   // Also needs to convert to seconds...
   double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  new_values_) {
-    timestamps[key_value.key] =
-        timestamp_kf;  // for the latest pose, velocity, and bias
+      keyFrameCount[key_value.key] = cur_id;
+    //timestamps[key_value.key] =
+      //   timestamp_kf;  // for the latest pose, velocity, and bias
   }
-  DCHECK_EQ(timestamps.size(), new_values_.size());
+  DCHECK_EQ(keyFrameCount.size(), new_values_.size());
 
   // Store time before iSAM update.
   if (VLOG_IS_ON(10) || log_output_) {
@@ -1065,7 +1067,7 @@ bool VioBackend::optimize(
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
   bool is_smoother_ok = updateSmoother(
-      &result, new_factors_tmp, new_values_, timestamps, delete_slots);
+      &result, new_factors_tmp, new_values_, keyFrameCount, delete_slots);
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.
