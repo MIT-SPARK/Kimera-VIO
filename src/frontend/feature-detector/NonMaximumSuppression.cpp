@@ -103,7 +103,6 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
               << VIO::to_underlying(anms_algorithm_type_);
       keypoints = binning(keyPointsSorted,
                           numRetPoints,
-                          tolerance,
                           cols,
                           rows,
                           nr_horizontal_bins,
@@ -125,7 +124,6 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
 std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
     const std::vector<cv::KeyPoint>& keyPoints,
     const int& numKptsToRetain,
-    const float& tolerance,
     const int& imgCols,
     const int& imgRows,
     const int& nr_horizontal_bins,
@@ -147,7 +145,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
 
   // 2. assign keypoints to bins and retain top numRetPointsPerBin for each bin
   std::vector<cv::KeyPoint> binnedKpts;  // binned keypoints we want to output
-  gtsam::Matrix nrKptsInBin = gtsam::Matrix::Zero(
+  Eigen::MatrixXd nrKptsInBin = Eigen::MatrixXd::Zero(
       nr_vertical_bins,
       nr_horizontal_bins);  // store number of kpts for each bin
   for (int i = 0; i < keyPoints.size(); i++) {

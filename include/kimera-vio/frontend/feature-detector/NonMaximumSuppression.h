@@ -85,7 +85,6 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
 
   std::vector<cv::KeyPoint> binning(const std::vector<cv::KeyPoint>& keyPoints,
                                     const int& numRetPoints,
-                                    const float& tolerance,
                                     const int& cols,
                                     const int& rows,
                                     const int& nr_horizontal_bins,
