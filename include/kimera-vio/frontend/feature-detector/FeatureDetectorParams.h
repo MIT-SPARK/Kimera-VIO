@@ -83,6 +83,10 @@ struct FeatureDetectorParams : public PipelineParams {
   //! Minimum distance between the already tracked features and the new
   //! features to be detected. This avoids detections near tracked features.
   int min_distance_btw_tracked_and_detected_features_ = 10;
+  //! upper bound on the nr. of keypoints before anms. We extract this number of
+  //! keypoints and then non-max suppression is responsible to select the best
+  //! maxFeaturesPerFrame as specified in the yaml file
+  int max_nr_keypoints_before_anms_ = 2000;
   //! Number of horizontal bins for feature binning
   int nr_horizontal_bins_ = 5;
   //! Number of vertical bins for feature binning

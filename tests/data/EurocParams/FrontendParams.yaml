@@ -35,6 +35,7 @@ maxPointDist: 10
 bidirectionalMatching: 0
 
 # Non-maximum suppression params
+max_nr_keypoints_before_anms: 2000
 enable_non_max_suppression: 0
 non_max_suppression_type: 4
 nr_horizontal_bins: 5

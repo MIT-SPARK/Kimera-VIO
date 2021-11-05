@@ -35,9 +35,10 @@ maxPointDist: 10
 bidirectionalMatching: 0
 
 # Non-maximum suppression params
-enable_non_max_suppression: 0
-non_max_suppression_type: 4
-nr_horizontal_bins: 5
+max_nr_keypoints_before_anms: 2000
+enable_non_max_suppression: 1
+non_max_suppression_type: 6
+nr_horizontal_bins: 7
 nr_vertical_bins: 5
 
 # Subpixel corner refinement for the monocular case

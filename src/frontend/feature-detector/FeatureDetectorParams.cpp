@@ -80,6 +80,8 @@ void FeatureDetectorParams::print() const {
                         VIO::to_underlying(non_max_suppression_type_),
                         "Min dist btw tracked/detected features",
                         min_distance_btw_tracked_and_detected_features_,
+                        "Nr of keypoints extracted before non-max suppression",
+                        max_nr_keypoints_before_anms_,
                         "Nr of horizontal bins for feature binning",
                         nr_horizontal_bins_,
                         "Nr of vertical bins for feature binning",
@@ -174,6 +176,8 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
   }
 
   yaml_parser.getYamlParam("maxFeaturesPerFrame", &max_features_per_frame_);
+  yaml_parser.getYamlParam("max_nr_keypoints_before_anms",
+                           &max_nr_keypoints_before_anms_);
   yaml_parser.getYamlParam("nr_horizontal_bins", &nr_horizontal_bins_);
   yaml_parser.getYamlParam("nr_vertical_bins", &nr_vertical_bins_);
 
@@ -204,6 +208,8 @@ bool FeatureDetectorParams::equals(const FeatureDetectorParams& tp2,
          (fabs(min_distance_btw_tracked_and_detected_features_ -
                tp2.min_distance_btw_tracked_and_detected_features_) <= tol) &&
          (fabs(nr_horizontal_bins_ - tp2.nr_horizontal_bins_) <= tol) &&
+         (fabs(max_nr_keypoints_before_anms_ -
+               tp2.max_nr_keypoints_before_anms_) <= tol) &&
          (fabs(nr_vertical_bins_ - tp2.nr_vertical_bins_) <= tol) &&
          (fabs(quality_level_ - tp2.quality_level_) <= tol) &&
          (block_size_ == tp2.block_size_) &&
