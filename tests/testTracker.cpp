@@ -81,7 +81,7 @@ class TestTracker : public ::testing::Test {
     string img_name_cur_left = stereo_test_data_path + "left_img_1.png";
     string img_name_cur_right = stereo_test_data_path + "right_img_1.png";
 
-    // Data for testing "geometricOutlierRejectionMono"
+    // Data for testing "geometricOutlierRejection2d2d"
     // !!! TODO THIS IS ALLOCATING MEMORY BUT THERE IS NO DELETE !!!
     ref_frame = std::make_shared<Frame>(
         id_ref,
@@ -683,7 +683,7 @@ class TestTracker : public ::testing::Test {
 
  protected:
   // Perform Ransac
-  FrontendParams tracker_params_;
+  TrackerParams tracker_params_;
   Tracker::UniquePtr tracker_;
   VIO::FeatureDetector::UniquePtr feature_detector_;
 
@@ -697,7 +697,7 @@ class TestTracker : public ::testing::Test {
 };
 
 /* ************************************************************************* */
-TEST_F(TestTracker, geometricOutlierRejectionMono) {
+TEST_F(TestTracker, geometricOutlierRejection2d2d) {
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
 
@@ -767,7 +767,8 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       }
 
       // Perform Ransac
-      FrontendParams trackerParams = FrontendParams();
+      TrackerParams trackerParams = TrackerParams();
+      trackerParams.ransac_use_2point_mono_ = false;
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
@@ -775,7 +776,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionMono(ref_frame.get(),
+          tracker.geometricOutlierRejection2d2d(ref_frame.get(),
                                                 cur_frame.get());
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
@@ -796,7 +797,10 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
+TEST_F(TestTracker, geometricOutlierRejection2d2dGivenRotation) {
+  TrackerParams tracker_params = TrackerParams();
+  tracker_params.ransac_use_1point_stereo_ = true;
+  Tracker tracker(tracker_params, stereo_camera_->getOriginalLeftCamera());
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
 
@@ -864,8 +868,8 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker_->geometricOutlierRejectionMonoGivenRotation(
-              ref_frame.get(), cur_frame.get(), R);
+          tracker.geometricOutlierRejection2d2d(
+              ref_frame.get(), cur_frame.get(), camRef_pose_camCur);
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
 
@@ -886,7 +890,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, geometricOutlierRejectionStereo) {
+TEST_F(TestTracker, geometricOutlierRejection3d3d) {
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
 
@@ -963,14 +967,14 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         AddNoiseToStereoFrame(cur_stereo_frame.get(), noise_sigma);
       }
 
-      FrontendParams trackerParams;
+      TrackerParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
       Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionStereo(*ref_stereo_frame,
-                                                  *cur_stereo_frame);
+          tracker.geometricOutlierRejection3d3d(ref_stereo_frame.get(),
+                                                cur_stereo_frame.get());
 
       // Check the correctness of the outlier rejection!
       for (int i = 0; i < inlier_num; i++) {
@@ -1029,7 +1033,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
+TEST_F(TestTracker, geometricOutlierRejection3d3dGivenRotation) {
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
 
@@ -1110,7 +1114,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       pair<TrackingStatus, Pose3> poseStatus;
       Matrix3 infoMat;
       tie(poseStatus, infoMat) =
-          tracker_->geometricOutlierRejectionStereoGivenRotation(
+          tracker_->geometricOutlierRejection3d3dGivenRotation(
               *ref_stereo_frame, *cur_stereo_frame, stereo_camera_, R);
 
       TrackingStatus tracking_status = poseStatus.first;
@@ -1616,8 +1620,7 @@ TEST_F(TestTracker, PnPTracking) {
       std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
 
   //! Setup tracker to use pnp
-  tracker_params_.use_pnp_tracking_ = true;
-  tracker_params_.pnp_method_ = PnpMethod::EPNP;
+  tracker_params_.pnp_algorithm_ = Pose3d2dAlgorithm::EPNP;
   tracker_params_.min_pnp_inliers_ = 10;
   tracker_params_.ransac_threshold_pnp_ = 0.5;
 
@@ -1665,7 +1668,7 @@ TEST_F(TestTracker, PnPTracking) {
   size_t lmk_id = 0;
   LandmarkIds lmk_ids;
   StatusKeypointsCV left_inlier_status_kpts;
-  std::vector<gtsam::Vector3> bearing_vectors;
+  BearingVectors bearing_vectors;
   for (const auto& kpt : left_inlier_kpts) {
     VLOG(5) << "Keypoint: " << kpt;
     // What if the keypoint is out of image bounds?

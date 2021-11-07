@@ -69,8 +69,6 @@ using Slot = long int;
 using SmartFactorMap =
     gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
-using Landmark = gtsam::Point3;
-using Landmarks = std::vector<Landmark>;
 using PointWithId = std::pair<LandmarkId, Landmark>;
 using PointsWithId = std::vector<PointWithId>;
 // TODO(Toni):  there is the same in vio_types.cpp, replace by that one, since

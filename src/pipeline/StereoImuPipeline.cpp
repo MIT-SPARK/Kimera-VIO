@@ -15,14 +15,15 @@
 
 #include "kimera-vio/pipeline/StereoImuPipeline.h"
 
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
+#include <string>
 
 #include "kimera-vio/backend/VioBackendFactory.h"
 #include "kimera-vio/dataprovider/StereoDataProviderModule.h"
 #include "kimera-vio/frontend/VisionImuFrontendFactory.h"
+#include "kimera-vio/loopclosure/LcdFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -171,6 +172,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
+                              stereo_camera_->getLeftCamParams(),
+                              stereo_camera_->getBodyPoseLeftCamRect(),
                               stereo_camera_,
                               params.frontend_params_.stereo_matching_params_,
                               FLAGS_log_output));

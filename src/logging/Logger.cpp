@@ -594,6 +594,8 @@ LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.csv"),
       output_traj_("traj_pgo.csv"),
       output_status_("output_lcd_status.csv"),
+      output_geom_verif_("output_lcd_geom_verif.csv"),
+      output_pose_recovery_("output_lcd_pose_recovery.csv"),
       ts_map_() {}
 
 void LoopClosureDetectorLogger::logTimestampMap(
@@ -627,6 +629,56 @@ void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
                     << lcd_output.is_loop_closure_ << ","
                     << lcd_output.id_match_ << "," << lcd_output.id_recent_
                     << "," << rel_trans.x() << "," << rel_trans.y() << ","
+                    << rel_trans.z() << "," << rel_quat.w() << ","
+                    << rel_quat.x() << "," << rel_quat.y() << ","
+                    << rel_quat.z() << std::endl;
+}
+
+void LoopClosureDetectorLogger::logGeometricVerification(
+    const Timestamp& timestamp_query,
+    const Timestamp& timestamp_match,
+    const gtsam::Pose3& camRef_Pose_camCur) {
+  // We log 2d2d ransac result pose in csv format.
+  std::ofstream& output_stream_lcd = output_geom_verif_.ofstream_;
+  bool& is_header_written = is_header_written_geom_verif_;
+
+  if (!is_header_written) {
+    output_stream_lcd << "#timestamp_match,timestamp_query,x,y,z,qw,qx,qy,qz"
+                      << std::endl;
+    is_header_written = true;
+  }
+
+  const gtsam::Point3& rel_trans = camRef_Pose_camCur.translation();
+  const gtsam::Quaternion& rel_quat =
+      camRef_Pose_camCur.rotation().toQuaternion();
+
+  output_stream_lcd << timestamp_query << "," << timestamp_match << ","
+                    << rel_trans.x() << "," << rel_trans.y() << ","
+                    << rel_trans.z() << "," << rel_quat.w() << ","
+                    << rel_quat.x() << "," << rel_quat.y() << ","
+                    << rel_quat.z() << std::endl;
+}
+
+void LoopClosureDetectorLogger::logPoseRecovery(
+    const Timestamp& timestamp_query,
+    const Timestamp& timestamp_match,
+    const gtsam::Pose3& bodyRef_Pose_bodyCur) {
+  // We log 2d2d ransac result pose in csv format.
+  std::ofstream& output_stream_lcd = output_pose_recovery_.ofstream_;
+  bool& is_header_written = is_header_written_pose_recovery_;
+
+  if (!is_header_written) {
+    output_stream_lcd << "#timestamp_match,timestamp_query,x,y,z,qw,qx,qy,qz"
+                      << std::endl;
+    is_header_written = true;
+  }
+
+  const gtsam::Point3& rel_trans = bodyRef_Pose_bodyCur.translation();
+  const gtsam::Quaternion& rel_quat =
+      bodyRef_Pose_bodyCur.rotation().toQuaternion();
+
+  output_stream_lcd << timestamp_query << "," << timestamp_match << ","
+                    << rel_trans.x() << "," << rel_trans.y() << ","
                     << rel_trans.z() << "," << rel_quat.w() << ","
                     << rel_quat.x() << "," << rel_quat.y() << ","
                     << rel_quat.z() << std::endl;

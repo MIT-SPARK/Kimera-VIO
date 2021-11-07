@@ -15,20 +15,6 @@
 #include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
 
-DEFINE_bool(visualize_feature_tracks, true, "Display feature tracks.");
-DEFINE_bool(visualize_frontend_images,
-            false,
-            "Display images in Frontend logger for debugging (only use "
-            "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(save_frontend_images,
-            false,
-            "Save images in Frontend logger to disk for debugging (only use "
-            "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(log_feature_tracks, false, "Display/Save feature tracks images.");
-DEFINE_bool(log_mono_tracking_images,
-            false,
-            "Display/Save stereo tracking rectified and unrectified images.");
-
 namespace VIO {
 
 VisionImuFrontend::VisionImuFrontend(
@@ -109,12 +95,14 @@ void VisionImuFrontend::outlierRejectionMono(
       frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
-    *status_pose_mono = tracker_->geometricOutlierRejectionMonoGivenRotation(
-        frame_lkf, frame_k, keyframe_R_cur_frame);
+    gtsam::Pose3 keyframe_Pose_cur_frame(keyframe_R_cur_frame,
+                                         gtsam::Point3::Identity());
+    *status_pose_mono = tracker_->geometricOutlierRejection2d2d(
+        frame_lkf, frame_k, keyframe_Pose_cur_frame);
   } else {
     // 5-point RANSAC.
     *status_pose_mono =
-        tracker_->geometricOutlierRejectionMono(frame_lkf, frame_k);
+        tracker_->geometricOutlierRejection2d2d(frame_lkf, frame_k);
   }
 }
 
