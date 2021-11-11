@@ -357,15 +357,14 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                         &current_disparity);
  
  const bool is_disparity_low = current_disparity < tracker_ ->tracker_params_.disparityThreshold_;
- const bool is_disparity_low_second_time = is_disparity_low && (tracker_status_summary_.kfTrackingStatus_mono_ == TrackingStatus::LOW_DISPARITY);
- const bool enough_disparity = !is_disparity_low_second_time; 
-
+ const bool dispary_low_first_time = is_disparity_low && !(tracker_status_summary_.kfTrackingStatus_mono_ == TrackingStatus::LOW_DISPARITY);
+ const bool enough_disparity = !is_disparity_low; 
  const bool max_disparity_reached = current_disparity > tracker_ ->tracker_params_.maxDisparity_;
 
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
-  if (max_disparity_reached || (enough_disparity && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
+  if (dispary_low_first_time || max_disparity_reached || (enough_disparity && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "
