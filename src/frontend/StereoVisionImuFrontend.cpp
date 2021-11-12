@@ -364,7 +364,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
-  if (dispary_low_first_time || max_disparity_reached || (enough_disparity && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
+  if (max_disparity_reached || ((enough_disparity || dispary_low_first_time) && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "
