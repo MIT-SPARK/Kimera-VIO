@@ -204,8 +204,6 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning3) {
   FeatureDetectorParams tp;
   tp.parseYAML(FLAGS_test_data_path +
                "/ForFeatureDetector/frontendParams-NMS-Binning2.yaml");
-  tp.max_features_per_frame_ =
-      150;  // since we have 20 bins, we expect 4 kpts per bin
   tp.quality_level_ = 1e-10;
   tp.enable_subpixel_corner_refinement_ =
       0;  // otherwise the kpts might end up moving across bins
@@ -226,7 +224,7 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning3) {
 
   // Compare results: since we specify features per bin, we might get a bit less
   // than desired (e.g. a big might have low response)
-  EXPECT_EQ(f->keypoints_.size(), 150);  // we extract the number we specified
+  EXPECT_EQ(f->keypoints_.size(), 140);  // we extract the number we specified
 
   // check that frequency of features per bin is correct
   float binRowSize = float(f->img_.rows) / float(tp.nr_vertical_bins_);
@@ -244,7 +242,7 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning3) {
   }
 
   double expecteNrFeaturesPerBin =
-      150.0 / 15.0;  // 300 features over 15 valid bins
+      140.0 / 14.0;  // 140 features over 14 valid bins
 
   Eigen::MatrixXd expectedBinCount =
       expecteNrFeaturesPerBin * Eigen::MatrixXd::Ones(5, 4);

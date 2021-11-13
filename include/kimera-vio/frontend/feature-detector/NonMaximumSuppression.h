@@ -8,7 +8,7 @@
 
 /**
  * @file   NonMaximumSuppression.h
- * @brief  Base class for non maximum suppresion interface
+ * @brief  Base class for non maximum suppression interface
  * @author Antoni Rosinol
  * @author Luca Carlone
  */
@@ -18,6 +18,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -41,7 +42,8 @@ class NonMaximumSuppression {
       const int& cols,
       const int& rows,
       const int& nr_horizontal_bins,
-      const int& nr_vertical_bins) = 0;
+      const int& nr_vertical_bins,
+      const Eigen::MatrixXd& binning_mask) = 0;
 };
 
 /**
@@ -81,14 +83,16 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& cols,
       const int& rows,
       const int& nr_horizontal_bins,
-      const int& nr_vertical_bins) override;
+      const int& nr_vertical_bins,
+      const Eigen::MatrixXd& binning_mask) override;
 
   std::vector<cv::KeyPoint> binning(const std::vector<cv::KeyPoint>& keyPoints,
                                     const int& numRetPoints,
                                     const int& cols,
                                     const int& rows,
                                     const int& nr_horizontal_bins,
-                                    const int& nr_vertical_bins);
+                                    const int& nr_vertical_bins,
+                                    const Eigen::MatrixXd& binning_mask);
 
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the

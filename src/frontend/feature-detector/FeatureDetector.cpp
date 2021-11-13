@@ -225,7 +225,8 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
         cur_frame.img_.cols,
         cur_frame.img_.rows,
         feature_detector_params_.nr_horizontal_bins_,
-        feature_detector_params_.nr_vertical_bins_);
+        feature_detector_params_.nr_vertical_bins_,
+        feature_detector_params_.binning_mask_);
   }
   // NOTE: if we don't use max_suppression we may end with more corners than
   // requested...
