@@ -137,6 +137,38 @@ bool BackendParams::parseYAMLVioBackendParams(const YamlParser& yaml_parser) {
   yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
   yaml_parser.getYamlParam("useDogLeg", &useDogLeg_);
 
+  int pose_guess_source = 0;
+  yaml_parser.getYamlParam("pose_guess_source", &pose_guess_source);
+  switch (pose_guess_source) {
+    case VIO::to_underlying(PoseGuessSource::IMU): {
+      pose_guess_source_ = PoseGuessSource::IMU;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::MONO): {
+      pose_guess_source_ = PoseGuessSource::MONO;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::STEREO): {
+      pose_guess_source_ = PoseGuessSource::STEREO;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::PNP): {
+      pose_guess_source_ = PoseGuessSource::PNP;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::EXTERNAL_ODOM): {
+      pose_guess_source_ = PoseGuessSource::EXTERNAL_ODOM;
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown PoseGuessSource : " << pose_guess_source;
+      break;
+    }
+  }
+
+  yaml_parser.getYamlParam("mono_translation_scale_factor",
+                           &mono_translation_scale_factor_);
+
   return true;
 }
 
@@ -177,7 +209,10 @@ bool BackendParams::equalsVioBackendParams(const BackendParams& vp2,
       (fabs(constantVelSigma_ - vp2.constantVelSigma_) <= tol) &&
       (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
       (wildfire_threshold_ == vp2.wildfire_threshold_) &&
-      (useDogLeg_ == vp2.useDogLeg_);
+      (useDogLeg_ == vp2.useDogLeg_) &&
+      (pose_guess_source_ == vp2.pose_guess_source_) &&
+      (fabs(mono_translation_scale_factor_ ==
+            vp2.mono_translation_scale_factor_));
 }
 
 void BackendParams::printVioBackendParams() const {
@@ -246,7 +281,11 @@ void BackendParams::printVioBackendParams() const {
       "Isam Wildfire Threshold",
       wildfire_threshold_,
       "Use Dog Leg",
-      useDogLeg_);
+      useDogLeg_,
+      "Pose Guess Source",
+      VIO::to_underlying(pose_guess_source_),
+      "Mono Translation Scale Factor",
+      mono_translation_scale_factor_);
   LOG(INFO) << out.str();
   LOG(INFO) << "** Backend Iinitialization Parameters **\n"
             << "initial_ground_truth_state_: ";

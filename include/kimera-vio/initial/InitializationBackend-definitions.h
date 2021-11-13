@@ -34,8 +34,6 @@ struct InitializationInputPayload : public StereoFrontendOutput {
   InitializationInputPayload(
       const bool is_keyframe,
       const StatusStereoMeasurementsPtr& status_stereo_measurements,
-      const TrackingStatus& tracker_status,
-      const gtsam::Pose3& relative_pose_body_stereo,
       const gtsam::Pose3& b_Pose_camL_rect,
       const gtsam::Pose3& b_Pose_camR_rect,
       const StereoFrame& stereo_frame_lkf,
@@ -46,8 +44,6 @@ struct InitializationInputPayload : public StereoFrontendOutput {
           gtsam::AHRSFactor::PreintegratedMeasurements())
       : StereoFrontendOutput(is_keyframe,
                              status_stereo_measurements,
-                             tracker_status,
-                             relative_pose_body_stereo,
                              b_Pose_camL_rect,
                              b_Pose_camR_rect,
                              stereo_frame_lkf,

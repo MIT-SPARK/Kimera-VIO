@@ -22,6 +22,7 @@
 #include "kimera-vio/backend/VioBackendFactory.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendFactory.h"
+#include "kimera-vio/loopclosure/LcdFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/pipeline/Pipeline.h"
 #include "kimera-vio/utils/Statistics.h"
@@ -59,7 +60,7 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   data_provider_module_->registerVioPipelineCallback(
       std::bind(&MonoImuPipeline::spinOnce, this, std::placeholders::_1));
 
-  LOG_IF(FATAL, params.frontend_params_.useStereoTracking_)
+  LOG_IF(FATAL, params.frontend_params_.use_stereo_tracking_)
       << "useStereoTracking is set to true, but this is a mono pipeline!";
   vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,
@@ -88,11 +89,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
           backend_input_queue.push(VIO::make_unique<BackendInput>(
               converted_output->frame_lkf_.timestamp_,
               converted_output->status_mono_measurements_,
-              converted_output->tracker_status_,
               converted_output->pim_,
               converted_output->imu_acc_gyrs_,
-              boost::none,  // don't pass stereo
-                            // pose to Backend!
               converted_output->body_lkf_OdomPose_body_kf_,
               converted_output->body_kf_world_OdomVel_body_kf_));
         } else {
@@ -168,15 +166,14 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
   // }
 
   if (FLAGS_use_lcd) {
-    VIO::StereoCamera::Ptr stereo_cam = std::make_shared<VIO::StereoCamera>(
-        params.camera_params_.at(0), params.camera_params_.at(1));
-
     lcd_module_ = VIO::make_unique<LcdModule>(
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
-                              stereo_cam,
-                              params.frontend_params_.stereo_matching_params_,
+                              camera_->getCamParams(),
+                              camera_->getBodyPoseCam(),
+                              boost::none,
+                              boost::none,
                               FLAGS_log_output));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(

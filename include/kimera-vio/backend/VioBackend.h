@@ -71,6 +71,7 @@ class VioBackend {
   KIMERA_POINTER_TYPEDEFS(VioBackend);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef std::function<void(const ImuBias& imu_bias)> ImuBiasCallback;
+  typedef std::function<void(const LandmarksMap& map)> MapCallback;
 
   /**
    * @brief VioBackend Constructor. Initialization must be done separately.
@@ -80,7 +81,7 @@ class VioBackend {
    * @param backend_params Parameters for Backend.
    * @param log_output Whether to log to CSV files the Backend output.
    */
-  VioBackend(const Pose3& B_Pose_leftCam,
+  VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
              const StereoCalibPtr& stereo_calibration,
              const BackendParams& backend_params,
              const ImuParams& imu_params,
@@ -106,6 +107,14 @@ class VioBackend {
   // the callee of this function.
   void registerImuBiasUpdateCallback(
       const ImuBiasCallback& imu_bias_update_callback);
+
+  /**
+   * @brief registerMapUpdateCallback Register callback that will be called as
+   * soon as the Backend optimizes the 3D landmarks.
+   * @param map_update_callback Callback to call once backend finishes
+   * optimizing.
+   */
+  void registerMapUpdateCallback(const MapCallback& map_update_callback);
 
   // Get valid 3D points - TODO: this copies the graph.
   void get3DPoints(std::vector<gtsam::Point3>* points_3d) const;
@@ -181,7 +190,7 @@ class VioBackend {
   }
 
   inline void saveGraph(const std::string& filepath) const {
-    OfstreamWrapper ofstream_wrapper (filepath);
+    OfstreamWrapper ofstream_wrapper(filepath);
     smoother_->getFactors().saveGraph(ofstream_wrapper.ofstream_);
   }
 
@@ -207,7 +216,6 @@ class VioBackend {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
       boost::optional<gtsam::Pose3> odometry_body_pose = boost::none,
       boost::optional<gtsam::Velocity3> odometry_vel = boost::none);
 
@@ -221,11 +229,27 @@ class VioBackend {
       const LandmarkId& lmk_id,
       const std::pair<FrameId, StereoPoint2>& new_measurement);
 
-  // Set initial guess at current state.
-  void addImuValues(const FrameId& cur_id,
-                    const gtsam::PreintegrationType& pim);
+  /**
+   * @brief addStateValues Add values for the state: pose, velocity, and imu
+   * bias.
+   * @param cur_id Current Keyframe ID
+   * @param pose Pose of body wrt world 
+   * @param velocity Velocity of body expressed in world coordinates
+   * @param imu_bias Updated biases for gyro and accel
+   */
+  void addStateValues(const FrameId& cur_id,
+                      const gtsam::Pose3& pose,
+                      const gtsam::Velocity3& velocity,
+                      const ImuBias& imu_bias);
+  void addStateValues(
+      const FrameId& frame_id,
+      const TrackerStatusSummary& tracker_status,
+      const gtsam::PreintegrationType& pim,
+      const boost::optional<gtsam::Pose3> odom_pose = boost::none,
+      boost::optional<gtsam::Vector3> odom_vel = boost::none);
+  void addStateValuesFromNavState(const FrameId& frame_id,
+                                  const gtsam::NavState& nav_state);
 
-  // Add imu factors:
   void addImuFactor(const FrameId& from_id,
                     const FrameId& to_id,
                     const gtsam::PreintegrationType& pim);
@@ -459,7 +483,7 @@ class VioBackend {
   gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
   // Pose of the left camera wrt body
-  const Pose3 B_Pose_leftCam_;
+  const Pose3 B_Pose_leftCamRect_;
   // Stores calibration, baseline.
   const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_;
 
@@ -497,6 +521,9 @@ class VioBackend {
   // Imu Bias update callback. To be called as soon as we have a new IMU bias
   // update so that the Frontend performs preintegration with the newest bias.
   ImuBiasCallback imu_bias_update_callback_;
+
+  //! Map update callback for the frontend PnP tracker.
+  MapCallback map_update_callback_;
 
   // Debug info.
   DebugVioInfo debug_info_;

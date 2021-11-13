@@ -28,8 +28,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
   StereoFrontendOutput(
       const bool is_keyframe,
       const StatusStereoMeasurementsPtr& status_stereo_measurements,
-      const TrackingStatus& tracker_status,
-      const gtsam::Pose3& relative_pose_body_stereo,
       const gtsam::Pose3& b_Pose_camL_rect,
       const gtsam::Pose3& b_Pose_camR_rect,
       const StereoFrame& stereo_frame_lkf,
@@ -49,8 +47,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
                                  lkf_body_Pose_kf_body,
                                  body_world_Vel_body),
         status_stereo_measurements_(status_stereo_measurements),
-        tracker_status_(tracker_status),
-        relative_pose_body_stereo_(relative_pose_body_stereo),
         b_Pose_camL_rect_(b_Pose_camL_rect),
         b_Pose_camR_rect_(b_Pose_camR_rect),
         stereo_frame_lkf_(stereo_frame_lkf),
@@ -60,8 +56,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
-  const TrackingStatus tracker_status_;
-  const gtsam::Pose3 relative_pose_body_stereo_;
   const gtsam::Pose3 b_Pose_camL_rect_;
   const gtsam::Pose3 b_Pose_camR_rect_;
   // TODO(nathan) make this name consistent

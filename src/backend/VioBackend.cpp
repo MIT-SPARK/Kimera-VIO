@@ -65,7 +65,7 @@ DEFINE_bool(compute_state_covariance,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
+VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
                        const StereoCalibPtr& stereo_calibration,
                        const BackendParams& backend_params,
                        const ImuParams& imu_params,
@@ -81,7 +81,7 @@ VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
       W_Vel_B_lkf_(gtsam::Vector3::Zero()),
       W_Pose_B_lkf_(gtsam::Pose3::identity()),
       imu_bias_prev_kf_(ImuBias()),
-      B_Pose_leftCam_(B_Pose_leftCam),
+      B_Pose_leftCamRect_(B_Pose_leftCamRect),
       stereo_cal_(stereo_calibration),
       last_kf_id_(-1),
       curr_kf_id_(0),
@@ -192,6 +192,15 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
               kMinLmkObs);
     }
 
+    if (map_update_callback_) {
+      map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
+    } else {
+      LOG_FIRST_N(INFO, 1) << "Did you forget to register the Map "
+                              "Update callback for at least the "
+                              "Frontend? Do so by using "
+                              "registerMapUpdateCallback function.";
+    }
+
     // Create Backend Output Payload.
     output_payload = VIO::make_unique<BackendOutput>(
         VioNavStateTimestamped(
@@ -229,6 +238,11 @@ void VioBackend::registerImuBiasUpdateCallback(
   }
 }
 
+void VioBackend::registerMapUpdateCallback(
+    const MapCallback& map_update_callback) {
+  map_update_callback_ = map_update_callback;
+}
+
 /* -------------------------------------------------------------------------- */
 bool VioBackend::initStateAndSetPriors(
     const VioNavStateTimestamped& vio_nav_state_initial_seed) {
@@ -251,14 +265,8 @@ bool VioBackend::initStateAndSetPriors(
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
 
-  // TODO encapsulate this in a function, code duplicated in addImuValues.
   // Add initial state seed
-  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_),
-                     W_Pose_B_lkf_);
-  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, curr_kf_id_),
-                     W_Vel_B_lkf_);
-  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, curr_kf_id_),
-                     imu_bias_lkf_);
+  addStateValues(curr_kf_id_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
   return optimize(vio_nav_state_initial_seed.timestamp_,
@@ -270,12 +278,10 @@ bool VioBackend::initStateAndSetPriors(
 // Workhorse that stores data and optimizes at each keyframe.
 // [in] timestamp_kf_nsec, keyframe timestamp.
 // [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
 bool VioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
     boost::optional<gtsam::Pose3> odometry_body_pose,
     boost::optional<gtsam::Velocity3> odometry_vel) {
   debug_info_.resetAddedFactorsStatistics();
@@ -288,24 +294,26 @@ bool VioBackend::addVisualInertialStateAndOptimize(
           << " at timestamp:" << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec).";
 
-  /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
-  // Predict next step, add initial guess
-  addImuValues(curr_kf_id_, pim);
+  // Add initial guess.
+  addStateValues(curr_kf_id_, status_smart_stereo_measurements_kf.first, pim);
 
+  /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Add imu factors between consecutive keyframe states
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
-  // Add between factor from RANSAC
-  if (stereo_ransac_body_pose) {
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "VIO: adding between ";
-      stereo_ransac_body_pose->print();
-    }
-    addBetweenFactor(last_kf_id_,
-                     curr_kf_id_,
-                     *stereo_ransac_body_pose,
-                     backend_params_.betweenRotationPrecision_,
-                     backend_params_.betweenTranslationPrecision_);
+  // Add between factor from RANSAC: first PnP, then Stereo, then Mono
+  if (backend_params_.addBetweenStereoFactors_ &&
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID) {
+    addBetweenFactor(
+        last_kf_id_,
+        curr_kf_id_,
+        // I think this should be B_Pose_leftCamRect_...
+        B_Pose_leftCamRect_ *
+            status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+            B_Pose_leftCamRect_.inverse(),
+        backend_params_.betweenRotationPrecision_,
+        backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
@@ -388,22 +396,13 @@ bool VioBackend::addVisualInertialStateAndOptimize(
 }
 
 bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
-  bool use_stereo_btw_factor =
-      backend_params_.addBetweenStereoFactors_ &&
-      input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
-  VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
-  LOG_IF(WARNING,
-         use_stereo_btw_factor && input.stereo_ransac_body_pose_ == boost::none)
-      << "User set useStereoBetweenFactor = true, but stereo_ransac_body_pose_ "
-         "not available!";
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
   bool is_smoother_ok = addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
-      use_stereo_btw_factor ? input.stereo_ransac_body_pose_ : boost::none,
       input.body_lkf_OdomPose_body_kf_,
       input.body_kf_world_OdomVel_body_kf_);  // optional: pose estimate from
                                               // stereo ransac
@@ -413,7 +412,7 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
 }
 
 // TODO(Toni): no need to pass landmarks_kf, can iterate directly over feature
-// tracks...
+// tracks..
 // Uses landmark table to add factors in graph.
 void VioBackend::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   // Add selected landmarks to graph:
@@ -458,7 +457,7 @@ void VioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
   // more efficient.
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(
-          smart_noise_, smart_factors_params_, B_Pose_leftCam_);
+          smart_noise_, smart_factors_params_, B_Pose_leftCamRect_);
 
   VLOG(10) << "Adding landmark with: " << ft.obs_.size()
            << " landmarks to graph, with keys: ";
@@ -767,18 +766,102 @@ void VioBackend::addStereoMeasurementsToFeatureTracks(
 
 /// Value adders.
 /* -------------------------------------------------------------------------- */
-void VioBackend::addImuValues(const FrameId& cur_id,
-                              const gtsam::PreintegrationType& pim) {
+void VioBackend::addStateValues(const FrameId& frame_id,
+                                const TrackerStatusSummary& tracker_status,
+                                const gtsam::PreintegrationType& pim,
+                                boost::optional<gtsam::Pose3> odom_pose,
+                                boost::optional<gtsam::Vector3> odom_vel) {
   gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
-  gtsam::NavState navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
-
+  const gtsam::NavState& navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
   debug_info_.navstate_k_ = navstate_k;
 
-  // Update state with initial guess
-  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), navstate_k.pose());
-  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id),
-                     navstate_k.velocity());
-  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias_lkf_);
+  switch (backend_params_.pose_guess_source_) {
+    case PoseGuessSource::IMU: {
+      addStateValuesFromNavState(frame_id, navstate_k);
+      break;
+    }
+    case PoseGuessSource::MONO: {
+      if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
+        gtsam::Pose3 W_Pose_B_k_mono = W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
+                           tracker_status.lkf_T_k_mono_ *
+                           B_Pose_leftCamRect_.inverse();
+        gtsam::Point3 W_ScaledTranslation_B_k_mono =
+            W_Pose_B_k_mono.translation() *
+            backend_params_.mono_translation_scale_factor_;
+        addStateValues(frame_id,
+                       gtsam::Pose3(W_Pose_B_k_mono.rotation(),
+                                    W_ScaledTranslation_B_k_mono),
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "Mono tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::STEREO: {
+      if (tracker_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
+        addStateValues(frame_id,
+                       W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
+                           tracker_status.lkf_T_k_stereo_ *
+                           B_Pose_leftCamRect_.inverse(),
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "Stereo tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::PNP: {
+      if (tracker_status.kfTracking_status_pnp_ == TrackingStatus::VALID) {
+        addStateValues(
+            frame_id,
+            tracker_status.W_T_k_pnp_ * B_Pose_leftCamRect_.inverse(),
+            navstate_k.velocity(),
+            imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "PnP tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::EXTERNAL_ODOM: {
+      if (odom_pose) {
+        if (odom_vel) {
+          addStateValues(
+              frame_id, odom_pose.get(), odom_vel.get(), imu_bias_lkf_);
+        } else {
+          addStateValues(
+              frame_id, odom_pose.get(), navstate_k.velocity(), imu_bias_lkf_);
+        }
+      } else {
+        LOG(WARNING) << "External odometry tracking failure... Using IMU for "
+                        "pose guess.";
+      }
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unrecognized Initial Pose Guess source: "
+                 << VIO::to_underlying(backend_params_.pose_guess_source_);
+      break;
+    }
+  }
+}
+
+void VioBackend::addStateValuesFromNavState(const FrameId& frame_id,
+                                            const gtsam::NavState& nav_state) {
+  addStateValues(
+      frame_id, nav_state.pose(), nav_state.velocity(), imu_bias_lkf_);
+}
+
+void VioBackend::addStateValues(const FrameId& cur_id,
+                                const gtsam::Pose3& pose,
+                                const gtsam::Velocity3& velocity,
+                                const ImuBias& imu_bias) {
+  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), pose);
+  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id), velocity);
+  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias);
 }
 
 /// Factor adders.
@@ -1639,7 +1722,7 @@ void VioBackend::print() const {
   }
 
   LOG(INFO) << "** Backend Initial Members: \n"
-            << "B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
+            << "B_Pose_leftCam_: " << B_Pose_leftCamRect_ << '\n'
             << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
             << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
             << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'

@@ -15,14 +15,15 @@
 
 #include "kimera-vio/pipeline/StereoImuPipeline.h"
 
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
+#include <string>
 
 #include "kimera-vio/backend/VioBackendFactory.h"
 #include "kimera-vio/dataprovider/StereoDataProviderModule.h"
 #include "kimera-vio/frontend/VisionImuFrontendFactory.h"
+#include "kimera-vio/loopclosure/LcdFactory.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -96,10 +97,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
           backend_input_queue.push(VIO::make_unique<BackendInput>(
               converted_output->stereo_frame_lkf_.timestamp_,
               converted_output->status_stereo_measurements_,
-              converted_output->tracker_status_,
               converted_output->pim_,
               converted_output->imu_acc_gyrs_,
-              converted_output->relative_pose_body_stereo_,
               converted_output->body_lkf_OdomPose_body_kf_,
               converted_output->body_kf_world_OdomVel_body_kf_));
         } else {
@@ -138,6 +137,10 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                 // Send a cref: constant reference bcs updateImuBias is const
                 std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
+  vio_backend_module_->registerMapUpdateCallback(
+      std::bind(&VisionImuFrontendModule::updateMap,
+                std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
+                std::placeholders::_1));
 
   if (static_cast<VisualizationType>(FLAGS_viz_type) ==
       VisualizationType::kMesh2dTo3dSparse) {
@@ -169,6 +172,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
+                              stereo_camera_->getLeftCamParams(),
+                              stereo_camera_->getBodyPoseLeftCamRect(),
                               stereo_camera_,
                               params.frontend_params_.stereo_matching_params_,
                               FLAGS_log_output));

@@ -260,6 +260,12 @@ class LoopClosureDetectorLogger {
       const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
   void logLCDResult(const LcdOutput& lcd_output);
   void logLoopClosure(const LcdOutput& lcd_output);
+  void logGeometricVerification(const Timestamp& timestamp_query,
+                                const Timestamp& timestamp_match,
+                                const gtsam::Pose3& camRef_Pose_camCur);
+  void logPoseRecovery(const Timestamp& timestamp_query,
+                       const Timestamp& timestamp_match,
+                       const gtsam::Pose3& bodyRef_Pose_bodyCur);
   void logOptimizedTraj(const LcdOutput& lcd_output);
   void logDebugInfo(const LcdDebugInfo& debug_info);
 
@@ -268,9 +274,13 @@ class LoopClosureDetectorLogger {
   OfstreamWrapper output_lcd_;
   OfstreamWrapper output_traj_;
   OfstreamWrapper output_status_;
+  OfstreamWrapper output_geom_verif_;
+  OfstreamWrapper output_pose_recovery_;
   FrameIDTimestampMap ts_map_;
   bool is_header_written_lcd_ = false;
   bool is_header_written_status_ = false;
+  bool is_header_written_geom_verif_ = false;
+  bool is_header_written_pose_recovery_ = false;
 };
 
 }  // namespace VIO

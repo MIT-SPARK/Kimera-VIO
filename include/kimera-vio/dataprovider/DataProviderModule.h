@@ -34,6 +34,7 @@
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeOdometryBuffer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 

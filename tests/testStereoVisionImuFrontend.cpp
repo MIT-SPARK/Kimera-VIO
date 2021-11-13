@@ -67,7 +67,7 @@ class StereoVisionImuFrontendFixture : public ::testing::Test {
     std::string img_name_cur_right =
         stereo_FLAGS_test_data_path + "right_img_1.png";
 
-    // Data for testing "geometricOutlierRejectionMono"
+    // Data for testing "geometricOutlierRejection2d2d"
     ref_frame = std::make_shared<Frame>(
         id_ref,
         timestamp_ref,

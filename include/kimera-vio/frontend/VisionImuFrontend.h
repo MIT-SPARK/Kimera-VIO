@@ -69,6 +69,15 @@ class VisionImuFrontend {
     imu_frontend_->updateBias(imu_bias);
   }
 
+  /**
+   * @brief updateMap Update landmarks map with most recent backend optimized
+   * landmarks in the time-horizon.
+   * @param map
+   */
+  inline void updateMap(const LandmarksMap& map) const {
+    tracker_->updateMap(map);
+  }
+
   /* ------------------------------------------------------------------------ */
   /**
    * @brief isInitialized Returns whether the Frontend is initializing.
