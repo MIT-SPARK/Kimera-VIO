@@ -133,7 +133,7 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning) {
   float binRowSize = float(f->img_.rows) / float(tp.nr_vertical_bins_);
   float binColSize = float(f->img_.cols) / float(tp.nr_horizontal_bins_);
 
-  gtsam::Matrix binFrequency = gtsam::Matrix::Zero(
+  gtsam::Matrix keypointPerBinCount = gtsam::Matrix::Zero(
       tp.nr_vertical_bins_,
       tp.nr_horizontal_bins_);  // grid of bins according to the yaml
   for (int i = 0; i < f->keypoints_.size(); i++) {
@@ -141,10 +141,11 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning) {
         static_cast<size_t>(f->keypoints_[i].y / binRowSize);
     const size_t binColInd =
         static_cast<size_t>(f->keypoints_[i].x / binColSize);
-    binFrequency(binRowInd, binColInd) += 1;
+    keypointPerBinCount(binRowInd, binColInd) += 1;
   }
   // we expect 1 feature per bin
-  CHECK(gtsam::assert_equal(binFrequency, gtsam::Matrix::Ones(5, 4), 1e-9));
+  CHECK(gtsam::assert_equal(
+      keypointPerBinCount, gtsam::Matrix::Ones(5, 4), 1e-9));
 }
 
 /* ************************************************************************* */
@@ -181,7 +182,7 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning2) {
   float binRowSize = float(f->img_.rows) / float(tp.nr_vertical_bins_);
   float binColSize = float(f->img_.cols) / float(tp.nr_horizontal_bins_);
 
-  gtsam::Matrix binFrequency = gtsam::Matrix::Zero(
+  gtsam::Matrix keypointPerBinCount = gtsam::Matrix::Zero(
       tp.nr_vertical_bins_,
       tp.nr_horizontal_bins_);  // grid of bins according to the yaml
   for (int i = 0; i < f->keypoints_.size(); i++) {
@@ -189,12 +190,73 @@ TEST(FeatureDetector, FeatureDetector_ANMS_Binning2) {
         static_cast<size_t>(f->keypoints_[i].y / binRowSize);
     const size_t binColInd =
         static_cast<size_t>(f->keypoints_[i].x / binColSize);
-    binFrequency(binRowInd, binColInd) += 1;
+    keypointPerBinCount(binRowInd, binColInd) += 1;
   }
 
   // we expect 1 feature per bin
-  CHECK(
-      gtsam::assert_equal(binFrequency, 10 * gtsam::Matrix::Ones(5, 4), 1e-9));
+  CHECK(gtsam::assert_equal(
+      keypointPerBinCount, 10 * gtsam::Matrix::Ones(5, 4), 1e-9));
+}
+
+/* ************************************************************************* */
+TEST(FeatureDetector, FeatureDetector_ANMS_Binning3) {
+  // parseYAML with detector params
+  FeatureDetectorParams tp;
+  tp.parseYAML(FLAGS_test_data_path +
+               "/ForFeatureDetector/frontendParams-NMS-Binning2.yaml");
+  tp.max_features_per_frame_ =
+      150;  // since we have 20 bins, we expect 4 kpts per bin
+  tp.quality_level_ = 1e-10;
+  tp.enable_subpixel_corner_refinement_ =
+      0;  // otherwise the kpts might end up moving across bins
+
+  // create a frame
+  CameraParams cam_params;
+  cam_params.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
+  FrameId id = 0;
+  Timestamp tmp = 123;
+  const string imgName =
+      string(FLAGS_test_data_path) + "/ForStereoFrame/left_fisheye_img_0.png";
+  Frame::Ptr f = std::make_shared<Frame>(
+      id, tmp, cam_params, UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
+
+  // perform feature detection
+  FeatureDetector feature_detector(tp);
+  feature_detector.featureDetection(f.get());
+
+  // Compare results: since we specify features per bin, we might get a bit less
+  // than desired (e.g. a big might have low response)
+  EXPECT_EQ(f->keypoints_.size(), 150);  // we extract the number we specified
+
+  // check that frequency of features per bin is correct
+  float binRowSize = float(f->img_.rows) / float(tp.nr_vertical_bins_);
+  float binColSize = float(f->img_.cols) / float(tp.nr_horizontal_bins_);
+
+  gtsam::Matrix keypointPerBinCount = gtsam::Matrix::Zero(
+      tp.nr_vertical_bins_,
+      tp.nr_horizontal_bins_);  // grid of bins according to the yaml
+  for (int i = 0; i < f->keypoints_.size(); i++) {
+    const size_t binRowInd =
+        static_cast<size_t>(f->keypoints_[i].y / binRowSize);
+    const size_t binColInd =
+        static_cast<size_t>(f->keypoints_[i].x / binColSize);
+    keypointPerBinCount(binRowInd, binColInd) += 1;
+  }
+
+  double expecteNrFeaturesPerBin =
+      150.0 / 15.0;  // 300 features over 15 valid bins
+
+  Eigen::MatrixXd expectedBinCount =
+      expecteNrFeaturesPerBin * Eigen::MatrixXd::Ones(5, 4);
+  expectedBinCount(0, 0) = 0;
+  expectedBinCount(0, 1) = 0;
+  expectedBinCount(0, 2) = 0;
+  expectedBinCount(0, 3) = 0;
+  expectedBinCount(3, 0) = 0;
+  expectedBinCount(3, 2) = 0;
+
+  // we expect 1 feature per bin
+  CHECK(gtsam::assert_equal(keypointPerBinCount, expectedBinCount, 1e-9));
 }
 
 }  // namespace VIO

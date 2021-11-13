@@ -180,6 +180,32 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
                            &max_nr_keypoints_before_anms_);
   yaml_parser.getYamlParam("nr_horizontal_bins", &nr_horizontal_bins_);
   yaml_parser.getYamlParam("nr_vertical_bins", &nr_vertical_bins_);
+  std::vector<int> vector_mask;
+  yaml_parser.getYamlParam("binning_mask", &vector_mask);
+  // mask is either empty or should have the right size
+  if (vector_mask.size() > 0 &&
+      (vector_mask.size() != nr_horizontal_bins_ * nr_vertical_bins_)) {
+    LOG(FATAL) << "Binning mask size specified by the user is inconsistent and "
+                  "should have"
+               << nr_vertical_bins_ << " rows and " << nr_vertical_bins_
+               << " columns";
+  }
+  // initialize mask such that all bins are considered
+  binning_mask_ = Eigen::MatrixXd::Ones(nr_vertical_bins_, nr_horizontal_bins_);
+
+  // if user has speficied mask, adjust mask
+  if (vector_mask.size() > 0) {
+    size_t vec_ind = 0;
+    for (int r = 0; r < nr_vertical_bins_; r++) {
+      for (int c = 0; c < nr_horizontal_bins_; c++) {
+        if (vector_mask[vec_ind] != 0 && vector_mask[vec_ind] != 1) {
+          LOG(FATAL) << "Binning mask can only have binary entries {0;1}";
+        }
+        binning_mask_(r, c) = vector_mask[vec_ind];
+        vec_ind++;
+      }
+    }
+  }
 
   // GFTT specific parameters
   yaml_parser.getYamlParam("quality_level", &quality_level_);

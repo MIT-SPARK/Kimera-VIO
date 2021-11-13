@@ -12,17 +12,17 @@ maxFeatureAge: 25
 # 2: AGAST
 # 3: GFTT, aka Good Features To Track
 feature_detector_type: 3
-maxFeaturesPerFrame: 300
+maxFeaturesPerFrame: 20
 
 # Good Features To Track specific parameters
-quality_level: 0.001
+quality_level: 0.0001
 min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
 
-# FAST detector specific parameters [10, 20]
-fast_thresh: 10
+# FAST detector specific parameters
+fast_thresh: 5
 
 equalizeImage: 0
 nominalBaseline: 0.11
@@ -38,9 +38,13 @@ bidirectionalMatching: 0
 max_nr_keypoints_before_anms: 2000
 enable_non_max_suppression: 1
 non_max_suppression_type: 6
-nr_horizontal_bins: 7
+nr_horizontal_bins: 4
 nr_vertical_bins: 5
-binning_mask: []
+binning_mask: [0, 0, 0, 0,
+               1, 1, 1, 1,
+               1, 1, 1, 1,
+               0, 1, 0, 1,
+               1, 1, 1, 1]
 
 # Subpixel corner refinement for the monocular case
 enable_subpixel_corner_finder: 1

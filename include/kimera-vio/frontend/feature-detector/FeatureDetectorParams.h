@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
@@ -91,6 +92,8 @@ struct FeatureDetectorParams : public PipelineParams {
   int nr_horizontal_bins_ = 5;
   //! Number of vertical bins for feature binning
   int nr_vertical_bins_ = 5;
+  //! Binary mask by the user to control which bins to use
+  Eigen::MatrixXd binning_mask_;
 
   // GFTT specific parameters
   double quality_level_ = 0.001;
