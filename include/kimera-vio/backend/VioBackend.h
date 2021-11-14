@@ -232,10 +232,10 @@ class VioBackend {
   /**
    * @brief addStateValues Add values for the state: pose, velocity, and imu
    * bias.
-   * @param cur_id
-   * @param pose
-   * @param velocity
-   * @param imu_bias
+   * @param cur_id Current Keyframe ID
+   * @param pose Pose of body wrt world 
+   * @param velocity Velocity of body expressed in world coordinates
+   * @param imu_bias Updated biases for gyro and accel
    */
   void addStateValues(const FrameId& cur_id,
                       const gtsam::Pose3& pose,

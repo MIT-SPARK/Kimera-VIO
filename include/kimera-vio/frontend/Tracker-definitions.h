@@ -40,6 +40,26 @@
 
 namespace VIO {
 
+// Mono (2d2d)
+// 5-point ransac
+using Problem2d2d =
+    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+
+// Mono (2d2d, with given rotation) MonoTranslationOnly:
+// TranslationOnlySacProblem 2-point ransac
+using Problem2d2dGivenRot =
+    opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
+using Adapter2d2d = opengv::relative_pose::CentralRelativeAdapter;
+
+// PnP (2d3d)
+using ProblemPnP = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
+using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
+
+// Stereo (3d3d)
+// Arun's problem (3-point ransac)
+using Problem3d3d = opengv::sac_problems::point_cloud::PointCloudSacProblem;
+using Adapter3d3d = opengv::point_cloud::PointCloudAdapter;
+
 using Pose2d2dAlgorithm = opengv::sac_problems::relative_pose::
     CentralRelativePoseSacProblem::Algorithm;
 
@@ -53,23 +73,6 @@ enum class Pose3d2dAlgorithm {
   NonlinearOptimization = 6,
   MLPNP = 7  //! Requires OpenGV fork.
 };
-
-// 2D-2D tracking
-using Problem2d2d =
-    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-//! MonoTranslationOnly: TranslationOnlySacProblem -> 2-point ransac
-using Problem2d2dGivenRot =
-    opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
-using Adapter2d2d = opengv::relative_pose::CentralRelativeAdapter;
-
-// 3D-2D tracking
-using ProblemPnP = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
-using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
-
-// 3D-3D tracking
-//! Stereo: Arun's problem  ->  3-point ransac
-using Problem3d3d = opengv::sac_problems::point_cloud::PointCloudSacProblem;
-using Adapter3d3d = opengv::point_cloud::PointCloudAdapter;
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugTrackerInfo {
@@ -133,7 +136,7 @@ public:
  TrackerStatusSummary()
      : kfTrackingStatus_mono_(TrackingStatus::INVALID),
        kfTrackingStatus_stereo_(TrackingStatus::INVALID),
-       tracking_status_pnp_(TrackingStatus::INVALID),
+       kfTracking_status_pnp_(TrackingStatus::INVALID),
        lkf_T_k_mono_(gtsam::Pose3::identity()),
        lkf_T_k_stereo_(gtsam::Pose3::identity()),
        W_T_k_pnp_(gtsam::Pose3::identity()),
@@ -171,7 +174,7 @@ public:
 public:
   TrackingStatus kfTrackingStatus_mono_;
   TrackingStatus kfTrackingStatus_stereo_;
-  TrackingStatus tracking_status_pnp_;
+  TrackingStatus kfTracking_status_pnp_;
   gtsam::Pose3 lkf_T_k_mono_;
   gtsam::Pose3 lkf_T_k_stereo_;
   gtsam::Pose3 W_T_k_pnp_;

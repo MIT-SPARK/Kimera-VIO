@@ -83,5 +83,11 @@ useDogLeg: 0
 #  double dynamicOutlierRejectionThreshold;
 
 # Method used to generate the initial guess for the pose of the keyframe
+# PoseGuessSource:
+#   IMU = 0
+#   MONO = 1
+#   STEREO = 2
+#   PNP = 3
+#   EXTERNAL_ODOM = 4
 pose_guess_source: 0
 mono_translation_scale_factor: 0.1

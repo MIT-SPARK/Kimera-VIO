@@ -830,7 +830,7 @@ void VioBackend::addStateValues(const FrameId& frame_id,
       break;
     }
     case PoseGuessSource::PNP: {
-      if (tracker_status.tracking_status_pnp_ == TrackingStatus::VALID) {
+      if (tracker_status.kfTracking_status_pnp_ == TrackingStatus::VALID) {
         addStateValues(
             frame_id,
             tracker_status.W_T_k_pnp_ * B_Pose_leftCamRect_.inverse(),

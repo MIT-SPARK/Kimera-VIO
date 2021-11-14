@@ -65,8 +65,19 @@ disparityThreshold: 0.5
 # 0: Static - assumes no optical flow between images (aka static camera).
 # 1: Rotational - use IMU gyro to estimate optical flow.
 optical_flow_predictor_type: 1
+
+# 2D-2D pose estimation method
+use_2d2d_tracking: 1
+2d2d_algorithm: 1 # Nister
+optimize_2d2d_pose_from_inliers: 0
+
+# 3D-3D pose estimation
+use_3d3d_tracking: 1
+optimize_3d3d_pose_from_inliers: 0
+
 # 2D-3D pose estimation method
-use_pnp_tracking: true
-pnp_method: 3 # EPNP
-min_pnp_inliers: 10 #TODO
-ransac_threshold_pnp: 1 #TODO
+use_pnp_tracking: false
+pnp_algorithm: 3 # EPNP
+min_pnp_inliers: 20
+ransac_threshold_pnp: 1.0 # pixels
+optimize_2d3d_pose_from_inliers: 0
