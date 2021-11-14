@@ -643,6 +643,17 @@ bool LoopClosureDetector::recoverPoseBody(
                            &camMatch_T_camQuery_3d,
                            inliers,
                            &camMatch_T_camQuery_2d_copy);
+
+    // Manually fail the result if the norm of the translation vector is above a
+    // fixed maximum. This is not technically required; PCM should be able to
+    // handle these cases and reject them. However, on some datasets there are
+    // several of these candidates that obviously are outliers so to keep the
+    // optimization clean and prevent numerical instabilities, we filter here
+    // before PCM.
+    if (camMatch_T_camQuery_3d.translation().norm() >
+        lcd_params_.max_pose_recovery_translation_) {
+      success = false;
+    }
   } else {
     TrackingStatusPose result;
     if (tracker_->tracker_params_.ransac_use_1point_stereo_) {
@@ -689,13 +700,13 @@ bool LoopClosureDetector::recoverPoseBody(
         ref_id, cur_id, camMatch_T_camQuery_3d, matches_match_query);
   }
 
-  transformCameraPoseToBodyPose(camMatch_T_camQuery_3d,
-                                bodyMatch_T_bodyQuery_3d);
-
   if (logger_)
     logger_->logPoseRecovery(db_frames_[cur_id]->timestamp_,
                              db_frames_[ref_id]->timestamp_,
-                             *bodyMatch_T_bodyQuery_3d);
+                             camMatch_T_camQuery_3d);
+
+  transformCameraPoseToBodyPose(camMatch_T_camQuery_3d,
+                                bodyMatch_T_bodyQuery_3d);
 
   return success;
 }

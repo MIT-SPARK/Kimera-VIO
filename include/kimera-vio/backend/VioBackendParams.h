@@ -143,10 +143,10 @@ class BackendParams : public PipelineParams {
   bool useDogLeg_ = false;
 
   //! No Motion params
-  double zeroVelocitySigma_ = 1.0e-3;
-  double noMotionPositionSigma_ = 1.0e-3;
-  double noMotionRotationSigma_ = 1.0e-4;
-  double constantVelSigma_ = 1.0e-2;
+  double zero_velocity_precision_ = 1000;
+  double no_motion_position_precision_ = 1000;
+  double no_motion_rotation_precision_ = 10000;
+  double constant_vel_precision_ = 100;
 
   //! Source of the initial guess for the keyframe pose
   PoseGuessSource pose_guess_source_ = PoseGuessSource::IMU;
