@@ -33,10 +33,10 @@ betweenRotationPrecision: 1.11
 betweenTranslationPrecision: 2.22
 #OPTIMIZATION PARAMETERS
 relinearizeSkip: 12
-zeroVelocityPrecision: 1.1
-noMotionPositionPrecision: 1.2
-noMotionRotationPrecision: 1.3
-constantVelPrecision: 1.4
+zero_velocity_precision: 1.1
+no_motion_position_precision: 1.2
+no_motion_rotation_precision: 1.3
+constant_vel_precision: 1.4
 numOptimize: 0
 horizon: 2
 wildfire_threshold: 0.001
