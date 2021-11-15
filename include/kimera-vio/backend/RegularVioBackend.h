@@ -31,7 +31,7 @@ namespace VIO {
 
 class RegularVioBackend : public VioBackend {
  public:
-  RegularVioBackend(const Pose3& B_Pose_leftCam,
+  RegularVioBackend(const Pose3& B_Pose_leftCamRect,
                     const StereoCalibPtr& stereo_calibration,
                     const BackendParams& backend_params,
                     const ImuParams& imu_params,
@@ -46,7 +46,6 @@ class RegularVioBackend : public VioBackend {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
       boost::optional<gtsam::Pose3> odometry_body_pose = boost::none,
       boost::optional<gtsam::Velocity3> odometry_vel = boost::none) override;
 

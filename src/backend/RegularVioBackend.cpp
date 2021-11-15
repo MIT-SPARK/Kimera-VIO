@@ -98,7 +98,7 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 RegularVioBackend::RegularVioBackend(
-    const Pose3& B_Pose_leftCam,
+    const Pose3& B_Pose_leftCamRect,
     const StereoCalibPtr& stereo_calibration,
     const BackendParams& backend_params,
     const ImuParams& imu_params,
@@ -106,7 +106,7 @@ RegularVioBackend::RegularVioBackend(
     const bool& log_output,
     boost::optional<OdometryParams> odom_params)
     : regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)),
-      VioBackend(B_Pose_leftCam,
+      VioBackend(B_Pose_leftCamRect,
                  stereo_calibration,
                  backend_params,
                  imu_params,
@@ -152,15 +152,9 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
     boost::optional<gtsam::Pose3> odometry_body_pose,
     boost::optional<gtsam::Velocity3> odometry_vel) {
   debug_info_.resetAddedFactorsStatistics();
-
-  // if (VLOG_IS_ON(20)) {
-  //  StereoVisionImuFrontend::PrintStatusStereoMeasurements(
-  //                                        status_smart_stereo_measurements_kf);
-  //}
 
   // Features and IMU line up --> do iSAM update.
   last_kf_id_ = curr_kf_id_;
@@ -170,28 +164,29 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
           << " at timestamp: " << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec)\n";
 
-  /////////////////// IMU FACTORS //////////////////////////////////////////////
-  // Predict next step, add initial guess.
-  addImuValues(curr_kf_id_, pim);
+  // Add initial guess.
+  addStateValues(curr_kf_id_, status_smart_stereo_measurements_kf.first, pim);
 
+  /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Add imu factors between consecutive keyframe states.
   VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
            << " and pose id: " << curr_kf_id_;
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
-  // Add between factor from RANSAC.
-  if (stereo_ransac_body_pose) {
-    VLOG(10) << "Adding RANSAC factor between pose id: " << last_kf_id_
-             << " and pose id: " << curr_kf_id_;
-    if (VLOG_IS_ON(20)) {
-      stereo_ransac_body_pose->print();
-    }
-    addBetweenFactor(last_kf_id_,
-                     curr_kf_id_,
-                     *stereo_ransac_body_pose,
-                     backend_params_.betweenRotationPrecision_,
-                     backend_params_.betweenTranslationPrecision_);
+  // Add between factor from RANSAC
+  if (backend_params_.addBetweenStereoFactors_ &&
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID) {
+    addBetweenFactor(
+        last_kf_id_,
+        curr_kf_id_,
+        // I think this should be B_Pose_leftCamRect_...
+        B_Pose_leftCamRect_ *
+            status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+            B_Pose_leftCamRect_.inverse(),
+        backend_params_.betweenRotationPrecision_,
+        backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
@@ -490,7 +485,7 @@ void RegularVioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
   // more efficient.
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(
-          smart_noise_, smart_factors_params_, B_Pose_leftCam_);
+          smart_noise_, smart_factors_params_, B_Pose_leftCamRect_);
 
   VLOG(20) << "Adding landmark with id: " << lmk_id
            << " for the first time to graph. \n"
@@ -858,7 +853,7 @@ void RegularVioBackend::addProjectionFactor(
                 stereo_cal_,
                 true,
                 true,
-                B_Pose_leftCam_));
+                B_Pose_leftCamRect_));
       } else {
         LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = " << parallax;
       }
@@ -877,7 +872,7 @@ void RegularVioBackend::addProjectionFactor(
             mono_cal_,
             true,
             true,
-            B_Pose_leftCam_));
+            B_Pose_leftCamRect_));
   }
 }
 
@@ -907,9 +902,8 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id
-             << " needs to stay as it is since it is "
-                "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
+                                         "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -922,9 +916,8 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id
-             << " needs to be a proj. factor, as it "
-                "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
+                                         "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,

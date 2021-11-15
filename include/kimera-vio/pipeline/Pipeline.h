@@ -29,7 +29,7 @@
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/VisionImuFrontendModule.h"
-#include "kimera-vio/loopclosure/LoopClosureDetector.h"
+#include "kimera-vio/loopclosure/LcdModule.h"
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Display.h"
