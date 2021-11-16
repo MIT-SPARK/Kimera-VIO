@@ -54,8 +54,6 @@ void FrontendParams::print() const {
                         min_number_features_,
                         "useStereoTracking_: ",
                         use_stereo_tracking_,
-                        "disparityThreshold_: ",
-                        disparityThreshold_,
                         "maxDisparity_: ",
                         maxDisparity_,
                         "useRANSAC_: ",
@@ -98,7 +96,6 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("use_2d2d_tracking", &use_2d2d_tracking_);
   yaml_parser.getYamlParam("use_3d3d_tracking", &use_3d3d_tracking_);
   yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
-  yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
   yaml_parser.getYamlParam("maxDisparity", &maxDisparity_);
 
   // TODO(Toni): use yaml at some point
