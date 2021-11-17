@@ -105,10 +105,7 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("use_3d3d_tracking", &use_3d3d_tracking_);
   yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
   yaml_parser.getYamlParam("maxDisparity", &maxDisparity_);
-  std::cout << "filepath: " << filepath << std::endl;
-  std::cout << "use_pnp_tracking_: " << use_pnp_tracking_ << std::endl;
-  use_pnp_tracking_ = false; //TODO (dominic) don't forget to remove this
-  std::cout << "use_pnp_tracking_: " << use_pnp_tracking_ << std::endl;
+  
   // TODO(Toni): use yaml at some point
   visualize_feature_tracks_ = FLAGS_visualize_feature_tracks;
   visualize_frontend_images_ = FLAGS_visualize_frontend_images;
