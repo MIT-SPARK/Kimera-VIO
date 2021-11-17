@@ -319,14 +319,18 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                                                 stereoFrame_k_->left_frame_);
                                                 
   }
+
   VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
 
   StereoMeasurements smart_stereo_measurements;
 
-  const bool max_time_elapsed =
+  const bool min_time_elapsed =
       stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
       frontend_params_.intra_keyframe_time_ns_;
+  const bool max_time_elapsed =
+      stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
+      frontend_params_.max_keyframe_time_ns_;
   const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= frontend_params_.min_number_features_;
@@ -349,13 +353,14 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
-  if (max_disparity_reached || ((enough_disparity || dispary_low_first_time) && max_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
+  if (max_time_elapsed || max_disparity_reached || dispary_low_first_time || (enough_disparity && min_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "
             << UtilsNumerical::NsecToSec(stereoFrame_k_->timestamp_ -
                                          last_keyframe_timestamp_);
 
+  // TODO (dominic) update vlog with new keyframe conditions
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
@@ -398,7 +403,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             TrackingStatus::INVALID;
       }
-
+      //std::cout << "frontend_params_.use_pnp_tracking_: " << frontend_params_.use_pnp_tracking_ << std::endl;
       // TODO(Toni): add this to Mono, or even base class VisionImuFrontend
       if (frontend_params_.use_pnp_tracking_) {
         gtsam::Pose3 best_absolute_pose;

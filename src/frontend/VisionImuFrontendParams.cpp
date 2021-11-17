@@ -50,6 +50,8 @@ void FrontendParams::print() const {
                         // "** STEREO tracker parameters **\n"
                         "intra_keyframe_time_: ",
                         intra_keyframe_time_ns_,
+                        "max_keyframe_time_: ",
+                        max_keyframe_time_ns_,
                         "minNumberFeatures_: ",
                         min_number_features_,
                         "useStereoTracking_: ",
@@ -65,6 +67,7 @@ void FrontendParams::print() const {
                         "Use PnP Tracking",
                         use_pnp_tracking_);
   LOG(INFO) << out.str();
+  std::cout << out.str() << std::endl;
 
   feature_detector_params_.print();
 
@@ -88,6 +91,11 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   intra_keyframe_time_ns_ =
       UtilsNumerical::SecToNsec(intra_keyframe_time_seconds);
 
+  double max_keyframe_time_seconds;
+  yaml_parser.getYamlParam("max_keyframe_time", &max_keyframe_time_seconds);
+  max_keyframe_time_ns_ =
+      UtilsNumerical::SecToNsec(max_keyframe_time_seconds);
+
   int min_number_features;
   yaml_parser.getYamlParam("minNumberFeatures", &min_number_features);
   min_number_features_ = static_cast<size_t>(min_number_features);
@@ -97,7 +105,10 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("use_3d3d_tracking", &use_3d3d_tracking_);
   yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
   yaml_parser.getYamlParam("maxDisparity", &maxDisparity_);
-
+  std::cout << "filepath: " << filepath << std::endl;
+  std::cout << "use_pnp_tracking_: " << use_pnp_tracking_ << std::endl;
+  use_pnp_tracking_ = false; //TODO (dominic) don't forget to remove this
+  std::cout << "use_pnp_tracking_: " << use_pnp_tracking_ << std::endl;
   // TODO(Toni): use yaml at some point
   visualize_feature_tracks_ = FLAGS_visualize_feature_tracks;
   visualize_frontend_images_ = FLAGS_visualize_frontend_images;
@@ -114,6 +125,7 @@ bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
          // stereo matching
          stereo_matching_params_.equals(tp2.stereo_matching_params_, tol) &&
          // STEREO parameters:
+         (fabs(max_keyframe_time_ns_ - tp2.max_keyframe_time_ns_) <= tol) &&
          (fabs(intra_keyframe_time_ns_ - tp2.intra_keyframe_time_ns_) <= tol) &&
          (min_number_features_ == tp2.min_number_features_) &&
          (fabs(maxDisparity_ - tp2.maxDisparity_) <= tol) &&

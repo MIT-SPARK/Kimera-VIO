@@ -58,6 +58,7 @@ ransac_max_iterations: 100
 ransac_probability: 0.995
 ransac_randomize: 0
 intra_keyframe_time: 0.2
+max_keyframe_time: 10.0
 minNumberFeatures: 0
 useStereoTracking: 1
 disparityThreshold: 0.5
@@ -77,7 +78,7 @@ use_3d3d_tracking: 1
 optimize_3d3d_pose_from_inliers: 0
 
 # 2D-3D pose estimation method
-use_pnp_tracking: false
+use_pnp_tracking: 0 # why doesn't false work here??????????????
 pnp_algorithm: 3 # EPNP
 min_pnp_inliers: 20
 ransac_threshold_pnp: 1.0 # pixels
