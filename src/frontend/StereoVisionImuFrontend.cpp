@@ -366,6 +366,9 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
         << frontend_params_.min_number_features_ << ").";
 
+    tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
+    tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
+
     double sparse_stereo_time = 0;
     if (frontend_params_.useRANSAC_) {
       // MONO geometric outlier rejection
