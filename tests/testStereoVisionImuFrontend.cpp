@@ -653,6 +653,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   // check not keyframe if current frame has low disparity and last keyframe had low disparity
   // check keyframe if disparity is high and min time between keyframes is reached
   // check keyframe if max disparity thresehold reached (and min time between keyframes has not passed)
+  // check if disparity is low but max time between keyframes is reached
 
   CameraParams cam_params_left, cam_params_right;
   std::string synthetic_stereo_path(FLAGS_test_data_path + "/ForStereoTracker");
@@ -879,6 +880,39 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   const StereoFrame& sf5 = output5->stereo_frame_lkf_;
 
   EXPECT_FALSE(sf5.isKeyframe());
+
+  ///// make next stereo frame - disparity is low but is a keyframe since max time since lk has passed /////
+  img_name_left = synthetic_stereo_path + "/left_frame0008.jpg";
+  img_name_right = synthetic_stereo_path + "/right_frame0008.jpg";
+  StereoFrame sixth_stereo_frame(
+      6,
+      52.11e+9,
+      Frame(6, 
+            52.11e+9, 
+            cam_params_left, 
+            UtilsOpenCV::ReadAndConvertToGrayScale(
+               img_name_left, p.stereo_matching_params_.equalize_image_)),
+      Frame(6,
+            52.11e+9,
+            cam_params_right,
+            UtilsOpenCV::ReadAndConvertToGrayScale(
+                img_name_right, p.stereo_matching_params_.equalize_image_)));
+  ImuAccGyrS fake_imu_acc_gyr6;
+  fake_imu_acc_gyr6.setRandom(6, 2);
+  ImuStampS sixth_imu_stamps(1, 2);
+  sixth_imu_stamps << 52.105e+9, 52.11e+9;
+  VIO::FrontendInputPacketBase::UniquePtr input6 =
+    VIO::make_unique<StereoImuSyncPacket>(
+        sixth_stereo_frame, sixth_imu_stamps, fake_imu_acc_gyr6);
+  VIO::FrontendOutputPacketBase::UniquePtr output_base6 = st.spinOnce(std::move(input6));
+  VIO::StereoFrontendOutput::UniquePtr output6 =
+      VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
+          std::move(output_base6));
+  EXPECT_TRUE(st.isInitialized());
+  ASSERT_TRUE(output6);
+  const StereoFrame& sf6 = output6->stereo_frame_lkf_;
+
+  EXPECT_TRUE(sf6.isKeyframe());
 
 }
 

@@ -58,10 +58,11 @@ ransac_max_iterations: 100
 ransac_probability: 0.995
 ransac_randomize: 0
 intra_keyframe_time: 0.1
+max_keyframe_time: 10.0
+max_disparity_since_lkf: 200
 minNumberFeatures: 0
 useStereoTracking: 1
 disparityThreshold: 0.5
-maxDisparity: 200
 # Type of optical flow predictor to aid feature tracking:
 # 0: Static - assumes no optical flow between images (aka static camera).
 # 1: Rotational - use IMU gyro to estimate optical flow.
@@ -77,7 +78,7 @@ use_3d3d_tracking: 1
 optimize_3d3d_pose_from_inliers: 0
 
 # 2D-3D pose estimation method
-use_pnp_tracking: false
+use_pnp_tracking: 0
 pnp_algorithm: 3 # EPNP
 min_pnp_inliers: 20
 ransac_threshold_pnp: 1.0 # pixels

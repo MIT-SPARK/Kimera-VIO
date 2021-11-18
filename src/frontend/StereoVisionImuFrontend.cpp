@@ -360,7 +360,9 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
             << UtilsNumerical::NsecToSec(stereoFrame_k_->timestamp_ -
                                          last_keyframe_timestamp_);
 
-  // TODO (dominic) update vlog with new keyframe conditions
+    VLOG_IF(2, (enough_disparity && min_time_elapsed)) << "Keyframe reason: enough disparity and min time elapsed).";
+    VLOG_IF(2, dispary_low_first_time) << "Keyframe reason: disparity low first time.";
+    VLOG_IF(2, max_disparity_reached) << "Keyframe reason: max disparity reached.";
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
