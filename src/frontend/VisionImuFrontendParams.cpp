@@ -56,8 +56,8 @@ void FrontendParams::print() const {
                         min_number_features_,
                         "useStereoTracking_: ",
                         use_stereo_tracking_,
-                        "maxDisparity_: ",
-                        maxDisparity_,
+                        "max_disparity_since_lkf_: ",
+                        max_disparity_since_lkf_,
                         "useRANSAC_: ",
                         useRANSAC_,
                         "Use 2D2D Tracking",
@@ -67,7 +67,6 @@ void FrontendParams::print() const {
                         "Use PnP Tracking",
                         use_pnp_tracking_);
   LOG(INFO) << out.str();
-  std::cout << out.str() << std::endl;
 
   feature_detector_params_.print();
 
@@ -104,7 +103,7 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("use_2d2d_tracking", &use_2d2d_tracking_);
   yaml_parser.getYamlParam("use_3d3d_tracking", &use_3d3d_tracking_);
   yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
-  yaml_parser.getYamlParam("maxDisparity", &maxDisparity_);
+  yaml_parser.getYamlParam("max_disparity_since_lkf", &max_disparity_since_lkf_);
   
   // TODO(Toni): use yaml at some point
   visualize_feature_tracks_ = FLAGS_visualize_feature_tracks;
@@ -125,7 +124,7 @@ bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
          (fabs(max_keyframe_time_ns_ - tp2.max_keyframe_time_ns_) <= tol) &&
          (fabs(intra_keyframe_time_ns_ - tp2.intra_keyframe_time_ns_) <= tol) &&
          (min_number_features_ == tp2.min_number_features_) &&
-         (fabs(maxDisparity_ - tp2.maxDisparity_) <= tol) &&
+         (fabs(max_disparity_since_lkf_ - tp2.max_disparity_since_lkf_) <= tol) &&
          (use_stereo_tracking_ == tp2.use_stereo_tracking_);
 }
 

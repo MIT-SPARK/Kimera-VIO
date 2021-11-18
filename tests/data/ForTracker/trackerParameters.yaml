@@ -54,6 +54,8 @@ ransac_max_iterations: 100
 ransac_probability: 0.995
 ransac_randomize: 0
 intra_keyframe_time: 0.5
+max_keyframe_time: 20
+max_disparity_since_lkf: 200
 minNumberFeatures: 100
 useStereoTracking: 1
 display_time: 100

@@ -49,7 +49,7 @@ struct FrontendParams : public PipelineParams {
 
   //! If set to false, pipeline reduces to monocular tracking.
   bool use_stereo_tracking_ = true;
-  double maxDisparity_ = 10.0;
+  double max_disparity_since_lkf_ = 200.0;
   //! Outlier rejection method choices
   bool useRANSAC_ = true;
   bool use_2d2d_tracking_ = true;

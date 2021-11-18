@@ -113,7 +113,10 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     // or we are past the asked timestamp (in which case, we failed).
 
     Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
-    static constexpr size_t timeout_ms = 10000u;  // Wait 1500ms at most!
+
+    //max amount of time the synchronizer will wait for a new packet when the queue is empty
+    static constexpr size_t timeout_ms = 10000u;
+    
     while (true) {
       std::shared_ptr<T> curr_payload =
           queue->peekBlockingWithTimeout(timeout_ms);

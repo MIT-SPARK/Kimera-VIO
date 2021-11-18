@@ -246,7 +246,6 @@ class StereoVisionImuFrontendFixture : public ::testing::Test {
     std::vector<gtsam::Point2> corners_out;
     corners_out.reserve(corners_in.size());
     for (int i = 0; i < corners_in.size(); i++) {
-      std::cout << corners_in[i].x() << ", " << corners_in[i].y() << std::endl;
       double xn = (corners_in[i].x() - calib_in.px()) / calib_in.fx();
       double yn = (corners_in[i].y() - calib_in.py()) / calib_in.fy();
       double xo = xn * calib_out.fx() + calib_out.px();
@@ -542,14 +541,14 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
 
   // Fill corner id map, useful for the tests later
   std::vector<int> corner_id_map_frame2gt;
-  {corner_id_map_frame2gt.reserve(num_corners);
+  corner_id_map_frame2gt.reserve(num_corners);
   for (size_t i = 0u; i < num_corners; i++) {
     const KeypointCV& kp = left_frame.keypoints_[i];
     gtsam::Point2 gtsam_kp(kp.x, kp.y);
     int idx = findPointInVector(gtsam_kp, left_distort_corners);
     EXPECT_NE(idx, -1);
     corner_id_map_frame2gt.push_back(idx);
-  }}
+  }
 
   // Check for coherent versors
   for (size_t i = 0u; i < num_corners; i++) {
@@ -630,6 +629,8 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
     double depth_expect = depth_gt[idx_gt];
     double depth_actual = sf.keypoints_3d_[i](2);
     
+    // tollerance value is <1% of depth_expect
+    // depth_expect is very large in our test data
     EXPECT_NEAR(depth_expect, depth_actual, 4);
   }
 
@@ -670,7 +671,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   p.feature_detector_params_.quality_level_ = 0.1;
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
   p.stereo_matching_params_.max_point_dist_ = 500;
-  p.maxDisparity_ = 30; //higher than what would be put into practice, but used to make testing easier
+  p.max_disparity_since_lkf_ = 30; //not necessarily a value that would be put into practice, but used to make testing easier
   
   ///// make initial stereo frame /////
   std::string img_name_left = synthetic_stereo_path + "/left_frame0000.jpg";
