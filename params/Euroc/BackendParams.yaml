@@ -89,5 +89,5 @@ useDogLeg: 0
 #   STEREO = 2
 #   PNP = 3
 #   EXTERNAL_ODOM = 4
-pose_guess_source: 3
+pose_guess_source: 0
 mono_translation_scale_factor: 0.1
