@@ -1147,7 +1147,7 @@ bool VioBackend::optimize(
   // to determine if the variable should be marginalized.
   // Needs to use DOUBLE because gtsam works with that, but we
   // are actually counting the number of states in the smoother.
-
+  double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
   std::map<Key, double> key_frame_count;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  new_values_) {
