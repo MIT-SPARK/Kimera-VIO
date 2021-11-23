@@ -1145,8 +1145,8 @@ bool VioBackend::optimize(
 
   // Use current timestamp for each new value. This timestamp will be used
   // to determine if the variable should be marginalized.
-  // Needs to use DOUBLE because gtsam works with that, but we are working
-  // with int64_t (nsecs).
+  // Needs to use DOUBLE because gtsam works with that, but we
+  // are actually counting the number of states in the smoother.
 
   std::map<Key, double> key_frame_count;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,

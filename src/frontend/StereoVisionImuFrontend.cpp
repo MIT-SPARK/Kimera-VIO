@@ -407,7 +407,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             TrackingStatus::INVALID;
       }
-      //std::cout << "frontend_params_.use_pnp_tracking_: " << frontend_params_.use_pnp_tracking_ << std::endl;
+
       // TODO(Toni): add this to Mono, or even base class VisionImuFrontend
       if (frontend_params_.use_pnp_tracking_) {
         gtsam::Pose3 best_absolute_pose;
