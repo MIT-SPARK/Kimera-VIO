@@ -43,8 +43,8 @@ struct FrontendParams : public PipelineParams {
   TrackerParams tracker_params_ = TrackerParams();
   StereoMatchingParams stereo_matching_params_ = StereoMatchingParams();
 
-  double intra_keyframe_time_ns_ = 0.2 * 10e6;
-  double max_keyframe_time_ns_ = 10.0 * 10e6;
+  double min_intra_keyframe_time_ns_ = 0.2 * 10e6;
+  double max_intra_keyframe_time_ns_ = 10.0 * 10e6;
   size_t min_number_features_ = 0u;
 
   //! If set to false, pipeline reduces to monocular tracking.

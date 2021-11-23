@@ -20,7 +20,7 @@ namespace VIO {
 
 BackendParams::BackendParams() : PipelineParams("Backend Parameters") {
   // Trivial sanity checks.
-  CHECK_GE(horizon_, 0);
+  CHECK_GE(nr_states_, 0);
   CHECK_GE(numOptimize_, 0);
 }
 
@@ -133,7 +133,7 @@ bool BackendParams::parseYAMLVioBackendParams(const YamlParser& yaml_parser) {
   yaml_parser.getYamlParam("no_motion_rotation_precision", &no_motion_rotation_precision_);
   yaml_parser.getYamlParam("constant_vel_precision", &constant_vel_precision_);
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
-  yaml_parser.getYamlParam("horizon", &horizon_);
+  yaml_parser.getYamlParam("nr_states", &nr_states_);
   yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
   yaml_parser.getYamlParam("useDogLeg", &useDogLeg_);
 
@@ -207,7 +207,7 @@ bool BackendParams::equalsVioBackendParams(const BackendParams& vp2,
       (fabs(no_motion_position_precision_ - vp2.no_motion_position_precision_) <= tol) &&
       (fabs(no_motion_rotation_precision_ - vp2.no_motion_rotation_precision_) <= tol) &&
       (fabs(constant_vel_precision_ - vp2.constant_vel_precision_) <= tol) &&
-      (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
+      (numOptimize_ == vp2.numOptimize_) && (nr_states_ == vp2.nr_states_) &&
       (wildfire_threshold_ == vp2.wildfire_threshold_) &&
       (useDogLeg_ == vp2.useDogLeg_) &&
       (pose_guess_source_ == vp2.pose_guess_source_) &&
@@ -276,8 +276,8 @@ void BackendParams::printVioBackendParams() const {
       constant_vel_precision_,
       "Optimization Iterations",
       numOptimize_,
-      "Horizon",
-      horizon_,
+      "nr_states",
+      nr_states_,
       "Isam Wildfire Threshold",
       wildfire_threshold_,
       "Use Dog Leg",

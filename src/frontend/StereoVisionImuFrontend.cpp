@@ -252,7 +252,6 @@ void StereoVisionImuFrontend::processFirstStereoFrame(
   last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
 
   // Tracking is based on left frame.
-  VLOG(2) << "tracking check \n" ;
   Frame* left_frame = &stereoFrame_k_->left_frame_;
   CHECK_EQ(left_frame->keypoints_.size(), 0)
       << "Keypoints already present in first frame: please do not extract"
@@ -327,10 +326,10 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
 
   const bool min_time_elapsed =
       stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      frontend_params_.intra_keyframe_time_ns_;
+      frontend_params_.min_intra_keyframe_time_ns_;
   const bool max_time_elapsed =
       stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      frontend_params_.max_keyframe_time_ns_;
+      frontend_params_.max_intra_keyframe_time_ns_;
   const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= frontend_params_.min_number_features_;

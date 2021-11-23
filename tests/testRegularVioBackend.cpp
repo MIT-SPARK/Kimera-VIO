@@ -111,7 +111,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   VioBackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // We simulate points 20m away.
   vioParams.imuIntegrationSigma_ = 1e-4;
-  vioParams.horizon_ = 100;
+  vioParams.nr_states_ = 100;
   vioParams.landmarkDistanceThreshold_ = 50;
 
   // Create 3D points
@@ -247,7 +247,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
   VioBackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // We simulate points 20m away.
   vioParams.imuIntegrationSigma_ = 1e-4;
-  vioParams.horizon_ = 100;
+  vioParams.nr_states_ = 100;
   vioParams.landmarkDistanceThreshold_ = 50;
 
   // Create 3D points

@@ -414,7 +414,7 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   gtsam::ISAM2Params isam_param;
   BackendParams vioParams = BackendParams();
   setIsam2Params(vioParams, &isam_param);
-  gtsam::IncrementalFixedLagSmoother smoother(vioParams.horizon_, isam_param);
+  gtsam::IncrementalFixedLagSmoother smoother(vioParams.nr_states_, isam_param);
   try {
     // Update smoother.
     gtsam::FactorIndices delete_slots;

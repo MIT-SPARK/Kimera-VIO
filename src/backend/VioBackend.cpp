@@ -106,13 +106,13 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
   gtsam::ISAM2Params isam_param;
   BackendParams::setIsam2Params(backend_params, &isam_param);
 
-  smoother_ = VIO::make_unique<Smoother>(backend_params.horizon_, isam_param);
+  smoother_ = VIO::make_unique<Smoother>(backend_params.nr_states_, isam_param);
 #else  // BATCH SMOOTHER
   gtsam::LevenbergMarquardtParams lmParams;
   lmParams.setlambdaInitial(0.0);     // same as GN
   lmParams.setlambdaLowerBound(0.0);  // same as GN
   lmParams.setlambdaUpperBound(0.0);  // same as GN)
-  smoother_ = VIO::make_unique<Smoother>(backend_params.horizon_, lmParams);
+  smoother_ = VIO::make_unique<Smoother>(backend_params.nr_states_, lmParams);
 #endif
 
   // Set parameters for all factors.
@@ -1149,13 +1149,9 @@ bool VioBackend::optimize(
   // with int64_t (nsecs).
 
   std::map<Key, double> key_frame_count;
-  // Also needs to convert to seconds...
-  double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  new_values_) {
       key_frame_count[key_value.key] = cur_id;
-    //timestamps[key_value.key] =
-      //   timestamp_kf;  // for the latest pose, velocity, and bias
   }
   DCHECK_EQ(key_frame_count.size(), new_values_.size());
 
