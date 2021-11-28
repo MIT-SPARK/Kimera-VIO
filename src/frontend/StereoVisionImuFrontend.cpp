@@ -352,6 +352,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
+  bool no_features_to_track = false;
   if (max_time_elapsed || max_disparity_reached || ((enough_disparity || dispary_low_first_time) && min_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
@@ -370,7 +371,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
     tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
 
-   bool no_features_to_track = true;
     double sparse_stereo_time = 0;
     if (frontend_params_.useRANSAC_) {
       // MONO geometric outlier rejection
@@ -381,8 +381,8 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                            left_frame_k,
                            &status_pose_mono);
       tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
-      if (status_pose_mono.first != TrackingStatus::INVALID) {
-        no_features_to_track = false;
+      // if (status_pose_mono.first != TrackingStatus::INVALID) {
+      //   no_features_to_track = false;
         if (status_pose_mono.first == TrackingStatus::VALID) {
           tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
         }
@@ -441,11 +441,11 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
           tracker_status_summary_.W_T_k_pnp_ = gtsam::Pose3::identity();
         }
       }
-    } else {
-      tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
-      tracker_status_summary_.kfTrackingStatus_stereo_ =
-          TrackingStatus::DISABLED;
-    }
+    // } else {
+    //   tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
+    //   tracker_status_summary_.kfTrackingStatus_stereo_ =
+    //       TrackingStatus::DISABLED;
+    // }
 
     if (VLOG_IS_ON(2)) {
       printTrackingStatus(tracker_status_summary_.kfTrackingStatus_mono_,
@@ -503,10 +503,11 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
 
       VLOG(2) << "timeSparseStereo: " << sparse_stereo_time << '\n'
               << "timeGetMeasurements: " << get_smart_stereo_meas_time;
-    stereoFrame_km1_ = stereoFrame_k_;
+    //stereoFrame_km1_ = stereoFrame_k_;
     }
     else{
     // no features to track so don't make it a keyframe
+    no_features_to_track = true;
     stereoFrame_k_->setIsKeyframe(false);
     }
   } else {
@@ -525,7 +526,9 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   }
 
   // Reset frames.
-  //stereoFrame_km1_ = stereoFrame_k_;
+  if (!no_features_to_track){
+    stereoFrame_km1_ = stereoFrame_k_;
+  }
   stereoFrame_k_.reset();
   ++frame_count_;
   return std::make_shared<StatusStereoMeasurements>(
