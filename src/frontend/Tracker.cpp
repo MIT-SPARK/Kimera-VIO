@@ -330,7 +330,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
 
   KeypointMatches matches_ref_cur;
   findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
-
+  std::cout << "number of matches: " << matches_ref_cur.size() << std::endl;
   TrackingStatusPose result;
 
   if (matches_ref_cur.empty()) {
@@ -930,7 +930,8 @@ void Tracker::findMatchingKeypoints(const Frame& ref_frame,
       ref_lm_index_map[ref_id] = i;
     }
   }
-
+  std::cout << "number keypoints in ref_frame: " << ref_frame.landmarks_.size() << std::endl;
+  std::cout << "number keypoints in cur_frame: " << cur_frame.landmarks_.size() << std::endl;
   // Map of position of landmark j in ref frame to position of landmark j in
   // cur_frame
   matches_ref_cur->reserve(ref_lm_index_map.size());

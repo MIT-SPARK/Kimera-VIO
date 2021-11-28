@@ -454,16 +454,20 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                           "stereo");
     }
 
-    if (!no_features_to_track){
+    
+      std::cout << "features to track !!!!!!!!!" << std::endl;
       // If its been long enough, make it a keyframe
-      last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
-      stereoFrame_k_->setIsKeyframe(true);
+      // last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
+      // stereoFrame_k_->setIsKeyframe(true);
 
       // Perform feature detection (note: this must be after RANSAC,
       // since if we discard more features, we need to extract more)
       CHECK(feature_detector_);
       feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
-
+      std::cout << "left_frame_k->keypoints_.size()" << left_frame_k->keypoints_.size() << std::endl;
+      if (left_frame_k->keypoints_.size()>0){
+      last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
+      stereoFrame_k_->setIsKeyframe(true);
 
       // Get 3D points via stereo, including newly extracted
       // (this might be only for the visualization).
@@ -521,7 +525,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   }
 
   // Reset frames.
-  stereoFrame_km1_ = stereoFrame_k_;
+  //stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
   return std::make_shared<StatusStereoMeasurements>(
