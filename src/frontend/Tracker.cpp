@@ -99,7 +99,7 @@ void Tracker::featureTracking(
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
   auto tic = utils::Timer::tic();
-
+  std::cout << "ref_frame->keypoints_.size()" << ref_frame->keypoints_.size() << std::endl; 
   // Fill up structure for reference pixels and their labels.
   const size_t& n_ref_kpts = ref_frame->keypoints_.size();
   KeypointsCV px_ref;
@@ -124,7 +124,10 @@ void Tracker::featureTracking(
 
   // Initialize to old locations
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
-
+  if (px_ref.size() == 0u){
+    std::cout << ref_frame-> keypoints_.size() << std::endl;
+    //return;
+  }
   KeypointsCV px_cur;
   CHECK(optical_flow_predictor_->predictSparseFlow(px_ref, ref_R_cur, &px_cur));
   KeypointsCV px_predicted = px_cur;
@@ -135,6 +138,7 @@ void Tracker::featureTracking(
   std::vector<uchar> status;
   std::vector<float> error;
   auto time_lukas_kanade_tic = utils::Timer::tic();
+  std::cout << "ref_frame->keypoints_.size()" << ref_frame->keypoints_.size() << std::endl; 
   cv::calcOpticalFlowPyrLK(ref_frame->img_,
                            cur_frame->img_,
                            px_ref,
@@ -165,6 +169,9 @@ void Tracker::featureTracking(
   cur_frame->keypoints_.reserve(px_ref.size());
   cur_frame->scores_.reserve(px_ref.size());
   cur_frame->versors_.reserve(px_ref.size());
+
+  int number_rejected_features = 0;
+
   for (size_t i = 0u; i < indices_of_valid_landmarks.size(); ++i) {
     // If we failed to track mark off that landmark
     const size_t& idx_valid_lmk = indices_of_valid_landmarks[i];
@@ -175,9 +182,23 @@ void Tracker::featureTracking(
     if (!status[i] || lmk_age > tracker_params_.max_feature_track_age_) {
       // we are marking this bad in the ref_frame since features
       // in the ref frame guide feature detection later on
-      ref_frame->landmarks_[idx_valid_lmk] = -1;
+      number_rejected_features ++;
+      // this gets set to -1 for all landmarks if we lose feature tracking which 
+      // messes up the reference frame. thus we need to reset it
+      //ref_frame->landmarks_[idx_valid_lmk] = -1;
+      // signal failed case
+      if (indices_of_valid_landmarks.size()-number_rejected_features == 0){
+        std::cout <<  "signaling failed !!!!!!!!!" << std::endl;
+      cur_frame->keypoints_.clear();// actually it shoudl already be empty
+      std::cout <<  cur_frame->keypoints_.size() << std::endl;
+      }
+      else{
+        //std::cout << "ref_frame->landmarks_[idx_valid_lmk]"<< ref_frame->landmarks_[idx_valid_lmk] << std::endl;
+        ref_frame->landmarks_[idx_valid_lmk] = -1;
+      }
       continue;
     }
+
     cur_frame->landmarks_.push_back(lmk_id);
     cur_frame->landmarks_age_.push_back(lmk_age);
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
@@ -334,7 +355,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
   TrackingStatusPose result;
 
   if (matches_ref_cur.empty()) {
-    LOG(ERROR) << "No matching keypoints from frame " << ref_frame->id_
+    LOG(WARNING) << "No matching keypoints from frame " << ref_frame->id_
                << " to frame " << cur_frame->id_ << ".\n"
                << "Mono Tracking Status = INVALID.";
     result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
