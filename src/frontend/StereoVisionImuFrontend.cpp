@@ -304,7 +304,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // We need to use the frame to frame rotation.
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
-  std::cout << "kml keypoints: " << stereoFrame_km1_->left_frame_.keypoints_.size() << std::endl;
+
   tracker_->featureTracking(&stereoFrame_km1_->left_frame_,
                             left_frame_k,
                             ref_frame_R_cur_frame,
@@ -316,13 +316,12 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     stereoFrame_km1_ = stereoFrame_k_;
     stereoFrame_k_.reset();
     ++frame_count_;
-    std::cout << "breaking out" << std::endl;
     StereoMeasurements smart_stereo_measurements;
     return std::make_shared<StatusStereoMeasurements>(
       std::make_pair(tracker_status_summary_,
                      smart_stereo_measurements));
   }
-  std::cout << "ran feature tracking" << std::endl;
+
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
     // TODO(Toni): this image should already be computed and inside the
@@ -479,7 +478,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     }
 
     
-      std::cout << "features to track !!!!!!!!!" << std::endl;
       // If its been long enough, make it a keyframe
       // last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
       // stereoFrame_k_->setIsKeyframe(true);
@@ -488,7 +486,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
       // since if we discard more features, we need to extract more)
       CHECK(feature_detector_);
       feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
-      std::cout << "left_frame_k->keypoints_.size()" << left_frame_k->keypoints_.size() << std::endl;
 
       last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
       stereoFrame_k_->setIsKeyframe(true);
