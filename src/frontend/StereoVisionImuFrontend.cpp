@@ -310,8 +310,10 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                             ref_frame_R_cur_frame,
                             frontend_params_.feature_detector_params_,
                             stereo_camera_->getR1());
-                            
+
+  // feature tracking failed for all points, move on to the next frame                       
   if(left_frame_k->keypoints_.size() == 0){
+     VLOG(2) << "feature tracking failed for all points, moving to next frame \n" ;
     feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
     stereoFrame_km1_ = stereoFrame_k_;
     stereoFrame_k_.reset();
@@ -365,17 +367,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
-  bool no_features_to_track = false;
-  // if(left_frame_k->keypoints_.size() == 0){
-  //   no_features_to_track = true;
-  //     stereoFrame_k_.reset();
-  // ++frame_count_;
-  // return std::make_shared<StatusStereoMeasurements>(
-  //     std::make_pair(tracker_status_summary_,
-  //                    // TODO(Toni): please, fix this, don't use std::pair...
-  //                    // copies, manyyyy copies: actually thousands of copies...
-  //                    smart_stereo_measurements));
-  // }
   if ((max_time_elapsed || max_disparity_reached || ((enough_disparity || dispary_low_first_time) && min_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe())) {
     ++keyframe_count_;  // mainly for debugging
 
@@ -404,8 +395,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                            left_frame_k,
                            &status_pose_mono);
       tracker_status_summary_.kfTrackingStatus_mono_ = status_pose_mono.first;
-      // if (status_pose_mono.first != TrackingStatus::INVALID) {
-      //   no_features_to_track = false;
+
         if (status_pose_mono.first == TrackingStatus::VALID) {
           tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
         }
