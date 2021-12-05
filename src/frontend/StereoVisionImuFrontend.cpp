@@ -330,7 +330,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   const bool max_time_elapsed =
       stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
       frontend_params_.max_intra_keyframe_time_ns_;
-  std::cout << "max_time_elapsed" << max_time_elapsed << std::endl;
   const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= frontend_params_.min_number_features_;
