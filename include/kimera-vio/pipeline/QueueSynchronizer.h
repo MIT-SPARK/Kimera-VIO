@@ -125,7 +125,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                    << " with queue: " << queue->queue_id_ << "\n Reason: \n"
                    << "Queue status: "
                    << (queue->isShutdown() ? "Shutdown..." : "Timeout...");
-        return false;
+        //return false;
       }
 
       if (!(*curr_payload)) {
