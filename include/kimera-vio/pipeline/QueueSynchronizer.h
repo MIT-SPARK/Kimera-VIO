@@ -115,7 +115,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
 
     //max amount of time the synchronizer will wait for a new packet when the queue is empty
-    static constexpr size_t timeout_ms = 100000u;
+    static constexpr size_t timeout_ms = 10000u;
     
     while (true) {
       std::shared_ptr<T> curr_payload =
@@ -125,7 +125,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                    << " with queue: " << queue->queue_id_ << "\n Reason: \n"
                    << "Queue status: "
                    << (queue->isShutdown() ? "Shutdown..." : "Timeout...");
-        //return false;
+        return false;
       }
 
       if (!(*curr_payload)) {
