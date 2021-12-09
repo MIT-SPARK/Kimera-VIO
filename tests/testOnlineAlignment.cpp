@@ -22,6 +22,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DECLARE_string(test_data_path);
 

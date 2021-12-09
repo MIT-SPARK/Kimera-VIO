@@ -19,6 +19,7 @@
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
 #include "kimera-vio/initial/TimeAlignerBase.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 #include <Eigen/Dense>
 #include <vector>
@@ -26,7 +27,7 @@
 namespace VIO {
 
 using ::testing::_;
-using ::testing::AllArgs;
+using ::testing::Args;
 using ::testing::Invoke;
 using ::testing::Ne;
 using ::testing::NotNull;
@@ -36,13 +37,13 @@ typedef std::pair<TrackingStatus, gtsam::Pose3> RansacResult;
 class MockTracker : public Tracker {
  public:
   MockTracker()
-      : Tracker(FrontendParams(), std::make_shared<Camera>(CameraParams())) {}
+      : Tracker(TrackerParams(), std::make_shared<Camera>(CameraParams())) {}
 
   ~MockTracker() = default;
 
   MOCK_METHOD(RansacResult,
-              geometricOutlierRejectionMono,
-              (Frame*, Frame*),
+              geometricOutlierRejection2d2d,
+              (Frame*, Frame*, const gtsam::Pose3&),
               (override));
 };
 
@@ -52,7 +53,7 @@ class ReturnHelper {
     vec_iter_ = vec_.begin();
   }
 
-  RansacResult getNext(Frame* /* ref */, Frame* /* curr */) {
+  RansacResult getNext(Frame* /* ref */, Frame* /* curr */, const gtsam::Pose3& /* cam_lkf_Pose_cam_kf */) {
     if (vec_iter_ == vec_.end()) {
       return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
     }
@@ -76,8 +77,6 @@ FrontendOutputPacketBase::Ptr makeOutput(
     return std::make_shared<MonoFrontendOutput>(
         false,
         StatusMonoMeasurementsPtr(nullptr),
-        TrackingStatus::VALID,
-        gtsam::Pose3(),
         gtsam::Pose3(),
         fake_frame,
         ImuFrontend::PimPtr(nullptr),
@@ -90,8 +89,6 @@ FrontendOutputPacketBase::Ptr makeOutput(
     return std::make_shared<StereoFrontendOutput>(
         false,
         StatusStereoMeasurementsPtr(nullptr),
-        TrackingStatus::VALID,
-        gtsam::Pose3(),
         gtsam::Pose3(),
         gtsam::Pose3(),
         fake_stereo,
@@ -307,8 +304,10 @@ TEST(temporalCalibration, testBadRansacStatus) {
   results.emplace_back(TrackingStatus::DISABLED, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker,
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(2)
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -324,17 +323,17 @@ TEST(temporalCalibration, testBadRansacStatus) {
   TimeAlignerBase::Result result =
       aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_FALSE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 
   // Time alignment "succeeds" if RANSAC is invalid (first result)
   result = aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 
   // Time alignment "succeeds" if 5pt RANSAC is disabled (second result)
   result = aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testEmptyImu) {
@@ -346,8 +345,10 @@ TEST(temporalCalibration, testEmptyImu) {
   results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(1)
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -363,12 +364,12 @@ TEST(temporalCalibration, testEmptyImu) {
   TimeAlignerBase::Result result =
       aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_FALSE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 
   // Time alignment "succeeds" if the IMU isn't present between frames
   result = aligner.estimateTimeAlignment(tracker, *output, times, values);
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testLessThanWindow) {
@@ -380,8 +381,10 @@ TEST(temporalCalibration, testLessThanWindow) {
   results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker,
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -399,7 +402,7 @@ TEST(temporalCalibration, testLessThanWindow) {
     TimeAlignerBase::Result result =
         aligner.estimateTimeAlignment(tracker, *output, times, values);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 }
 
@@ -412,8 +415,10 @@ TEST(temporalCalibration, testLessThanWindowFrameRate) {
   results.emplace_back(TrackingStatus::VALID, gtsam::Pose3());
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker,
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -432,7 +437,7 @@ TEST(temporalCalibration, testLessThanWindowFrameRate) {
     TimeAlignerBase::Result result =
         aligner.estimateTimeAlignment(tracker, *output, times, values);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 }
 
@@ -452,8 +457,10 @@ TEST(temporalCalibration, testLowVariance) {
   }
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker,
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -468,7 +475,7 @@ TEST(temporalCalibration, testLowVariance) {
     TimeAlignerBase::Result result =
         aligner.estimateTimeAlignment(tracker, *output, times, values);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 }
 
@@ -488,8 +495,10 @@ TEST(temporalCalibration, testEnoughVariance) {
   }
 
   ReturnHelper helper(results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker,
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -504,7 +513,7 @@ TEST(temporalCalibration, testEnoughVariance) {
     if (i < results.size()) {
       // We get false from not having enough data
       EXPECT_FALSE(result.valid);
-      EXPECT_EQ(0.0, result.imu_time_shift);
+      EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
     } else {
       EXPECT_TRUE(result.valid);
       // result needs to be within the min and max possible time
@@ -523,8 +532,10 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -533,7 +544,7 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -541,7 +552,7 @@ TEST(temporalCalibration, testWellFormedNoDelay) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
@@ -551,8 +562,10 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -561,7 +574,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -569,7 +582,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayImuRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
@@ -579,8 +592,10 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -589,7 +604,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -597,7 +612,7 @@ TEST(temporalCalibration, testWellFormedMultiImuNoDelayFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(0.0, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testNegDelayImuRate) {
@@ -607,8 +622,10 @@ TEST(temporalCalibration, testNegDelayImuRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -617,7 +634,7 @@ TEST(temporalCalibration, testNegDelayImuRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -625,7 +642,7 @@ TEST(temporalCalibration, testNegDelayImuRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayImuRate) {
@@ -635,8 +652,10 @@ TEST(temporalCalibration, testPosDelayImuRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -645,7 +664,7 @@ TEST(temporalCalibration, testPosDelayImuRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -653,7 +672,7 @@ TEST(temporalCalibration, testPosDelayImuRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, DISABLED_testNegDelayFrameRate) {
@@ -663,8 +682,10 @@ TEST(temporalCalibration, DISABLED_testNegDelayFrameRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -673,7 +694,7 @@ TEST(temporalCalibration, DISABLED_testNegDelayFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -681,7 +702,7 @@ TEST(temporalCalibration, DISABLED_testNegDelayFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, DISABLED_testPosDelayFrameRate) {
@@ -691,8 +712,10 @@ TEST(temporalCalibration, DISABLED_testPosDelayFrameRate) {
   CrossCorrTimeAligner aligner(data.params);
 
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -701,7 +724,7 @@ TEST(temporalCalibration, DISABLED_testPosDelayFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -709,7 +732,7 @@ TEST(temporalCalibration, DISABLED_testPosDelayFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayLowDisparity) {
@@ -721,8 +744,10 @@ TEST(temporalCalibration, testPosDelayLowDisparity) {
   data.results[4].first =
       TrackingStatus::LOW_DISPARITY;  // force caching of IMU
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -731,7 +756,7 @@ TEST(temporalCalibration, testPosDelayLowDisparity) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -739,7 +764,7 @@ TEST(temporalCalibration, testPosDelayLowDisparity) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
@@ -751,8 +776,10 @@ TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
   data.results[4].first =
       TrackingStatus::LOW_DISPARITY;  // force caching of IMU
   ReturnHelper helper(data.results);
-  EXPECT_CALL(tracker, geometricOutlierRejectionMono(NotNull(), NotNull()))
-      .With(AllArgs(Ne()))
+  EXPECT_CALL(tracker, 
+              geometricOutlierRejection2d2d(
+                  NotNull(), NotNull(), _))
+      .With(Args<0, 1>(Ne()))
       .Times(data.results.size())
       .WillRepeatedly(Invoke(&helper, &ReturnHelper::getNext));
 
@@ -761,7 +788,7 @@ TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
     result = aligner.estimateTimeAlignment(
         tracker, *(data.outputs[i]), data.imu_stamps[i], data.imu_values[i]);
     EXPECT_FALSE(result.valid);
-    EXPECT_EQ(0.0, result.imu_time_shift);
+    EXPECT_DOUBLE_EQ(0.0, result.imu_time_shift);
   }
 
   result = aligner.estimateTimeAlignment(tracker,
@@ -769,7 +796,7 @@ TEST(temporalCalibration, testPosDelayLowDisparityFrameRate) {
                                          data.imu_stamps.back(),
                                          data.imu_values.back());
   EXPECT_TRUE(result.valid);
-  EXPECT_EQ(data.expected_delay, result.imu_time_shift);
+  EXPECT_DOUBLE_EQ(data.expected_delay, result.imu_time_shift);
 }
 
 }  // namespace VIO

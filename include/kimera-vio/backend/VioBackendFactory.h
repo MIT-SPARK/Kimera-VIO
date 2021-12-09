@@ -31,7 +31,7 @@ class BackendFactory {
 
   static VioBackend::UniquePtr createBackend(
       const BackendType& backend_type,
-      const Pose3& B_Pose_leftCam,
+      const Pose3& B_Pose_leftCamRect,
       const StereoCalibPtr& stereo_calibration,
       const BackendParams& backend_params,
       const ImuParams& imu_params,
@@ -40,7 +40,7 @@ class BackendFactory {
       boost::optional<OdometryParams> odom_params) {
     switch (backend_type) {
       case BackendType::kStereoImu: {
-        return VIO::make_unique<VioBackend>(B_Pose_leftCam,
+        return VIO::make_unique<VioBackend>(B_Pose_leftCamRect,
                                             stereo_calibration,
                                             backend_params,
                                             imu_params,
@@ -49,7 +49,7 @@ class BackendFactory {
                                             odom_params);
       }
       case BackendType::kStructuralRegularities: {
-        return VIO::make_unique<RegularVioBackend>(B_Pose_leftCam,
+        return VIO::make_unique<RegularVioBackend>(B_Pose_leftCamRect,
                                                    stereo_calibration,
                                                    backend_params,
                                                    imu_params,

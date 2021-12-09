@@ -167,7 +167,8 @@ class StereoFrame {
 
   //! 3D positions of the stereo points as given by reprojection using stereo
   //! disparity; in the rectified left frame.
-  std::vector<gtsam::Vector3> keypoints_3d_;
+  // TODO(TONI): this should use the eigen's default allocator...
+  Landmarks keypoints_3d_;
 };
 
 }  // namespace VIO
