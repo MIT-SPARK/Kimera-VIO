@@ -47,7 +47,7 @@ class BackendFixture : public ::testing::Test {
     // Update vio params
     // we simulate points 20m away
     backend_params_.landmarkDistanceThreshold_ = 30;
-    backend_params_.horizon_ = 100;
+    backend_params_.nr_states_ = 100;
 
     // Update IMU params
     imu_params_.gyro_noise_density_ = 0.00016968;

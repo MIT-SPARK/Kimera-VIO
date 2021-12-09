@@ -301,7 +301,7 @@ TEST_F(VioPipelineFixture, OfflineParallelSpinShutdownWhenFinished) {
 TEST_F(VioPipelineFixture, OfflineSequentialSpinBackendFailureGracefulShutdown) {
   // Modify vio pipeline so that the Backend fails
   vio_params_.parallel_run_ = false;
-  vio_params_.backend_params_->horizon_ = 0;
+  vio_params_.backend_params_->nr_states_ = 0;
   vio_params_.backend_type_ = BackendType::kStereoImu;
   buildOfflinePipeline(vio_params_);
   ASSERT_TRUE(dataset_parser_);
@@ -315,7 +315,7 @@ TEST_F(VioPipelineFixture, OfflineSequentialSpinBackendFailureGracefulShutdown) 
 // This tests that the VIO pipeline dies gracefully if the Backend breaks.
 TEST_F(VioPipelineFixture, OnlineParallelSpinBackendFailureGracefulShutdown) {
   // Modify vio pipeline so that the Backend fails
-  vio_params_.backend_params_->horizon_ = 0;
+  vio_params_.backend_params_->nr_states_ = 0;
   vio_params_.backend_type_ = BackendType::kStereoImu;
   buildOnlinePipeline(vio_params_);
   ASSERT_TRUE(vio_params_.parallel_run_);
@@ -338,7 +338,7 @@ TEST_F(VioPipelineFixture, OnlineParallelSpinBackendFailureGracefulShutdown) {
 // This tests that the VIO pipeline dies gracefully if the Backend breaks.
 TEST_F(VioPipelineFixture, OnlineParallelSpinRegularBackendFailureGracefulShutdown) {
   // Modify vio pipeline so that the Backend fails
-  vio_params_.backend_params_->horizon_ = 0;
+  vio_params_.backend_params_->nr_states_ = 0;
   vio_params_.backend_type_ = BackendType::kStructuralRegularities;
   buildOnlinePipeline(vio_params_);
   ASSERT_TRUE(vio_params_.parallel_run_);
