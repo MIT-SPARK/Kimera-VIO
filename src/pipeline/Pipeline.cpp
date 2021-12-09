@@ -180,7 +180,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
-  VLOG(1) << printStatus();
+  VLOG(5) << printStatus();
   if (!shutdown_) shutdown();
   return true;
 }

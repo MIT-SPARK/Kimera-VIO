@@ -246,6 +246,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
 // stereoFrame_km1_, stereoFrame_lkf_, stereoFrame_k_, etc...
 void StereoVisionImuFrontend::processFirstStereoFrame(
     const StereoFrame& firstFrame) {
+  VLOG(2) << "Processing first stereo frame \n";
   stereoFrame_k_ =
       std::make_shared<StereoFrame>(firstFrame);  // TODO this can be optimized!
   stereoFrame_k_->setIsKeyframe(true);
