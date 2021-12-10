@@ -48,12 +48,16 @@ void FrontendParams::print() const {
   PipelineParams::print(out,
                         // Tracker params
                         // "** STEREO tracker parameters **\n"
-                        "intra_keyframe_time_: ",
-                        intra_keyframe_time_ns_,
+                        "min_intra_keyframe_time_: ",
+                        min_intra_keyframe_time_ns_,
+                        "max_intra_keyframe_time_: ",
+                        max_intra_keyframe_time_ns_,
                         "minNumberFeatures_: ",
                         min_number_features_,
                         "useStereoTracking_: ",
                         use_stereo_tracking_,
+                        "max_disparity_since_lkf_: ",
+                        max_disparity_since_lkf_,
                         "useRANSAC_: ",
                         useRANSAC_,
                         "Use 2D2D Tracking",
@@ -81,10 +85,15 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   YamlParser yaml_parser(filepath);
 
   // Given in seconds, needs to be converted to nanoseconds.
-  double intra_keyframe_time_seconds;
-  yaml_parser.getYamlParam("intra_keyframe_time", &intra_keyframe_time_seconds);
-  intra_keyframe_time_ns_ =
-      UtilsNumerical::SecToNsec(intra_keyframe_time_seconds);
+  double min_intra_keyframe_time_seconds;
+  yaml_parser.getYamlParam("min_intra_keyframe_time", &min_intra_keyframe_time_seconds);
+  min_intra_keyframe_time_ns_ =
+      UtilsNumerical::SecToNsec(min_intra_keyframe_time_seconds);
+
+  double max_intra_keyframe_time_seconds;
+  yaml_parser.getYamlParam("max_intra_keyframe_time", &max_intra_keyframe_time_seconds);
+  max_intra_keyframe_time_ns_ =
+      UtilsNumerical::SecToNsec(max_intra_keyframe_time_seconds);
 
   int min_number_features;
   yaml_parser.getYamlParam("minNumberFeatures", &min_number_features);
@@ -94,7 +103,8 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("use_2d2d_tracking", &use_2d2d_tracking_);
   yaml_parser.getYamlParam("use_3d3d_tracking", &use_3d3d_tracking_);
   yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
-
+  yaml_parser.getYamlParam("max_disparity_since_lkf", &max_disparity_since_lkf_);
+  
   // TODO(Toni): use yaml at some point
   visualize_feature_tracks_ = FLAGS_visualize_feature_tracks;
   visualize_frontend_images_ = FLAGS_visualize_frontend_images;
@@ -111,8 +121,10 @@ bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
          // stereo matching
          stereo_matching_params_.equals(tp2.stereo_matching_params_, tol) &&
          // STEREO parameters:
-         (fabs(intra_keyframe_time_ns_ - tp2.intra_keyframe_time_ns_) <= tol) &&
+         (fabs(max_intra_keyframe_time_ns_ - tp2.max_intra_keyframe_time_ns_) <= tol) &&
+         (fabs(min_intra_keyframe_time_ns_ - tp2.min_intra_keyframe_time_ns_) <= tol) &&
          (min_number_features_ == tp2.min_number_features_) &&
+         (fabs(max_disparity_since_lkf_ - tp2.max_disparity_since_lkf_) <= tol) &&
          (use_stereo_tracking_ == tp2.use_stereo_tracking_);
 }
 

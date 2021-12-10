@@ -264,7 +264,7 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
 
   const bool max_time_elapsed =
       mono_frame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      frontend_params_.intra_keyframe_time_ns_;
+      frontend_params_.min_intra_keyframe_time_ns_;
   const size_t& nr_valid_features = mono_frame_k_->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= frontend_params_.min_number_features_;

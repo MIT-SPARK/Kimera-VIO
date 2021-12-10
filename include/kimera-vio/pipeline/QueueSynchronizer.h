@@ -113,8 +113,11 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     // or we are past the asked timestamp (in which case, we failed).
 
     Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
-    static constexpr size_t timeout_ms = 100000u;  // Wait 1500ms at most!
-    for (int i = 0; i < max_iterations; ++i) {
+
+    //max amount of time the synchronizer will wait for a new packet when the queue is empty
+    static constexpr size_t timeout_ms = 10000u;
+    
+    while (true) {
       std::shared_ptr<T> curr_payload =
           queue->peekBlockingWithTimeout(timeout_ms);
       if (!curr_payload) {
@@ -155,15 +158,6 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
         return true;  // we found the payload we want
       }
     }
-
-    // TODO(nathan) consider a more graceful failure here
-    LOG(FATAL) << "Syncing queue " << queue->queue_id_ << " in module "
-               << name_id
-               << " failed;\n Could not retrieve timestamp requested after "
-               << max_iterations << " iterations: \n"
-               << " - Requested timestamp: " << timestamp << '\n'
-               << " - Best payload timestamp:    " << payload_timestamp << '\n';
-    return false;
   }
 
  private:

@@ -106,13 +106,13 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
   gtsam::ISAM2Params isam_param;
   BackendParams::setIsam2Params(backend_params, &isam_param);
 
-  smoother_ = VIO::make_unique<Smoother>(backend_params.horizon_, isam_param);
+  smoother_ = VIO::make_unique<Smoother>(backend_params.nr_states_, isam_param);
 #else  // BATCH SMOOTHER
   gtsam::LevenbergMarquardtParams lmParams;
   lmParams.setlambdaInitial(0.0);     // same as GN
   lmParams.setlambdaLowerBound(0.0);  // same as GN
   lmParams.setlambdaUpperBound(0.0);  // same as GN)
-  smoother_ = VIO::make_unique<Smoother>(backend_params.horizon_, lmParams);
+  smoother_ = VIO::make_unique<Smoother>(backend_params.nr_states_, lmParams);
 #endif
 
   // Set parameters for all factors.
@@ -1145,17 +1145,14 @@ bool VioBackend::optimize(
 
   // Use current timestamp for each new value. This timestamp will be used
   // to determine if the variable should be marginalized.
-  // Needs to use DOUBLE because gtsam works with that, but we are working
-  // with int64_t (nsecs).
-  std::map<Key, double> timestamps;
-  // Also needs to convert to seconds...
-  double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
+  // Needs to use DOUBLE because gtsam works with that, but we
+  // are actually counting the number of states in the smoother.
+  std::map<Key, double> key_frame_count;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  new_values_) {
-    timestamps[key_value.key] =
-        timestamp_kf;  // for the latest pose, velocity, and bias
+      key_frame_count[key_value.key] = cur_id;
   }
-  DCHECK_EQ(timestamps.size(), new_values_.size());
+  DCHECK_EQ(key_frame_count.size(), new_values_.size());
 
   // Store time before iSAM update.
   if (VLOG_IS_ON(10) || log_output_) {
@@ -1171,7 +1168,7 @@ bool VioBackend::optimize(
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
   bool is_smoother_ok = updateSmoother(
-      &result, new_factors_tmp, new_values_, timestamps, delete_slots);
+      &result, new_factors_tmp, new_values_, key_frame_count, delete_slots);
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.
