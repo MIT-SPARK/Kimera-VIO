@@ -15,6 +15,7 @@
 #include "kimera-vio/initial/TimeAlignerBase.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
@@ -99,7 +100,7 @@ TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
 
   CHECK(last_frame_);
   CHECK(curr_frame);
-  TrackingStatusPose ransac_result = tracker.geometricOutlierRejectionMono(
+  TrackingStatusPose ransac_result = tracker.geometricOutlierRejection2d2d(
       last_frame_.get(), curr_frame.get());
   if (ransac_result.first == TrackingStatus::DISABLED) {
     LOG(ERROR) << "5-pt RANSAC disabled for time-alignment when trying to "

@@ -62,12 +62,12 @@ TEST(testRegularVioBackendParams, VioParseYAML) {
   // OPTIMIZATION params
   EXPECT_DOUBLE_EQ(0.0001, vp.relinearizeThreshold_);
   EXPECT_DOUBLE_EQ(12, vp.relinearizeSkip_);
-  EXPECT_DOUBLE_EQ(1.1, vp.zeroVelocitySigma_);
-  EXPECT_DOUBLE_EQ(1.2, vp.noMotionPositionSigma_);
-  EXPECT_DOUBLE_EQ(1.3, vp.noMotionRotationSigma_);
-  EXPECT_DOUBLE_EQ(1.4, vp.constantVelSigma_);
+  EXPECT_DOUBLE_EQ(1.1, vp.zero_velocity_precision_);
+  EXPECT_DOUBLE_EQ(1.2, vp.no_motion_position_precision_);
+  EXPECT_DOUBLE_EQ(1.3, vp.no_motion_rotation_precision_);
+  EXPECT_DOUBLE_EQ(1.4, vp.constant_vel_precision_);
   EXPECT_DOUBLE_EQ(0, vp.numOptimize_);
-  EXPECT_DOUBLE_EQ(2, vp.horizon_);
+  EXPECT_DOUBLE_EQ(2, vp.nr_states_);
   EXPECT_DOUBLE_EQ(0.001, vp.wildfire_threshold_);
   EXPECT_DOUBLE_EQ(1, vp.useDogLeg_);
 }

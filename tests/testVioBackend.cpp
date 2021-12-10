@@ -13,20 +13,18 @@
  * @author Luca Carlone
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
-#include <random>
-
-#include <boost/smart_ptr/make_shared.hpp>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
+
+#include <algorithm>
+#include <boost/smart_ptr/make_shared.hpp>
+#include <cstdlib>
+#include <iostream>
+#include <random>
 
 #include "kimera-vio/backend/VioBackend.h"
 #include "kimera-vio/backend/VioBackendFactory.h"
@@ -49,7 +47,7 @@ class BackendFixture : public ::testing::Test {
     // Update vio params
     // we simulate points 20m away
     backend_params_.landmarkDistanceThreshold_ = 30;
-    backend_params_.horizon_ = 100;
+    backend_params_.nr_states_ = 100;
 
     // Update IMU params
     imu_params_.gyro_noise_density_ = 0.00016968;
@@ -62,6 +60,10 @@ class BackendFixture : public ::testing::Test {
     // TODO(Toni): test with Combined, I think it actually fails now...
     imu_params_.imu_preintegration_type_ =
         ImuPreintegrationType::kPreintegratedImuMeasurements;
+  }
+
+  void map_update_cb(const LandmarksMap& map) {
+    // Do nothing
   }
 
  protected:
@@ -242,6 +244,8 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
                                    false);
   vio_backend->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontend::updateBias, std::ref(imu_frontend), std::placeholders::_1));
+  vio_backend->registerMapUpdateCallback(
+      std::bind(&BackendFixture::map_update_cb, this, std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
   Timestamp timestamp_km1 = t_start_ - before_start_imu_msgs_ * imu_time_step_;
@@ -293,11 +297,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
 
     // process data with VIO
     BackendOutput::Ptr backend_output = vio_backend->spinOnce(
-        BackendInput(timestamp_k,
-                     all_measurements[k],
-                     tracker_status_valid.kfTrackingStatus_stereo_,
-                     pim,
-                     imu_accgyr));
+        BackendInput(timestamp_k, all_measurements[k], pim, imu_accgyr));
     CHECK(backend_output);
 
     // At this point the update imu bias callback should be triggered which
@@ -313,9 +313,11 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         boost::shared_ptr<SmartStereoFactor> gsf =
             boost::dynamic_pointer_cast<SmartStereoFactor>(f);
         if (gsf) {
-          EXPECT_EQ(gsf->keys().size(), k);  // each landmark is seen in every frame
+          EXPECT_EQ(gsf->keys().size(),
+                    k);  // each landmark is seen in every frame
           for (size_t j = 1; j <= gsf->keys().size(); j++) {
-            EXPECT_EQ(gtsam::Symbol(gsf->keys().at(j-1)), gtsam::Symbol('x', j));
+            EXPECT_EQ(gtsam::Symbol(gsf->keys().at(j - 1)),
+                      gtsam::Symbol('x', j));
           }
         }
       }
@@ -335,20 +337,22 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
       if (k == 0) {
         EXPECT_EQ(nr_factors_in_smoother, 3);  // 3 priors
       } else if (k == 1) {
-        EXPECT_EQ(nr_factors_in_smoother,
-                  3 + 2 * k);  // 3 priors, 1 imu + 1 between per time stamp: we
-                               // do not include smart factors of length 1
+        EXPECT_EQ(
+            nr_factors_in_smoother,
+            3 + 3 * k);  // 3 priors, 1 imu + 1 btw imu biases + 1 btw stereo
+                         // poses. We do not include smart factors of length 1
       } else {
         EXPECT_EQ(nr_factors_in_smoother,
-                  3 + 2 * k + 8);  // 3 priors, 1 imu + 1 between per time
-                                   // stamp, 8 smart factors
+                  3 + 3 * k + 8);  // 3 priors, 1 imu + 1 btw imu biases + 1 btw
+                                   // stereo poses, 8 smart factors
       }
     }
 
     // Check the results!
     const gtsam::Values& results = vio_backend->getState();
     for (FrameId f_id = 0u; f_id <= k; f_id++) {
-      gtsam::Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
+      gtsam::Pose3 W_Pose_Blkf =
+          results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
       gtsam::Vector3 W_Vel_Blkf =
           results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(gtsam::Symbol('b', f_id));
@@ -429,6 +433,8 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
                                    VIO::OdometryParams());
   vio_backend->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontend::updateBias, std::ref(imu_frontend), std::placeholders::_1));
+  vio_backend->registerMapUpdateCallback(
+      std::bind(&BackendFixture::map_update_cb, this, std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
   Timestamp timestamp_km1 = t_start_ - before_start_imu_msgs_ * imu_time_step_;
@@ -485,10 +491,8 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
     BackendOutput::Ptr backend_output = vio_backend->spinOnce(
         BackendInput(timestamp_k,
                      all_measurements[k],
-                     tracker_status_valid.kfTrackingStatus_stereo_,
                      pim,
                      imu_accgyr,
-                     boost::none,
                      // Only push odometry after first one
                      k > 0u ? external_odometry_pose : boost::none,
                      boost::none));
@@ -527,60 +531,19 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
                   3 + k + 8 + (k - 1));  // 3 priors, 1 imu per time stamp, 8
                                          // smart factors, 1 odom between factor
       }
-
-      // Check between factors for odometry
-      if (k > 0) {
-        for (const auto& f : nlfg) {
-          if (f) {
-            boost::shared_ptr<gtsam::BetweenFactor<gtsam::Pose3>> btwn =
-                boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
-                    f);
-            if (btwn) {
-              EXPECT_EQ(btwn->keys().size(),
-                        k + 1);  // One per frame after first
-              for (size_t j = 1; j <= btwn->keys().size(); j++) {
-                EXPECT_EQ(gtsam::Symbol(btwn->keys().at(j - 1)),
-                          gtsam::Symbol('x', j));
-                EXPECT_EQ(btwn->measured().translation(),
-                          gtsam::Point3(0, 0, j / 1000.0));
-              }
-            }
-          }
-        }
-      }
     } else {
       if (k == 0) {
         EXPECT_EQ(nr_factors_in_smoother, 3);  // 3 priors
       } else if (k == 1) {
-        EXPECT_EQ(
-            nr_factors_in_smoother,
-            3 + 2 * k + 1);  // 3 priors, 1 imu + 1 between per time stamp:
-                                 // we do not include smart factors of length 1
-                                 // also the odom between factor
+        EXPECT_EQ(nr_factors_in_smoother,
+                  3 + 4 * k);  // 3 priors, 1 imu + 1 btw imu biases + 1 btw
+                               // stereo poses and 1 odom btw factor for each k.
+                               // We do not include smart factors of length 1
       } else {
-        EXPECT_EQ(
-            nr_factors_in_smoother,
-            3 + 2 * k + 8 + k);  // 3 priors, 1 imu + 1 between per time
-                                       // stamp, 8 smart factors
-                                       // also the odom between factors
-      }
-
-      // Check between factors for odometry
-      if (k == 3) {
-        for (const auto& f : nlfg) {
-          if (f) {
-            boost::shared_ptr<gtsam::BetweenFactor<gtsam::Pose3>> btwn =
-                boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(
-                    f);
-            if (btwn) {
-              EXPECT_EQ(btwn->keys().size(), 2);
-              EXPECT_EQ(btwn->keys().at(0), btwn->keys().at(1) - 1);
-              int key = gtsam::Symbol(btwn->keys().at(1)).index();
-              EXPECT_EQ(btwn->measured().translation().z(),
-                        key / 1000.0);
-            }
-          }
-        }
+        EXPECT_EQ(nr_factors_in_smoother,
+                  3 + 4 * k + 8);  // 3 priors, 1 imu + 1 btw imu biases +
+                                   // 1 btw stereo poses + 1 btw odom pose per
+                                   // k, 8 smart factors,
       }
     }
 

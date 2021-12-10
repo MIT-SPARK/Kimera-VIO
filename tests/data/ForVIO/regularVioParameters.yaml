@@ -33,11 +33,15 @@ betweenRotationPrecision: 1.11
 betweenTranslationPrecision: 2.22
 #OPTIMIZATION PARAMETERS
 relinearizeSkip: 12
-zeroVelocitySigma: 1.1
-noMotionPositionSigma: 1.2
-noMotionRotationSigma: 1.3
-constantVelSigma: 1.4
+zero_velocity_precision: 1.1
+no_motion_position_precision: 1.2
+no_motion_rotation_precision: 1.3
+constant_vel_precision: 1.4
 numOptimize: 0
-horizon: 2
+nr_states: 2 # number of nodes in horizon.
 wildfire_threshold: 0.001
 useDogLeg: 1
+
+# Method used to generate the initial guess for the pose of the keyframe
+pose_guess_source: 0
+mono_translation_scale_factor: 0.1

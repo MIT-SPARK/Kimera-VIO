@@ -81,8 +81,6 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       // ```
       shutdown_pipeline_cb_();
     }
-    // viz_output.window_->spinOnce(1, true);
-    setMeshProperties(&viz_output->widgets_);
 
     // Remove requested widgets, do this first, to not remove new things.
     for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
@@ -99,6 +97,10 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());
     }
+
+    // Update mesh visualization properties
+    setMeshProperties(&viz_output->widgets_);
+
     if (params_.hold_3d_display_) {
       // Spin forever until user closes window
       LOG(WARNING) << "Holding OpenCV 3d window display";

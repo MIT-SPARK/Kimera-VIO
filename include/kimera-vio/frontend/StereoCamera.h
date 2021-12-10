@@ -59,7 +59,7 @@ class StereoCamera {
  public:
   /** NOT TESTED
    * @brief project 3D Lmks into images as 2D pixels, doesn't do any check...
-   * @param lmks Given in World coordinates or rather in whatever frame of
+   * @param lmks Given in Body coordinates or rather in whatever frame of
    * reference the pose of the left camera is given (usually the body frame!)
    * @param left_kpts
    * @param right_kpts

@@ -41,8 +41,6 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
   MonoFrontendOutput(
       const bool& is_keyframe,
       const StatusMonoMeasurementsPtr& status_mono_measurements,
-      const TrackingStatus& tracker_status,
-      const gtsam::Pose3& relative_pose_body,
       const gtsam::Pose3& b_Pose_cam_rect,
       const Frame& frame_lkf,
       const ImuFrontend::PimPtr& pim,
@@ -60,8 +58,6 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
                                  lkf_body_Pose_kf_body,
                                  body_world_Vel_body),
         status_mono_measurements_(status_mono_measurements),
-        tracker_status_(tracker_status),
-        relative_pose_body_(relative_pose_body),
         b_Pose_cam_rect_(b_Pose_cam_rect),
         frame_lkf_(frame_lkf),
         feature_tracks_(feature_tracks) {}
@@ -70,8 +66,6 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
 
  public:
   const StatusMonoMeasurementsPtr status_mono_measurements_;
-  const TrackingStatus tracker_status_;
-  const gtsam::Pose3 relative_pose_body_;
   const gtsam::Pose3 b_Pose_cam_rect_;
   // TODO(nathan) make this name consistent
   /**

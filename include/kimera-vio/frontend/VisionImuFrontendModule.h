@@ -64,6 +64,10 @@ class VisionImuFrontendModule
     vio_frontend_->updateImuBias(imu_bias);
   }
 
+  inline void updateMap(const LandmarksMap& map) const {
+    vio_frontend_->updateMap(map);
+  }
+
   inline void registerImuTimeShiftUpdateCallback(
       const VisionImuFrontend::ImuTimeShiftCallback& callback) {
     vio_frontend_->registerImuTimeShiftUpdateCallback(callback);

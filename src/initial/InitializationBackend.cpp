@@ -21,8 +21,8 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
-#include "kimera-vio/utils/UtilsNumerical.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
@@ -64,14 +64,11 @@ bool InitializationBackend::bundleAdjustmentAndGravityAlignment(
     inputs_backend.push_back(VIO::make_unique<BackendInput>(
         init_input_payload.stereo_frame_lkf_.timestamp_,
         init_input_payload.status_stereo_measurements_,
-        init_input_payload.tracker_status_,
         init_input_payload.pim_,
-        init_input_payload.imu_acc_gyrs_,
-        init_input_payload.relative_pose_body_stereo_));
+        init_input_payload.imu_acc_gyrs_));
     pims.push_back(init_input_payload.pim_);
     // Bookkeeping for timestamps
-    Timestamp timestamp_kf =
-        init_input_payload.stereo_frame_lkf_.timestamp_;
+    Timestamp timestamp_kf = init_input_payload.stereo_frame_lkf_.timestamp_;
     delta_t_camera.push_back(
         UtilsNumerical::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
@@ -159,18 +156,12 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
     const BackendInput& input_iter = *input[i];
-    bool use_stereo_btw_factor =
-        backend_params_.addBetweenStereoFactors_ == true &&
-        input_iter.stereo_tracking_status_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
-    VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
     CHECK(input_iter.status_stereo_measurements_kf_);
     addInitialVisualState(
         input_iter.timestamp_,  // Current time for fixed lag smoother.
         *input_iter.status_stereo_measurements_kf_,  // Vision data.
-        use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
-                              : boost::none,
         0);
     last_kf_id_ = curr_kf_id_;
     ++curr_kf_id_;
@@ -221,7 +212,6 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
 void InitializationBackend::addInitialVisualState(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
     const int verbosity_ = 0) {
   debug_info_.resetAddedFactorsStatistics();
 
@@ -231,32 +221,41 @@ void InitializationBackend::addInitialVisualState(
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
-  if (stereo_ransac_body_pose && curr_kf_id_ != 0) {
+  if (status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID &&
+      curr_kf_id_ != 0) {
     // We need to keep adding the relative poses, since we process a
     // whole batch. Otherwise we start with wrong initial guesses.
-    W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(*stereo_ransac_body_pose);
+    gtsam::Pose3 B_lkf_Pose_B_k =
+        B_Pose_leftCamRect_ *
+        status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+        B_Pose_leftCamRect_.inverse();
+    W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(B_lkf_Pose_B_k);
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
+
+    if (backend_params_.addBetweenStereoFactors_ &&
+        status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+            TrackingStatus::VALID) {
+      addBetweenFactor(
+          last_kf_id_,
+          curr_kf_id_,
+          // I think this should be B_Pose_leftCamRect_...
+          B_Pose_leftCamRect_ *
+              status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+              B_Pose_leftCamRect_.inverse(),
+          backend_params_.betweenRotationPrecision_,
+          backend_params_.betweenTranslationPrecision_);
+    }
   } else {
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
   }
 
-  // add between factor from RANSAC
-  if (stereo_ransac_body_pose && curr_kf_id_ != 0) {
-    VLOG(10) << "Initialization: adding between ";
-    if (VLOG_IS_ON(10)) (*stereo_ransac_body_pose).print();
-    addBetweenFactor(last_kf_id_,
-                     curr_kf_id_,
-                     *stereo_ransac_body_pose,
-                     backend_params_.betweenRotationPrecision_,
-                     backend_params_.betweenTranslationPrecision_);
-  }
-
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
-  StereoMeasurements smartStereoMeasurements_kf =
+  const StereoMeasurements& smartStereoMeasurements_kf =
       status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
-  TrackingStatus kfTrackingStatus_stereo =
+  const TrackingStatus& kfTrackingStatus_stereo =
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
 
   // extract relevant information from stereo frame
@@ -282,15 +281,15 @@ void InitializationBackend::addInitialVisualState(
 /* -------------------------------------------------------------------------- */
 // TODO(Toni): do not return vectors...
 std::vector<gtsam::Pose3> InitializationBackend::optimizeInitialVisualStates(
-    const Timestamp &timestamp_kf_nsec,
-    const FrameId &cur_id,
-    const size_t &max_extra_iterations,
-    const std::vector<size_t> &extra_factor_slots_to_delete,
+    const Timestamp& timestamp_kf_nsec,
+    const FrameId& cur_id,
+    const size_t& max_extra_iterations,
+    const std::vector<size_t>& extra_factor_slots_to_delete,
     const int verbosity_) {  // TODO: Remove verbosity and use VLOG
 
   // Only for statistics and debugging.
   // Store start time to calculate absolute total time taken.
-  const auto &total_start_time = utils::Timer::tic();
+  const auto& total_start_time = utils::Timer::tic();
   // Store start time to calculate per module total time.
   auto start_time = total_start_time;
   // Reset all timing info.
@@ -298,7 +297,7 @@ std::vector<gtsam::Pose3> InitializationBackend::optimizeInitialVisualStates(
 
   // Create and fill non-linear graph
   gtsam::NonlinearFactorGraph new_factors_tmp;
-  for (const auto &new_smart_factor : new_smart_factors_) {
+  for (const auto& new_smart_factor : new_smart_factors_) {
     // Push back the smart factor to the list of new factors to add to the
     // graph.
     new_factors_tmp.push_back(
@@ -328,7 +327,7 @@ std::vector<gtsam::Pose3> InitializationBackend::optimizeInitialVisualStates(
   VLOG(10) << "Levenberg Marquardt optimizer done.";
   // Query optimized poses in body frame (b0_T_bk)
   std::vector<gtsam::Pose3> initial_states;
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair &key_value,
+  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
                  initial_values) {
     initial_states.push_back(initial_values.at<gtsam::Pose3>(key_value.key));
   }

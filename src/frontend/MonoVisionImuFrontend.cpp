@@ -16,6 +16,7 @@
 
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DEFINE_bool(log_mono_matching_images,
             false,
@@ -46,8 +47,8 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
       frontend_params_(frontend_params) {
   CHECK(mono_camera_);
 
-  tracker_ =
-      VIO::make_unique<Tracker>(frontend_params_, mono_camera_, display_queue);
+  tracker_ = VIO::make_unique<Tracker>(
+      frontend_params_.tracker_params_, mono_camera_, display_queue);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
       frontend_params_.feature_detector_params_);
@@ -89,8 +90,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   return VIO::make_unique<MonoFrontendOutput>(
       mono_frame_lkf_->isKeyframe_,
       nullptr,
-      TrackingStatus::DISABLED,
-      gtsam::Pose3::identity(),  // no stereo!
       mono_camera_->getBodyPoseCam(),
       *mono_frame_lkf_,
       nullptr,
@@ -175,8 +174,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     return VIO::make_unique<MonoFrontendOutput>(
         frontend_state_ == FrontendState::Nominal,
         status_mono_measurements,
-        TrackingStatus::DISABLED,  // This is a stereo status only
-        gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,
         pim,
@@ -196,8 +193,6 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     return VIO::make_unique<MonoFrontendOutput>(
         false,
         status_mono_measurements,
-        TrackingStatus::DISABLED,  // This is a stereo status only
-        gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_km1_,
         pim,
@@ -251,8 +246,10 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
   VLOG(2) << "Starting feature tracking...";
   gtsam::Rot3 ref_frame_R_cur_frame =
       keyframe_R_ref_frame_.inverse().compose(keyframe_R_cur_frame);
-  tracker_->featureTracking(
-      mono_frame_km1_.get(), mono_frame_k_.get(), ref_frame_R_cur_frame);
+  tracker_->featureTracking(mono_frame_km1_.get(),
+                            mono_frame_k_.get(),
+                            ref_frame_R_cur_frame,
+                            frontend_params_.feature_detector_params_);
   if (feature_tracks) {
     *feature_tracks =
         tracker_->getTrackerImage(*mono_frame_lkf_, *mono_frame_k_);
@@ -267,10 +264,10 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
 
   const bool max_time_elapsed =
       mono_frame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      tracker_->tracker_params_.intra_keyframe_time_ns_;
+      frontend_params_.min_intra_keyframe_time_ns_;
   const size_t& nr_valid_features = mono_frame_k_->getNrValidKeypoints();
   const bool nr_features_low =
-      nr_valid_features <= tracker_->tracker_params_.min_number_features_;
+      nr_valid_features <= frontend_params_.min_number_features_;
 
   LOG_IF(WARNING, mono_frame_k_->isKeyframe_) << "User enforced keyframe!";
 
@@ -283,9 +280,9 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
-        << tracker_->tracker_params_.min_number_features_ << ").";
+        << frontend_params_.min_number_features_ << ").";
 
-    if (tracker_->tracker_params_.useRANSAC_) {
+    if (frontend_params_.useRANSAC_) {
       TrackingStatusPose status_pose_mono;
       outlierRejectionMono(keyframe_R_cur_frame,
                            mono_frame_lkf_.get(),

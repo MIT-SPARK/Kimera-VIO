@@ -115,8 +115,6 @@ TEST_F(VisualizerFixture, spinOnce) {
   StereoFrontendOutput::Ptr frontend_output = std::make_shared<StereoFrontendOutput>(
       true,
       StatusStereoMeasurementsPtr(),
-      TrackingStatus(),
-      gtsam::Pose3::identity(),
       gtsam::Pose3::identity(),
       gtsam::Pose3::identity(),
       StereoFrame(FrameId(),
