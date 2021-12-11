@@ -276,6 +276,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testVioParams.cpp
     tests/testVisionImuFrontendParams.cpp
     tests/testFeatureDetectorParams.cpp
+    tests/testFeatureDetector.cpp
     tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp

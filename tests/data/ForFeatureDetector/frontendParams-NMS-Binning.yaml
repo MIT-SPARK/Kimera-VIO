@@ -12,17 +12,17 @@ maxFeatureAge: 25
 # 2: AGAST
 # 3: GFTT, aka Good Features To Track
 feature_detector_type: 3
-maxFeaturesPerFrame: 300
+maxFeaturesPerFrame: 20
 
 # Good Features To Track specific parameters
-quality_level: 0.001
+quality_level: 0.0001
 min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
 
-# FAST detector specific parameters [10, 20]
-fast_thresh: 10
+# FAST detector specific parameters
+fast_thresh: 5
 
 equalizeImage: 0
 nominalBaseline: 0.11
@@ -38,7 +38,7 @@ bidirectionalMatching: 0
 max_nr_keypoints_before_anms: 2000
 enable_non_max_suppression: 1
 non_max_suppression_type: 6
-nr_horizontal_bins: 7
+nr_horizontal_bins: 4
 nr_vertical_bins: 5
 binning_mask: []
 
@@ -61,9 +61,7 @@ ransac_use_2point_mono: 1
 ransac_max_iterations: 100
 ransac_probability: 0.995
 ransac_randomize: 0
-min_intra_keyframe_time: 0.2
-max_intra_keyframe_time: 5.0
-max_disparity_since_lkf: 1000 #large value to disable
+intra_keyframe_time: 0.2
 minNumberFeatures: 0
 useStereoTracking: 1
 disparityThreshold: 0.5
@@ -71,19 +69,3 @@ disparityThreshold: 0.5
 # 0: Static - assumes no optical flow between images (aka static camera).
 # 1: Rotational - use IMU gyro to estimate optical flow.
 optical_flow_predictor_type: 1
-
-# 2D-2D pose estimation method
-use_2d2d_tracking: 1
-2d2d_algorithm: 1 # Nister
-optimize_2d2d_pose_from_inliers: 0
-
-# 3D-3D pose estimation
-use_3d3d_tracking: 1
-optimize_3d3d_pose_from_inliers: 0
-
-# 2D-3D pose estimation method
-use_pnp_tracking: 0
-pnp_algorithm: 3 # EPNP
-min_pnp_inliers: 20
-ransac_threshold_pnp: 1.0 # pixels
-optimize_2d3d_pose_from_inliers: 0
