@@ -46,7 +46,7 @@ class LCDFixture : public ::testing::Test {
   const double tran_tol_mono =
       0.1;  // meters (error rescaled using ground-truth)
   const double rot_tol_stereo = 0.3;   // radians
-  const double tran_tol_stereo = 0.6;  // meters TODO see why 0.5 will do pass TEST_F(LCDFixture, recoverPoseBodyPnpMono)
+  const double tran_tol_stereo = 0.6;  // meters TODO see why 0.5 will not pass TEST_F(LCDFixture, recoverPoseBodyPnpMono)
 
  public:
   LCDFixture()
