@@ -8,16 +8,17 @@
 
 /**
  * @file   NonMaximumSuppression.h
- * @brief  Base class for non maximum suppresion interface
+ * @brief  Base class for non maximum suppression interface
  * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
 
+#include <opencv2/opencv.hpp>
 #include <vector>
 
-#include <opencv2/opencv.hpp>
-
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -39,7 +40,10 @@ class NonMaximumSuppression {
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) = 0;
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins,
+      const Eigen::MatrixXd& binning_mask) = 0;
 };
 
 /**
@@ -52,6 +56,7 @@ enum class AnmsAlgorithmType : unsigned int {
   KdTree = 3,
   RangeTree = 4,
   Ssc = 5,
+  Binning = 6
 };
 
 /**
@@ -61,6 +66,7 @@ enum class AnmsAlgorithmType : unsigned int {
  Bogdan, Oleksandr and Kweon, In So
  * "Efficient adaptive non-maximal suppression algorithms for homogeneous
  spatial keypoint distribution}, Pattern Recognition Letters
+ with an extra option to do feature binning as an alternative nms approach.
  */
 class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
  public:
@@ -75,7 +81,18 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
       const int& numRetPoints,
       const float& tolerance,
       const int& cols,
-      const int& rows) override;
+      const int& rows,
+      const int& nr_horizontal_bins,
+      const int& nr_vertical_bins,
+      const Eigen::MatrixXd& binning_mask) override;
+
+  std::vector<cv::KeyPoint> binning(const std::vector<cv::KeyPoint>& keyPoints,
+                                    const int& numRetPoints,
+                                    const int& cols,
+                                    const int& rows,
+                                    const int& nr_horizontal_bins,
+                                    const int& nr_vertical_bins,
+                                    const Eigen::MatrixXd& binning_mask);
 
   /**
    * @brief setAnmsAlgorithm in case the user wants to dynamically change the

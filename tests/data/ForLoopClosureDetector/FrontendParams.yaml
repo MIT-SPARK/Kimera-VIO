@@ -35,8 +35,12 @@ maxPointDist: 10
 bidirectionalMatching: 0
 
 # Non-maximum suppression params
+max_nr_keypoints_before_anms: 2000
 enable_non_max_suppression: 0
 non_max_suppression_type: 4
+nr_horizontal_bins: 5
+nr_vertical_bins: 5
+binning_mask: []
 
 # Subpixel corner refinement for the monocular case
 enable_subpixel_corner_finder: 1
@@ -78,7 +82,7 @@ use_3d3d_tracking: 1
 optimize_3d3d_pose_from_inliers: 0
 
 # 2D-3D pose estimation method
-use_pnp_tracking: false
+use_pnp_tracking: 0
 pnp_algorithm: 3 # EPNP
 min_pnp_inliers: 10
 ransac_threshold_pnp: 1.0 # pixels
