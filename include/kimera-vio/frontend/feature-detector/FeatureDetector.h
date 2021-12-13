@@ -15,8 +15,8 @@
 #pragma once
 
 #include <Eigen/Eigen>
-
 #include <opencv2/features2d.hpp>
+#include <vector>
 
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"

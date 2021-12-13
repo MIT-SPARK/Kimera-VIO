@@ -6,9 +6,9 @@ target_include_directories(triangle PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 set_target_properties(triangle PROPERTIES POSITION_INDEPENDENT_CODE ON)
-# TODO(nathan) pick up -march=native from top-level file
-target_compile_options(triangle
-    PRIVATE -march=native -Wno-format)
+#TODO(someone) consider removing march=native here
+target_compile_options(triangle PRIVATE -march=native -Wno-format)
+
 add_library(triangle::triangle ALIAS triangle)
 
 install(TARGETS triangle EXPORT kimera_vio-export

@@ -169,10 +169,7 @@ else(Pangolin_FOUND)
   message(STATUS "Pangolin not found.")
 endif(Pangolin_FOUND)
 
-target_compile_options(${PROJECT_NAME}
-  PRIVATE -Wall -pipe
-  PRIVATE -march=native
-)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -pipe)
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(${PROJECT_NAME} PUBLIC
@@ -276,6 +273,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testVioParams.cpp
     tests/testVisionImuFrontendParams.cpp
     tests/testFeatureDetectorParams.cpp
+    tests/testFeatureDetector.cpp
     tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp

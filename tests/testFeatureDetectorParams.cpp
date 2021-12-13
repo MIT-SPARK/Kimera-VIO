@@ -37,14 +37,41 @@ TEST(testFeatureDetectorParams, FeatureDetectorParamParseYAML) {
   EXPECT_EQ(VIO::to_underlying(tp.feature_detector_type_), 0);
   EXPECT_EQ(tp.max_features_per_frame_, 200);
   EXPECT_EQ(tp.enable_subpixel_corner_refinement_, true);
-  EXPECT_TRUE(tp.subpixel_corner_finder_params_.equals(expected_subpixel_params));
+  EXPECT_TRUE(
+      tp.subpixel_corner_finder_params_.equals(expected_subpixel_params));
   EXPECT_EQ(tp.enable_non_max_suppression_, true);
   EXPECT_EQ(VIO::to_underlying(tp.non_max_suppression_type_), 4);
+  EXPECT_EQ(tp.nr_horizontal_bins_, 5);
+  EXPECT_EQ(tp.nr_vertical_bins_, 2);
+  CHECK(
+      gtsam::assert_equal(tp.binning_mask_, Eigen::MatrixXd::Ones(2, 5), 1e-9));
   EXPECT_EQ(tp.quality_level_, 0.5);
   EXPECT_EQ(tp.block_size_, 3);
   EXPECT_EQ(tp.use_harris_corner_detector_, 0);
   EXPECT_EQ(tp.k_, 0.04);
   EXPECT_EQ(tp.fast_thresh_, 52);
+}
+
+TEST(testFeatureDetectorParams, FeatureDetectorParamParseYAML2) {
+  // check that YAML is parsed correctly
+
+  // Test parseYAML
+  FeatureDetectorParams tp;
+  tp.parseYAML(FLAGS_test_data_path +
+               "/ForFeatureDetector/frontendParams-NMS-Binning2.yaml");
+
+  EXPECT_EQ(tp.enable_non_max_suppression_, true);
+  EXPECT_EQ(VIO::to_underlying(tp.non_max_suppression_type_), 6);
+  EXPECT_EQ(tp.nr_horizontal_bins_, 4);
+  EXPECT_EQ(tp.nr_vertical_bins_, 5);
+  Eigen::MatrixXd expectedBins = Eigen::MatrixXd::Ones(5, 4);
+  expectedBins(0, 0) = 0;
+  expectedBins(0, 1) = 0;
+  expectedBins(0, 2) = 0;
+  expectedBins(0, 3) = 0;
+  expectedBins(3, 0) = 0;
+  expectedBins(3, 2) = 0;
+  CHECK(gtsam::assert_equal(tp.binning_mask_, expectedBins, 1e-9));
 }
 
 TEST(testFeatureDetectorParams, equals) {
