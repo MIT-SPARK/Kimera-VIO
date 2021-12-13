@@ -165,9 +165,6 @@ void Tracker::featureTracking(
   cur_frame->keypoints_.reserve(px_ref.size());
   cur_frame->scores_.reserve(px_ref.size());
   cur_frame->versors_.reserve(px_ref.size());
-
-  int number_rejected_features = 0;
-
   for (size_t i = 0u; i < indices_of_valid_landmarks.size(); ++i) {
     // If we failed to track mark off that landmark
     const size_t& idx_valid_lmk = indices_of_valid_landmarks[i];
@@ -178,20 +175,9 @@ void Tracker::featureTracking(
     if (!status[i] || lmk_age > tracker_params_.max_feature_track_age_) {
       // we are marking this bad in the ref_frame since features
       // in the ref frame guide feature detection later on
-      number_rejected_features ++;
-
-      // this gets set to -1 for all landmarks if we lose feature tracking which 
-      // messes up the reference frame. thus we need to reset it
-      // signal failed case
-      if (indices_of_valid_landmarks.size()-number_rejected_features == 0){
-      cur_frame->keypoints_.clear(); // should already be empty
-      }
-      else{
-        ref_frame->landmarks_[idx_valid_lmk] = -1;
-      }
+      ref_frame->landmarks_[idx_valid_lmk] = -1;
       continue;
     }
-
     cur_frame->landmarks_.push_back(lmk_id);
     cur_frame->landmarks_age_.push_back(lmk_age);
     cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
@@ -344,10 +330,11 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
 
   KeypointMatches matches_ref_cur;
   findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
+
   TrackingStatusPose result;
 
   if (matches_ref_cur.empty()) {
-    LOG(WARNING) << "No matching keypoints from frame " << ref_frame->id_
+    LOG(ERROR) << "No matching keypoints from frame " << ref_frame->id_
                << " to frame " << cur_frame->id_ << ".\n"
                << "Mono Tracking Status = INVALID.";
     result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());

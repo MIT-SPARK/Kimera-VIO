@@ -153,7 +153,6 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
   } else {
     LOG(WARNING) << "No corners extracted for frame with id: "
                  << cur_frame->id_;
-    cur_frame->keypoints_.clear();
   }
 }
 
