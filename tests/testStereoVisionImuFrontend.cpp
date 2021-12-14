@@ -940,7 +940,7 @@ TEST_F(StereoVisionImuFrontendFixture, testLostFeatureTrack) {
   p.stereo_matching_params_.max_point_dist_ = 500;
   p.max_disparity_since_lkf_ = 30; //not necessarily a value that would be put into practice, but used to make testing easier
   
-  // make  two simple images
+  // make two simple images
   cv::Mat simple_left = cv::Mat::zeros(cam_params_left.image_size_,CV_8UC1);
   cv::Mat simple_right = cv::Mat::zeros(cam_params_right.image_size_,CV_8UC1);
   simple_left.colRange(4,6).rowRange(2,4) = 255.0;

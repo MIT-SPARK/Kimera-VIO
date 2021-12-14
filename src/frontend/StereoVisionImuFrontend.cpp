@@ -312,7 +312,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                             stereo_camera_->getR1());
 
   // feature tracking failed for all points, move on to the next frame                       
-  if(left_frame_k->keypoints_.size() == 0){
+  if(left_frame_k->keypoints_.size() == 0) {
     VLOG(2) << "feature tracking failed for all points, moving to next frame \n" ;
     feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
     stereoFrame_km1_ = stereoFrame_k_;
