@@ -310,6 +310,20 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                             ref_frame_R_cur_frame,
                             frontend_params_.feature_detector_params_,
                             stereo_camera_->getR1());
+
+  // feature tracking failed for all points, move on to the next frame                       
+  if(left_frame_k->keypoints_.size() == 0) {
+    VLOG(2) << "feature tracking failed for all points, moving to next frame \n" ;
+    feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
+    stereoFrame_km1_ = stereoFrame_k_;
+    stereoFrame_k_.reset();
+    ++frame_count_;
+    StereoMeasurements smart_stereo_measurements;
+    return std::make_shared<StatusStereoMeasurements>(
+      std::make_pair(tracker_status_summary_,
+                     smart_stereo_measurements));
+  }
+
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
     // TODO(Toni): this image should already be computed and inside the

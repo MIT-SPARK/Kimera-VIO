@@ -916,4 +916,133 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
 
 }
 
+TEST_F(StereoVisionImuFrontendFixture, testLostFeatureTrack) {
+  // Things to test:
+  // receives a frame that is blinded (feature tracking is lost but some texture is still in the image)
+  // pipeline should not make the blinded frame a keyframe and should not throw an error
+
+  CameraParams cam_params_left, cam_params_right;
+  std::string synthetic_stereo_path(FLAGS_test_data_path + "/ForStereoTracker");
+  cam_params_left.parseYAML(synthetic_stereo_path + "/camLeftEuroc.yaml");
+  cam_params_right.parseYAML(synthetic_stereo_path + "/camRightEuroc.yaml");
+
+  Pose3 camL_Pose_camR =
+      cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
+
+  // Already rectified
+  Vector3 baseline = camL_Pose_camR.translation();
+
+  FrontendParams p;  // default
+  p.feature_detector_params_.min_distance_btw_tracked_and_detected_features_ =
+      0.05;
+  p.feature_detector_params_.quality_level_ = 0.1;
+  p.stereo_matching_params_.nominal_baseline_ = baseline(0);
+  p.stereo_matching_params_.max_point_dist_ = 500;
+  p.max_disparity_since_lkf_ = 30; //not necessarily a value that would be put into practice, but used to make testing easier
+  
+  // make two simple images
+  cv::Mat simple_left = cv::Mat::zeros(cam_params_left.image_size_,CV_8UC1);
+  cv::Mat simple_right = cv::Mat::zeros(cam_params_right.image_size_,CV_8UC1);
+  simple_left.colRange(4,6).rowRange(2,4) = 255.0;
+  simple_right.colRange(2,4).rowRange(2,4) = 255.0;
+
+  // make two blinded images
+  cv::Mat blinded_left = cv::Mat::zeros(cam_params_left.image_size_,CV_8UC1);
+  cv::Mat blinded_right = cv::Mat::zeros(cam_params_right.image_size_,CV_8UC1);
+  // create minimal texture, allows some keypoints to be generated but they won't correspond to anything in the prior frame
+  blinded_left.colRange(300,310).rowRange(300,320) = 255.0;
+  blinded_right.colRange(290,300).rowRange(300,320) = 255.0;
+
+  StereoFrame zeroth_stereo_frame(
+      0,
+      0,
+      Frame(0, 
+            0, 
+            cam_params_left, 
+            simple_left),
+      Frame(0,
+            0,
+            cam_params_right,
+            simple_right));
+
+  VIO::Camera::ConstPtr left_camera = std::make_shared<VIO::Camera>(cam_params_left);
+  VIO::Camera::ConstPtr right_camera = std::make_shared<VIO::Camera>(cam_params_right);
+  VIO::StereoCamera::ConstPtr stereo_camera =
+      std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
+
+  StereoVisionImuFrontend st(imu_params_, ImuBias(), p, stereo_camera);
+
+  EXPECT_FALSE(st.isInitialized());
+  ImuStampS zeroth_imu_stamps(1, 3);
+  zeroth_imu_stamps << 0,0,0;
+  ImuAccGyrS fake_imu_acc_gyr;
+  fake_imu_acc_gyr.setRandom(6, 3);
+  VIO::FrontendInputPacketBase::UniquePtr input0 =
+      VIO::make_unique<StereoImuSyncPacket>(
+          zeroth_stereo_frame, zeroth_imu_stamps, fake_imu_acc_gyr);
+  VIO::FrontendOutputPacketBase::UniquePtr output_base0 = st.spinOnce(std::move(input0));
+  VIO::StereoFrontendOutput::UniquePtr output0 =
+  VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
+          std::move(output_base0));
+  const StereoFrame& sf0 = output0->stereo_frame_lkf_;
+  EXPECT_TRUE(sf0.isKeyframe());
+
+  StereoFrame first_stereo_frame(
+      1,
+      3.1e+6,
+      Frame(1, 
+            3.1e+6, 
+            cam_params_left, 
+            blinded_left),
+      Frame(1,
+            3.1e+6,
+            cam_params_right,
+            blinded_right));
+  ImuAccGyrS fake_imu_acc_gyr1;
+  fake_imu_acc_gyr1.setRandom(6, 2);
+  ImuStampS first_imu_stamps(1, 2);
+  first_imu_stamps << 3e+6, 3.1e+6;
+  VIO::FrontendInputPacketBase::UniquePtr input1 =
+    VIO::make_unique<StereoImuSyncPacket>(
+        first_stereo_frame, first_imu_stamps, fake_imu_acc_gyr1);
+  VIO::FrontendOutputPacketBase::UniquePtr output_base1 = st.spinOnce(std::move(input1));
+  VIO::StereoFrontendOutput::UniquePtr output1 =
+      VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
+          std::move(output_base1));
+  EXPECT_TRUE(st.isInitialized());
+  ASSERT_TRUE(output1);
+  const StereoFrame& sf1 = output1->stereo_frame_lkf_;
+
+  EXPECT_FALSE(sf1.isKeyframe());
+
+  StereoFrame second_stereo_frame(
+      2,
+      6.1e+6,
+      Frame(2, 
+            6.1e+6, 
+            cam_params_left, 
+            blinded_left),
+      Frame(2,
+            6.1e+6,
+            cam_params_right,
+            blinded_right));
+  ImuAccGyrS fake_imu_acc_gyr2;
+  fake_imu_acc_gyr2.setRandom(6, 2);
+  ImuStampS second_imu_stamps(1, 2);
+  second_imu_stamps << 6e+6, 6.1e+6;
+  VIO::FrontendInputPacketBase::UniquePtr input2 =
+    VIO::make_unique<StereoImuSyncPacket>(
+        second_stereo_frame, second_imu_stamps, fake_imu_acc_gyr2);
+  VIO::FrontendOutputPacketBase::UniquePtr output_base2 = st.spinOnce(std::move(input2));
+  VIO::StereoFrontendOutput::UniquePtr output2 =
+      VIO::safeCast<VIO::FrontendOutputPacketBase, VIO::StereoFrontendOutput>(
+          std::move(output_base2));
+  EXPECT_TRUE(st.isInitialized());
+  ASSERT_TRUE(output2);
+  const StereoFrame& sf2 = output2->stereo_frame_lkf_;
+
+  // should be able to track, optical flow works since points bear correspondence to prior image
+  EXPECT_TRUE(sf2.isKeyframe());
+  }
+
 } // namespace VIO
