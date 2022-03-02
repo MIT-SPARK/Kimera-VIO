@@ -121,7 +121,7 @@ RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
 # Install Kimera-VIO
-RUN git clone https://github.com/sanderfo/Kimera-VIO.git
+RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
