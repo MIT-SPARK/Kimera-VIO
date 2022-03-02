@@ -4,7 +4,7 @@ FROM ubuntu:18.04
 MAINTAINER Antoni Rosinol "arosinol@mit.edu"
 
 # To avoid tzdata asking for geographic location...
-ENV DEBIAN_frontend noninteractive
+ENV DEBIAN_FRONTEND noninteractive
 
 # Set the working directory to /root
 ENV DIRPATH /root
@@ -103,6 +103,7 @@ RUN python3.5 $(which pip3) install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/Kimera-VIO-Evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/Kimera-VIO-Evaluation.git
+RUN apt install libffi-dev -y
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
 RUN cd Kimera-VIO-Evaluation && python3.5 $(which pip3) install -e .
 
@@ -120,7 +121,7 @@ RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
 # Install Kimera-VIO
-RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git
+RUN git clone https://github.com/sanderfo/Kimera-VIO.git
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.

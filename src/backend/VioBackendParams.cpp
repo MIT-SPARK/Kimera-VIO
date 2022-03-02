@@ -43,12 +43,12 @@ void BackendParams::setIsam2Params(const BackendParams& vio_params,
 
   // TODO (Toni): remove hardcoded
   // Cache Linearized Factors seems to improve performance.
-  isam_param->setCacheLinearizedFactors(true);
+  isam_param->cacheLinearizedFactors = true;
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
   isam_param->findUnusedFactorSlots = true;
   // isam_param->enablePartialRelinearizationCheck = true;
-  isam_param->setEvaluateNonlinearError(false);  // only for debugging
+  isam_param->evaluateNonlinearError = false;  // only for debugging
   isam_param->enableDetailedResults = false;     // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
 }
