@@ -34,8 +34,9 @@ class StereoImuPipeline : public Pipeline {
      * @param displayer Optional displayer for visualizing 2D results
      */
   StereoImuPipeline(const VioParams& params,
-                 Visualizer3D::UniquePtr&& visualizer = nullptr,
-                 DisplayBase::UniquePtr&& displayer = nullptr);
+                    Visualizer3D::UniquePtr&& visualizer = nullptr,
+                    DisplayBase::UniquePtr&& displayer = nullptr,
+                    std::unique_ptr<OrbVocabulary>&& preloaded_vocab = nullptr);
 
   ~StereoImuPipeline() = default;
 

@@ -39,11 +39,17 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     backend_queue_.push(backend_payload);
   }
 
+  LoopResult registerFrames(FrameId first_kf, FrameId second_kf) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return lcd_->registerFrames(first_kf, second_kf);
+  }
+
  protected:
   //! Synchronize input queues.
   InputUniquePtr getInputPacket() override;
 
   OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
+    std::unique_lock<std::mutex> lock(mutex_);
     return lcd_->spinOnce(*input);
   }
 
@@ -67,6 +73,9 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
   //! Lcd implementation
   LoopClosureDetector::UniquePtr lcd_;
+
+  // handles access to underlying lcd detector
+  std::mutex mutex_;
 };
 
 }  // namespace VIO

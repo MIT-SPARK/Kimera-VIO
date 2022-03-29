@@ -35,6 +35,15 @@ DEFINE_string(vocabulary_path,
               "../vocabulary/ORBvoc.yml",
               "Path to BoW vocabulary file for LoopClosureDetector module.");
 
+DEFINE_bool(
+    lcd_no_optimize,
+    false,
+    "disable RPGO optimization after a valid loop closure is detected.");
+
+DEFINE_bool(lcd_no_detection,
+            false,
+            "disable detection of potential loop closures");
+
 /** Verbosity settings: (cumulative with every increase in level)
       0: Runtime errors and warnings, spin start and frequency are reported.
       1: Loop closure detections are reported as warnings.
@@ -44,6 +53,20 @@ DEFINE_string(vocabulary_path,
 
 namespace VIO {
 
+std::unique_ptr<OrbVocabulary> loadOrbVocabulary() {
+  std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
+  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path: "
+                        << FLAGS_vocabulary_path;
+  f_vocab.close();
+
+  auto vocab = VIO::make_unique<OrbVocabulary>();
+  LOG(INFO) << "LoopClosureDetector:: Loading vocabulary from "
+            << FLAGS_vocabulary_path;
+  vocab->load(FLAGS_vocabulary_path);
+  LOG(INFO) << "Loaded vocabulary with " << vocab->size() << " visual words.";
+  return vocab;
+}
+
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
@@ -51,7 +74,8 @@ LoopClosureDetector::LoopClosureDetector(
     const gtsam::Pose3& B_Pose_Cam,
     const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
     const boost::optional<StereoMatchingParams>& stereo_matching_params,
-    bool log_output)
+    bool log_output,
+    std::unique_ptr<OrbVocabulary>&& preloaded_vocab)
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
       log_output_(log_output),
@@ -70,11 +94,7 @@ LoopClosureDetector::LoopClosureDetector(
       W_Pose_Blkf_estimates_(),
       num_lc_unoptimized_(0),
       logger_(nullptr) {
-  // Shared noise model initialization
-  gtsam::Vector6 precisions;
-  precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
-  precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
-  shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
+  setup(std::move(preloaded_vocab));
 
   // Outlier rejection initialization (inside of tracker)
   tracker_ = VIO::make_unique<Tracker>(
@@ -90,6 +110,22 @@ LoopClosureDetector::LoopClosureDetector(
   } else {
     VLOG(5) << "LoopClosureDetector initializing in mono mode.";
   }
+
+  if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
+}
+
+LoopClosureDetector::~LoopClosureDetector() {
+  LOG(INFO) << "LoopClosureDetector desctuctor called.";
+}
+
+/* ------------------------------------------------------------------------ */
+void LoopClosureDetector::setup(
+    std::unique_ptr<OrbVocabulary>&& preloaded_vocab) {
+  // Initialize noise model
+  Vector6 precisions;
+  precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
+  precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
+  shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
@@ -107,38 +143,29 @@ LoopClosureDetector::LoopClosureDetector(
       cv::DescriptorMatcher::create(lcd_params_.matcher_type_);
 
   // Load ORB vocabulary:
-  std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
-  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path: "
-                        << FLAGS_vocabulary_path;
-  f_vocab.close();
-
-  OrbVocabulary vocab;
-  LOG(INFO) << "LoopClosureDetector:: Loading vocabulary from "
-            << FLAGS_vocabulary_path;
-  vocab.load(FLAGS_vocabulary_path);
-  LOG(INFO) << "Loaded vocabulary with " << vocab.size() << " visual words.";
+  std::unique_ptr<OrbVocabulary> vocab = std::move(preloaded_vocab);
+  if (!vocab) {
+    vocab = loadOrbVocabulary();
+  }
 
   // Initialize the thirdparty wrapper:
   lcd_tp_wrapper_ = VIO::make_unique<LcdThirdPartyWrapper>(lcd_params_);
 
   // Initialize db_BoW_:
-  db_BoW_ = VIO::make_unique<OrbDatabase>(vocab);
+  db_BoW_ = VIO::make_unique<OrbDatabase>(*vocab);
 
   // Initialize pgo_:
   // TODO(marcus): parametrize the verbosity of PGO params
   KimeraRPGO::RobustSolverParams pgo_params;
-  pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
-                                  lcd_params_.pgo_rot_threshold_,
+  pgo_params.setPcmSimple3DParams(lcd_params_.odom_trans_threshold_,
+                                  lcd_params_.odom_rot_threshold_,
+                                  lcd_params_.pcm_trans_threshold_,
+                                  lcd_params_.pcm_rot_threshold_,
                                   KimeraRPGO::Verbosity::QUIET);
-  if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1)
+  if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1) {
     pgo_params.setGncInlierCostThresholdsAtProbability(lcd_params_.gnc_alpha_);
+  }
   pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
-
-  if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
-}
-
-LoopClosureDetector::~LoopClosureDetector() {
-  LOG(INFO) << "LoopClosureDetector desctuctor called.";
 }
 
 /* ------------------------------------------------------------------------ */
@@ -195,10 +222,8 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
           << "LoopClosureDetector not implemented for this frontend type.";
     }
   }
-  detectLoop(lcd_frame_id, &loop_result);
-
   // Build and add LC factor if result is a loop closure.
-  if (loop_result.isLoop()) {
+  if (!FLAGS_lcd_no_detection && detectLoop(lcd_frame_id, &loop_result)) {
     VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
             << loop_result.match_id_ << " to keyframe "
             << loop_result.query_id_;
@@ -230,6 +255,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // Construct output payload.
   CHECK(pgo_);
   const gtsam::Pose3& w_Pose_map = getWPoseMap();
+  const gtsam::Pose3& map_Pose_odom = getMapPoseOdom();
   const gtsam::Values& pgo_states = pgo_->calculateEstimate();
   const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactorsUnsafe();
 
@@ -244,13 +270,22 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     loop_result.query_id_,
                                     loop_result.relative_pose_,
                                     w_Pose_map,
+                                    map_Pose_odom,
                                     pgo_states,
-                                    pgo_nfg);
+                                    pgo_nfg,
+                                    db_frames_.back()->keypoints_3d_,
+                                    latest_bowvec_,
+                                    db_frames_.back()->descriptors_mat_);
   } else {
-    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_);
-    output_payload->W_Pose_Map_ = w_Pose_map;
-    output_payload->states_ = pgo_states;
-    output_payload->nfg_ = pgo_nfg;
+    output_payload =
+        VIO::make_unique<LcdOutput>(input.timestamp_,
+                                    w_Pose_map,
+                                    map_Pose_odom,
+                                    pgo_states,
+                                    pgo_nfg,
+                                    db_frames_.back()->keypoints_3d_,
+                                    latest_bowvec_,
+                                    db_frames_.back()->descriptors_mat_);
   }
   CHECK(output_payload) << "Missing LCD output payload.";
 
@@ -445,7 +480,7 @@ void LoopClosureDetector::descriptorMatToVec(
 }
 
 /* ------------------------------------------------------------------------ */
-void LoopClosureDetector::detectLoop(const FrameId& frame_id,
+bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
                                      LoopResult* result) {
   CHECK_NOTNULL(result);
 
@@ -569,8 +604,54 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
   } else {
     VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
   }
+  return result->isLoop();
 }
 
+LoopResult LoopClosureDetector::registerFrames(FrameId query_id,
+                                               FrameId match_id) {
+  LoopResult result;
+  result.query_id_ = query_id;
+  result.match_id_ = match_id;
+
+  if (db_frames_.size() <= query_id || db_frames_.size() <= match_id) {
+    result.status_ = LCDStatus::NO_MATCHES;
+    return result;
+  }
+
+  // Find correspondences between keypoints.
+  KeypointMatches matches_match_query;
+  computeDescriptorMatches(db_frames_[result.match_id_]->descriptors_mat_,
+                           db_frames_[result.query_id_]->descriptors_mat_,
+                           &matches_match_query,
+                           true);
+
+  gtsam::Pose3 match_T_query;
+  std::vector<int> inliers;
+  bool pass_geometric_verification =
+      geometricVerificationCam2d2d(result.match_id_,
+                                   result.query_id_,
+                                   matches_match_query,
+                                   &match_T_query,
+                                   &inliers);
+
+  if (!pass_geometric_verification) {
+    result.status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
+    return result;
+  }
+
+  bool pose_valid = recoverPoseBody(result.match_id_,
+                                    result.query_id_,
+                                    match_T_query,
+                                    matches_match_query,
+                                    &(result.relative_pose_),
+                                    &inliers);
+
+  result.status_ =
+      pose_valid ? LCDStatus::LOOP_DETECTED : LCDStatus::FAILED_POSE_RECOVERY;
+  return result;
+}
+
+// TODO(Yun) change ref cur to query match for consistency
 /* ------------------------------------------------------------------------ */
 bool LoopClosureDetector::geometricVerificationCam2d2d(
     const FrameId& ref_id,
@@ -838,6 +919,21 @@ const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
 }
 
 /* ------------------------------------------------------------------------ */
+const gtsam::Pose3 LoopClosureDetector::getMapPoseOdom() const {
+  if (W_Pose_Blkf_estimates_.size() > 1) {
+    CHECK(pgo_);
+    const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
+    const gtsam::Pose3& w_Pose_Bkf_optimal =
+        pgo_->calculateEstimate().at<gtsam::Pose3>(
+            W_Pose_Blkf_estimates_.size() - 1);
+
+    return w_Pose_Bkf_optimal.compose(w_Pose_Bkf_estim.inverse());
+  }
+
+  return gtsam::Pose3::identity();
+}
+
+/* ------------------------------------------------------------------------ */
 const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
   CHECK(pgo_);
   return pgo_->calculateEstimate();
@@ -1091,7 +1187,7 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
   }
 
   CHECK(pgo_);
-  pgo_->update(nfg, gtsam::Values(), do_optimize);
+  pgo_->update(nfg, gtsam::Values(), do_optimize && !FLAGS_lcd_no_optimize);
 }
 
 }  // namespace VIO

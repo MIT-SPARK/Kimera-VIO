@@ -34,7 +34,8 @@ class LcdFactory {
       const gtsam::Pose3& B_Pose_Cam,
       const boost::optional<StereoCamera::ConstPtr>& stereo_camera,
       const boost::optional<StereoMatchingParams>& stereo_matching_params,
-      bool log_output) {
+      bool log_output,
+      std::unique_ptr<OrbVocabulary>&& preloaded_vocab = nullptr) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
         return VIO::make_unique<LoopClosureDetector>(lcd_params,
@@ -42,7 +43,8 @@ class LcdFactory {
                                                      B_Pose_Cam,
                                                      stereo_camera,
                                                      stereo_matching_params,
-                                                     log_output);
+                                                     log_output,
+                                                     std::move(preloaded_vocab));
       }
       default: {
         LOG(FATAL) << "Requested loop closure detector type is not supported.\n"

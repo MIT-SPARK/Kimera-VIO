@@ -43,6 +43,8 @@ class RobustSolver;
 
 namespace VIO {
 
+std::unique_ptr<OrbVocabulary> loadOrbVocabulary();
+
 /* ------------------------------------------------------------------------ */
 class LoopClosureDetector {
  public:
@@ -66,7 +68,8 @@ class LoopClosureDetector {
           boost::none,
       const boost::optional<StereoMatchingParams>& stereo_matching_params =
           boost::none,
-      bool log_output = false);
+      bool log_output = false,
+      std::unique_ptr<OrbVocabulary>&& preloaded_vocab = nullptr);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -121,7 +124,7 @@ class LoopClosureDetector {
    * @param[out] result A pointer to the LoopResult that is filled with the
    *  result of the loop-closure detection stage.
    */
-  void detectLoop(const FrameId& frame_id, LoopResult* result);
+  bool detectLoop(const FrameId& frame_id, LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Verify that the geometry between two frames is close enough to be
@@ -160,6 +163,11 @@ class LoopClosureDetector {
                        gtsam::Pose3* bodyMatch_T_bodyQuery_3d,
                        std::vector<int>* inliers);
 
+  /**
+   * @brief Register a loop closure between two frames in a threadsafe manner
+   */
+  LoopResult registerFrames(FrameId query_id, FrameId match_id);
+
  public:
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the RAW pointer to the BoW database.
@@ -187,6 +195,13 @@ class LoopClosureDetector {
    * @return The pose of the map frame relative to the world frame.
    */
   const gtsam::Pose3 getWPoseMap() const;
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Returns the pose between the optimized world reference frame (map)
+   * and the VIO world reference frame (odom).
+   * @return The pose of the odom frame relative to the map frame.
+   */
+  const gtsam::Pose3 getMapPoseOdom() const;
 
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the values of the PGO, which is the full trajectory of the
@@ -314,6 +329,9 @@ class LoopClosureDetector {
                                 bool cut_matches = false) const;
 
  private:
+  /* ------------------------------------------------------------------------ */
+  void setup(std::unique_ptr<OrbVocabulary>&& preloaded_vocab);
+
   /* ------------------------------------------------------------------------ */
   /** @brief Detect features in frame for use with BoW and return keypoints and
    * descriptors. Currently only ORB features are supported.

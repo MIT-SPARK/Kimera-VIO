@@ -180,7 +180,7 @@ target_compile_features(${PROJECT_NAME} PUBLIC
 add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
+target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio DBoW2::DBoW2)
 
 ############################### TESTS ##########################################
 ### Add testing
@@ -278,7 +278,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
     )
-  target_link_libraries(testKimeraVIO gtest gmock kimera_vio::kimera_vio)
+  target_link_libraries(testKimeraVIO gtest gmock kimera_vio::kimera_vio DBoW2::DBoW2)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
     enable_testing()

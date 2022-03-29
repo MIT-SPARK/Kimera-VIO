@@ -90,6 +90,8 @@ class Pipeline {
     data_provider_module_->fillExternalOdometryQueue(odom_measurement);
   }
 
+  inline LcdModule* getLcdModule() const { return lcd_module_.get(); }
+
  public:
   /**
    * @brief spin Spin the whole pipeline by spinning the data provider

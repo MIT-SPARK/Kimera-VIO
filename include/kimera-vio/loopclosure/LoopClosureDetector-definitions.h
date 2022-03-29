@@ -21,6 +21,8 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
 
+#include <DBoW2/DBoW2.h>
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -288,8 +290,12 @@ struct LcdOutput : PipelinePayload {
             const FrameId& id_recent,
             const gtsam::Pose3& relative_pose,
             const gtsam::Pose3& W_Pose_Map,
+            const gtsam::Pose3& Map_Pose_Odom,
             const gtsam::Values& states,
-            const gtsam::NonlinearFactorGraph& nfg)
+            const gtsam::NonlinearFactorGraph& nfg,
+            const Landmarks& keypoints_3d,
+            const DBoW2::BowVector& bow_vec,
+            const OrbDescriptor& descriptors_mat)
       : PipelinePayload(timestamp_kf),
         is_loop_closure_(is_loop_closure),
         timestamp_query_(timestamp_query),
@@ -298,8 +304,29 @@ struct LcdOutput : PipelinePayload {
         id_recent_(id_recent),
         relative_pose_(relative_pose),
         W_Pose_Map_(W_Pose_Map),
+        Map_Pose_Odom_(Map_Pose_Odom),
         states_(states),
-        nfg_(nfg) {}
+        nfg_(nfg),
+        keypoints_3d_(keypoints_3d),
+        bow_vec_(bow_vec),
+        descriptors_mat_(descriptors_mat) {}
+
+  LcdOutput(const Timestamp& timestamp_kf,
+            const gtsam::Pose3& W_Pose_Map,
+            const gtsam::Pose3& Map_Pose_Odom,
+            const gtsam::Values& states,
+            const gtsam::NonlinearFactorGraph& nfg,
+            const Landmarks& keypoints_3d,
+            const DBoW2::BowVector& bow_vec,
+            const OrbDescriptor& descriptors_mat)
+      : PipelinePayload(timestamp_kf),
+        W_Pose_Map_(W_Pose_Map),
+        Map_Pose_Odom_(Map_Pose_Odom),
+        states_(states),
+        nfg_(nfg),
+        keypoints_3d_(keypoints_3d),
+        bow_vec_(bow_vec),
+        descriptors_mat_(descriptors_mat) {}
 
   LcdOutput(const Timestamp& timestamp_kf)
       : PipelinePayload(timestamp_kf),
@@ -310,6 +337,7 @@ struct LcdOutput : PipelinePayload {
         id_recent_(0),
         relative_pose_(gtsam::Pose3()),
         W_Pose_Map_(gtsam::Pose3()),
+        Map_Pose_Odom_(gtsam::Pose3()),
         states_(gtsam::Values()),
         nfg_(gtsam::NonlinearFactorGraph()) {}
 
@@ -319,10 +347,16 @@ struct LcdOutput : PipelinePayload {
   Timestamp timestamp_match_;
   FrameId id_match_;
   FrameId id_recent_;
+  gtsam::Pose3 Map_Pose_Odom_;  // Map frame is the optimal (RPGO) global frame
+                                // and odom is the VIO estimate global frame
   gtsam::Pose3 relative_pose_;
   gtsam::Pose3 W_Pose_Map_;
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
+  Landmarks keypoints_3d_;
+  DBoW2::BowVector bow_vec_;
+  OrbDescriptor descriptors_mat_;
+  FrameIDTimestampMap timestamp_map_;
 };
 
 }  // namespace VIO

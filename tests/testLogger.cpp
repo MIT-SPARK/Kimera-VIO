@@ -488,6 +488,8 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
       gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Pose3 w_pose_map =
       gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 map_pose_odom =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Pose3 traj_pose = gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Values traj_values;
   traj_values.insert(gtsam::Symbol(0), traj_pose);
@@ -507,8 +509,12 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
                                       id_recent,
                                       relative_pose,
                                       w_pose_map,
+                                      map_pose_odom,
                                       traj_values,
-                                      gtsam::NonlinearFactorGraph()));
+                                      gtsam::NonlinearFactorGraph(),
+                                      Landmarks(),
+                                      DBoW2::BowVector(),
+                                      OrbDescriptor()));
 
   // First check the output_frontend_ransac_mono.csv results file.
   std::string opt_traj_csv = FLAGS_output_path + "traj_pgo.csv";

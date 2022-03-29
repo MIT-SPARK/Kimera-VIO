@@ -858,8 +858,10 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
 TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
   /* Add a lc but don't optimize because backend queue reports more packets */
   LoopClosureDetectorParams params;
-  params.pgo_rot_threshold_ = 1000;
-  params.pgo_trans_threshold_ = 1000;
+  params.odom_rot_threshold_ = -1;
+  params.odom_trans_threshold_ = -1;
+  params.pcm_rot_threshold_ = -1;
+  params.pcm_trans_threshold_ = -1;
   params.gnc_alpha_ = 0;
   params.max_lc_cached_before_optimize_ = 1000;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
