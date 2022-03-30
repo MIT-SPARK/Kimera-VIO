@@ -1,0 +1,38 @@
+#!/bin/bash
+--log_output=false
+--backend_type=1
+--regular_vio_backend_modality=0
+--deterministic_random_number_generator=true
+
+# 2D Visualization
+--visualize_feature_predictions=false
+--visualize_feature_tracks=true
+
+# 3D Visualization
+--visualize=true
+--visualize_lmk_type=false
+--visualize_mesh=true
+--visualize_mesh_2d=false
+--visualize_mesh_with_colored_polygon_clusters=false
+--visualize_point_cloud=true
+--visualize_convex_hull=false
+--visualize_plane_constraints=false
+--visualize_planes=false
+--visualize_plane_label=false
+--visualize_semantic_mesh=false
+--visualize_mesh_in_frustum=false
+#--visualize_load_mesh_filename=/home/tonirv/datasets/euroc/V1_01_easy/mav0/pointcloud0/data.ply
+# Type of 3D Visualization:
+# 0: mesh 3d
+# 1: pointcloud
+# 2: none
+--viz_type=1
+--min_num_obs_for_mesher_points=3
+--extract_planes_from_the_scene=false
+
+# For displaying/saving Frontend images:
+--visualize_frontend_images=false
+--save_frontend_images=false
+--log_feature_tracks=false
+--log_mono_tracking_images=false
+--log_stereo_matching_images=false
