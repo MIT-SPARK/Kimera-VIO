@@ -287,6 +287,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     latest_bowvec_,
                                     db_frames_.back()->descriptors_mat_);
   }
+  output_payload->timestamp_map_ = timestamp_map_;
   CHECK(output_payload) << "Missing LCD output payload.";
 
   if (logger_) {

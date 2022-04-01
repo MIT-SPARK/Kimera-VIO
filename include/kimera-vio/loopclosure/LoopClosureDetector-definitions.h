@@ -320,6 +320,12 @@ struct LcdOutput : PipelinePayload {
             const DBoW2::BowVector& bow_vec,
             const OrbDescriptor& descriptors_mat)
       : PipelinePayload(timestamp_kf),
+        is_loop_closure_(false),
+        timestamp_query_(0),
+        timestamp_match_(0),
+        id_match_(0),
+        id_recent_(0),
+        relative_pose_(gtsam::Pose3::identity()),
         W_Pose_Map_(W_Pose_Map),
         Map_Pose_Odom_(Map_Pose_Odom),
         states_(states),
