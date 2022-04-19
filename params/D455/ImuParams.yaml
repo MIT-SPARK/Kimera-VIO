@@ -13,7 +13,7 @@ T_BS:
          0.0, 1.0, 0.0, 0.0,
          0.0, 0.0, 1.0, 0.0,
          0.0, 0.0, 0.0, 1.0]
-rate_hz: 200
+rate_hz: 400
 
 # inertial sensor parameters
 gyroscope_noise_density: 0.187  # [rad/s/sqrt(Hz)] (gyro "white noise")
@@ -22,7 +22,7 @@ accelerometer_noise_density: 0.186  # [m/s^2/sqrt(Hz)] (accel "white noise")
 accelerometer_random_walk: 0.0433  # [m/s^3/sqrt(Hz)] (accel bias diffusion)
 
 # other parameters
-do_imu_rate_time_alignment: 1
+do_imu_rate_time_alignment: 0
 time_alignment_window_size_s: 10.0
 time_alignment_variance_threshold_scaling: 0.0
 imu_integration_sigma: 1e-08
