@@ -36,6 +36,7 @@ namespace VIO {
 
 typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
+typedef std::unique_ptr<OrbVocabulary> OrbVocabPtr;
 typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
 
 enum class LoopClosureDetectorType {

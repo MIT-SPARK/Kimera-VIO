@@ -40,7 +40,7 @@ StereoImuPipeline::StereoImuPipeline(
     const VioParams& params,
     Visualizer3D::UniquePtr&& visualizer,
     DisplayBase::UniquePtr&& displayer,
-    std::unique_ptr<OrbVocabulary>&& preloaded_vocab)
+    OrbVocabPtr&& preloaded_vocab)
     : Pipeline(params), stereo_camera_(nullptr) {
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u)

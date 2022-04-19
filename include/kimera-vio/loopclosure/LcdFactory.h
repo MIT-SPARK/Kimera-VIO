@@ -35,7 +35,7 @@ class LcdFactory {
       const boost::optional<StereoCamera::ConstPtr>& stereo_camera,
       const boost::optional<StereoMatchingParams>& stereo_matching_params,
       bool log_output,
-      std::unique_ptr<OrbVocabulary>&& preloaded_vocab = nullptr) {
+      OrbVocabPtr&& preloaded_vocab = nullptr) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
         return VIO::make_unique<LoopClosureDetector>(lcd_params,

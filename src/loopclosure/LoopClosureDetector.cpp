@@ -53,7 +53,7 @@ DEFINE_bool(lcd_no_detection,
 
 namespace VIO {
 
-std::unique_ptr<OrbVocabulary> loadOrbVocabulary() {
+OrbVocabPtr loadOrbVocabulary() {
   std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
   CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path: "
                         << FLAGS_vocabulary_path;
@@ -75,7 +75,7 @@ LoopClosureDetector::LoopClosureDetector(
     const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
     const boost::optional<StereoMatchingParams>& stereo_matching_params,
     bool log_output,
-    std::unique_ptr<OrbVocabulary>&& preloaded_vocab)
+    OrbVocabPtr&& preloaded_vocab)
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
       log_output_(log_output),
@@ -120,7 +120,7 @@ LoopClosureDetector::~LoopClosureDetector() {
 
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::setup(
-    std::unique_ptr<OrbVocabulary>&& preloaded_vocab) {
+    OrbVocabPtr&& preloaded_vocab) {
   // Initialize noise model
   Vector6 precisions;
   precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
@@ -143,7 +143,7 @@ void LoopClosureDetector::setup(
       cv::DescriptorMatcher::create(lcd_params_.matcher_type_);
 
   // Load ORB vocabulary:
-  std::unique_ptr<OrbVocabulary> vocab = std::move(preloaded_vocab);
+  OrbVocabPtr vocab = std::move(preloaded_vocab);
   if (!vocab) {
     vocab = loadOrbVocabulary();
   }

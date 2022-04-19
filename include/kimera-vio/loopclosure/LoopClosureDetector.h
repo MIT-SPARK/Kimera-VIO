@@ -43,7 +43,7 @@ class RobustSolver;
 
 namespace VIO {
 
-std::unique_ptr<OrbVocabulary> loadOrbVocabulary();
+OrbVocabPtr loadOrbVocabulary();
 
 /* ------------------------------------------------------------------------ */
 class LoopClosureDetector {
@@ -69,7 +69,7 @@ class LoopClosureDetector {
       const boost::optional<StereoMatchingParams>& stereo_matching_params =
           boost::none,
       bool log_output = false,
-      std::unique_ptr<OrbVocabulary>&& preloaded_vocab = nullptr);
+      OrbVocabPtr&& preloaded_vocab = nullptr);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -330,7 +330,7 @@ class LoopClosureDetector {
 
  private:
   /* ------------------------------------------------------------------------ */
-  void setup(std::unique_ptr<OrbVocabulary>&& preloaded_vocab);
+  void setup(OrbVocabPtr&& preloaded_vocab);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Detect features in frame for use with BoW and return keypoints and

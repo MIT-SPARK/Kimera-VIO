@@ -36,7 +36,7 @@ class StereoImuPipeline : public Pipeline {
   StereoImuPipeline(const VioParams& params,
                     Visualizer3D::UniquePtr&& visualizer = nullptr,
                     DisplayBase::UniquePtr&& displayer = nullptr,
-                    std::unique_ptr<OrbVocabulary>&& preloaded_vocab = nullptr);
+                    OrbVocabPtr&& preloaded_vocab = nullptr);
 
   ~StereoImuPipeline() = default;
 
