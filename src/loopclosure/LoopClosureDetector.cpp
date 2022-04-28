@@ -1008,6 +1008,10 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
     left_frame_mutable->scores_.push_back(1.0);
   }
 
+  if (left_frame_mutable->keypoints_.size() == 0) {
+    return;
+  }
+
   // Automatically match keypoints in right image with those in left.
   stereo_matcher_->sparseStereoReconstruction(stereo_frame);
   stereo_frame->checkStereoFrame();
