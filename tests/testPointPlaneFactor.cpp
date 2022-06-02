@@ -67,8 +67,8 @@ void setIsam2Params(const BackendParams& vio_params,
   }
 
   // Here there was commented code about setRelinearizeThreshold.
-  isam_param->setCacheLinearizedFactors(false);
-  isam_param->setEvaluateNonlinearError(true);
+  isam_param->cacheLinearizedFactors = false;
+  isam_param->evaluateNonlinearError = true;
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
   // isam_param->enablePartialRelinearizationCheck = true;
