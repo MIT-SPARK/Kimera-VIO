@@ -100,7 +100,7 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   VizLcdInput lcd_payload = nullptr;
   if (lcd_queue_) {
     // Mesher output is optional, only sync if callback registered.
-    CHECK(PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload));
+    PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload);
     CHECK(lcd_payload);
   }
 
