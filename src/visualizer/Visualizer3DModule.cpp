@@ -100,8 +100,10 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   VizLcdInput lcd_payload = nullptr;
   if (lcd_queue_) {
     // Mesher output is optional, only sync if callback registered.
-    PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload);
-    CHECK(lcd_payload);
+    if(!PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload)) {
+      lcd_payload.reset(new LcdOutput(timestamp));
+    }
+    // CHECK(lcd_payload);
   }
 
   // Push the synced messages to the visualizer's input queue
