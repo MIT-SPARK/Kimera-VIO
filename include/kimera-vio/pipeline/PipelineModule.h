@@ -104,9 +104,10 @@ class PipelineModuleBase {
   bool syncQueue(const Timestamp& timestamp,
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
-                 int max_iterations = 10) {
+                 int max_iterations = 10,
+                 size_t timeout_ms = 10000u) {
     return SimpleQueueSynchronizer<T>::getInstance().syncQueue(
-        timestamp, queue, pipeline_payload, name_id_, max_iterations);
+        timestamp, queue, pipeline_payload, name_id_, max_iterations, timeout_ms);
   }
   /**
    * @brief shutdownQueues If the module stores Threadsafe queues, it must
