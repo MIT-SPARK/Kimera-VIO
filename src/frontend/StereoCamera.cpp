@@ -41,9 +41,9 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
       original_right_camera_(nullptr),
       undistorted_rectified_stereo_camera_impl_(),
       stereo_calibration_(nullptr),
-      stereo_baseline_(0.0),
       left_cam_undistort_rectifier_(nullptr),
-      right_cam_undistort_rectifier_(nullptr) {
+      right_cam_undistort_rectifier_(nullptr),
+      stereo_baseline_(0.0) {
   computeRectificationParameters(left_cam_params,
                                  right_cam_params,
                                  &R1_,
@@ -221,12 +221,12 @@ void StereoCamera::backProjectDisparityTo3DManual(const cv::Mat& disparity_img,
   double Q33 = Q_.at<double>(3, 3);  // (c_x - c_x') / T_x
 
   // Get xyz from disparity
-  for (size_t i = 0u; i < disparity_img.rows; i++) {
+  for (int i = 0u; i < disparity_img.rows; i++) {
     // Loop over rows
     const float* disp_ptr = disparity_img.ptr<float>(i);
     cv::Vec3f* xyz_ptr = depth->ptr<cv::Vec3f>(i);
 
-    for (size_t j = 0u; j < disparity_img.cols; j++) {
+    for (int j = 0u; j < disparity_img.cols; j++) {
       // Loop over cols
       const float pw = 1.0f / (disp_ptr[j] * Q32 + Q33);
 

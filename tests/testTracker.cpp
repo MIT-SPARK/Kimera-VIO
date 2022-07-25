@@ -1773,16 +1773,16 @@ TEST_F(TestTracker, PnPTracking) {
   EXPECT_NEAR(expected.y(), best_absolute_pose.y(), tol);
   EXPECT_NEAR(expected.z(), best_absolute_pose.z(), tol);
 
-  EXPECT_NEAR(expected_rot.quaternion().x(),
-              best_absolute_pose.rotation().quaternion().x(),
+  EXPECT_NEAR(expected_rot.toQuaternion().x(),
+              best_absolute_pose.rotation().toQuaternion().x(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().y(),
-              best_absolute_pose.rotation().quaternion().y(),
+  EXPECT_NEAR(expected_rot.toQuaternion().y(),
+              best_absolute_pose.rotation().toQuaternion().y(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().z(),
-              best_absolute_pose.rotation().quaternion().z(),
+  EXPECT_NEAR(expected_rot.toQuaternion().z(),
+              best_absolute_pose.rotation().toQuaternion().z(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().w(),
-              best_absolute_pose.rotation().quaternion().w(),
+  EXPECT_NEAR(expected_rot.toQuaternion().w(),
+              best_absolute_pose.rotation().toQuaternion().w(),
               tol);
 }

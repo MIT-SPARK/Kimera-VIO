@@ -113,7 +113,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
 
   if (VLOG_IS_ON(10)) input->print();
 
-  auto tic_full_preint = utils::Timer::tic();
+  //auto tic_full_preint = utils::Timer::tic();
   const ImuFrontend::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
       input->getImuStamps(), input->getImuAccGyrs());
   CHECK(pim);
