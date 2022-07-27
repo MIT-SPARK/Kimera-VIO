@@ -152,11 +152,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.backend_state_, shared_noise_model_);
 
-  // Save latest VIO estimate
-  gtsam::Pose3 W_Pose_Bkf = odom_factor.backend_state_.at<gtsam::Pose3>(
-      gtsam::Symbol(kPoseSymbolChar, odom_factor.cur_key_));
-  W_Pose_Bkf_estimates_.push_back(W_Pose_Bkf);
-
   switch (lcd_state_) {
     case LcdState::Bootstrap: {
       CHECK_EQ(pgo_->calculateEstimate().size(), 0);
@@ -1019,6 +1014,12 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   const gtsam::Pose3& W_Pose_Bkf = factor.backend_state_.at<gtsam::Pose3>(
       gtsam::Symbol(kPoseSymbolChar, factor.cur_key_));
 
+  // Save latest VIO estimate
+  // NOTE: done here and duplicated between initializePGO and
+  // addOdometryFactorAndOptimize instead of in spinOnce() primarily for easier
+  // testing
+  W_Pose_Bkf_estimates_.push_back(W_Pose_Bkf);
+
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
 
@@ -1044,6 +1045,12 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
 
   const gtsam::Pose3& W_Pose_Bkf = factor.backend_state_.at<gtsam::Pose3>(
       gtsam::Symbol(kPoseSymbolChar, factor.cur_key_));
+
+  // Save latest VIO estimate
+  // NOTE: done here and duplicated between initializePGO and
+  // addOdometryFactorAndOptimize instead of in spinOnce() primarily for easier
+  // testing
+  W_Pose_Bkf_estimates_.push_back(W_Pose_Bkf);
 
   CHECK_LE(factor.cur_key_, W_Pose_Bkf_estimates_.size())
       << "New odometry factor has a key that is too high.";
