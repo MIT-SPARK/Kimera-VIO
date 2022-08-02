@@ -41,6 +41,7 @@ protected:
   ImuPreintegrationType imu_preintegration_type_ =
       ImuPreintegrationType::kPreintegratedCombinedMeasurements;
 
+  double init_bias_sigma_ = 0.0;
   double gyro_noise_density_ = 0.0;
   double gyro_random_walk_ = 0.0;
   double acc_noise_density_ = 0.0;

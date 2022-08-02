@@ -195,7 +195,8 @@ ImuFrontend::generateCombinedImuParams(const ImuParams& imu_params) {
   ///< covariance of bias used for pre-integration
   // TODO(Toni): how come we are initializing like this?
   // We should parametrize perhaps this as well.
-  combined_imu_params->biasAccOmegaInt = gtsam::I_6x6;
+  combined_imu_params->biasAccOmegaInit =
+      gtsam::I_6x6 * imu_params.init_bias_sigma_;
   ///< continuous-time "Covariance" describing
   ///< accelerometer bias random walk
   combined_imu_params->biasAccCovariance =

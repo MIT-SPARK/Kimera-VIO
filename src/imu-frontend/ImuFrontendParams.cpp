@@ -56,6 +56,7 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   nominal_sampling_time_s_ = 1.0 / rate_hz;
 
   // IMU PARAMS
+  yaml_parser.getYamlParam("imu_bias_init_sigma", &init_bias_sigma_);
   yaml_parser.getYamlParam("gyroscope_noise_density", &gyro_noise_density_);
   yaml_parser.getYamlParam("accelerometer_noise_density", &acc_noise_density_);
   yaml_parser.getYamlParam("gyroscope_random_walk", &gyro_random_walk_);
@@ -80,6 +81,8 @@ bool ImuParams::parseYAML(const std::string& filepath) {
 void ImuParams::print() const {
   std::stringstream out;
   PipelineParams::print(out,
+                        "imu_bias_init_sigma: ",
+                        init_bias_sigma_,
                         "gyroscope_noise_density: ",
                         gyro_noise_density_,
                         "gyroscope_random_walk: ",
@@ -101,6 +104,7 @@ bool ImuParams::equals(const PipelineParams& obj) const {
   const auto& rhs = static_cast<const ImuParams&>(obj);
   // clang-format off
   return imu_preintegration_type_ == rhs.imu_preintegration_type_ &&
+      init_bias_sigma_ == rhs.init_bias_sigma_ &&
       gyro_noise_density_ == rhs.gyro_noise_density_ &&
       gyro_random_walk_ == rhs.gyro_random_walk_ &&
       acc_noise_density_ == rhs.acc_noise_density_ &&
