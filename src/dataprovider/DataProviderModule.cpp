@@ -123,7 +123,7 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
       timestamp + imu_timestamp_correction_ + curr_imu_time_shift;
 
   ThreadsafeImuBuffer::QueryResult query_result =
-      imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+      imu_data_.imu_buffer_.getImuDataInterpolatedBorders(
           imu_timestamp_last_frame,
           imu_timestamp_curr_frame,
           &imu_meas->timestamps_,
