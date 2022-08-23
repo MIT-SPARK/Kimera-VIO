@@ -71,7 +71,7 @@ StereoPoses CreateCameraPoses(const int& num_keyframes, const double& baseline,
                               const Vector3& p0, const Vector3& v) {
   StereoPoses poses;
   poses.reserve(num_keyframes);
-  Pose3 L_pose_R(Rot3::identity(), Vector3(baseline, 0, 0));
+  Pose3 L_pose_R(Rot3(), Vector3(baseline, 0, 0));
 
   // The camera is assumed to face (0, 0, 1):
   // z-forward, y down and x to the right
@@ -80,7 +80,7 @@ StereoPoses CreateCameraPoses(const int& num_keyframes, const double& baseline,
     // the robot moves to the right, keeping the point in front of the camera
     Vector3 p_offset = v * f_id * (time_step / ((double)1e9));
 
-    Pose3 pose_left(Rot3::identity(), p0 + p_offset);
+    Pose3 pose_left(Rot3(), p0 + p_offset);
     Pose3 pose_right = pose_left.compose(L_pose_R);
 
     poses.push_back(make_pair(pose_left, pose_right));
@@ -171,7 +171,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   }
 
   // Create regular VIO.
-  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
+  Pose3 B_pose_camLrect(Rot3(), Vector3::Zero());
   boost::shared_ptr<RegularVioBackend> regular_vio =
       boost::make_shared<RegularVioBackend>(B_pose_camLrect, cam_params,
                                             baseline, vioParams);
@@ -300,7 +300,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
   }
 
   // Create regular VIO.
-  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
+  Pose3 B_pose_camLrect(Rot3(), Vector3::Zero());
   boost::shared_ptr<RegularVioBackend> regular_vio =
       boost::make_shared<RegularVioBackend>(B_pose_camLrect, cam_params,
                                             baseline, vioParams);

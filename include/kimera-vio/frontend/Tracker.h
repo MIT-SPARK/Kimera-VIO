@@ -96,14 +96,14 @@ class Tracker {
   virtual TrackingStatusPose geometricOutlierRejection2d2d(
       Frame* ref_frame,
       Frame* cur_frame,
-      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3());
 
   virtual TrackingStatusPose geometricOutlierRejection2d2d(
       const BearingVectors& ref_bearings,
       const BearingVectors& cur_bearings,
       const KeypointMatches& matches_ref_cur,
       std::vector<int>* inliers,
-      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3());
 
   /**
    * @brief geometricOutlierRejection3d3d
@@ -116,7 +116,7 @@ class Tracker {
   TrackingStatusPose geometricOutlierRejection3d3d(
       StereoFrame* ref_stereo_frame,
       StereoFrame* cur_stereo_frame,
-      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3());
 
   // TODO(marcus); doc differences between two versions, esp no outlier removal
   TrackingStatusPose geometricOutlierRejection3d3d(
@@ -124,7 +124,7 @@ class Tracker {
       const Landmarks& cur_keypoints_3d,
       const KeypointMatches& matches_ref_cur,
       std::vector<int>* inliers,
-      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3::identity());
+      const gtsam::Pose3& cam_lkf_Pose_cam_kf = gtsam::Pose3());
 
   std::pair<TrackingStatusPose, gtsam::Matrix3>
   geometricOutlierRejection3d3dGivenRotation(
@@ -268,7 +268,7 @@ class Tracker {
     if (success) {
       if (ransac.iterations_ >= max_iterations && ransac.inliers_.empty()) {
         success = false;
-        *best_pose = gtsam::Pose3::identity();
+        *best_pose = gtsam::Pose3();
         if (inliers) *inliers = {};
       } else {
         *best_pose =
@@ -285,7 +285,7 @@ class Tracker {
       }
     } else {
       CHECK(ransac.inliers_.empty());
-      *best_pose = gtsam::Pose3::identity();
+      *best_pose = gtsam::Pose3();
       if (inliers) *inliers = {};
     }
 

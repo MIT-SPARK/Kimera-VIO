@@ -539,7 +539,7 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
-  gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
+  gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
 
   /* Test proper scaled pose recovery between ref and cur images */
@@ -699,7 +699,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
-  gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
+  gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
 
   // Process mono frames
@@ -746,7 +746,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
       false);
-  gtsam::Pose3 empty_pose = gtsam::Pose3::identity();
+  gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
 
   CHECK(match1_stereo_frame_);
@@ -818,7 +818,7 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   CHECK(lcd_detector_);
   lcd_detector_->initializePGO(
       OdometryFactor(0,
-                     gtsam::Pose3::identity(),
+                     gtsam::Pose3(),
                      gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   OdometryFactor odom_factor(
@@ -874,14 +874,14 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
 
   lcd_detector_->initializePGO(
       OdometryFactor(0,
-                     gtsam::Pose3::identity(),
+                     gtsam::Pose3(),
                      gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   size_t num_odom = 10;
   for (size_t i = 1; i < num_odom; i++) {
     lcd_detector_->addOdometryFactorAndOptimize(OdometryFactor(
         i,
-        gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(2 * i, 0, 0)),
+        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(2 * i, 0, 0)),
         gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
   }
 
@@ -897,7 +897,7 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
     EXPECT_EQ(pgo_trajectory_odom_only.keys().at(i), i);
 
     const auto& this_pose = pgo_trajectory_odom_only.at<gtsam::Pose3>(i);
-    EXPECT_TRUE(this_pose.rotation().equals(gtsam::Rot3::identity()));
+    EXPECT_TRUE(this_pose.rotation().equals(gtsam::Rot3()));
     EXPECT_EQ(this_pose.translation().x(), 2 * i);
     EXPECT_EQ(this_pose.translation().y(), 0);
     EXPECT_EQ(this_pose.translation().z(), 0);
@@ -911,7 +911,7 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
     lcd_detector_->addLoopClosureFactorAndOptimize(LoopClosureFactor(
         i - 1,
         i,
-        gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(10, 0, 0)),
+        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(10, 0, 0)),
         gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
   }
 
@@ -930,7 +930,7 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
   lcd_detector_->addLoopClosureFactorAndOptimize(LoopClosureFactor(
       0,
       1,
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(10, 0, 0)),
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(10, 0, 0)),
       gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   // Check that trajectory is the different from before.
@@ -1060,7 +1060,7 @@ TEST_F(LCDFixture, noRefinePosesInMono) {
   EXPECT_DEATH(
       lcd_detector_->recoverPoseBody(0,
                                      1,
-                                     gtsam::Pose3::identity(),
+                                     gtsam::Pose3(),
                                      matches1,
                                      &bodyMatch1_T_bodyQuery1_stereo,
                                      &inliers_1),

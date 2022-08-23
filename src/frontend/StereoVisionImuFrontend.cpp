@@ -43,7 +43,7 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
-      keyframe_R_ref_frame_(gtsam::Rot3::identity()),
+      keyframe_R_ref_frame_(gtsam::Rot3()),
       feature_detector_(nullptr),
       frontend_params_(frontend_params),
       stereo_camera_(stereo_camera),
@@ -418,7 +418,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         }
       } else {
         status_pose_stereo.first = TrackingStatus::INVALID;
-        status_pose_stereo.second = gtsam::Pose3::identity();
+        status_pose_stereo.second = gtsam::Pose3();
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             TrackingStatus::INVALID;
       }
@@ -450,7 +450,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         // TODO(Toni): remove outliers from the tracking?
       } else {
         tracker_status_summary_.kfTracking_status_pnp_ = TrackingStatus::INVALID;
-        tracker_status_summary_.W_T_k_pnp_ = gtsam::Pose3::identity();
+        tracker_status_summary_.W_T_k_pnp_ = gtsam::Pose3();
       }
 
     } else {
@@ -518,7 +518,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // Update keyframe to reference frame for next iteration.
   if (stereoFrame_k_->isKeyframe()) {
     // Reset relative rotation if we have a keyframe.
-    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+    keyframe_R_ref_frame_ = gtsam::Rot3();
   } else {
     // Update rotation from keyframe to next iteration reference frame (aka
     // cur_frame in current iteration).
@@ -549,7 +549,7 @@ void StereoVisionImuFrontend::outlierRejectionStereo(
 
   gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
   if (tracker_->tracker_params_.ransac_use_1point_stereo_ &&
-      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
+      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3()) &&
       !force_53point_ransac_ &&
       frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 1-point RANSAC.
