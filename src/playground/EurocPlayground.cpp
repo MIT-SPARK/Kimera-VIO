@@ -11,19 +11,19 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
                                  const int& initial_k,
                                  const int& final_k,
                                  const size_t& subsample_n)
-    : dataset_path_(dataset_path),
-      subsample_n(subsample_n),
-      vio_params_(params_path),
-      feature_detector_(nullptr),
-      euroc_data_provider_(nullptr),
+    : vio_params_(params_path),
       visualizer_3d_(nullptr),
+      stereo_camera_(nullptr),
+      stereo_matcher_(nullptr),
       display_module_(nullptr),
       display_input_queue_("display_input_queue"),
+      dataset_path_(dataset_path),
+      subsample_n(subsample_n),
+      feature_detector_(nullptr),
+      euroc_data_provider_(nullptr),
       imu_data_(),
       left_frame_queue_("left_frame_queue"),
-      right_frame_queue_("right_frame_queue"),
-      stereo_camera_(nullptr),
-      stereo_matcher_(nullptr) {
+      right_frame_queue_("right_frame_queue") {
   // Set sequential mode
   vio_params_.parallel_run_ = false;
 
