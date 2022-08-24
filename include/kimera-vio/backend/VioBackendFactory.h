@@ -63,6 +63,7 @@ class BackendFactory {
                    << "0: normal VIO\n 1: regular VIO\n"
                    << " but requested Backend: "
                    << static_cast<int>(backend_type);
+        return nullptr;
       }
     }
   }
