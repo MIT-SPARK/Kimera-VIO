@@ -60,6 +60,12 @@
 #include "kimera-vio/utils/UtilsGTSAM.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
+/* ------------------------------------------------------------------------ */
+// Forward declare KimeraRPGO, a private dependency.
+namespace KimeraRPGO {
+class RobustSolver;
+}
+
 namespace VIO {
 
 // Forward-declarations
@@ -88,7 +94,7 @@ class VioBackend {
              const BackendOutputParams& backend_output_params,
              bool log_output,
              boost::optional<OdometryParams> odom_params = boost::none);
-  virtual ~VioBackend() { LOG(INFO) << "Backend destructor called."; }
+  virtual ~VioBackend();
 
  public:
   BackendOutput::UniquePtr spinOnce(const BackendInput& input);
@@ -493,6 +499,9 @@ class VioBackend {
 
   // ISAM2 smoother
   std::unique_ptr<Smoother> smoother_;
+
+  // Smoothed pgo (relative poses only)
+  std::unique_ptr<KimeraRPGO::RobustSolver> smoothed_pgo_;
 
   // Values
   //!< new states to be added
