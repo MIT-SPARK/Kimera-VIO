@@ -65,70 +65,6 @@ pipeline {
                 }
               }
             }
-            stage('Euroc Performance') {
-              steps {
-                wrap([$class: 'Xvfb']) {
-                  // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
-                  // 1. Configure evo plotting: all plots in plots.pdf
-                  sh 'evo_config set plot_export_format pdf'
-                  sh 'evo_config set plot_split false'
-
-                  // 2. Run evaluation
-                  sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
-                    --save_plots --save_boxplots --save_results --write_website \
-                    $evaluator/experiments/jenkins_euroc.yaml'
-
-                  // 3. Compile summary results.
-                  sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
-                    $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
-                    $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
-                }
-              }
-              post {
-                success {
-                    // Plot VIO performance.
-                    plot csvFileName: 'plot-vio-performance-per-build.csv',
-                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/vio_performance.csv']],
-                         group: 'Euroc Performance',
-                         numBuilds: '30',
-                         style: 'line',
-                         title: 'VIO Performance',
-                         yaxis: 'ATE [m]'
-
-                    // Plot VIO timing.
-                    plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output_timingOverall.csv']],
-                         group: 'Euroc Performance',
-                         numBuilds: '30',
-                         style: 'line',
-                         title: 'VIO Timing',
-                         yaxis: 'Time [ms]'
-
-                    // Publish HTML website with plotly and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, detailed_performance.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
-
-                    // Archive the website
-                    archiveArtifacts (
-                        artifacts: 'website/data/**/*.*',
-                        fingerprint: true
-                        )
-
-                    // Archive the params used in evaluation (if these are used is determined
-                    // by the experiments yaml file in Kimera-VIO-Evaluation)
-                    archiveArtifacts (
-                        artifacts: 'params/**/*.*',
-                        fingerprint: true
-                    )
-                }
-                failure {
-                  node(null) {
-                    echo 'Fail!'
-                    slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
-                  }
-                }
-              }
-            }
           }
         }
         stage('Ubuntu 16.04') {
@@ -181,12 +117,15 @@ pipeline {
                   args '-e WORKSPACE=$WORKSPACE'
             }
           }
+          environment {
+            evaluator="/root/Kimera-VIO-Evaluation"
+          }
           stages {
-            stage('Build Release') {
+            stage('Build RelWithDebInfo') {
               steps {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+               cmakeBuild buildDir: 'build', buildType: 'RelWithDebInfo', cleanBuild: false,
                           cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
                             -DCMAKE_CXX_FLAGS="\
                             -Wno-comment \
@@ -212,6 +151,70 @@ pipeline {
 
                   // Process the CTest xml output
                   junit 'build/testresults.xml'
+                }
+              }
+            }
+            stage('Euroc Performance') {
+              steps {
+                wrap([$class: 'Xvfb']) {
+                  // Run performance tests.
+                  // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
+                  // 1. Configure evo plotting: all plots in plots.pdf
+                  sh 'evo_config set plot_export_format pdf'
+                  sh 'evo_config set plot_split false'
+
+                  // 2. Run evaluation
+                  sh 'python3 $evaluator/evaluation/main_evaluation.py -r -a -v \
+                    --save_plots --save_boxplots --save_results --write_website \
+                    $evaluator/experiments/jenkins_euroc.yaml'
+
+                  // 3. Compile summary results.
+                  sh 'python3 $evaluator/evaluation/tools/performance_summary.py \
+                    $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
+                    $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
+                }
+              }
+              post {
+                success {
+                    // Plot VIO performance.
+                    plot csvFileName: 'plot-vio-performance-per-build.csv',
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/vio_performance.csv']],
+                         group: 'Euroc Performance',
+                         numBuilds: '30',
+                         style: 'line',
+                         title: 'VIO Performance',
+                         yaxis: 'ATE [m]'
+
+                    // Plot VIO timing.
+                    plot csvFileName: 'plot-vio-timing-per-build.csv',
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output_timingOverall.csv']],
+                         group: 'Euroc Performance',
+                         numBuilds: '30',
+                         style: 'line',
+                         title: 'VIO Timing',
+                         yaxis: 'Time [ms]'
+
+                    // Publish HTML website with plotly and pdfs of VIO performance
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, detailed_performance.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+
+                    // Archive the website
+                    archiveArtifacts (
+                        artifacts: 'website/data/**/*.*',
+                        fingerprint: true
+                        )
+
+                    // Archive the params used in evaluation (if these are used is determined
+                    // by the experiments yaml file in Kimera-VIO-Evaluation)
+                    archiveArtifacts (
+                        artifacts: 'params/**/*.*',
+                        fingerprint: true
+                    )
+                }
+                failure {
+                  node(null) {
+                    echo 'Fail!'
+                    slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+                  }
                 }
               }
             }

@@ -1,7 +1,7 @@
 # Use an official Python runtime as a parent image
 FROM ubuntu:20.04
 
-MAINTAINER Marcus Abate "mabate@mit.edu"
+LABEL maintainer="mabate@mit.edu"
 
 # To avoid tzdata asking for geographic location...
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y \
       libtiff-dev \
       libvtk6-dev \
       libgtk-3-dev \
-      libparmetis-dev \
       libatlas-base-dev \
       gfortran
 
@@ -56,12 +55,12 @@ RUN cd gtsam && \
     git checkout e5866799dff48239573cdd84964180867e50edd2 && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
     make -j$(nproc) install
 
 # Install Open_GV
-RUN git clone https://github.com/laurentkneip/opengv
-RUN cd opengv && \
+RUN git clone https://github.com/marcusabate/opengv
+RUN cd opengv && git apply march_native_disable.patch && \
       mkdir build
 RUN cd opengv/build && \
       cmake -DCMAKE_BUILD_TYPE=Release \
@@ -93,21 +92,27 @@ RUN apt-get update && \
 # Get python3
 RUN apt-get update && \
     apt-get install -y python3.8 python3.8-dev python3-pip python3-tk
-RUN python3 $(which pip3) install PyQt5==5.14
+RUN apt-get update && \
+    apt-get install -y libgl1-mesa-glx
+RUN python3 $(which pip3) install PyQt5
 
 # Install evo-1 for evaluation
-# Hack to avoid Docker's cache when evo-1 master branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/evo-1/git/refs/heads/master version.json
+RUN python3 $(which pip3) install open3d setuptools plotly --upgrade
+# Hack to avoid Docker's cache when evo-1 fix/python3 branch is updated.
+ADD https://api.github.com/repos/MIT-SPARK/evo-1/git/refs/heads/fix/python3 version.json
 RUN git clone https://github.com/MIT-SPARK/evo-1.git
 RUN cd evo-1 && git checkout fix/python3 && python3 $(which pip3) install .
 
 # Install Kimera VIO Evaluation
 RUN python3 $(which pip3) install ipython prompt_toolkit
-# Hack to avoid Docker's cache when Kimera VIO Evaluation master branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+# Hack to avoid Docker's cache when Kimera VIO Evaluation fix/python3 branch is updated.
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/fix/python3_lite version.json
 RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
+# We do the following because of a 20.04 issue with .egg-link file being in site-packages instead of dist-packages
+RUN rm -rf /usr/lib/python3.8/site-packages/ && \
+    ln -s /usr/local/lib/python3.8/dist-packages /usr/lib/python3.8/site-packages
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
-RUN cd Kimera-VIO-Evaluation && git fetch && git checkout fix/python3 && python3 $(which pip3) install -e .
+RUN cd Kimera-VIO-Evaluation && git fetch && git checkout fix/python3_lite && python3 $(which pip3) install -e .
 
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
@@ -120,3 +125,8 @@ RUN cd Pangolin && \
       cd build && \
       cmake .. && \
       make -j$(nproc)
+
+# Clean
+RUN apt-get clean && \
+      rm -rf /var/lib/apt/lists/*
+
