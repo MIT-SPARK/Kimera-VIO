@@ -89,31 +89,6 @@ RUN cd Kimera-RPGO && \
 RUN apt-get update && \
     apt-get install software-properties-common -y
 
-# Get python3
-RUN apt-get update && \
-    apt-get install -y python3.8 python3.8-dev python3-pip python3-tk
-RUN apt-get update && \
-    apt-get install -y libgl1-mesa-glx
-RUN python3 $(which pip3) install PyQt5
-
-# Install evo-1 for evaluation
-RUN python3 $(which pip3) install open3d setuptools plotly --upgrade
-# Hack to avoid Docker's cache when evo-1 fix/python3 branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/evo-1/git/refs/heads/fix/python3 version.json
-RUN git clone https://github.com/MIT-SPARK/evo-1.git
-RUN cd evo-1 && git checkout fix/python3 && python3 $(which pip3) install .
-
-# Install Kimera VIO Evaluation
-RUN python3 $(which pip3) install ipython prompt_toolkit
-# Hack to avoid Docker's cache when Kimera VIO Evaluation fix/python3 branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/fix/python3_lite version.json
-RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
-# We do the following because of a 20.04 issue with .egg-link file being in site-packages instead of dist-packages
-RUN rm -rf /usr/lib/python3.8/site-packages/ && \
-    ln -s /usr/local/lib/python3.8/dist-packages /usr/lib/python3.8/site-packages
-# We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
-RUN cd Kimera-VIO-Evaluation && git fetch && git checkout fix/python3_lite && python3 $(which pip3) install -e .
-
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
