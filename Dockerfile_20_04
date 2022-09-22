@@ -86,9 +86,6 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN apt-get update && \
-    apt-get install software-properties-common -y
-
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
