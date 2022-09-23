@@ -1,7 +1,7 @@
 # Use an official Python runtime as a parent image
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-MAINTAINER Antoni Rosinol "arosinol@mit.edu"
+LABEL maintainer="mabate@mit.edu"
 
 # To avoid tzdata asking for geographic location...
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
 # Install xvfb to provide a display to container for GUI realted testing.
 RUN apt-get update && apt-get install -y xvfb
 
-# Install OpenCV for Ubuntu 18.04
+# Install OpenCV for Ubuntu 20.04
 RUN apt-get update && apt-get install -y \
       unzip \
       libjpeg-dev \
@@ -30,12 +30,12 @@ RUN apt-get update && apt-get install -y \
 
 RUN git clone https://github.com/opencv/opencv.git
 RUN cd opencv && \
-      git checkout tags/3.3.1 && \
+      git checkout tags/3.4.2 && \
       mkdir build
 
 RUN git clone https://github.com/opencv/opencv_contrib.git
 RUN cd opencv_contrib && \
-      git checkout tags/3.3.1
+      git checkout tags/3.4.2
 
 RUN cd opencv/build && \
       cmake -DCMAKE_BUILD_TYPE=Release \
@@ -55,12 +55,12 @@ RUN cd gtsam && \
     git checkout e5866799dff48239573cdd84964180867e50edd2 && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
     make -j$(nproc) install
 
 # Install Open_GV
-RUN git clone https://github.com/laurentkneip/opengv
-RUN cd opengv && \
+RUN git clone https://github.com/marcusabate/opengv
+RUN cd opengv && git apply march_native_disable.patch && \
       mkdir build
 RUN cd opengv/build && \
       cmake -DCMAKE_BUILD_TYPE=Release \
@@ -86,31 +86,6 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN apt-get update && \
-    apt-get install software-properties-common -y
-# Get python3
-RUN apt-get update && \
-    add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update && \
-    apt-get install -y python3.6 python3.6-dev python-pip python3-pip python-tk python3-tk
-# Upgrade pip to fix dependency issue with Pillow
-RUN python3.6 $(which pip3) install --upgrade pip
-RUN python3.6 $(which pip3) install PyQt5==5.14
-
-# Install evo-1 for evaluation
-# Hack to avoid Docker's cache when evo-1 master branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/evo-1/git/refs/heads/master version.json
-RUN git clone https://github.com/MIT-SPARK/evo-1.git
-RUN cd evo-1 && python3.6 $(which pip3) install .
-
-# Install Kimera VIO Evaluation
-RUN python3.6 $(which pip3) install ipython prompt_toolkit
-# Hack to avoid Docker's cache when Kimera VIO Evaluation master branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
-# We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
-RUN cd Kimera-VIO-Evaluation && git fetch && git checkout master && python3.6 $(which pip3) install -e .
-
 # Install glog, gflags
 RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
@@ -126,3 +101,4 @@ RUN cd Pangolin && \
 # Clean
 RUN apt-get clean && \
       rm -rf /var/lib/apt/lists/*
+

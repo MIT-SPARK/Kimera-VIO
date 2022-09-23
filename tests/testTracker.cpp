@@ -800,6 +800,7 @@ TEST_F(TestTracker, geometricOutlierRejection2d2d) {
 TEST_F(TestTracker, geometricOutlierRejection2d2dGivenRotation) {
   TrackerParams tracker_params = TrackerParams();
   tracker_params.ransac_use_1point_stereo_ = true;
+  tracker_params.ransac_randomize_ = false;
   Tracker tracker(tracker_params, stereo_camera_->getOriginalLeftCamera());
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
@@ -969,6 +970,7 @@ TEST_F(TestTracker, geometricOutlierRejection3d3d) {
 
       TrackerParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
+      trackerParams.ransac_randomize_ = false;
       Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
