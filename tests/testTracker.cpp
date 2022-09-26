@@ -800,6 +800,7 @@ TEST_F(TestTracker, geometricOutlierRejection2d2d) {
 TEST_F(TestTracker, geometricOutlierRejection2d2dGivenRotation) {
   TrackerParams tracker_params = TrackerParams();
   tracker_params.ransac_use_1point_stereo_ = true;
+  tracker_params.ransac_randomize_ = false;
   Tracker tracker(tracker_params, stereo_camera_->getOriginalLeftCamera());
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
@@ -969,6 +970,7 @@ TEST_F(TestTracker, geometricOutlierRejection3d3d) {
 
       TrackerParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
+      trackerParams.ransac_randomize_ = false;
       Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
@@ -1773,16 +1775,16 @@ TEST_F(TestTracker, PnPTracking) {
   EXPECT_NEAR(expected.y(), best_absolute_pose.y(), tol);
   EXPECT_NEAR(expected.z(), best_absolute_pose.z(), tol);
 
-  EXPECT_NEAR(expected_rot.quaternion().x(),
-              best_absolute_pose.rotation().quaternion().x(),
+  EXPECT_NEAR(expected_rot.toQuaternion().x(),
+              best_absolute_pose.rotation().toQuaternion().x(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().y(),
-              best_absolute_pose.rotation().quaternion().y(),
+  EXPECT_NEAR(expected_rot.toQuaternion().y(),
+              best_absolute_pose.rotation().toQuaternion().y(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().z(),
-              best_absolute_pose.rotation().quaternion().z(),
+  EXPECT_NEAR(expected_rot.toQuaternion().z(),
+              best_absolute_pose.rotation().toQuaternion().z(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().w(),
-              best_absolute_pose.rotation().quaternion().w(),
+  EXPECT_NEAR(expected_rot.toQuaternion().w(),
+              best_absolute_pose.rotation().toQuaternion().w(),
               tol);
 }

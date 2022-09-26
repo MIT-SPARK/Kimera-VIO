@@ -76,17 +76,17 @@ Histogram::~Histogram() {
 Histogram::Histogram(const Histogram& other) {
   n_images_ = other.n_images_;
   channels_ = new int[dims_];
-  for (size_t i = 0; i < dims_; i++) {
+  for (int i = 0; i < dims_; i++) {
     *(channels_ + i) = *(other.channels_ + i);
   }
   mask_ = other.mask_;
   dims_ = other.dims_;
   hist_size_ = new int[dims_];
-  for (size_t i = 0; i < dims_; i++) {
+  for (int i = 0; i < dims_; i++) {
     *(hist_size_ + i) = *(other.hist_size_ + i);
   }
   ranges_ = new float*[dims_];
-  for (size_t k = 0; k < dims_; k++) {
+  for (int k = 0; k < dims_; k++) {
     float* range = new float[2];
     range[0] = other.ranges_[k][0];
     range[1] = other.ranges_[k][1];

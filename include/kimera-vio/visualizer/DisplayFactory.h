@@ -56,6 +56,7 @@ class DisplayFactory {
                    << "0: OpenCV 3D viz\n 1: Pangolin (not supported yet)\n"
                    << " but requested display: "
                    << VIO::to_underlying(display_type);
+        return nullptr;
       }
     }
   }

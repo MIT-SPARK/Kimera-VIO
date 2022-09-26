@@ -40,6 +40,14 @@
 
 namespace VIO {
 
+// Linking in c++11 for building in Debug mode
+constexpr bool  MeshOptimization::kUseSpringEnergies;
+constexpr float MeshOptimization::kSpringNoiseSigma;
+constexpr float MeshOptimization::kDepthMeasNoiseSigma;
+constexpr float MeshOptimization::kMissingZ;
+constexpr float MeshOptimization::kMinZ;
+constexpr float MeshOptimization::kMaxZ;
+
 MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
                                    const MeshColorType& mesh_color_type,
                                    Camera::ConstPtr camera,
