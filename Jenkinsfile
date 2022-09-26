@@ -174,6 +174,52 @@ pipeline {
             }
           }
         }
+        stage('Ubuntu 20.04') {
+          agent {
+              dockerfile {
+                filename 'Dockerfile_20_04'
+                  args '-e WORKSPACE=$WORKSPACE'
+            }
+          }
+          environment {
+            evaluator="/root/Kimera-VIO-Evaluation"
+          }
+          stages {
+            stage('Build Release') {
+              steps {
+                slackSend color: 'good',
+                          message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
+               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
+                            -DCMAKE_CXX_FLAGS="\
+                            -Wno-comment \
+                            -Wno-maybe-uninitialized \
+                            -Wno-parentheses \
+                            -Wno-pragma-once-outside-header \
+                            -Wno-reorder \
+                            -Wno-return-type \
+                            -Wno-sign-compare \
+                            -Wno-unused-but-set-variable \
+                            -Wno-unused-function \
+                            -Wno-unused-parameter \
+                            -Wno-unused-value \
+                            -Wno-unused-variable"',
+                          generator: 'Unix Makefiles', installation: 'InSearchPath',
+                          sourceDir: '.', steps: [[args: '-j 4']]
+              }
+            }
+            stage('Test') {
+              steps {
+                wrap([$class: 'Xvfb']) {
+                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+
+                  // Process the CTest xml output
+                  junit 'build/testresults.xml'
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
