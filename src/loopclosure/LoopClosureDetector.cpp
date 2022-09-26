@@ -931,7 +931,7 @@ const gtsam::Pose3 LoopClosureDetector::getMapPoseOdom() const {
     return w_Pose_Bkf_optimal.compose(w_Pose_Bkf_estim.inverse());
   }
 
-  return gtsam::Pose3::identity();
+  return gtsam::Pose3();
 }
 
 /* ------------------------------------------------------------------------ */

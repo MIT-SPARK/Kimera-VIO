@@ -326,7 +326,6 @@ struct LcdOutput : PipelinePayload {
         timestamp_match_(0),
         id_match_(0),
         id_recent_(0),
-        relative_pose_(gtsam::Pose3::identity()),
         W_Pose_Map_(W_Pose_Map),
         Map_Pose_Odom_(Map_Pose_Odom),
         states_(states),
@@ -342,9 +341,6 @@ struct LcdOutput : PipelinePayload {
         timestamp_match_(0),
         id_match_(0),
         id_recent_(0),
-        relative_pose_(gtsam::Pose3()),
-        W_Pose_Map_(gtsam::Pose3()),
-        Map_Pose_Odom_(gtsam::Pose3()),
         states_(gtsam::Values()),
         nfg_(gtsam::NonlinearFactorGraph()) {}
 
@@ -354,10 +350,10 @@ struct LcdOutput : PipelinePayload {
   Timestamp timestamp_match_;
   FrameId id_match_;
   FrameId id_recent_;
-  gtsam::Pose3 Map_Pose_Odom_;  // Map frame is the optimal (RPGO) global frame
-                                // and odom is the VIO estimate global frame
   gtsam::Pose3 relative_pose_;
   gtsam::Pose3 W_Pose_Map_;
+  gtsam::Pose3 Map_Pose_Odom_;  // Map frame is the optimal (RPGO) global frame
+                                // and odom is the VIO estimate global frame
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
   Landmarks keypoints_3d_;
