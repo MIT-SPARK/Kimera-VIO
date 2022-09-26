@@ -79,7 +79,7 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
       W_Vel_B_lkf_(gtsam::Vector3::Zero()),
-      W_Pose_B_lkf_(gtsam::Pose3::identity()),
+      W_Pose_B_lkf_(gtsam::Pose3()),
       imu_bias_prev_kf_(ImuBias()),
       B_Pose_leftCamRect_(B_Pose_leftCamRect),
       stereo_cal_(stereo_calibration),
@@ -981,7 +981,7 @@ void VioBackend::addNoMotionFactor(const FrameId& from_id,
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol(kPoseSymbolChar, from_id),
           gtsam::Symbol(kPoseSymbolChar, to_id),
-          gtsam::Pose3::identity(),
+          gtsam::Pose3(),
           no_motion_prior_noise_));
 
   debug_info_.numAddedNoMotionF_++;

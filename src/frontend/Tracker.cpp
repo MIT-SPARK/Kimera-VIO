@@ -249,7 +249,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
   }
 
   //! Solve problem.
-  gtsam::Pose3 best_pose = gtsam::Pose3::identity();
+  gtsam::Pose3 best_pose = gtsam::Pose3();
   bool success = false;
   if (tracker_params_.ransac_use_2point_mono_) {
     success = runRansac(std::make_shared<Problem2d2dGivenRot>(
@@ -275,7 +275,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
 
   if (!success) {
     status_pose =
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   } else {
     // TODO(Toni): it seems we are not removing outliers if we send an invalid
     // tracking status (above), but the backend calls addLandmarksToGraph even
@@ -335,7 +335,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
     LOG(ERROR) << "No matching keypoints from frame " << ref_frame->id_
                << " to frame " << cur_frame->id_ << ".\n"
                << "Mono Tracking Status = INVALID.";
-    result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+    result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   } else {
     std::vector<int> inliers;
     result = geometricOutlierRejection2d2d(ref_frame->versors_,
@@ -403,7 +403,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
   // Create stereo camera in the ref frame of the left camera.
   // TODO(TONI): don't create stereo cameras all the time... and this
   // stereo_camera should have the camLrect pose...
-  gtsam::StereoCamera stereo_cam(gtsam::Pose3::identity(),
+  gtsam::StereoCamera stereo_cam(gtsam::Pose3(),
                                  stereo_camera->getStereoCalib());
 
   double timeMatchingAndAllocation_p =
@@ -560,7 +560,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
   if (maxCoherentSetSize < 2) {
     LOG(WARNING) << "1-point RANSAC (voting) could not find a solution.";
     return std::make_pair(
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity()),
+        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3()),
         gtsam::Matrix3::Zero());
   }
 
@@ -698,7 +698,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection3d3d(
 
   VLOG(5) << "OutlierRejection3D3D: starting 3-point RANSAC (voting)";
   //! Solve problem.
-  gtsam::Pose3 best_pose = gtsam::Pose3::identity();
+  gtsam::Pose3 best_pose = gtsam::Pose3();
   bool success = false;
   //! 3-point Arun method
   success = runRansac(
@@ -713,7 +713,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection3d3d(
   TrackingStatusPose status_pose;
   if (!success) {
     status_pose =
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   } else {
     //! Check enough inliers.
     TrackingStatus status = TrackingStatus::VALID;
@@ -1127,7 +1127,7 @@ bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
 
   if (F_points.size() == 0) {
     LOG(WARNING) << "No 2D-3D correspondences found for 2D-3D RANSAC...";
-    *F_Pose_cam_estimate = gtsam::Pose3::identity();
+    *F_Pose_cam_estimate = gtsam::Pose3();
     *inliers = {};
     success = false;
   } else {

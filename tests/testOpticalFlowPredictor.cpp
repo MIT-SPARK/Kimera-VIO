@@ -67,7 +67,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
     // Create Left Camera
     // Move left camera negative x direction so it can see the whole scene.
     cam_1_pose_ =
-        gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Vector3(0.0, 0.0, -4.0));
+        gtsam::Pose3(gtsam::Rot3(), gtsam::Vector3(0.0, 0.0, -4.0));
     cam_1_ = PinholeCamera(cam_1_pose_, simulated_calib_);
 
     // Project Scene landmarks to cam1
