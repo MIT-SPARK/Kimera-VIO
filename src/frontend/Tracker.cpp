@@ -55,8 +55,8 @@ std::vector<int> remapOpenGvInliersToKimera(
 Tracker::Tracker(const TrackerParams& tracker_params,
                  const Camera::ConstPtr& camera,
                  DisplayQueue* display_queue)
-    : landmark_count_(0),
-      tracker_params_(tracker_params),
+    : tracker_params_(tracker_params),
+      landmark_count_(0),
       camera_(camera),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
@@ -189,9 +189,7 @@ void Tracker::featureTracking(
   // max number of frames in which a feature is seen
   VLOG(5) << "featureTracking: frame " << cur_frame->id_
           << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
-          << " (max: "
-          << feature_detector_params.max_features_per_frame_
-          << ")"
+          << " (max: " << feature_detector_params.max_features_per_frame_ << ")"
           << " (max observed age of tracked features: "
           << *std::max_element(cur_frame->landmarks_age_.begin(),
                                cur_frame->landmarks_age_.end())
@@ -734,15 +732,14 @@ TrackingStatusPose Tracker::geometricOutlierRejection3d3d(
     status_pose = std::make_pair(status, best_pose);
   }
 
-  VLOG(5) << "3D3D tracking " << (success ? " success " : " failure ")
-             << ":\n"
-             << "- Tracking Status: "
-             << TrackerStatusSummary::asString(status_pose.first) << '\n'
-             << "- Total Correspondences: " << f_ref.size() << '\n'
-             << "\t- # inliers: " << inliers->size() << '\n'
-             << "\t- # outliers: " << f_ref.size() - inliers->size() << '\n'
-             << "- Best pose: \n"
-             << status_pose.second;
+  VLOG(5) << "3D3D tracking " << (success ? " success " : " failure ") << ":\n"
+          << "- Tracking Status: "
+          << TrackerStatusSummary::asString(status_pose.first) << '\n'
+          << "- Total Correspondences: " << f_ref.size() << '\n'
+          << "\t- # inliers: " << inliers->size() << '\n'
+          << "\t- # outliers: " << f_ref.size() - inliers->size() << '\n'
+          << "- Best pose: \n"
+          << status_pose.second;
 
   return status_pose;
 }
@@ -1165,49 +1162,54 @@ bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
       case Pose3d2dAlgorithm::KneipP2P: {
         // Uses rotation prior from adapter
         CHECK(F_Pose_cam_prior);
-        opengv::rotation_t rotation_prior = F_Pose_cam_prior->rotation().matrix();
+        opengv::rotation_t rotation_prior =
+            F_Pose_cam_prior->rotation().matrix();
         adapter.setR(rotation_prior);
-        success =
-            runRansac(std::make_shared<ProblemPnP>(adapter, ProblemPnP::TWOPT),
-                      threshold,
-                      tracker_params_.ransac_max_iterations_,
-                      tracker_params_.ransac_probability_,
-                      tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      F_Pose_cam_estimate,
-                      inliers);
+        success = runRansac(
+            std::make_shared<ProblemPnP>(
+                adapter, ProblemPnP::TWOPT, tracker_params_.ransac_randomize_),
+            threshold,
+            tracker_params_.ransac_max_iterations_,
+            tracker_params_.ransac_probability_,
+            tracker_params_.optimize_2d3d_pose_from_inliers_,
+            F_Pose_cam_estimate,
+            inliers);
         break;
       }
       case Pose3d2dAlgorithm::KneipP3P: {
-        success =
-            runRansac(std::make_shared<ProblemPnP>(adapter, ProblemPnP::KNEIP),
-                      threshold,
-                      tracker_params_.ransac_max_iterations_,
-                      tracker_params_.ransac_probability_,
-                      tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      F_Pose_cam_estimate,
-                      inliers);
+        success = runRansac(
+            std::make_shared<ProblemPnP>(
+                adapter, ProblemPnP::KNEIP, tracker_params_.ransac_randomize_),
+            threshold,
+            tracker_params_.ransac_max_iterations_,
+            tracker_params_.ransac_probability_,
+            tracker_params_.optimize_2d3d_pose_from_inliers_,
+            F_Pose_cam_estimate,
+            inliers);
         break;
       }
       case Pose3d2dAlgorithm::GaoP3P: {
-        success =
-            runRansac(std::make_shared<ProblemPnP>(adapter, ProblemPnP::GAO),
-                      threshold,
-                      tracker_params_.ransac_max_iterations_,
-                      tracker_params_.ransac_probability_,
-                      tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      F_Pose_cam_estimate,
-                      inliers);
+        success = runRansac(
+            std::make_shared<ProblemPnP>(
+                adapter, ProblemPnP::GAO, tracker_params_.ransac_randomize_),
+            threshold,
+            tracker_params_.ransac_max_iterations_,
+            tracker_params_.ransac_probability_,
+            tracker_params_.optimize_2d3d_pose_from_inliers_,
+            F_Pose_cam_estimate,
+            inliers);
         break;
       }
       case Pose3d2dAlgorithm::EPNP: {
-        success =
-            runRansac(std::make_shared<ProblemPnP>(adapter, ProblemPnP::EPNP),
-                      threshold,
-                      tracker_params_.ransac_max_iterations_,
-                      tracker_params_.ransac_probability_,
-                      tracker_params_.optimize_2d3d_pose_from_inliers_,
-                      F_Pose_cam_estimate,
-                      inliers);
+        success = runRansac(
+            std::make_shared<ProblemPnP>(
+                adapter, ProblemPnP::EPNP, tracker_params_.ransac_randomize_),
+            threshold,
+            tracker_params_.ransac_max_iterations_,
+            tracker_params_.ransac_probability_,
+            tracker_params_.optimize_2d3d_pose_from_inliers_,
+            F_Pose_cam_estimate,
+            inliers);
         break;
       }
       case Pose3d2dAlgorithm::UPNP: {
@@ -1240,7 +1242,8 @@ bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
             << "NonlinearOptimization needs to know the inliers.";
         // Uses all correspondences.
         CHECK(F_Pose_cam_prior);
-        opengv::rotation_t rotation_prior = F_Pose_cam_prior->rotation().matrix();
+        opengv::rotation_t rotation_prior =
+            F_Pose_cam_prior->rotation().matrix();
         opengv::translation_t translation_prior =
             F_Pose_cam_prior->translation().matrix();
         adapter.setR(rotation_prior);

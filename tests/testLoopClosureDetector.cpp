@@ -691,6 +691,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
   /* Test proper scaled pose recovery between ref and cur images */
   CHECK(lcd_detector_);
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
+  lcd_params_.tracker_params_.ransac_randomize_ = false;
   lcd_params_.use_pnp_pose_recovery_ = true;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,

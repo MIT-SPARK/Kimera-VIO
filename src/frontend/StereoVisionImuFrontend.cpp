@@ -45,11 +45,10 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
       stereoFrame_lkf_(nullptr),
       keyframe_R_ref_frame_(gtsam::Rot3()),
       feature_detector_(nullptr),
-      frontend_params_(frontend_params),
       stereo_camera_(stereo_camera),
       stereo_matcher_(stereo_camera, frontend_params.stereo_matching_params_),
-      output_images_path_(
-          "./outputImages/") {  // Only for debugging and visualization.
+      output_images_path_("./outputImages/"),
+      frontend_params_(frontend_params) {
   CHECK(stereo_camera_);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
@@ -263,7 +262,7 @@ void StereoVisionImuFrontend::processFirstStereoFrame(
   feature_detector_->featureDetection(left_frame, stereo_camera_->getR1());
 
   // Get 3D points via stereo.
-  VLOG(2) << "calling sparseStereoReconstruction \n" ;
+  VLOG(2) << "calling sparseStereoReconstruction \n";
   stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
 
   // Prepare for next iteration.
@@ -311,17 +310,17 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                             frontend_params_.feature_detector_params_,
                             stereo_camera_->getR1());
 
-  // feature tracking failed for all points, move on to the next frame                       
-  if(left_frame_k->keypoints_.size() == 0) {
-    VLOG(2) << "feature tracking failed for all points, moving to next frame \n" ;
+  // feature tracking failed for all points, move on to the next frame
+  if (left_frame_k->keypoints_.size() == 0) {
+    VLOG(2)
+        << "feature tracking failed for all points, moving to next frame \n";
     feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
     stereoFrame_km1_ = stereoFrame_k_;
     stereoFrame_k_.reset();
     ++frame_count_;
     StereoMeasurements smart_stereo_measurements;
     return std::make_shared<StatusStereoMeasurements>(
-      std::make_pair(tracker_status_summary_,
-                     smart_stereo_measurements));
+        std::make_pair(tracker_status_summary_, smart_stereo_measurements));
   }
 
   if (feature_tracks) {
@@ -331,7 +330,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     // if it is sent to the tracker.
     *feature_tracks = tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_,
                                                 stereoFrame_k_->left_frame_);
-                                                
   }
 
   VLOG(2) << "Finished feature tracking.";
@@ -350,33 +348,43 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
       nr_valid_features <= frontend_params_.min_number_features_;
 
   // check for large enough disparity
-  double current_disparity; 
+  double current_disparity;
   KeypointMatches matches_ref_cur;
-  tracker_ ->findMatchingKeypoints(stereoFrame_lkf_->left_frame_, *left_frame_k, &matches_ref_cur);
+  tracker_->findMatchingKeypoints(
+      stereoFrame_lkf_->left_frame_, *left_frame_k, &matches_ref_cur);
 
-  tracker_ ->computeMedianDisparity(stereoFrame_lkf_ -> left_frame_.keypoints_,
-                        left_frame_k->keypoints_,
-                        matches_ref_cur,
-                        &current_disparity);
- 
- const bool is_disparity_low = current_disparity < tracker_ ->tracker_params_.disparityThreshold_;
- const bool dispary_low_first_time = is_disparity_low && !(tracker_status_summary_.kfTrackingStatus_mono_ == TrackingStatus::LOW_DISPARITY);
- const bool enough_disparity = !is_disparity_low; 
- const bool max_disparity_reached = current_disparity > frontend_params_.max_disparity_since_lkf_;
+  tracker_->computeMedianDisparity(stereoFrame_lkf_->left_frame_.keypoints_,
+                                   left_frame_k->keypoints_,
+                                   matches_ref_cur,
+                                   &current_disparity);
+
+  const bool is_disparity_low =
+      current_disparity < tracker_->tracker_params_.disparityThreshold_;
+  const bool dispary_low_first_time =
+      is_disparity_low && !(tracker_status_summary_.kfTrackingStatus_mono_ ==
+                            TrackingStatus::LOW_DISPARITY);
+  const bool enough_disparity = !is_disparity_low;
+  const bool max_disparity_reached =
+      current_disparity > frontend_params_.max_disparity_since_lkf_;
 
   // Also if the user requires the keyframe to be enforced
   LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
-  if (max_time_elapsed || max_disparity_reached || ((enough_disparity || dispary_low_first_time) && min_time_elapsed) || nr_features_low || stereoFrame_k_->isKeyframe()) {
+  if (max_time_elapsed || max_disparity_reached ||
+      ((enough_disparity || dispary_low_first_time) && min_time_elapsed) ||
+      nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "
             << UtilsNumerical::NsecToSec(stereoFrame_k_->timestamp_ -
                                          last_keyframe_timestamp_);
 
-    VLOG_IF(2, (enough_disparity && min_time_elapsed)) << "Keyframe reason: enough disparity and min time elapsed).";
-    VLOG_IF(2, dispary_low_first_time) << "Keyframe reason: disparity low first time.";
-    VLOG_IF(2, max_disparity_reached) << "Keyframe reason: max disparity reached.";
+    VLOG_IF(2, (enough_disparity && min_time_elapsed))
+        << "Keyframe reason: enough disparity and min time elapsed).";
+    VLOG_IF(2, dispary_low_first_time)
+        << "Keyframe reason: disparity low first time.";
+    VLOG_IF(2, max_disparity_reached)
+        << "Keyframe reason: max disparity reached.";
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
@@ -429,7 +437,8 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         std::vector<int> inliers;
         if (tracker_->pnp(*stereoFrame_k_, &best_absolute_pose, &inliers) &&
             inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
-          tracker_status_summary_.kfTracking_status_pnp_ = TrackingStatus::VALID;
+          tracker_status_summary_.kfTracking_status_pnp_ =
+              TrackingStatus::VALID;
           LOG(WARNING) << "PnP tracking success:\n"
                        << "- # inliers: " << inliers.size() << '\n'
                        << "- # outliers: "
@@ -449,7 +458,8 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         tracker_status_summary_.W_T_k_pnp_ = best_absolute_pose;
         // TODO(Toni): remove outliers from the tracking?
       } else {
-        tracker_status_summary_.kfTracking_status_pnp_ = TrackingStatus::INVALID;
+        tracker_status_summary_.kfTracking_status_pnp_ =
+            TrackingStatus::INVALID;
         tracker_status_summary_.W_T_k_pnp_ = gtsam::Pose3();
       }
 
@@ -474,7 +484,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     // since if we discard more features, we need to extract more)
     CHECK(feature_detector_);
     feature_detector_->featureDetection(left_frame_k, stereo_camera_->getR1());
-
 
     // Get 3D points via stereo, including newly extracted
     // (this might be only for the visualization).
