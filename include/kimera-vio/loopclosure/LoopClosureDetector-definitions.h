@@ -334,16 +334,6 @@ struct LcdOutput : PipelinePayload {
         bow_vec_(bow_vec),
         descriptors_mat_(descriptors_mat) {}
 
-  LcdOutput(const Timestamp& timestamp_kf)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(false),
-        timestamp_query_(0),
-        timestamp_match_(0),
-        id_match_(0),
-        id_recent_(0),
-        states_(gtsam::Values()),
-        nfg_(gtsam::NonlinearFactorGraph()) {}
-
   // TODO(marcus): inlude stats/score of match
   bool is_loop_closure_;
   Timestamp timestamp_query_;

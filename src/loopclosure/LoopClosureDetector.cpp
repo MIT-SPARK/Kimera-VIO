@@ -94,7 +94,11 @@ LoopClosureDetector::LoopClosureDetector(
       W_Pose_Blkf_estimates_(),
       num_lc_unoptimized_(0),
       logger_(nullptr) {
-  setup(std::move(preloaded_vocab));
+  // Shared noise model initialization
+  gtsam::Vector6 precisions;
+  precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
+  precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
+  shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   // Outlier rejection initialization (inside of tracker)
   tracker_ = VIO::make_unique<Tracker>(
@@ -110,22 +114,6 @@ LoopClosureDetector::LoopClosureDetector(
   } else {
     VLOG(5) << "LoopClosureDetector initializing in mono mode.";
   }
-
-  if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
-}
-
-LoopClosureDetector::~LoopClosureDetector() {
-  LOG(INFO) << "LoopClosureDetector desctuctor called.";
-}
-
-/* ------------------------------------------------------------------------ */
-void LoopClosureDetector::setup(
-    OrbVocabPtr&& preloaded_vocab) {
-  // Initialize noise model
-  Vector6 precisions;
-  precisions.head<3>().setConstant(lcd_params_.betweenRotationPrecision_);
-  precisions.tail<3>().setConstant(lcd_params_.betweenTranslationPrecision_);
-  shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
@@ -166,6 +154,14 @@ void LoopClosureDetector::setup(
     pgo_params.setGncInlierCostThresholdsAtProbability(lcd_params_.gnc_alpha_);
   }
   pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
+
+  if (log_output) {
+    logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
+  }
+}
+
+LoopClosureDetector::~LoopClosureDetector() {
+  LOG(INFO) << "LoopClosureDetector desctuctor called.";
 }
 
 /* ------------------------------------------------------------------------ */
@@ -191,13 +187,10 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
-    default: {
-      LOG(FATAL) << "Unrecognized LCD state.";
-    }
+    default: { LOG(FATAL) << "Unrecognized LCD state."; }
   }
 
   // Process the StereoFrame and check for a loop closure with previous ones.
-  LoopResult loop_result;
   FrameId lcd_frame_id;
   switch (input.frontend_output_->frontend_type_) {
     case FrontendType::kMonoImu: {
@@ -222,8 +215,14 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
           << "LoopClosureDetector not implemented for this frontend type.";
     }
   }
+
+  LoopResult loop_result;
+  if (!FLAGS_lcd_no_detection) {
+    detectLoop(lcd_frame_id, &loop_result);
+  }
+
   // Build and add LC factor if result is a loop closure.
-  if (!FLAGS_lcd_no_detection && detectLoop(lcd_frame_id, &loop_result)) {
+  if (loop_result.isLoop()) {
     VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
             << loop_result.match_id_ << " to keyframe "
             << loop_result.query_id_;
@@ -338,7 +337,7 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
   orb_feature_detector_->compute(
       frame.img_, keypoints_for_descriptor_compute, descriptors_mat);
 
-  // Need to manually generate a mask for which keypoints were removed so that 
+  // Need to manually generate a mask for which keypoints were removed so that
   // all other related data structures can be resized appropriately.
   // Convert to our format for std::find.
   KeypointsCV keypoints_cv_for_descriptor_compute;
@@ -386,7 +385,8 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
         VLOG(10) << "ProcessAndAddMonoFrame: landmark id not in world points!";
       }
     } else {
-      VLOG(10) << "ProcessAndAddMonoFrame: landmark not in backend! Remove this message.";
+      VLOG(10) << "ProcessAndAddMonoFrame: landmark not in backend! Remove "
+                  "this message.";
     }
   }
 
@@ -481,7 +481,7 @@ void LoopClosureDetector::descriptorMatToVec(
 }
 
 /* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
+void LoopClosureDetector::detectLoop(const FrameId& frame_id,
                                      LoopResult* result) {
   CHECK_NOTNULL(result);
 
@@ -605,7 +605,6 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
   } else {
     VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
   }
-  return result->isLoop();
 }
 
 LoopResult LoopClosureDetector::registerFrames(FrameId query_id,
@@ -652,7 +651,6 @@ LoopResult LoopClosureDetector::registerFrames(FrameId query_id,
   return result;
 }
 
-// TODO(Yun) change ref cur to query match for consistency
 /* ------------------------------------------------------------------------ */
 bool LoopClosureDetector::geometricVerificationCam2d2d(
     const FrameId& ref_id,
@@ -721,10 +719,10 @@ bool LoopClosureDetector::recoverPoseBody(
     }
 
     success = tracker_->pnp(camQuery_bearing_vectors,
-                           camMatch_points,
-                           &camMatch_T_camQuery_3d,
-                           inliers,
-                           &camMatch_T_camQuery_2d_copy);
+                            camMatch_points,
+                            &camMatch_T_camQuery_3d,
+                            inliers,
+                            &camMatch_T_camQuery_2d_copy);
 
     // Manually fail the result if the norm of the translation vector is above a
     // fixed maximum. This is not technically required; PCM should be able to
@@ -810,8 +808,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   values.insert(key_query, camMatch_T_camQuery_3d);
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Unit::Create(6);
-  nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-      key_match, gtsam::Pose3(), noise));
+  nfg.add(gtsam::PriorFactor<gtsam::Pose3>(key_match, gtsam::Pose3(), noise));
 
   gtsam::SharedNoiseModel noise_stereo = gtsam::noiseModel::Unit::Create(3);
 
@@ -857,8 +854,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
     SmartStereoFactor stereo_factor_i(noise_stereo, smart_factors_params);
 
-    stereo_factor_i.add(
-        sp_match_i, key_match, stereo_calib);
+    stereo_factor_i.add(sp_match_i, key_match, stereo_calib);
 
     KeypointCV undistorted_rectified_left_query_keypoint =
         (cur_stereo_lcd_frame->left_keypoints_rectified_
@@ -873,9 +869,7 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
                                    undistorted_rectified_right_query_keypoint.x,
                                    undistorted_rectified_left_query_keypoint.y);
 
-
-    stereo_factor_i.add(
-        sp_query_i, key_query, stereo_calib);
+    stereo_factor_i.add(sp_query_i, key_query, stereo_calib);
 
     nfg.add(stereo_factor_i);
   }
@@ -1004,7 +998,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        UndistorterRectifier::GetBearingVector(keypoint.pt, left_frame_mutable->cam_param_));
+        UndistorterRectifier::GetBearingVector(keypoint.pt,
+                                               left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 

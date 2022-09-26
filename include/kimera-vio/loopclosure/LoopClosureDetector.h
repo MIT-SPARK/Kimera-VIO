@@ -124,7 +124,7 @@ class LoopClosureDetector {
    * @param[out] result A pointer to the LoopResult that is filled with the
    *  result of the loop-closure detection stage.
    */
-  bool detectLoop(const FrameId& frame_id, LoopResult* result);
+  void detectLoop(const FrameId& frame_id, LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Verify that the geometry between two frames is close enough to be
@@ -329,9 +329,6 @@ class LoopClosureDetector {
                                 bool cut_matches = false) const;
 
  private:
-  /* ------------------------------------------------------------------------ */
-  void setup(OrbVocabPtr&& preloaded_vocab);
-
   /* ------------------------------------------------------------------------ */
   /** @brief Detect features in frame for use with BoW and return keypoints and
    * descriptors. Currently only ORB features are supported.

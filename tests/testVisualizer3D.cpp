@@ -125,7 +125,14 @@ TEST_F(VisualizerFixture, spinOnce) {
       ImuAccGyrS(),
       cv::Mat(),
       DebugTrackerInfo());
-  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp);
+  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp,
+                                                          gtsam::Pose3(),
+                                                          gtsam::Pose3(),
+                                                          gtsam::Values(),
+                                                          gtsam::NonlinearFactorGraph(),
+                                                          Landmarks(),
+                                                          DBoW2::BowVector(),
+                                                          OrbDescriptor());
   VisualizerInput visualizer_input(
       timestamp, mesher_output, backend_output, frontend_output, lcd_output);
   // Visualize mesh.

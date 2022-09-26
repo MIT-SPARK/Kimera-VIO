@@ -75,7 +75,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
   LoopClosureDetector::UniquePtr lcd_;
 
   // handles access to underlying lcd detector
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
 };
 
 }  // namespace VIO
