@@ -40,8 +40,8 @@ class StereoCameraFixture : public ::testing::Test {
         stereo_camera_(nullptr),
         stereo_matcher_(nullptr),
         left_frame_queue_("left_frame_queue"),
-        right_frame_queue_("right_frame_queue"),
-        window_() {
+        right_frame_queue_("right_frame_queue") {
+        // window_() {
     // Parse data
     parseEuroc();
     // Create Stereo Camera
@@ -124,35 +124,35 @@ class StereoCameraFixture : public ::testing::Test {
   }
 
   /** Visualization **/
-  void drawPixelOnImg(const cv::Point2f& pixel,
-                      cv::Mat& img,
-                      const cv::viz::Color& color = cv::viz::Color::red(),
-                      const size_t& pixel_size = 5u,
-                      const uint8_t& alpha = 255u) {
-    // Draw the pixel on the image
-    cv::Scalar color_with_alpha =
-        cv::Scalar(color[0], color[1], color[2], alpha);
-    cv::circle(img, pixel, pixel_size, color_with_alpha, -1);
-  }
+  // void drawPixelOnImg(const cv::Point2f& pixel,
+  //                     cv::Mat& img,
+  //                     const cv::viz::Color& color = cv::viz::Color::red(),
+  //                     const size_t& pixel_size = 5u,
+  //                     const uint8_t& alpha = 255u) {
+  //   // Draw the pixel on the image
+  //   cv::Scalar color_with_alpha =
+  //       cv::Scalar(color[0], color[1], color[2], alpha);
+  //   cv::circle(img, pixel, pixel_size, color_with_alpha, -1);
+  // }
 
-  void drawPixelsOnImg(const std::vector<cv::Point2f>& pixels,
-                       cv::Mat& img,
-                       const cv::viz::Color& color = cv::viz::Color::red(),
-                       const size_t& pixel_size = 5u,
-                       const uint8_t& alpha = 255u) {
-    // Draw the pixel on the image
-    for (const auto& pixel : pixels) {
-      drawPixelOnImg(pixel, img, color, pixel_size, alpha);
-    }
-  }
+  // void drawPixelsOnImg(const std::vector<cv::Point2f>& pixels,
+  //                      cv::Mat& img,
+  //                      const cv::viz::Color& color = cv::viz::Color::red(),
+  //                      const size_t& pixel_size = 5u,
+  //                      const uint8_t& alpha = 255u) {
+  //   // Draw the pixel on the image
+  //   for (const auto& pixel : pixels) {
+  //     drawPixelOnImg(pixel, img, color, pixel_size, alpha);
+  //   }
+  // }
 
-  void spinDisplay() {
-    // Display 3D window
-    static constexpr bool kDisplay = false;
-    if (kDisplay) {
-      window_.spin();
-    }
-  }
+  // void spinDisplay() {
+  //   // Display 3D window
+  //   static constexpr bool kDisplay = false;
+  //   if (kDisplay) {
+  //     window_.spin();
+  //   }
+  // }
 
  protected:
   // Default Parms
@@ -165,8 +165,8 @@ class StereoCameraFixture : public ::testing::Test {
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
 
- private:
-  cv::viz::Viz3d window_;
+//  private:
+//   cv::viz::Viz3d window_;
 };
 
 // Check that original left camera is distorted + unrectified
@@ -287,9 +287,11 @@ TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
   CHECK(stereo_frame.isRectified());
   cv::Mat disp_viz_img;
   UtilsOpenCV::getDisparityVis(disp_img, disp_viz_img, 1.0);
-  cv::imshow("Left Image", stereo_frame.getLeftImgRectified());
-  cv::imshow("Right Image", stereo_frame.getRightImgRectified());
-  cv::imshow("Disparity Image", disp_viz_img);
+  if (FLAGS_display) {
+    cv::imshow("Left Image", stereo_frame.getLeftImgRectified());
+    cv::imshow("Right Image", stereo_frame.getRightImgRectified());
+    cv::imshow("Disparity Image", disp_viz_img);
+  }
 
   // Check
   // https://github.com/opencv/opencv/blob/master/samples/cpp/stereo_match.cpp
@@ -309,8 +311,8 @@ TEST_F(StereoCameraFixture, backProjectDisparityTo3D) {
   CHECK_EQ(depth_map.rows, left_frame->img_.rows);
   CHECK_EQ(depth_map.cols, left_frame->img_.cols);
   // Would that work? interpret xyz as rgb?
-  cv::imshow("Depth Image", depth_map);
   if (FLAGS_display) {
+    cv::imshow("Depth Image", depth_map);
     cv::waitKey(1);
   }
 

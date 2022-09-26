@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
       libjpeg-dev \
       libpng-dev \
       libtiff-dev \
-      libvtk6-dev \
+      libvtk7-dev \
       libgtk-3-dev \
       libatlas-base-dev \
       gfortran
