@@ -14,7 +14,6 @@
  */
 
 #pragma once
-
 #include <DBoW2/DBoW2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>

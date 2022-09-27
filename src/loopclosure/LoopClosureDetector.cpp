@@ -267,27 +267,19 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     timestamp_map_.at(loop_result.match_id_),
                                     loop_result.match_id_,
                                     loop_result.query_id_,
-                                    loop_result.relative_pose_,
-                                    w_Pose_map,
-                                    map_Pose_odom,
-                                    pgo_states,
-                                    pgo_nfg,
-                                    db_frames_.back()->keypoints_3d_,
-                                    latest_bowvec_,
-                                    db_frames_.back()->descriptors_mat_);
+                                    loop_result.relative_pose_);
   } else {
-    output_payload =
-        VIO::make_unique<LcdOutput>(input.timestamp_,
-                                    w_Pose_map,
-                                    map_Pose_odom,
-                                    pgo_states,
-                                    pgo_nfg,
-                                    db_frames_.back()->keypoints_3d_,
-                                    latest_bowvec_,
-                                    db_frames_.back()->descriptors_mat_);
+    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_);
   }
-  output_payload->timestamp_map_ = timestamp_map_;
+
   CHECK(output_payload) << "Missing LCD output payload.";
+
+  output_payload->setMapInformation(
+      w_Pose_map, map_Pose_odom, pgo_states, pgo_nfg);
+  output_payload->setFrameInformation(db_frames_.back()->keypoints_3d_,
+                                      latest_bowvec_,
+                                      db_frames_.back()->descriptors_mat_);
+  output_payload->timestamp_map_ = timestamp_map_;
 
   if (logger_) {
     debug_info_.timestamp_ = output_payload->timestamp_;

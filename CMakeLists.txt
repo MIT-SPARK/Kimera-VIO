@@ -135,12 +135,12 @@ target_link_libraries(${PROJECT_NAME}
     opengv
     KimeraRPGO
     triangle::triangle
+    DBoW2::DBoW2
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
     ${GFLAGS_LIBRARIES}
     ${GLOG_LIBRARIES}
-    DBoW2::DBoW2
     gtsam
     gtsam_unstable
 )

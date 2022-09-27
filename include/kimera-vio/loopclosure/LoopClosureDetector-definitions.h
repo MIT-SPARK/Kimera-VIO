@@ -18,10 +18,6 @@
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/Values.h>
-
-#include <DBoW2/DBoW2.h>
 
 #include <string>
 #include <unordered_map>
@@ -30,14 +26,23 @@
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
+#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/utils/Macros.h"
+
+// forward declare to avoid public dbow dependency
+namespace DBoW2 {
+class FORB;
+
+template <class D, class F>
+class TemplatedVocabulary;
+}  // namespace DBoW2
+
+typedef DBoW2::TemplatedVocabulary<cv::Mat, DBoW2::FORB> OrbVocabulary;
 
 namespace VIO {
 
-typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
 typedef std::unique_ptr<OrbVocabulary> OrbVocabPtr;
-typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
 
 enum class LoopClosureDetectorType {
   BoW = 0u,  //! Bag of Words approach
@@ -277,79 +282,6 @@ struct LcdInput : public PipelinePayload {
   const FrameId cur_kf_id_;
   const PointsWithIdMap W_points_with_ids_;
   const gtsam::Pose3 W_Pose_Blkf_;
-};
-
-struct LcdOutput : PipelinePayload {
-  KIMERA_POINTER_TYPEDEFS(LcdOutput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LcdOutput(bool is_loop_closure,
-            const Timestamp& timestamp_kf,
-            const Timestamp& timestamp_query,
-            const Timestamp& timestamp_match,
-            const FrameId& id_match,
-            const FrameId& id_recent,
-            const gtsam::Pose3& relative_pose,
-            const gtsam::Pose3& W_Pose_Map,
-            const gtsam::Pose3& Map_Pose_Odom,
-            const gtsam::Values& states,
-            const gtsam::NonlinearFactorGraph& nfg,
-            const Landmarks& keypoints_3d,
-            const DBoW2::BowVector& bow_vec,
-            const OrbDescriptor& descriptors_mat)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(is_loop_closure),
-        timestamp_query_(timestamp_query),
-        timestamp_match_(timestamp_match),
-        id_match_(id_match),
-        id_recent_(id_recent),
-        relative_pose_(relative_pose),
-        W_Pose_Map_(W_Pose_Map),
-        Map_Pose_Odom_(Map_Pose_Odom),
-        states_(states),
-        nfg_(nfg),
-        keypoints_3d_(keypoints_3d),
-        bow_vec_(bow_vec),
-        descriptors_mat_(descriptors_mat) {}
-
-  LcdOutput(const Timestamp& timestamp_kf,
-            const gtsam::Pose3& W_Pose_Map,
-            const gtsam::Pose3& Map_Pose_Odom,
-            const gtsam::Values& states,
-            const gtsam::NonlinearFactorGraph& nfg,
-            const Landmarks& keypoints_3d,
-            const DBoW2::BowVector& bow_vec,
-            const OrbDescriptor& descriptors_mat)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(false),
-        timestamp_query_(0),
-        timestamp_match_(0),
-        id_match_(0),
-        id_recent_(0),
-        W_Pose_Map_(W_Pose_Map),
-        Map_Pose_Odom_(Map_Pose_Odom),
-        states_(states),
-        nfg_(nfg),
-        keypoints_3d_(keypoints_3d),
-        bow_vec_(bow_vec),
-        descriptors_mat_(descriptors_mat) {}
-
-  // TODO(marcus): inlude stats/score of match
-  bool is_loop_closure_;
-  Timestamp timestamp_query_;
-  Timestamp timestamp_match_;
-  FrameId id_match_;
-  FrameId id_recent_;
-  gtsam::Pose3 relative_pose_;
-  gtsam::Pose3 W_Pose_Map_;
-  gtsam::Pose3 Map_Pose_Odom_;  // Map frame is the optimal (RPGO) global frame
-                                // and odom is the VIO estimate global frame
-  gtsam::Values states_;
-  gtsam::NonlinearFactorGraph nfg_;
-  Landmarks keypoints_3d_;
-  DBoW2::BowVector bow_vec_;
-  OrbDescriptor descriptors_mat_;
-  FrameIDTimestampMap timestamp_map_;
 };
 
 }  // namespace VIO

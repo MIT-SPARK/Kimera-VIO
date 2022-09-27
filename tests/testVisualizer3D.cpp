@@ -27,8 +27,8 @@
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 
 DECLARE_string(test_data_path);
 
@@ -48,7 +48,8 @@ class VisualizerFixture : public ::testing::Test {
     img_ = UtilsOpenCV::ReadAndConvertToGrayScale(img_name_);
     // Construct a frame from image name, and extract keypoints/landmarks.
     frame_ = constructFrame(true);
-    visualizer_ = VIO::make_unique<VIO::OpenCvVisualizer3D>(viz_type_, backend_type_);
+    visualizer_ =
+        VIO::make_unique<VIO::OpenCvVisualizer3D>(viz_type_, backend_type_);
   }
 
  protected:
@@ -112,27 +113,21 @@ TEST_F(VisualizerFixture, spinOnce) {
                                       DebugVioInfo(),
                                       PointsWithIdMap(),
                                       LmkIdToLmkTypeMap());
-  StereoFrontendOutput::Ptr frontend_output = std::make_shared<StereoFrontendOutput>(
-      true,
-      StatusStereoMeasurementsPtr(),
-      gtsam::Pose3(),
-      gtsam::Pose3(),
-      StereoFrame(FrameId(),
-                  timestamp,
-                  Frame(FrameId(), timestamp, camera_params_, cv::Mat()),
-                  Frame(FrameId(), timestamp, camera_params_, cv::Mat())),
-      ImuFrontend::PimPtr(),
-      ImuAccGyrS(),
-      cv::Mat(),
-      DebugTrackerInfo());
-  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp,
-                                                          gtsam::Pose3(),
-                                                          gtsam::Pose3(),
-                                                          gtsam::Values(),
-                                                          gtsam::NonlinearFactorGraph(),
-                                                          Landmarks(),
-                                                          DBoW2::BowVector(),
-                                                          OrbDescriptor());
+  StereoFrontendOutput::Ptr frontend_output =
+      std::make_shared<StereoFrontendOutput>(
+          true,
+          StatusStereoMeasurementsPtr(),
+          gtsam::Pose3(),
+          gtsam::Pose3(),
+          StereoFrame(FrameId(),
+                      timestamp,
+                      Frame(FrameId(), timestamp, camera_params_, cv::Mat()),
+                      Frame(FrameId(), timestamp, camera_params_, cv::Mat())),
+          ImuFrontend::PimPtr(),
+          ImuAccGyrS(),
+          cv::Mat(),
+          DebugTrackerInfo());
+  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp);
   VisualizerInput visualizer_input(
       timestamp, mesher_output, backend_output, frontend_output, lcd_output);
   // Visualize mesh.
