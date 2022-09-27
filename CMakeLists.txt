@@ -133,9 +133,9 @@ add_subdirectory(src/visualizer)
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
     opengv
+    DBoW2::DBoW2
     KimeraRPGO
     triangle::triangle
-    DBoW2::DBoW2
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
