@@ -30,7 +30,7 @@ class MonoImuPipeline : public Pipeline {
   MonoImuPipeline(const VioParams& params,
                   Visualizer3D::UniquePtr&& visualizer = nullptr,
                   DisplayBase::UniquePtr&& displayer = nullptr,
-                  OrbVocabPtr&& preloaded_vocab = nullptr);
+                  PreloadedVocab::Ptr&& preloaded_vocab = nullptr);
 
   ~MonoImuPipeline() = default;
 

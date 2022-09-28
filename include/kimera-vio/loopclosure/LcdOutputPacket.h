@@ -32,7 +32,6 @@ class BowVector;  // forward declare to avoid public dbow dependency
 
 namespace VIO {
 
-typedef cv::Mat OrbDescriptor;
 typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
 
 struct LcdOutput : PipelinePayload {
@@ -56,7 +55,7 @@ struct LcdOutput : PipelinePayload {
 
   void setFrameInformation(const Landmarks& keypoints_3d,
                            const DBoW2::BowVector& bow_vec,
-                           const OrbDescriptor& descriptors_mat);
+                           const cv::Mat& descriptors_mat);
 
   // TODO(marcus): inlude stats/score of match
   bool is_loop_closure_;
@@ -74,7 +73,7 @@ struct LcdOutput : PipelinePayload {
   // frame information
   Landmarks keypoints_3d_;
   std::map<int, double> bow_vec_;
-  OrbDescriptor descriptors_mat_;
+  cv::Mat descriptors_mat_;
   FrameIDTimestampMap timestamp_map_;
 };
 

@@ -28,6 +28,7 @@
 #include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 
 namespace VIO {
 

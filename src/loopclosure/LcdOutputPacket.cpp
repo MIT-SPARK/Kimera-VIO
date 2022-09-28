@@ -57,7 +57,7 @@ void LcdOutput::setMapInformation(const gtsam::Pose3& W_Pose_Map,
 
 void LcdOutput::setFrameInformation(const Landmarks& keypoints_3d,
                                     const DBoW2::BowVector& bow_vec,
-                                    const OrbDescriptor& descriptors_mat) {
+                                    const cv::Mat& descriptors_mat) {
   keypoints_3d_ = keypoints_3d;
   bow_vec_ = std::map<int, double>(bow_vec.begin(), bow_vec.end());
   descriptors_mat_ = descriptors_mat;

@@ -14,7 +14,7 @@
  */
 
 #pragma once
-#include <DBoW2/DBoW2.h>
+
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 
@@ -30,7 +30,7 @@
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/logging/Logger.h"
-#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
+#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 
@@ -40,9 +40,36 @@ namespace KimeraRPGO {
 class RobustSolver;
 }
 
+namespace DBoW2 {
+class BowVector;
+class FORB;
+
+template <class D, class F>
+class TemplatedVocabulary;
+
+template <class D, class F>
+class TemplatedDatabase;
+
+}  // namespace DBoW2
+
+typedef DBoW2::TemplatedVocabulary<cv::Mat, DBoW2::FORB> OrbVocabulary;
+typedef DBoW2::TemplatedDatabase<cv::Mat, DBoW2::FORB> OrbDatabase;
+
 namespace VIO {
 
-OrbVocabPtr loadOrbVocabulary();
+class LcdThirdPartyWrapper; // forward declare to avoid DBoW2 header
+
+// quick wrapper class to get around forward declaration of OrbVocabulary
+struct PreloadedVocab {
+  KIMERA_DELETE_COPY_CONSTRUCTORS(PreloadedVocab);
+  using Ptr = std::unique_ptr<PreloadedVocab>;
+
+  PreloadedVocab();
+  PreloadedVocab(PreloadedVocab&& other);
+  ~PreloadedVocab();
+
+  std::unique_ptr<OrbVocabulary> vocab;
+};
 
 /* ------------------------------------------------------------------------ */
 class LoopClosureDetector {
@@ -68,7 +95,7 @@ class LoopClosureDetector {
       const boost::optional<StereoMatchingParams>& stereo_matching_params =
           boost::none,
       bool log_output = false,
-      OrbVocabPtr&& preloaded_vocab = nullptr);
+      PreloadedVocab::Ptr&& preloaded_vocab = nullptr);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -392,8 +419,8 @@ class LoopClosureDetector {
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
-  LcdThirdPartyWrapper::UniquePtr lcd_tp_wrapper_;
-  DBoW2::BowVector latest_bowvec_;
+  std::unique_ptr<LcdThirdPartyWrapper> lcd_tp_wrapper_;
+  std::unique_ptr<DBoW2::BowVector> latest_bowvec_;
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_Cam_;

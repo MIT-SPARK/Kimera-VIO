@@ -26,23 +26,12 @@
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
-#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/utils/Macros.h"
-
-// forward declare to avoid public dbow dependency
-namespace DBoW2 {
-class FORB;
-
-template <class D, class F>
-class TemplatedVocabulary;
-}  // namespace DBoW2
-
-typedef DBoW2::TemplatedVocabulary<cv::Mat, DBoW2::FORB> OrbVocabulary;
 
 namespace VIO {
 
+typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
-typedef std::unique_ptr<OrbVocabulary> OrbVocabPtr;
 
 enum class LoopClosureDetectorType {
   BoW = 0u,  //! Bag of Words approach

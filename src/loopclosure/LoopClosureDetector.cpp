@@ -16,6 +16,7 @@
 
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 
+#include <DBoW2/DBoW2.h>
 #include <KimeraRPGO/RobustSolver.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -27,6 +28,7 @@
 #include <vector>
 
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -53,7 +55,7 @@ DEFINE_bool(lcd_no_detection,
 
 namespace VIO {
 
-OrbVocabPtr loadOrbVocabulary() {
+std::unique_ptr<OrbVocabulary> loadOrbVocabulary() {
   std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
   CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path: "
                         << FLAGS_vocabulary_path;
@@ -64,8 +66,15 @@ OrbVocabPtr loadOrbVocabulary() {
             << FLAGS_vocabulary_path;
   vocab->load(FLAGS_vocabulary_path);
   LOG(INFO) << "Loaded vocabulary with " << vocab->size() << " visual words.";
-  return vocab;
 }
+
+PreloadedVocab::PreloadedVocab() { vocab = loadOrbVocabulary(); }
+
+PreloadedVocab::PreloadedVocab(PreloadedVocab&& other) {
+  vocab = std::move(other.vocab);
+}
+
+PreloadedVocab::~PreloadedVocab() {}
 
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
@@ -75,7 +84,7 @@ LoopClosureDetector::LoopClosureDetector(
     const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
     const boost::optional<StereoMatchingParams>& stereo_matching_params,
     bool log_output,
-    OrbVocabPtr&& preloaded_vocab)
+    PreloadedVocab::Ptr&& preloaded_vocab)
     : lcd_state_(LcdState::Bootstrap),
       lcd_params_(lcd_params),
       log_output_(log_output),
@@ -86,7 +95,7 @@ LoopClosureDetector::LoopClosureDetector(
       db_frames_(),
       timestamp_map_(),
       lcd_tp_wrapper_(nullptr),
-      latest_bowvec_(),
+      latest_bowvec_(new DBoW2::BowVector()),
       B_Pose_Cam_(B_Pose_Cam),
       stereo_camera_(stereo_camera ? stereo_camera.get() : nullptr),
       stereo_matcher_(nullptr),
@@ -131,8 +140,11 @@ LoopClosureDetector::LoopClosureDetector(
       cv::DescriptorMatcher::create(lcd_params_.matcher_type_);
 
   // Load ORB vocabulary:
-  OrbVocabPtr vocab = std::move(preloaded_vocab);
-  if (!vocab) {
+
+  std::unique_ptr<OrbVocabulary> vocab;
+  if (preloaded_vocab && preloaded_vocab->vocab) {
+    vocab = std::move(preloaded_vocab->vocab);
+  } else {
     vocab = loadOrbVocabulary();
   }
 
@@ -187,7 +199,9 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
-    default: { LOG(FATAL) << "Unrecognized LCD state."; }
+    default: {
+      LOG(FATAL) << "Unrecognized LCD state.";
+    }
   }
 
   // Process the StereoFrame and check for a loop closure with previous ones.
@@ -276,8 +290,14 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
   output_payload->setMapInformation(
       w_Pose_map, map_Pose_odom, pgo_states, pgo_nfg);
+
+  // TODO(nathan) also gets computed in detectLoop
+  DBoW2::BowVector curr_bow_vec;
+  db_BoW_->getVocabulary()->transform(db_frames_.back()->descriptors_vec_,
+                                      curr_bow_vec);
+
   output_payload->setFrameInformation(db_frames_.back()->keypoints_3d_,
-                                      latest_bowvec_,
+                                      curr_bow_vec,
                                       db_frames_.back()->descriptors_mat_);
   output_payload->timestamp_map_ = timestamp_map_;
 
@@ -503,7 +523,8 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
   } else {
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
-      nss_factor = db_BoW_->getVocabulary()->score(bow_vec, latest_bowvec_);
+      nss_factor = db_BoW_->getVocabulary()->score(
+          bow_vec, *CHECK_NOTNULL(latest_bowvec_));
     } else {
       LOG(ERROR) << "Setting use_nss as false is deprecated. ";
     }
@@ -593,7 +614,7 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
 
   // Update latest bowvec for normalized similarity scoring (NSS).
   if (static_cast<int>(frame_id + 1) > lcd_params_.recent_frames_window_) {
-    latest_bowvec_ = bow_vec;
+    latest_bowvec_.reset(new DBoW2::BowVector(bow_vec));
   } else {
     VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
   }

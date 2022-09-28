@@ -22,6 +22,7 @@
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/mesh/Mesh.h"
 
 namespace VIO {

@@ -39,7 +39,7 @@ MonoImuPipeline::MonoImuPipeline(
     const VioParams& params,
     Visualizer3D::UniquePtr&& visualizer,
     DisplayBase::UniquePtr&& displayer,
-    OrbVocabPtr&& preloaded_vocab)
+    PreloadedVocab::Ptr&& preloaded_vocab)
     : Pipeline(params), camera_(nullptr) {
   // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for
   // MonoImuPipeline.";
