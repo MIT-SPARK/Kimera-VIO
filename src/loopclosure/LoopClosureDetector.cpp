@@ -66,6 +66,7 @@ std::unique_ptr<OrbVocabulary> loadOrbVocabulary() {
             << FLAGS_vocabulary_path;
   vocab->load(FLAGS_vocabulary_path);
   LOG(INFO) << "Loaded vocabulary with " << vocab->size() << " visual words.";
+  return vocab;
 }
 
 PreloadedVocab::PreloadedVocab() { vocab = loadOrbVocabulary(); }
