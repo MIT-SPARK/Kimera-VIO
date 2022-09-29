@@ -1,10 +1,10 @@
 # Use an official Python runtime as a parent image
 FROM ubuntu:18.04
 
-MAINTAINER Antoni Rosinol "arosinol@mit.edu"
+LABEL maintainer="mabate@mit.edu"
 
 # To avoid tzdata asking for geographic location...
-ENV DEBIAN_frontend noninteractive
+ENV DEBIAN_FRONTEND noninteractive
 
 # Set the working directory to /root
 ENV DIRPATH /root

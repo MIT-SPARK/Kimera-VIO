@@ -122,8 +122,13 @@ DataProviderModule::getTimeSyncedImuMeasurements(const Timestamp& timestamp,
   const Timestamp imu_timestamp_curr_frame =
       timestamp + imu_timestamp_correction_ + curr_imu_time_shift;
 
+  // NOTE: using interpolation on both borders instead of just the upper 
+  // as before because without a measurement on the left-hand side we are 
+  // missing some of the motion or overestimating depending on the 
+  // last timestamp's relationship to the nearest imu timestamp. 
+  // For some datasets this caused an incorrect motion estimate
   ThreadsafeImuBuffer::QueryResult query_result =
-      imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+      imu_data_.imu_buffer_.getImuDataInterpolatedBorders(
           imu_timestamp_last_frame,
           imu_timestamp_curr_frame,
           &imu_meas->timestamps_,

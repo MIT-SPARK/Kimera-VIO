@@ -88,12 +88,6 @@ ImuFrontend::PimPtr ImuFrontend::preintegrateImuMeasurements(
   CHECK(pim_) << "Pim not initialized.";
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
-  // TODO why are we not using the last measurement??
-  // Just because we do not have a future imu_stamp??
-  // This can be a feature instead of a bug, in the sense that the user can then
-  // either integrate or not the last measurement (typically fake/interpolated)
-  // measurement. Nevertheless the imu_stamps, should be shifted one step back
-  // I would say.
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
     const gtsam::Vector3& measured_acc = imu_accgyr.block<3, 1>(0, i);
     const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
@@ -195,7 +189,8 @@ ImuFrontend::generateCombinedImuParams(const ImuParams& imu_params) {
   ///< covariance of bias used for pre-integration
   // TODO(Toni): how come we are initializing like this?
   // We should parametrize perhaps this as well.
-  combined_imu_params->biasAccOmegaInt = gtsam::I_6x6;
+  combined_imu_params->biasAccOmegaInt =
+      gtsam::I_6x6 * imu_params.init_bias_sigma_;
   ///< continuous-time "Covariance" describing
   ///< accelerometer bias random walk
   combined_imu_params->biasAccCovariance =
