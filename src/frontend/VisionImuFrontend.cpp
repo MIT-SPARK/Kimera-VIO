@@ -91,7 +91,7 @@ void VisionImuFrontend::outlierRejectionMono(
     TrackingStatusPose* status_pose_mono) {
   CHECK_NOTNULL(status_pose_mono);
   if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity()) &&
+      !keyframe_R_cur_frame.equals(gtsam::Rot3()) &&
       frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
