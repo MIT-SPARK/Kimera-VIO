@@ -34,8 +34,8 @@ class CameraFixture : public ::testing::Test {
       : vio_params_(FLAGS_test_data_path + "/EurocParams"),
         mono_camera_(nullptr),
         left_frame_queue_("left_frame_queue"),
-        right_frame_queue_("right_frame_queue"),
-        window_() {
+        right_frame_queue_("right_frame_queue") {
+        // window_() {
     // Parse data
     parseEuroc();
     // Create Mono Camera
@@ -110,35 +110,35 @@ class CameraFixture : public ::testing::Test {
   }
 
   /** Visualization **/
-  void drawPixelOnImg(const cv::Point2f& pixel,
-                      cv::Mat& img,
-                      const cv::viz::Color& color = cv::viz::Color::red(),
-                      const size_t& pixel_size = 5u,
-                      const uint8_t& alpha = 255u) {
-    // Draw the pixel on the image
-    cv::Scalar color_with_alpha =
-        cv::Scalar(color[0], color[1], color[2], alpha);
-    cv::circle(img, pixel, pixel_size, color_with_alpha, -1);
-  }
+  // void drawPixelOnImg(const cv::Point2f& pixel,
+  //                     cv::Mat& img,
+  //                     const cv::viz::Color& color = cv::viz::Color::red(),
+  //                     const size_t& pixel_size = 5u,
+  //                     const uint8_t& alpha = 255u) {
+  //   // Draw the pixel on the image
+  //   cv::Scalar color_with_alpha =
+  //       cv::Scalar(color[0], color[1], color[2], alpha);
+  //   cv::circle(img, pixel, pixel_size, color_with_alpha, -1);
+  // }
 
-  void drawPixelsOnImg(const std::vector<cv::Point2f>& pixels,
-                       cv::Mat& img,
-                       const cv::viz::Color& color = cv::viz::Color::red(),
-                       const size_t& pixel_size = 5u,
-                       const uint8_t& alpha = 255u) {
-    // Draw the pixel on the image
-    for (const auto& pixel : pixels) {
-      drawPixelOnImg(pixel, img, color, pixel_size, alpha);
-    }
-  }
+  // void drawPixelsOnImg(const std::vector<cv::Point2f>& pixels,
+  //                      cv::Mat& img,
+  //                      const cv::viz::Color& color = cv::viz::Color::red(),
+  //                      const size_t& pixel_size = 5u,
+  //                      const uint8_t& alpha = 255u) {
+  //   // Draw the pixel on the image
+  //   for (const auto& pixel : pixels) {
+  //     drawPixelOnImg(pixel, img, color, pixel_size, alpha);
+  //   }
+  // }
 
-  void spinDisplay() {
-    // Display 3D window
-    static constexpr bool kDisplay = false;
-    if (kDisplay) {
-      window_.spin();
-    }
-  }
+  // void spinDisplay() {
+  //   // Display 3D window
+  //   static constexpr bool kDisplay = false;
+  //   if (kDisplay) {
+  //     window_.spin();
+  //   }
+  // }
 
  protected:
   // Default Parms
@@ -150,8 +150,8 @@ class CameraFixture : public ::testing::Test {
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
 
- private:
-  cv::viz::Viz3d window_;
+//  private:
+//   cv::viz::Viz3d window_;
 };
 
 TEST_F(CameraFixture, project) {
@@ -164,7 +164,7 @@ TEST_F(CameraFixture, project) {
 
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   // Make it easy first, use identity pose and simple intrinsics
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   CameraParams::Intrinsics& intrinsics = camera_params.intrinsics_;
   intrinsics.at(0) = 1.0;  // fx
   intrinsics.at(1) = 1.0;  // fy
@@ -188,7 +188,7 @@ TEST_F(CameraFixture, projectCheirality) {
   // landmark behind camera
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   // Make it easy first, use identity pose and simple intrinsics
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   LandmarkCV lmk_behind_cam = LandmarkCV(0.0, 0.0, -2.0);
@@ -202,7 +202,7 @@ TEST_F(CameraFixture, backProjectSingleSimple) {
   // Easy test first, back-project keypoint at the center of the image with
   // a given depth.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(camera_params.intrinsics_.at(2),
@@ -274,7 +274,7 @@ TEST_F(CameraFixture, backProjectMultipleSimple) {
   // Easy test first, back-project keypoints at the center of the image with
   // different depths.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(camera_params.intrinsics_.at(2),
@@ -301,7 +301,7 @@ TEST_F(CameraFixture, backProjectSingleTopLeft) {
   double px = 190.0;
   double py = 240.0;
   camera_params.intrinsics_ = {fx, fy, px, py};
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   LandmarkCV actual_lmk;
@@ -323,7 +323,7 @@ TEST_F(CameraFixture, backProjectSingleRandom) {
   double px = 390.8;
   double py = 142.2;
   camera_params.intrinsics_ = {fx, fy, px, py};
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   LandmarkCV actual_lmk;
@@ -347,7 +347,7 @@ TEST_F(CameraFixture, backProjectMultipleComplex) {
   double px = 390.8;
   double py = 142.2;
   camera_params.intrinsics_ = {fx, fy, px, py};
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   KeypointsCV kpts;

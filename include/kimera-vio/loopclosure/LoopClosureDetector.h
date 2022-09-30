@@ -393,7 +393,7 @@ class LoopClosureDetector {
 
   // Queue-checking callback
   IsBackendQueueFilledCallback is_backend_queue_filled_cb_;
-  size_t num_lc_unoptimized_;
+  int num_lc_unoptimized_;
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;

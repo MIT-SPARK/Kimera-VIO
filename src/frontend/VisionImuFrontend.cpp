@@ -91,12 +91,12 @@ void VisionImuFrontend::outlierRejectionMono(
     TrackingStatusPose* status_pose_mono) {
   CHECK_NOTNULL(status_pose_mono);
   if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-      !keyframe_R_cur_frame.equals(gtsam::Rot3::identity()) &&
+      !keyframe_R_cur_frame.equals(gtsam::Rot3()) &&
       frontend_state_ != FrontendState::InitialTimeAlignment) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
     gtsam::Pose3 keyframe_Pose_cur_frame(keyframe_R_cur_frame,
-                                         gtsam::Point3::Identity());
+                                         gtsam::Point3());
     *status_pose_mono = tracker_->geometricOutlierRejection2d2d(
         frame_lkf, frame_k, keyframe_Pose_cur_frame);
   } else {

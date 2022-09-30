@@ -41,7 +41,7 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
       mono_frame_k_(nullptr),
       mono_frame_km1_(nullptr),
       mono_frame_lkf_(nullptr),
-      keyframe_R_ref_frame_(gtsam::Rot3::identity()),
+      keyframe_R_ref_frame_(gtsam::Rot3()),
       feature_detector_(nullptr),
       mono_camera_(camera),
       frontend_params_(frontend_params) {
@@ -113,7 +113,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
 
   if (VLOG_IS_ON(10)) input->print();
 
-  auto tic_full_preint = utils::Timer::tic();
+  //auto tic_full_preint = utils::Timer::tic();
   const ImuFrontend::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
       input->getImuStamps(), input->getImuAccGyrs());
   CHECK(pim);
@@ -157,7 +157,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
                                 mono_frame_km1_->getNrValidKeypoints());
       logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
                                  tracker_status_summary_.lkf_T_k_mono_,
-                                 gtsam::Pose3::identity());
+                                 gtsam::Pose3());
     }
     //////////////////////////////////////////////////////////////////////////////
 
@@ -337,7 +337,7 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
   }
 
   if (mono_frame_k_->isKeyframe_) {
-    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+    keyframe_R_ref_frame_ = gtsam::Rot3();
   } else {
     keyframe_R_ref_frame_ = keyframe_R_cur_frame;
   }

@@ -222,7 +222,8 @@ class TestTracker : public ::testing::Test {
       // Randomly synthesize the point!
       KeypointCV pt_ref(rand() % f_ref->img_.cols, rand() % f_ref->img_.rows);
       // Calibrate the point
-      Vector3 versor_ref = UndistorterRectifier::GetBearingVector(pt_ref, f_ref->cam_param_);
+      Vector3 versor_ref =
+          UndistorterRectifier::GetBearingVector(pt_ref, f_ref->cam_param_);
 
       // Compute the intersection between the versor and the plane.
       Vector3 versor_plane = IntersectVersorPlane(versor_ref, PlaneN, PlaneD);
@@ -259,7 +260,8 @@ class TestTracker : public ::testing::Test {
       KeypointCV pt_ref(rand() % f_ref->img_.cols, rand() % f_ref->img_.rows);
 
       // Calibrate the point
-      Vector3 versor_ref = UndistorterRectifier::GetBearingVector(pt_ref, f_ref->cam_param_);
+      Vector3 versor_ref =
+          UndistorterRectifier::GetBearingVector(pt_ref, f_ref->cam_param_);
 
       // Randomly generate the depth
       double depth = depth_range[0] + (depth_range[1] - depth_range[0]) *
@@ -298,8 +300,10 @@ class TestTracker : public ::testing::Test {
         KeypointCV pt_cur(rand() % f_cur->img_.cols, rand() % f_cur->img_.rows);
 
         // Calibrate keypoints
-        Vector3 versor_ref = UndistorterRectifier::GetBearingVector(pt_ref, f_ref->cam_param_);
-        Vector3 versor_cur = UndistorterRectifier::GetBearingVector(pt_cur, f_cur->cam_param_);
+        Vector3 versor_ref =
+            UndistorterRectifier::GetBearingVector(pt_ref, f_ref->cam_param_);
+        Vector3 versor_cur =
+            UndistorterRectifier::GetBearingVector(pt_cur, f_cur->cam_param_);
 
         // Check that they are indeed outliers!
         double depth = camRef_pose_camCur.translation().norm();
@@ -444,10 +448,10 @@ class TestTracker : public ::testing::Test {
                           rand() % sf_cur->left_frame_.img_.rows);
 
         // Calibrate keypoints
-        Vector3 versor_ref =
-            UndistorterRectifier::GetBearingVector(pt_ref, sf_ref->left_frame_.cam_param_);
-        Vector3 versor_cur =
-            UndistorterRectifier::GetBearingVector(pt_cur, sf_cur->left_frame_.cam_param_);
+        Vector3 versor_ref = UndistorterRectifier::GetBearingVector(
+            pt_ref, sf_ref->left_frame_.cam_param_);
+        Vector3 versor_cur = UndistorterRectifier::GetBearingVector(
+            pt_cur, sf_cur->left_frame_.cam_param_);
 
         // Check that they are indeed outliers!
         double depth_ref =
@@ -800,6 +804,7 @@ TEST_F(TestTracker, geometricOutlierRejection2d2d) {
 TEST_F(TestTracker, geometricOutlierRejection2d2dGivenRotation) {
   TrackerParams tracker_params = TrackerParams();
   tracker_params.ransac_use_1point_stereo_ = true;
+  tracker_params.ransac_randomize_ = false;
   Tracker tracker(tracker_params, stereo_camera_->getOriginalLeftCamera());
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
@@ -969,6 +974,7 @@ TEST_F(TestTracker, geometricOutlierRejection3d3d) {
 
       TrackerParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
+      trackerParams.ransac_randomize_ = false;
       Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
@@ -1182,8 +1188,8 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   VIO::StereoCamera ref_stereo_camera(
       ref_stereo_frame->left_frame_.cam_param_,
       ref_stereo_frame->right_frame_.cam_param_);
-  gtsam::StereoCamera stereoCam = gtsam::StereoCamera(
-      gtsam::Pose3::identity(), ref_stereo_camera.getStereoCalib());
+  gtsam::StereoCamera stereoCam =
+      gtsam::StereoCamera(gtsam::Pose3(), ref_stereo_camera.getStereoCalib());
 
   // create a stereo point:
   double xL = 379.999 / 2;  // in the middle of the image
@@ -1609,10 +1615,10 @@ TEST_F(TestTracker, PnPTracking) {
   //! Set camera looking at the unitary cube of landmarks (see below), and
   //! put it a bit back in x axis to avoid cheirality exception.
   gtsam::Pose3 W_Pose_body =
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Vector3(0.0, 0.0, -2.0));
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Vector3(0.0, 0.0, -2.0));
   cam_params_left.body_Pose_cam_ = W_Pose_body;
   cam_params_right.body_Pose_cam_ =
-      gtsam::Pose3(gtsam::Rot3::identity(), {1.0, .0, -2.0});
+      gtsam::Pose3(gtsam::Rot3(), {1.0, .0, -2.0});
   // W_Pose_body.compose(cam_params_right.body_Pose_cam_);
 
   //! Setup stereo camera
@@ -1732,11 +1738,9 @@ TEST_F(TestTracker, PnPTracking) {
   }
 
   //! Estimate pose with PnP
-  gtsam::Pose3 best_absolute_pose = gtsam::Pose3::identity();
+  gtsam::Pose3 best_absolute_pose;
   std::vector<int> inliers;
-  EXPECT_TRUE(tracker_->pnp(*cur_stereo_frame,
-                            &best_absolute_pose,
-                            &inliers));
+  EXPECT_TRUE(tracker_->pnp(*cur_stereo_frame, &best_absolute_pose, &inliers));
   //! Check inliers/outliers
   EXPECT_EQ(inliers.size(), inlier_lmks.size());
 
@@ -1773,16 +1777,16 @@ TEST_F(TestTracker, PnPTracking) {
   EXPECT_NEAR(expected.y(), best_absolute_pose.y(), tol);
   EXPECT_NEAR(expected.z(), best_absolute_pose.z(), tol);
 
-  EXPECT_NEAR(expected_rot.quaternion().x(),
-              best_absolute_pose.rotation().quaternion().x(),
+  EXPECT_NEAR(expected_rot.toQuaternion().x(),
+              best_absolute_pose.rotation().toQuaternion().x(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().y(),
-              best_absolute_pose.rotation().quaternion().y(),
+  EXPECT_NEAR(expected_rot.toQuaternion().y(),
+              best_absolute_pose.rotation().toQuaternion().y(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().z(),
-              best_absolute_pose.rotation().quaternion().z(),
+  EXPECT_NEAR(expected_rot.toQuaternion().z(),
+              best_absolute_pose.rotation().toQuaternion().z(),
               tol);
-  EXPECT_NEAR(expected_rot.quaternion().w(),
-              best_absolute_pose.rotation().quaternion().w(),
+  EXPECT_NEAR(expected_rot.toQuaternion().w(),
+              best_absolute_pose.rotation().toQuaternion().w(),
               tol);
 }

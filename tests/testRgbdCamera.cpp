@@ -63,18 +63,20 @@ class RgbdCameraFixture : public ::testing::Test {
         VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
 
     // Create Displayer
-    CHECK(vio_params_.display_params_);
-    OpenCv3dDisplayParams modified_display_params =
-        VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
-            *vio_params_.display_params_);
-    modified_display_params.hold_3d_display_ = true;
-    DisplayParams::Ptr new_display_params =
-        std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
-    display_module_ = VIO::make_unique<DisplayModule>(
-        &display_input_queue_,
-        nullptr,
-        vio_params_.parallel_run_,
-        VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
+    if (FLAGS_display) {
+      CHECK(vio_params_.display_params_);
+      OpenCv3dDisplayParams modified_display_params =
+          VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
+              *vio_params_.display_params_);
+      modified_display_params.hold_3d_display_ = true;
+      DisplayParams::Ptr new_display_params =
+          std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
+      display_module_ = VIO::make_unique<DisplayModule>(
+          &display_input_queue_,
+          nullptr,
+          vio_params_.parallel_run_,
+          VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
+    }
   }
   ~RgbdCameraFixture() override = default;
 
@@ -140,7 +142,7 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
   // same params
   VLOG(1) << "Creating mono cam.";
   // Make identity for simplicity, but should test as well for non-identity
-  cam_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  cam_params.body_Pose_cam_ = gtsam::Pose3();
   Camera mono_cam(cam_params);
   cv::Mat_<cv::Point3f> expected_cloud =
       cv::Mat(height, width, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));

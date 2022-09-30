@@ -588,7 +588,7 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
     VLOG(10) << "LoopClosureDetector: failure to find matching keypoints "
                 "between reference and current frames."
              << "\n reference id: " << ref_id << " current id: " << cur_id;
-    result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+    result = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   } else {
     result = tracker_->geometricOutlierRejection2d2d(
         db_frames_[ref_id]->bearing_vectors_,
@@ -726,12 +726,12 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
   // TODO camMatch_T_camQuery rename to camMatch_T_camQuery
   gtsam::Key key_match = gtsam::Symbol('x', ref_id);
   gtsam::Key key_query = gtsam::Symbol('x', cur_id);
-  values.insert(key_match, gtsam::Pose3::identity());
+  values.insert(key_match, gtsam::Pose3());
   values.insert(key_query, camMatch_T_camQuery_3d);
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Unit::Create(6);
   nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-      key_match, gtsam::Pose3::identity(), noise));
+      key_match, gtsam::Pose3(), noise));
 
   gtsam::SharedNoiseModel noise_stereo = gtsam::noiseModel::Unit::Create(3);
 
@@ -836,7 +836,7 @@ const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
     return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
   }
 
-  return gtsam::Pose3::identity();
+  return gtsam::Pose3();
 }
 
 /* ------------------------------------------------------------------------ */

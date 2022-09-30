@@ -152,7 +152,7 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   }
   const auto& cached_state = vio_output.W_State_Blkf_;
   const auto& w_pose_blkf_trans = cached_state.pose_.translation().transpose();
-  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().quaternion();
+  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().toQuaternion();
   const auto& w_vel_blkf = cached_state.velocity_.transpose();
   const auto& imu_bias_gyro = cached_state.imu_bias_.gyroscope().transpose();
   const auto& imu_bias_acc = cached_state.imu_bias_.accelerometer().transpose();
@@ -160,10 +160,10 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
                 << w_pose_blkf_trans.x() << ","    //
                 << w_pose_blkf_trans.y() << ","    //
                 << w_pose_blkf_trans.z() << ","    //
-                << w_pose_blkf_rot(0) << ","       // q_w
-                << w_pose_blkf_rot(1) << ","       // q_x
-                << w_pose_blkf_rot(2) << ","       // q_y
-                << w_pose_blkf_rot(3) << ","       // q_z
+                << w_pose_blkf_rot.w() << ","      //
+                << w_pose_blkf_rot.x() << ","      //
+                << w_pose_blkf_rot.y() << ","      //
+                << w_pose_blkf_rot.z() << ","      //
                 << w_vel_blkf(0) << ","            //
                 << w_vel_blkf(1) << ","            //
                 << w_vel_blkf(2) << ","            //
@@ -300,8 +300,7 @@ void BackendLogger::logBackendExtOdom(const BackendInput& input) {
 
   // write the relative pose estimate between the last keyframe
   // and the current one as well as the current body velocity estimate
-  const gtsam::Point3 tran =
-      (*input.body_lkf_OdomPose_body_kf_).translation();
+  const gtsam::Point3 tran = (*input.body_lkf_OdomPose_body_kf_).translation();
   const gtsam::Quaternion quat =
       (*input.body_lkf_OdomPose_body_kf_).rotation().toQuaternion();
   output_stream << input.timestamp_ << ",";
@@ -551,13 +550,14 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
   }
 }
 
-void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
-                                            const Timestamp& timestamp_imu,
-                                            const double& vision_relative_angle_norm,
-                                            const double& imu_relative_angle_norm,
-                                            bool not_enough_data,
-                                            bool not_enough_variance,
-                                            const double& result) {
+void FrontendLogger::logFrontendTemporalCal(
+    const Timestamp& timestamp_vision,
+    const Timestamp& timestamp_imu,
+    const double& vision_relative_angle_norm,
+    const double& imu_relative_angle_norm,
+    bool not_enough_data,
+    bool not_enough_variance,
+    const double& result) {
   std::ofstream& output_stream = output_frontend_temporal_cal_.ofstream_;
 
   if (!is_header_written_temporal_cal_) {
@@ -569,9 +569,9 @@ void FrontendLogger::logFrontendTemporalCal(const Timestamp& timestamp_vision,
   }
 
   output_stream << timestamp_vision << "," << timestamp_imu << ","
-                << vision_relative_angle_norm << ","
-                << imu_relative_angle_norm << "," << not_enough_data << ","
-                << not_enough_variance << "," << result << "," << std::endl;
+                << vision_relative_angle_norm << "," << imu_relative_angle_norm
+                << "," << not_enough_data << "," << not_enough_variance << ","
+                << result << "," << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
