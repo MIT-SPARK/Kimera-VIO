@@ -200,9 +200,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
-    default: {
-      LOG(FATAL) << "Unrecognized LCD state.";
-    }
+    default: { LOG(FATAL) << "Unrecognized LCD state."; }
   }
 
   // Process the StereoFrame and check for a loop closure with previous ones.
@@ -524,8 +522,8 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
   } else {
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
-      nss_factor = db_BoW_->getVocabulary()->score(
-          bow_vec, *CHECK_NOTNULL(latest_bowvec_));
+      CHECK(latest_bowvec_ != nullptr);
+      nss_factor = db_BoW_->getVocabulary()->score(bow_vec, *latest_bowvec_);
     } else {
       LOG(ERROR) << "Setting use_nss as false is deprecated. ";
     }
