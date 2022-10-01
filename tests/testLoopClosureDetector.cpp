@@ -817,17 +817,13 @@ TEST_F(LCDFixture, detectLoop) {
 TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   /* Test the addition of odometry factors to the PGO */
   CHECK(lcd_detector_);
-  gtsam::Values state_values;
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 0),
-                      gtsam::Pose3());
   lcd_detector_->initializePGO(
       OdometryFactor(0,
-                     state_values,
+                     gtsam::Pose3(),
                      gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 1), world_T_bodyMatch1_);
   OdometryFactor odom_factor(
-      1, state_values, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      1, world_T_bodyMatch1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->addOdometryFactorAndOptimize(odom_factor);
 
   gtsam::Values pgo_trajectory = lcd_detector_->getPGOTrajectory();
@@ -840,15 +836,12 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
 TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
   /* Test the addition of odometry and loop closure factors to the PGO */
   CHECK(lcd_detector_);
-  gtsam::Values state_values;
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 0), world_T_bodyMatch1_);
   OdometryFactor odom_factor_1(
-      0, state_values, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      0, world_T_bodyMatch1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->initializePGO(odom_factor_1);
 
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 1), world_T_bodyQuery1_);
   OdometryFactor odom_factor_2(
-      1, state_values, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      1, world_T_bodyQuery1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->addOdometryFactorAndOptimize(odom_factor_2);
 
   LoopClosureFactor lc_factor_1_2(
@@ -880,23 +873,17 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
       std::bind(&LCDFixture::lcdInputQueueCb, this));
   CHECK(lcd_detector_);
 
-  gtsam::Values state_values;
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 0),
-                      gtsam::Pose3());
   lcd_detector_->initializePGO(
       OdometryFactor(0,
-                     state_values,
+                     gtsam::Pose3(),
                      gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   size_t num_odom = 10;
   for (size_t i = 1; i < num_odom; i++) {
-    state_values.insert(
-        gtsam::Symbol(kPoseSymbolChar, i),
-        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(2 * i, 0, 0)));
-    lcd_detector_->addOdometryFactorAndOptimize(OdometryFactor(
-        i,
-        state_values,
-        gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+    lcd_detector_->addOdometryFactorAndOptimize(
+        OdometryFactor(i,
+                       gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(2 * i, 0, 0)),
+                       gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
   }
 
   // Check that the trajectory is just odometry factors concatenated together.
@@ -973,15 +960,12 @@ TEST_F(LCDFixture, spinOnce) {
   FrontendOutputPacketBase::Ptr frontend_output_match1 =
       VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
           stereo_frontend_output);
-  gtsam::Values state_values;
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 0),
-                      gtsam::Pose3());
   LcdOutput::Ptr output_0 =
       lcd_detector_->spinOnce(LcdInput(timestamp_match1_,
                                        frontend_output_match1,
                                        FrameId(0),
                                        W_match1_lmks3d_,
-                                       state_values));
+                                       gtsam::Pose3()));
 
   CHECK(match2_stereo_frame_);
   stereo_frontend_output =
@@ -997,13 +981,12 @@ TEST_F(LCDFixture, spinOnce) {
   FrontendOutputPacketBase::Ptr frontend_output_match2 =
       VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
           stereo_frontend_output);
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 1), gtsam::Pose3());
   LcdOutput::Ptr output_1 =
       lcd_detector_->spinOnce(LcdInput(timestamp_match2_,
                                        frontend_output_match2,
                                        FrameId(1),
                                        W_match2_lmks3d_,
-                                       state_values));
+                                       gtsam::Pose3()));
 
   CHECK(query1_stereo_frame_);
   stereo_frontend_output =
@@ -1019,14 +1002,12 @@ TEST_F(LCDFixture, spinOnce) {
   FrontendOutputPacketBase::Ptr frontend_output_query1 =
       VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
           stereo_frontend_output);
-  state_values.insert(gtsam::Symbol(kPoseSymbolChar, 2),
-                      gtsam::Pose3());
   LcdOutput::Ptr output_2 =
       lcd_detector_->spinOnce(LcdInput(timestamp_query1_,
                                        frontend_output_query1,
                                        FrameId(2),
                                        W_query1_lmks3d_,
-                                       state_values));
+                                       gtsam::Pose3()));
 
   EXPECT_EQ(output_0->is_loop_closure_, false);
   EXPECT_EQ(output_0->timestamp_, timestamp_match1_);

@@ -150,13 +150,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // TODO(marcus): OdometryPose vs OdometryFactor
   timestamp_map_[input.cur_kf_id_] = input.timestamp_;
   OdometryFactor odom_factor(
-      input.cur_kf_id_, input.backend_state_, shared_noise_model_);
-
-  // Set latest VIO estimate for use with get_W_map()
-  W_Pose_B_kf_vio_ =
-      std::make_pair(odom_factor.cur_key_,
-                     odom_factor.backend_state_.at<gtsam::Pose3>(
-                         gtsam::Symbol(kPoseSymbolChar, odom_factor.cur_key_)));
+      input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
 
   switch (lcd_state_) {
     case LcdState::Bootstrap: {
@@ -183,11 +177,9 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       MonoFrontendOutput::Ptr mono_frontend_output =
           VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
               input.frontend_output_);
-      lcd_frame_id = processAndAddMonoFrame(
-          mono_frontend_output->frame_lkf_,
-          input.W_points_with_ids_,
-          input.backend_state_.at<gtsam::Pose3>(
-              gtsam::Symbol(kPoseSymbolChar, input.cur_kf_id_)));
+      lcd_frame_id = processAndAddMonoFrame(mono_frontend_output->frame_lkf_,
+                                            input.W_points_with_ids_,
+                                            input.W_Pose_Blkf_);
       break;
     }
     case FrontendType::kStereoImu: {
@@ -229,10 +221,15 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
             << LoopResult::asString(loop_result.status_);
   }
 
+  // Set latest VIO estimate for use with get_W_map()
+  W_Pose_B_kf_vio_ =
+      std::make_pair(odom_factor.cur_key_, odom_factor.W_Pose_Blkf_);
+
   // Timestamps for PGO and for LCD should match now.
   CHECK_EQ(db_frames_.back()->timestamp_,
            timestamp_map_.at(db_frames_.back()->id_));
   CHECK_EQ(timestamp_map_.size(), db_frames_.size());
+  CHECK_EQ(timestamp_map_.size(), W_Pose_B_kf_vio_.first + 1);
 
   // Construct output payload.
   CHECK(pgo_);
@@ -1012,8 +1009,7 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   CHECK(lcd_state_ == LcdState::Bootstrap);
   CHECK_EQ(factor.cur_key_, 0u);
 
-  const gtsam::Pose3& W_Pose_Bkf = factor.backend_state_.at<gtsam::Pose3>(
-      gtsam::Symbol(kPoseSymbolChar, factor.cur_key_));
+  const gtsam::Pose3& W_Pose_Bkf = factor.W_Pose_Blkf_;
 
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
@@ -1038,8 +1034,7 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   CHECK(lcd_state_ == LcdState::Nominal);
   CHECK_GT(factor.cur_key_, 0u);
 
-  const gtsam::Pose3& W_Pose_Bkf = factor.backend_state_.at<gtsam::Pose3>(
-      gtsam::Symbol(kPoseSymbolChar, factor.cur_key_));
+  const gtsam::Pose3& W_Pose_Bkf = factor.W_Pose_Blkf_;
 
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
@@ -1049,8 +1044,12 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   const gtsam::Pose3& estimated_last_pose =
       optimized_values.at<gtsam::Pose3>(factor.cur_key_ - 1);
 
-  const gtsam::Pose3& W_Pose_Blkf = factor.backend_state_.at<gtsam::Pose3>(
-      gtsam::Symbol(kPoseSymbolChar, factor.cur_key_ - 1));
+  // We can get the same relative pose used in the backend after
+  // smoother_->update() by getting the relative pose between the latest two
+  // VIO backend output poses, as these are created by chaining smoother_
+  // relative poses.
+  CHECK_EQ(W_Pose_B_kf_vio_.first, factor.cur_key_ - 1);
+  const gtsam::Pose3& W_Pose_Blkf = W_Pose_B_kf_vio_.second;
   const gtsam::Pose3& B_lkf_Pose_kf = W_Pose_Blkf.between(W_Pose_Bkf);
   value.insert(gtsam::Symbol(factor.cur_key_),
                estimated_last_pose.compose(B_lkf_Pose_kf));

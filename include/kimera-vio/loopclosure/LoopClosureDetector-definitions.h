@@ -227,12 +227,12 @@ struct LcdDebugInfo {
 
 struct OdometryFactor {
   OdometryFactor(const FrameId& cur_key,
-                 const gtsam::Values& backend_state,
+                 const gtsam::Pose3& W_Pose_Blkf,
                  const gtsam::SharedNoiseModel& noise)
-      : cur_key_(cur_key), backend_state_(backend_state), noise_(noise) {}
+      : cur_key_(cur_key), W_Pose_Blkf_(W_Pose_Blkf), noise_(noise) {}
 
   const FrameId cur_key_;
-  const gtsam::Values backend_state_;
+  const gtsam::Pose3 W_Pose_Blkf_;
   const gtsam::SharedNoiseModel noise_;
 };  // struct OdometryFactor
 
@@ -260,12 +260,12 @@ struct LcdInput : public PipelinePayload {
            const FrontendOutputPacketBase::Ptr& frontend_output,
            const FrameId& cur_kf_id,
            const PointsWithIdMap& W_points_with_ids,
-           const gtsam::Values& backend_state)
+           const gtsam::Pose3& W_Pose_Blkf)
       : PipelinePayload(timestamp),
         frontend_output_(frontend_output),
         cur_kf_id_(cur_kf_id),
         W_points_with_ids_(W_points_with_ids),
-        backend_state_(backend_state) {
+        W_Pose_Blkf_(W_Pose_Blkf) {
     CHECK(frontend_output);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
   }
@@ -273,7 +273,7 @@ struct LcdInput : public PipelinePayload {
   const FrontendOutputPacketBase::Ptr frontend_output_;
   const FrameId cur_kf_id_;
   const PointsWithIdMap W_points_with_ids_;
-  const gtsam::Values backend_state_;
+  const gtsam::Pose3 W_Pose_Blkf_;
 };
 
 struct LcdOutput : PipelinePayload {
