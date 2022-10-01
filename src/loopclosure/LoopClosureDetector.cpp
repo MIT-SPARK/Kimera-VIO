@@ -67,7 +67,7 @@ LoopClosureDetector::LoopClosureDetector(
       stereo_camera_(stereo_camera ? stereo_camera.get() : nullptr),
       stereo_matcher_(nullptr),
       pgo_(nullptr),
-      W_Pose_Bkf_estimates_(),
+      W_Pose_B_kf_vio_(),
       num_lc_unoptimized_(0),
       logger_(nullptr) {
   // Shared noise model initialization
@@ -152,6 +152,12 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   OdometryFactor odom_factor(
       input.cur_kf_id_, input.backend_state_, shared_noise_model_);
 
+  // Set latest VIO estimate for use with get_W_map()
+  W_Pose_B_kf_vio_ =
+      std::make_pair(odom_factor.cur_key_,
+                     odom_factor.backend_state_.at<gtsam::Pose3>(
+                         gtsam::Symbol(kPoseSymbolChar, odom_factor.cur_key_)));
+
   switch (lcd_state_) {
     case LcdState::Bootstrap: {
       CHECK_EQ(pgo_->calculateEstimate().size(), 0);
@@ -227,7 +233,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   CHECK_EQ(db_frames_.back()->timestamp_,
            timestamp_map_.at(db_frames_.back()->id_));
   CHECK_EQ(timestamp_map_.size(), db_frames_.size());
-  CHECK_EQ(timestamp_map_.size(), W_Pose_Bkf_estimates_.size());
 
   // Construct output payload.
   CHECK(pgo_);
@@ -826,17 +831,13 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
 /* ------------------------------------------------------------------------ */
 const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Bkf_estimates_.size() > 1) {
-    CHECK(pgo_);
-    const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
-    const gtsam::Pose3& w_Pose_Bkf_optimal =
-        pgo_->calculateEstimate().at<gtsam::Pose3>(
-            W_Pose_Bkf_estimates_.size() - 1);
+  CHECK(pgo_);
+  const gtsam::Symbol& cur_id = W_Pose_B_kf_vio_.first;
+  const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_B_kf_vio_.second;
+  const gtsam::Pose3& w_Pose_Bkf_optimal =
+      pgo_->calculateEstimate().at<gtsam::Pose3>(cur_id);
 
-    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
-  }
-
-  return gtsam::Pose3();
+  return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1014,12 +1015,6 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   const gtsam::Pose3& W_Pose_Bkf = factor.backend_state_.at<gtsam::Pose3>(
       gtsam::Symbol(kPoseSymbolChar, factor.cur_key_));
 
-  // Save latest VIO estimate
-  // NOTE: done here and duplicated between initializePGO and
-  // addOdometryFactorAndOptimize instead of in spinOnce() primarily for easier
-  // testing
-  W_Pose_Bkf_estimates_.push_back(W_Pose_Bkf);
-
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
 
@@ -1045,15 +1040,6 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
 
   const gtsam::Pose3& W_Pose_Bkf = factor.backend_state_.at<gtsam::Pose3>(
       gtsam::Symbol(kPoseSymbolChar, factor.cur_key_));
-
-  // Save latest VIO estimate
-  // NOTE: done here and duplicated between initializePGO and
-  // addOdometryFactorAndOptimize instead of in spinOnce() primarily for easier
-  // testing
-  W_Pose_Bkf_estimates_.push_back(W_Pose_Bkf);
-
-  CHECK_LE(factor.cur_key_, W_Pose_Bkf_estimates_.size())
-      << "New odometry factor has a key that is too high.";
 
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;

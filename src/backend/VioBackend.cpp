@@ -29,15 +29,14 @@
 
 #include "kimera-vio/backend/VioBackend.h"
 
-#include <KimeraRPGO/RobustSolver.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-
 #include <limits>  // for numeric_limits<>
 #include <map>
 #include <string>
 #include <utility>  // for make_pair
 #include <vector>
+
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"  // for safeCast
@@ -116,15 +115,6 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
   smoother_ = VIO::make_unique<Smoother>(backend_params.nr_states_, lmParams);
 #endif
 
-  // Initialize pgo_:
-  KimeraRPGO::RobustSolverParams pgo_params;
-  // TODO(marcus): parametrize(?)
-  pgo_params.setPcmSimple3DParams(0.001, 0.001, KimeraRPGO::Verbosity::QUIET);
-  // TODO(marcus): add gnc(?)
-  // if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1)
-  //   pgo_params.setGncInlierCostThresholdsAtProbability(lcd_params_.gnc_alpha_);
-  smoothed_pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
-
   // Set parameters for all factors.
   setFactorsParams(backend_params,
                    &smart_noise_,
@@ -138,11 +128,6 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
 
   // Print parameters if verbose
   if (VLOG_IS_ON(1)) print();
-}
-
-/* -------------------------------------------------------------------------- */
-VioBackend::~VioBackend() {
-  LOG(INFO) << "Backend destructor called."; 
 }
 
 /* -------------------------------------------------------------------------- */
@@ -217,14 +202,9 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
     }
 
     // Create Backend Output Payload.
-    const gtsam::Values& pgo_states = smoothed_pgo_->calculateEstimate();
-    const gtsam::Pose3& W_Pose_B_lkf_smoothed =
-        pgo_states.at<Pose3>(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_));
     output_payload = VIO::make_unique<BackendOutput>(
-        VioNavStateTimestamped(input.timestamp_,
-                               W_Pose_B_lkf_smoothed,
-                               W_Vel_B_lkf_,
-                               imu_bias_lkf_),
+        VioNavStateTimestamped(
+            input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
         // TODO(Toni): Make all below optional!!
         state_,
         smoother_->getFactors(),
@@ -807,7 +787,9 @@ void VioBackend::addStateValues(const FrameId& frame_id,
                                 const gtsam::PreintegrationType& pim,
                                 boost::optional<gtsam::Pose3> odom_pose,
                                 boost::optional<gtsam::Vector3> odom_vel) {
-  gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
+  gtsam::Pose3 W_Pose_B_lkf_from_state =
+      state_.at<gtsam::Pose3>(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_ - 1));  // TODO(marcus): try with frame_id
+  gtsam::NavState navstate_lkf(W_Pose_B_lkf_from_state, W_Vel_B_lkf_);
   const gtsam::NavState& navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
   debug_info_.navstate_k_ = navstate_k;
 
@@ -818,9 +800,9 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     }
     case PoseGuessSource::MONO: {
       if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
-        gtsam::Pose3 W_Pose_B_k_mono = W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
-                           tracker_status.lkf_T_k_mono_ *
-                           B_Pose_leftCamRect_.inverse();
+        gtsam::Pose3 W_Pose_B_k_mono =
+            W_Pose_B_lkf_from_state * B_Pose_leftCamRect_ *
+            tracker_status.lkf_T_k_mono_ * B_Pose_leftCamRect_.inverse();
         gtsam::Point3 W_ScaledTranslation_B_k_mono =
             W_Pose_B_k_mono.translation() *
             backend_params_.mono_translation_scale_factor_;
@@ -838,7 +820,7 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     case PoseGuessSource::STEREO: {
       if (tracker_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
         addStateValues(frame_id,
-                       W_Pose_B_lkf_ * B_Pose_leftCamRect_ *
+                       W_Pose_B_lkf_from_state * B_Pose_leftCamRect_ *
                            tracker_status.lkf_T_k_stereo_ *
                            B_Pose_leftCamRect_.inverse(),
                        navstate_k.velocity(),
@@ -865,7 +847,7 @@ void VioBackend::addStateValues(const FrameId& frame_id,
     case PoseGuessSource::EXTERNAL_ODOM: {
       if (odom_pose) {
         // odom_pose is relative (body_lkf_odomPose_body_kf)
-        gtsam::Pose3 W_Pose_B_odom = W_Pose_B_lkf_ * odom_pose.get();
+        gtsam::Pose3 W_Pose_B_odom = W_Pose_B_lkf_from_state * odom_pose.get();
         if (odom_vel && odom_params_->velocityPrecision_ > 0.0) {
           LOG(ERROR) << "Using external odometry velocity is not "
                         "recommended! Set odomVelPrecision = 0. Ignore this "
@@ -1296,18 +1278,6 @@ void VioBackend::addInitialPriorFactors(const FrameId& frame_id) {
           W_Pose_B_lkf_,
           noise_init_pose));
 
-  // Add pose prior to smoothed_pgo:
-  gtsam::NonlinearFactorGraph nfg;
-  gtsam::Values value;
-  nfg.add(
-      gtsam::PriorFactor<gtsam::Pose3>(gtsam::Symbol(kPoseSymbolChar, frame_id),
-                                       W_Pose_B_lkf_,
-                                       noise_init_pose));
-  // Add initial value to smoothed_pgo
-  value.insert(gtsam::Symbol(kPoseSymbolChar, frame_id), W_Pose_B_lkf_);
-  CHECK(smoothed_pgo_);
-  smoothed_pgo_->update(nfg, value);
-
   // Add initial velocity priors.
   // TODO(Toni): Make this noise model a member constant.
   gtsam::SharedNoiseModel noise_init_vel_prior =
@@ -1366,44 +1336,26 @@ void VioBackend::updateStates(const FrameId& cur_id) {
   DCHECK(state_.find(gtsam::Symbol(kImuBiasSymbolChar, cur_id)) !=
          state_.end());
 
-  W_Pose_B_lkf_ = state_.at<Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id));
+  gtsam::Pose3 W_Pose_B_lkf =
+      state_.at<gtsam::Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id));
+  gtsam::Pose3 W_Pose_B_llkf = gtsam::Pose3();
+  gtsam::Pose3 B_llkf_Pose_lkf = gtsam::Pose3();
+
+  // If we have an available pose at cur_id - 1 we use it, otw identity
+  // gives us W_Pose_B_lkf as our current pose estimate.
+  if (cur_id > 0) {
+    W_Pose_B_llkf =
+        state_.at<gtsam::Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id - 1));
+
+    // Compute relative pose as odometry to append to pose estimate trajectory
+    B_llkf_Pose_lkf = W_Pose_B_llkf.between(W_Pose_B_lkf);
+  }
+
+  // Update latest state estimate
+  W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(B_llkf_Pose_lkf);
   W_Vel_B_lkf_ = state_.at<Vector3>(gtsam::Symbol(kVelocitySymbolChar, cur_id));
   imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(
       gtsam::Symbol(kImuBiasSymbolChar, cur_id));
-
-  // Push a relative pose between the last two states to the smoothed-PGO
-  // TODO(marcus): check size of smoothed_pgo_ instead of cur_id
-  if (cur_id > 0) {
-    const gtsam::Pose3& W_Pose_B_llkf =
-        state_.at<Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id - 1));
-    const gtsam::Pose3& B_llkf_Pose_B_lkf =
-        W_Pose_B_llkf.between(W_Pose_B_lkf_);
-
-    gtsam::NonlinearFactorGraph nfg;
-    gtsam::Values value;
-
-    const gtsam::Values& optimized_values = smoothed_pgo_->calculateEstimate();
-    const gtsam::Pose3& estimated_last_pose = optimized_values.at<gtsam::Pose3>(
-        gtsam::Symbol(kPoseSymbolChar, cur_id - 1));
-    value.insert(gtsam::Symbol(kPoseSymbolChar, cur_id),
-                 estimated_last_pose.compose(B_llkf_Pose_B_lkf));
-
-    gtsam::Vector6 precisions;
-    // TODO(marcus): parametrize(?)
-    precisions.head<3>().setConstant(10000);
-    precisions.tail<3>().setConstant(100);
-    gtsam::SharedNoiseModel shared_noise_model =
-        gtsam::noiseModel::Diagonal::Precisions(precisions);
-
-    nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
-        gtsam::Symbol(kPoseSymbolChar, cur_id - 1),
-        gtsam::Symbol(kPoseSymbolChar, cur_id),
-        B_llkf_Pose_B_lkf,
-        shared_noise_model));
-
-    CHECK(smoothed_pgo_);
-    smoothed_pgo_->update(nfg, value);
-  }
 
   VLOG(1) << "Backend: Update IMU Bias.";
   CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
