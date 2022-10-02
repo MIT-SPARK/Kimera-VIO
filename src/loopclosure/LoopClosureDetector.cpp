@@ -221,10 +221,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
             << LoopResult::asString(loop_result.status_);
   }
 
-  // Set latest VIO estimate for use with get_W_map()
-  W_Pose_B_kf_vio_ =
-      std::make_pair(odom_factor.cur_key_, odom_factor.W_Pose_Blkf_);
-
   // Timestamps for PGO and for LCD should match now.
   CHECK_EQ(db_frames_.back()->timestamp_,
            timestamp_map_.at(db_frames_.back()->id_));
@@ -1022,6 +1018,11 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   CHECK(pgo_);
   pgo_->update(init_nfg, init_val);
 
+  // Update tracker for latest VIO estimate
+  // NOTE: done here instead of in spinOnce() to make unit tests easier.
+  W_Pose_B_kf_vio_ =
+      std::make_pair(factor.cur_key_, factor.W_Pose_Blkf_);
+
   lcd_state_ = LcdState::Nominal;
 }
 
@@ -1061,6 +1062,11 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
 
   CHECK(pgo_);
   pgo_->update(nfg, value);
+
+  // Update tracker for latest VIO estimate
+  // NOTE: done here instead of in spinOnce() to make unit tests easier.
+  W_Pose_B_kf_vio_ =
+      std::make_pair(factor.cur_key_, factor.W_Pose_Blkf_);
 }
 
 /* ------------------------------------------------------------------------ */
