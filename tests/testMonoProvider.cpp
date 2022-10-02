@@ -94,11 +94,11 @@ TEST_F(TestMonoProvider, basicSequentialCase) {
   ASSERT_TRUE(output_queue_.pop(result_base));
   ASSERT_TRUE(result_base != nullptr);
   EXPECT_EQ(17, result_base->timestamp_);
-  // +1 because it interpolates to the time frame
-  EXPECT_EQ(4, result_base->imu_stamps_.cols());
+  // +2 because it interpolates to the time frame
+  EXPECT_EQ(5, result_base->imu_stamps_.cols());
 
   ImuStampS expected_imu_times(1, 4);
-  expected_imu_times << 12, 13, 14, 17;
+  expected_imu_times << 11, 12, 13, 14, 17;
   EXPECT_EQ(expected_imu_times, result_base->imu_stamps_);
 
   MonoImuSyncPacket::UniquePtr result =
@@ -136,10 +136,10 @@ TEST_F(TestMonoProvider, dropFramesOlderThanImu) {
   // you could test the frame id here, but the timestamp
   // is a good proxy for the frame id
   EXPECT_EQ(17, result->timestamp_);
-  EXPECT_EQ(2, result->imu_stamps_.cols());
+  EXPECT_EQ(3, result->imu_stamps_.cols());
 
   ImuStampS expected_imu_times(1, 2);
-  expected_imu_times << 16, 17;
+  expected_imu_times << 11, 16, 17;
   EXPECT_EQ(expected_imu_times, result->imu_stamps_);
 }
 
@@ -200,9 +200,9 @@ TEST_F(TestMonoProvider, imageBeforeImuTest) {
   ASSERT_TRUE(output_queue_.pop(result));
   ASSERT_TRUE(result != nullptr);
   EXPECT_EQ(14, result->timestamp_);
-  EXPECT_EQ(2, result->imu_stamps_.cols());
-  EXPECT_EQ(13, result->imu_stamps_(0, 0));
-  EXPECT_EQ(14, result->imu_stamps_(0, 1));
+  EXPECT_EQ(3, result->imu_stamps_.cols());
+  EXPECT_EQ(12, result->imu_stamps_(0, 0));
+  EXPECT_EQ(13, result->imu_stamps_(0, 1));
 }
 
 TEST_F(TestMonoProvider, imageBeforeImuDelayedSpinTest) {
@@ -228,9 +228,9 @@ TEST_F(TestMonoProvider, imageBeforeImuDelayedSpinTest) {
   ASSERT_TRUE(output_queue_.pop(result));
   ASSERT_TRUE(result != nullptr);
   EXPECT_EQ(14, result->timestamp_);
-  EXPECT_EQ(2, result->imu_stamps_.cols());
-  EXPECT_EQ(13, result->imu_stamps_(0, 0));
-  EXPECT_EQ(14, result->imu_stamps_(0, 1));
+  EXPECT_EQ(3, result->imu_stamps_.cols());
+  EXPECT_EQ(12, result->imu_stamps_(0, 0));
+  EXPECT_EQ(13, result->imu_stamps_(0, 1));
 }
 
 TEST_F(TestMonoProvider, monoPipelineValidImuSequence) {
@@ -252,8 +252,8 @@ TEST_F(TestMonoProvider, monoPipelineValidImuSequence) {
   ASSERT_TRUE(output_queue_.pop(output));
   ASSERT_TRUE(output != nullptr);
   EXPECT_EQ(3, output->timestamp_);
-  EXPECT_EQ(2, output->imu_stamps_.cols());
-  EXPECT_EQ(2, output->imu_accgyrs_.cols());
+  EXPECT_EQ(3, output->imu_stamps_.cols());
+  EXPECT_EQ(3, output->imu_accgyrs_.cols());
 }
 
 TEST_F(TestMonoProvider, monoPipelineInvalidImuSequence) {
@@ -296,12 +296,12 @@ TEST_F(TestMonoProvider, testPartialImuSequence) {
   ASSERT_TRUE(output_queue_.pop(output));
   ASSERT_TRUE(output != nullptr);
 
-  EXPECT_EQ(4, output->imu_stamps_.cols());
-  EXPECT_EQ(4, output->imu_accgyrs_.cols());
-  EXPECT_EQ(2, output->imu_stamps_(0, 0));
-  EXPECT_EQ(3, output->imu_stamps_(0, 1));
-  EXPECT_EQ(4, output->imu_stamps_(0, 2));
-  EXPECT_EQ(5, output->imu_stamps_(0, 3));
+  EXPECT_EQ(5, output->imu_stamps_.cols());
+  EXPECT_EQ(5, output->imu_accgyrs_.cols());
+  EXPECT_EQ(1, output->imu_stamps_(0, 0));
+  EXPECT_EQ(2, output->imu_stamps_(0, 1));
+  EXPECT_EQ(3, output->imu_stamps_(0, 2));
+  EXPECT_EQ(4, output->imu_stamps_(0, 3));
 }
 
 TEST_F(TestMonoProvider, testOutOfOrderImuSequence) {
@@ -326,11 +326,11 @@ TEST_F(TestMonoProvider, testOutOfOrderImuSequence) {
   ASSERT_TRUE(output != nullptr);
 
   EXPECT_EQ(5, output->timestamp_);
-  EXPECT_EQ(3, output->imu_stamps_.cols());
-  EXPECT_EQ(3, output->imu_accgyrs_.cols());
-  EXPECT_EQ(2, output->imu_stamps_(0, 0));
-  EXPECT_EQ(4, output->imu_stamps_(0, 1));
-  EXPECT_EQ(5, output->imu_stamps_(0, 2));
+  EXPECT_EQ(4, output->imu_stamps_.cols());
+  EXPECT_EQ(4, output->imu_accgyrs_.cols());
+  EXPECT_EQ(1, output->imu_stamps_(0, 0));
+  EXPECT_EQ(2, output->imu_stamps_(0, 1));
+  EXPECT_EQ(4, output->imu_stamps_(0, 2));
 }
 
 TEST_F(TestMonoProvider, testOutOfOrderImageSequence) {
@@ -388,10 +388,10 @@ TEST_F(TestMonoProvider, testOutOfOrderImuAndImageSequence) {
   ASSERT_TRUE(output != nullptr);
 
   EXPECT_EQ(5, output->timestamp_);
-  EXPECT_EQ(2, output->imu_stamps_.cols());
-  EXPECT_EQ(2, output->imu_accgyrs_.cols());
-  EXPECT_EQ(4, output->imu_stamps_(0, 0));
-  EXPECT_EQ(5, output->imu_stamps_(0, 1));
+  EXPECT_EQ(3, output->imu_stamps_.cols());
+  EXPECT_EQ(3, output->imu_accgyrs_.cols());
+  EXPECT_EQ(3, output->imu_stamps_(0, 0));
+  EXPECT_EQ(4, output->imu_stamps_(0, 1));
 }
 
 TEST_F(TestMonoProvider, monoPipelineWithCoarseCorrection) {
