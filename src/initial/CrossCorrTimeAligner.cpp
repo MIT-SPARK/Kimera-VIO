@@ -13,8 +13,8 @@
  */
 
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
-#include "kimera-vio/utils/UtilsNumerical.h"
 
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
@@ -177,10 +177,31 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
   }
 }
 
+template <typename T>
+std::string getBufferStr(const T& input) {
+  std::stringstream ss;
+  auto iter = input.begin();
+  while (iter != vision_buffer_.end()) {
+    ss << *iter;
+    ++iter;
+    if (iter != vision_buffer_.end()) {
+      ss << ", ";
+    }
+  }
+  ss << "]";
+  return ss.str();
+}
+
 double CrossCorrTimeAligner::getTimeShift() const {
   using std::placeholders::_1;
   std::vector<double> correlation = utils::crossCorrelation(
       *vision_buffer_, *imu_buffer_, std::bind(valueAccessor, _1));
+
+  if (VLOG_IS_ON(5)) {
+    VLOG(5) << "Vision: " << getBufferStr(*vision_buffer_);
+    VLOG(5) << "IMU: " << getBufferStr(*imu_buffer_);
+    VLOG(5) << "Correlation: " << getBufferStr(correlation);
+  }
 
   // we start in the middle to keep the time shift stable under low
   // correlation
@@ -274,6 +295,8 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   using std::placeholders::_1;
   double imu_variance =
       utils::variance(*imu_buffer_, std::bind(valueAccessor, _1));
+  VLOG(1) << "Computed IMU variance of " << imu_variance
+          << "(threshold: " << imu_variance_threshold_ << ")";
   if (imu_variance < imu_variance_threshold_) {
     LOG(WARNING) << "Low gyro signal variance, delaying temporal calibration";
     logData(logger, num_imu_added, false, true, 0.0);
