@@ -237,7 +237,7 @@ pipeline {
       node(null) {
         echo 'Success!'
         slackSend color: 'good',
-                  message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} finished in ${currentBuild.durationString}."
+                  message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.BRANCH_NAME} finished in ${currentBuild.durationString}."
       }
     }
     failure {
