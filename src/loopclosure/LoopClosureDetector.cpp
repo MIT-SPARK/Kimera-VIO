@@ -1005,15 +1005,13 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   CHECK(lcd_state_ == LcdState::Bootstrap);
   CHECK_EQ(factor.cur_key_, 0u);
 
-  const gtsam::Pose3& W_Pose_Bkf = factor.W_Pose_Blkf_;
-
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
 
-  init_val.insert(gtsam::Symbol(factor.cur_key_), W_Pose_Bkf);
+  init_val.insert(gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_);
 
   init_nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-      gtsam::Symbol(factor.cur_key_), W_Pose_Bkf, factor.noise_));
+      gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_, factor.noise_));
 
   CHECK(pgo_);
   pgo_->update(init_nfg, init_val);
@@ -1065,8 +1063,7 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
 
   // Update tracker for latest VIO estimate
   // NOTE: done here instead of in spinOnce() to make unit tests easier.
-  W_Pose_B_kf_vio_ =
-      std::make_pair(factor.cur_key_, factor.W_Pose_Blkf_);
+  W_Pose_B_kf_vio_ = std::make_pair(factor.cur_key_, W_Pose_Bkf);
 }
 
 /* ------------------------------------------------------------------------ */
