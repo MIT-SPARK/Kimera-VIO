@@ -880,10 +880,10 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
 
   size_t num_odom = 10;
   for (size_t i = 1; i < num_odom; i++) {
-    lcd_detector_->addOdometryFactorAndOptimize(OdometryFactor(
-        i,
-        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(2 * i, 0, 0)),
-        gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+    lcd_detector_->addOdometryFactorAndOptimize(
+        OdometryFactor(i,
+                       gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(2 * i, 0, 0)),
+                       gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
   }
 
   // Check that the trajectory is just odometry factors concatenated together.

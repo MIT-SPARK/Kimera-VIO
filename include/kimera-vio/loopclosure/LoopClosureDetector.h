@@ -388,7 +388,7 @@ class LoopClosureDetector {
 
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
-  std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
+  std::pair<gtsam::Symbol, gtsam::Pose3> W_Pose_B_kf_vio_;
   gtsam::SharedNoiseModel shared_noise_model_;
 
   // Queue-checking callback

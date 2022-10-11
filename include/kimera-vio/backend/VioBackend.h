@@ -450,7 +450,12 @@ class VioBackend {
   inline ImuBias getLatestImuBias() const { return imu_bias_lkf_; }
   inline ImuBias getImuBiasPrevKf() const { return imu_bias_prev_kf_; }
   inline Vector3 getWVelBLkf() const { return W_Vel_B_lkf_; }
-  inline Pose3 getWPoseBLkf() const { return W_Pose_B_lkf_; }
+  inline Pose3 getWPoseBLkfFromIncrements() const {
+    return W_Pose_B_lkf_from_increments_;
+  }
+  inline Pose3 getWPoseBLkfFromState() const {
+    return W_Pose_B_lkf_from_state_;
+  }
   inline gtsam::Matrix getStateCovarianceLkf() const {
     return state_covariance_lkf_;
   }
@@ -471,7 +476,12 @@ class VioBackend {
   Timestamp timestamp_lkf_;
   ImuBias imu_bias_lkf_;  //!< Most recent bias estimate..
   Vector3 W_Vel_B_lkf_;   //!< Velocity of body at k-1 in world coordinates
-  Pose3 W_Pose_B_lkf_;    //!< Body pose at at k-1 in world coordinates.
+  Pose3 W_Pose_B_lkf_from_increments_;  //!< Body pose at at k-1 in world
+                                        //!< coordinates obtained by chaining
+                                        //!< relative motion estimates.
+  Pose3
+      W_Pose_B_lkf_from_state_;  //!< Body pose at at k-1 in world coordinates,
+                                 //!< straight from VIO smoother_.
 
   ImuBias imu_bias_prev_kf_;  //!< bias estimate at previous keyframe
 
