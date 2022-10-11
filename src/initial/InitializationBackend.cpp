@@ -151,7 +151,8 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
   // Initial clear values.
   new_values_.clear();
   // Initialize to trivial pose for initial bundle adjustment
-  W_Pose_B_lkf_ = gtsam::Pose3();
+  W_Pose_B_lkf_from_state_ = gtsam::Pose3();
+  W_Pose_B_lkf_from_increments_ = gtsam::Pose3();
 
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
@@ -230,8 +231,9 @@ void InitializationBackend::addInitialVisualState(
         B_Pose_leftCamRect_ *
         status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
         B_Pose_leftCamRect_.inverse();
-    W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(B_lkf_Pose_B_k);
-    new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
+    W_Pose_B_lkf_from_state_ = W_Pose_B_lkf_from_state_.compose(B_lkf_Pose_B_k);
+    new_values_.insert(gtsam::Symbol('x', curr_kf_id_),
+                       W_Pose_B_lkf_from_state_);
 
     if (backend_params_.addBetweenStereoFactors_ &&
         status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
@@ -247,7 +249,8 @@ void InitializationBackend::addInitialVisualState(
           backend_params_.betweenTranslationPrecision_);
     }
   } else {
-    new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
+    new_values_.insert(gtsam::Symbol('x', curr_kf_id_),
+                       W_Pose_B_lkf_from_state_);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////

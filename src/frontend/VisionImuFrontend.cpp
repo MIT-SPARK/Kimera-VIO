@@ -96,7 +96,7 @@ void VisionImuFrontend::outlierRejectionMono(
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
     gtsam::Pose3 keyframe_Pose_cur_frame(keyframe_R_cur_frame,
-                                         gtsam::Point3::Identity());
+                                         gtsam::Point3());
     *status_pose_mono = tracker_->geometricOutlierRejection2d2d(
         frame_lkf, frame_k, keyframe_Pose_cur_frame);
   } else {
