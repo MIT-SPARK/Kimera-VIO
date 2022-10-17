@@ -101,7 +101,7 @@ LoopClosureDetector::LoopClosureDetector(
       stereo_camera_(stereo_camera ? stereo_camera.get() : nullptr),
       stereo_matcher_(nullptr),
       pgo_(nullptr),
-      W_Pose_Blkf_estimates_(),
+      W_Pose_B_kf_vio_(),
       num_lc_unoptimized_(0),
       logger_(nullptr) {
   // Shared noise model initialization
@@ -262,7 +262,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   CHECK_EQ(db_frames_.back()->timestamp_,
            timestamp_map_.at(db_frames_.back()->id_));
   CHECK_EQ(timestamp_map_.size(), db_frames_.size());
-  CHECK_EQ(timestamp_map_.size(), W_Pose_Blkf_estimates_.size());
+  CHECK_EQ(timestamp_map_.size(), W_Pose_B_kf_vio_.first + 1);
 
   // Construct output payload.
   CHECK(pgo_);
@@ -912,17 +912,13 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
 
 /* ------------------------------------------------------------------------ */
 const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Blkf_estimates_.size() > 1) {
-    CHECK(pgo_);
-    const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
-    const gtsam::Pose3& w_Pose_Bkf_optimal =
-        pgo_->calculateEstimate().at<gtsam::Pose3>(
-            W_Pose_Blkf_estimates_.size() - 1);
+  CHECK(pgo_);
+  const gtsam::Symbol& cur_id = W_Pose_B_kf_vio_.first;
+  const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_B_kf_vio_.second;
+  const gtsam::Pose3& w_Pose_Bkf_optimal =
+      pgo_->calculateEstimate().at<gtsam::Pose3>(cur_id);
 
-    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
-  }
-
-  return gtsam::Pose3();
+  return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1117,11 +1113,6 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   CHECK(lcd_state_ == LcdState::Bootstrap);
   CHECK_EQ(factor.cur_key_, 0u);
 
-  // This push_back should be out above (and remove the one inside
-  // addOdometryFactorAndOptimize. Not doing it now bcs code assumes that
-  // addOdometryFactorAndOptimize does that...
-  W_Pose_Blkf_estimates_.push_back(factor.W_Pose_Blkf_);
-
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
 
@@ -1132,6 +1123,11 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
 
   CHECK(pgo_);
   pgo_->update(init_nfg, init_val);
+
+  // Update tracker for latest VIO estimate
+  // NOTE: done here instead of in spinOnce() to make unit tests easier.
+  W_Pose_B_kf_vio_ =
+      std::make_pair(factor.cur_key_, factor.W_Pose_Blkf_);
 
   lcd_state_ = LcdState::Nominal;
 }
@@ -1145,10 +1141,7 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   CHECK(lcd_state_ == LcdState::Nominal);
   CHECK_GT(factor.cur_key_, 0u);
 
-  W_Pose_Blkf_estimates_.push_back(factor.W_Pose_Blkf_);
-
-  CHECK_LE(factor.cur_key_, W_Pose_Blkf_estimates_.size())
-      << "New odometry factor has a key that is too high.";
+  const gtsam::Pose3& W_Pose_Bkf = factor.W_Pose_Blkf_;
 
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
@@ -1158,19 +1151,27 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   const gtsam::Pose3& estimated_last_pose =
       optimized_values.at<gtsam::Pose3>(factor.cur_key_ - 1);
 
-  const gtsam::Pose3& B_llkf_Pose_lkf =
-      W_Pose_Blkf_estimates_.at(factor.cur_key_ - 1)
-          .between(factor.W_Pose_Blkf_);
+  // We can get the same relative pose used in the backend after
+  // smoother_->update() by getting the relative pose between the latest two
+  // VIO backend output poses, as these are created by chaining smoother_
+  // relative poses.
+  CHECK_EQ(W_Pose_B_kf_vio_.first, factor.cur_key_ - 1);
+  const gtsam::Pose3& W_Pose_Blkf = W_Pose_B_kf_vio_.second;
+  const gtsam::Pose3& B_lkf_Pose_kf = W_Pose_Blkf.between(W_Pose_Bkf);
   value.insert(gtsam::Symbol(factor.cur_key_),
-               estimated_last_pose.compose(B_llkf_Pose_lkf));
+               estimated_last_pose.compose(B_lkf_Pose_kf));
 
   nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(gtsam::Symbol(factor.cur_key_ - 1),
                                              gtsam::Symbol(factor.cur_key_),
-                                             B_llkf_Pose_lkf,
+                                             B_lkf_Pose_kf,
                                              factor.noise_));
 
   CHECK(pgo_);
   pgo_->update(nfg, value);
+
+  // Update tracker for latest VIO estimate
+  // NOTE: done here instead of in spinOnce() to make unit tests easier.
+  W_Pose_B_kf_vio_ = std::make_pair(factor.cur_key_, W_Pose_Bkf);
 }
 
 /* ------------------------------------------------------------------------ */
