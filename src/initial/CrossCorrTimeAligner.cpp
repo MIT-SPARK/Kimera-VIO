@@ -180,11 +180,13 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
 template <typename T>
 std::string getBufferStr(const T& input) {
   std::stringstream ss;
+  ss << "[";
+
   auto iter = input.begin();
-  while (iter != vision_buffer_.end()) {
+  while (iter != input.end()) {
     ss << *iter;
     ++iter;
-    if (iter != vision_buffer_.end()) {
+    if (iter != input.end()) {
       ss << ", ";
     }
   }
@@ -205,20 +207,23 @@ double CrossCorrTimeAligner::getTimeShift() const {
 
   // we start in the middle to keep the time shift stable under low
   // correlation
-  const size_t N = vision_buffer_->size();
+  const size_t N = correlation.size() / 2;
   size_t max_idx = N;
   double max_corr = correlation[N];
   for (size_t i = 1; i < N; ++i) {
     // TODO(nathan) think about a ratio based test
-    if (correlation[N - i] > max_corr) {
+    if (i <= N && correlation[N - i] > max_corr) {
       max_idx = N - i;
       max_corr = correlation[max_idx];
     }
-    if (correlation[N + i] > max_corr) {
+
+    if (N + i < correlation.size() && correlation[N + i] > max_corr) {
       max_idx = N + i;
       max_corr = correlation[max_idx];
     }
   }
+
+  VLOG(5) << "Max index: " << max_idx << " with correlation: " << max_corr;
 
   int64_t offset = static_cast<int64_t>(vision_buffer_->size()) -
                    (correlation.size()) + max_idx;
