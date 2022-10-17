@@ -194,9 +194,39 @@ std::string getBufferStr(const T& input) {
   return ss.str();
 }
 
+size_t CrossCorrTimeAligner::getMaxFromN(const std::vector<double>& values,
+                                         size_t N) {
+  CHECK_LT(N, values.size());
+
+  // we either need to traverse values.size() - N - 1 values to cover the entire
+  // right-hand side of the buffer or N values to cover the entire left-hand
+  // side of the buffer, depending on whether N is closer to 0 or to
+  // values.size()
+  size_t limit = std::max(values.size() - N, N + 1);
+
+  // we step uniformly from N to make sure that we pick the nearest duplicate
+  // maxium value to N
+  size_t max_idx = N;
+  double max_value = values[N];
+  for (size_t i = 1; i < limit; ++i) {
+    if (i <= N && values[N - i] > max_value) {
+      max_idx = N - i;
+      max_value = values[max_idx];
+    }
+
+    if (N + i < values.size() && values[N + i] > max_value) {
+      max_idx = N + i;
+      max_value = values[max_idx];
+    }
+  }
+
+  VLOG(5) << "Max index: " << max_idx << " with value: " << max_value;
+  return max_idx;
+}
+
 double CrossCorrTimeAligner::getTimeShift() const {
   using std::placeholders::_1;
-  std::vector<double> correlation = utils::crossCorrelation(
+  const auto correlation = utils::crossCorrelation(
       *vision_buffer_, *imu_buffer_, std::bind(valueAccessor, _1));
 
   if (VLOG_IS_ON(5)) {
@@ -207,27 +237,7 @@ double CrossCorrTimeAligner::getTimeShift() const {
     VLOG(5) << "Vision size: " << vision_buffer_->size();
   }
 
-  // we start in the middle to keep the time shift stable under low
-  // correlation
-  const size_t N = vision_buffer_->size();
-  size_t max_idx = N;
-  double max_corr = correlation[N];
-
-  // TODO(nathan) think about a ratio based test
-  for (size_t i = 1; i < N; ++i) {
-    if (i <= N && correlation[N - i] > max_corr) {
-      max_idx = N - i;
-      max_corr = correlation[max_idx];
-    }
-
-    if (N + i < correlation.size() && correlation[N + i] > max_corr) {
-      max_idx = N + i;
-      max_corr = correlation[max_idx];
-    }
-  }
-
-  VLOG(5) << "Max index: " << max_idx << " with correlation: " << max_corr;
-
+  const size_t max_idx = getMaxFromN(correlation, vision_buffer_->size());
   int64_t offset = static_cast<int64_t>(vision_buffer_->size()) -
                    (correlation.size()) + max_idx;
   double timeshift = 0.0;

@@ -298,6 +298,32 @@ TEST(temporalCalibration, testMergeImuData) {
   }
 }
 
+TEST(temporalCalibration, testGetMaxFromN) {
+  { // test case 1: single max
+    std::vector<double> values{1.0, 2.0, 3.0, 2.0, 1.0};
+    for (size_t i = 0; i < values.size(); ++i) {
+      const auto pos = CrossCorrTimeAligner::getMaxFromN(values, i);
+      EXPECT_EQ(pos, 2u);
+    }
+  }
+
+  { // test case 2: multiple max values (left-hand side)
+    std::vector<double> values{3.0, 2.0, 2.0, 3.0, 2.0, 2.0, 1.0};
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 3), 3u);
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 2), 3u);
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 1), 0u);
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 0), 0u);
+  }
+
+  { // test case 2: multiple max values (right-hand side)
+    std::vector<double> values{0.0, 2.0, 2.0, 3.0, 2.0, 2.0, 3.0};
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 3), 3u);
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 0), 3u);
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 6), 6u);
+    EXPECT_EQ(CrossCorrTimeAligner::getMaxFromN(values, 5), 6u);
+  }
+}
+
 TEST(temporalCalibration, testBadRansacStatus) {
   MockTracker tracker;
 
