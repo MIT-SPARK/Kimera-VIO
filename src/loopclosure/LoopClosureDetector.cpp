@@ -316,6 +316,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       w_Pose_map, map_Pose_odom, pgo_states, pgo_nfg);
 
   output_payload->setFrameInformation(db_frames_.back()->keypoints_3d_,
+                                      db_frames_.back()->bearing_vectors_,
                                       curr_bow_vec,
                                       db_frames_.back()->descriptors_mat_);
   output_payload->timestamp_map_ = timestamp_map_;
