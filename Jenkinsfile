@@ -57,7 +57,7 @@ pipeline {
               steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                   wrap([$class: 'Xvfb']) {
-                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=5'
 
                     // Process the CTest xml output
                     junit 'build/testresults.xml'
@@ -165,7 +165,7 @@ pipeline {
             stage('Test') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=5'
 
                   // Process the CTest xml output
                   junit 'build/testresults.xml'
@@ -211,7 +211,7 @@ pipeline {
             stage('Test') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=5'
 
                   // Process the CTest xml output
                   junit 'build/testresults.xml'
@@ -237,7 +237,7 @@ pipeline {
       node(null) {
         echo 'Success!'
         slackSend color: 'good',
-                  message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} finished in ${currentBuild.durationString}."
+                  message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.BRANCH_NAME} finished in ${currentBuild.durationString}."
       }
     }
     failure {
