@@ -203,15 +203,18 @@ double CrossCorrTimeAligner::getTimeShift() const {
     VLOG(5) << "Vision: " << getBufferStr(*vision_buffer_);
     VLOG(5) << "IMU: " << getBufferStr(*imu_buffer_);
     VLOG(5) << "Correlation: " << getBufferStr(correlation);
+    VLOG(5) << "IMU size: " << imu_buffer_->size();
+    VLOG(5) << "Vision size: " << vision_buffer_->size();
   }
 
   // we start in the middle to keep the time shift stable under low
   // correlation
-  const size_t N = correlation.size() / 2;
+  const size_t N = vision_buffer_->size();
   size_t max_idx = N;
   double max_corr = correlation[N];
+
+  // TODO(nathan) think about a ratio based test
   for (size_t i = 1; i < N; ++i) {
-    // TODO(nathan) think about a ratio based test
     if (i <= N && correlation[N - i] > max_corr) {
       max_idx = N - i;
       max_corr = correlation[max_idx];
