@@ -200,7 +200,9 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
-    default: { LOG(FATAL) << "Unrecognized LCD state."; }
+    default: {
+      LOG(FATAL) << "Unrecognized LCD state.";
+    }
   }
 
   // Process the StereoFrame and check for a loop closure with previous ones.
@@ -229,9 +231,20 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
     }
   }
 
+  DBoW2::BowVector curr_bow_vec;
+  db_BoW_->getVocabulary()->transform(db_frames_.back()->descriptors_vec_,
+                                      curr_bow_vec);
+
   LoopResult loop_result;
   if (!FLAGS_lcd_no_detection) {
-    detectLoop(lcd_frame_id, &loop_result);
+    detectLoop(lcd_frame_id, curr_bow_vec, &loop_result);
+  }
+
+  // Update latest bowvec for normalized similarity scoring (NSS).
+  if (static_cast<int>(lcd_frame_id + 1) > lcd_params_.recent_frames_window_) {
+    latest_bowvec_.reset(new DBoW2::BowVector(curr_bow_vec));
+  } else {
+    VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
   }
 
   // Build and add LC factor if result is a loop closure.
@@ -289,11 +302,6 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
   output_payload->setMapInformation(
       w_Pose_map, map_Pose_odom, pgo_states, pgo_nfg);
-
-  // TODO(nathan) also gets computed in detectLoop
-  DBoW2::BowVector curr_bow_vec;
-  db_BoW_->getVocabulary()->transform(db_frames_.back()->descriptors_vec_,
-                                      curr_bow_vec);
 
   output_payload->setFrameInformation(db_frames_.back()->keypoints_3d_,
                                       curr_bow_vec,
@@ -492,20 +500,25 @@ void LoopClosureDetector::descriptorMatToVec(
 }
 
 /* ------------------------------------------------------------------------ */
+void LoopClosureDetector::detectLoopById(const FrameId& frame_id,
+                                         LoopResult* result) {
+  DBoW2::BowVector curr_bow_vec;
+  db_BoW_->getVocabulary()->transform(db_frames_.back()->descriptors_vec_,
+                                      curr_bow_vec);
+  detectLoop(frame_id, curr_bow_vec, result);
+}
+
+/* ------------------------------------------------------------------------ */
 void LoopClosureDetector::detectLoop(const FrameId& frame_id,
+                                     const DBoW2::BowVector& bow_vec,
                                      LoopResult* result) {
   CHECK_NOTNULL(result);
-
   result->query_id_ = frame_id;
 
-  // Create BOW representation of descriptors.
-  DBoW2::BowVector bow_vec;
-  DCHECK(db_BoW_);
-  db_BoW_->getVocabulary()->transform(db_frames_[frame_id]->descriptors_vec_,
-                                      bow_vec);
-
   int max_possible_match_id = frame_id - lcd_params_.recent_frames_window_;
-  if (max_possible_match_id < 0) max_possible_match_id = 0;
+  if (max_possible_match_id < 0) {
+    max_possible_match_id = 0;
+  }
 
   // Query for BoW vector matches in database.
   DBoW2::QueryResults query_result;
@@ -519,104 +532,101 @@ void LoopClosureDetector::detectLoop(const FrameId& frame_id,
 
   if (query_result.empty()) {
     result->status_ = LCDStatus::NO_MATCHES;
-  } else {
-    double nss_factor = 1.0;
-    if (lcd_params_.use_nss_) {
-      CHECK(latest_bowvec_ != nullptr);
-      nss_factor = db_BoW_->getVocabulary()->score(bow_vec, *latest_bowvec_);
-    } else {
-      LOG(ERROR) << "Setting use_nss as false is deprecated. ";
-    }
-
-    if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
-      result->status_ = LCDStatus::LOW_NSS_FACTOR;
-    } else {
-      // Remove low scores from the QueryResults based on nss.
-      DBoW2::QueryResults::iterator query_it =
-          lower_bound(query_result.begin(),
-                      query_result.end(),
-                      DBoW2::Result(0, lcd_params_.alpha_ * nss_factor),
-                      DBoW2::Result::geq);
-      if (query_it != query_result.end()) {
-        query_result.resize(query_it - query_result.begin());
-      }
-
-      // Begin grouping and checking matches.
-      if (query_result.empty()) {
-        result->status_ = LCDStatus::LOW_SCORE;
-      } else {
-        // Set best candidate to highest scorer.
-        result->match_id_ = query_result[0].Id;
-
-        // Compute islands in the matches.
-        // An island is a group of matches with close frame_ids.
-        std::vector<MatchIsland> islands;
-        lcd_tp_wrapper_->computeIslands(&query_result, &islands);
-
-        if (islands.empty()) {
-          result->status_ = LCDStatus::NO_GROUPS;
-        } else {
-          // Find the best island grouping using MatchIsland sorting.
-          const MatchIsland& best_island =
-              *std::max_element(islands.begin(), islands.end());
-
-          // Run temporal constraint check on this best island.
-          bool pass_temporal_constraint =
-              lcd_tp_wrapper_->checkTemporalConstraint(frame_id, best_island);
-
-          if (!pass_temporal_constraint) {
-            result->status_ = LCDStatus::FAILED_TEMPORAL_CONSTRAINT;
-          } else {
-            // Perform geometric verification check.
-            gtsam::Pose3 camMatch_T_camQuery_2d;
-
-            // Find correspondences between keypoints.
-            KeypointMatches matches_match_query;
-            computeDescriptorMatches(
-                db_frames_[result->match_id_]->descriptors_mat_,
-                db_frames_[result->query_id_]->descriptors_mat_,
-                &matches_match_query,
-                true);
-
-            std::vector<int> inliers;
-            bool pass_geometric_verification =
-                geometricVerificationCam2d2d(result->match_id_,
-                                             result->query_id_,
-                                             matches_match_query,
-                                             &camMatch_T_camQuery_2d,
-                                             &inliers);
-
-            if (!pass_geometric_verification) {
-              result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
-            } else {
-              gtsam::Pose3 bodyMatch_T_bodyQuery_3d;
-              bool pass_3d_pose_compute =
-                  recoverPoseBody(result->match_id_,
-                                  result->query_id_,
-                                  camMatch_T_camQuery_2d,
-                                  matches_match_query,
-                                  &bodyMatch_T_bodyQuery_3d,
-                                  &inliers);
-
-              if (!pass_3d_pose_compute) {
-                result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
-              } else {
-                result->relative_pose_ = bodyMatch_T_bodyQuery_3d;
-                result->status_ = LCDStatus::LOOP_DETECTED;
-              }
-            }
-          }
-        }
-      }
-    }
+    return;
   }
 
-  // Update latest bowvec for normalized similarity scoring (NSS).
-  if (static_cast<int>(frame_id + 1) > lcd_params_.recent_frames_window_) {
-    latest_bowvec_.reset(new DBoW2::BowVector(bow_vec));
+  double nss_factor = 1.0;
+  if (lcd_params_.use_nss_ && latest_bowvec_) {
+    nss_factor = db_BoW_->getVocabulary()->score(bow_vec, *latest_bowvec_);
   } else {
-    VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
+    LOG_IF(ERROR, !lcd_params_.use_nss_)
+        << "Setting use_nss as false is deprecated.";
   }
+
+  if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
+    result->status_ = LCDStatus::LOW_NSS_FACTOR;
+    return;
+  }
+
+  // Remove low scores from the QueryResults based on nss.
+  DBoW2::QueryResults::iterator query_it =
+      lower_bound(query_result.begin(),
+                  query_result.end(),
+                  DBoW2::Result(0, lcd_params_.alpha_ * nss_factor),
+                  DBoW2::Result::geq);
+  if (query_it != query_result.end()) {
+    query_result.resize(query_it - query_result.begin());
+  }
+
+  // Begin grouping and checking matches.
+  if (query_result.empty()) {
+    result->status_ = LCDStatus::LOW_SCORE;
+    return;
+  }
+
+  // Set best candidate to highest scorer.
+  result->match_id_ = query_result[0].Id;
+
+  // Compute islands in the matches.
+  // An island is a group of matches with close frame_ids.
+  std::vector<MatchIsland> islands;
+  lcd_tp_wrapper_->computeIslands(&query_result, &islands);
+
+  if (islands.empty()) {
+    result->status_ = LCDStatus::NO_GROUPS;
+    return;
+  }
+
+  // Find the best island grouping using MatchIsland sorting.
+  const MatchIsland& best_island =
+      *std::max_element(islands.begin(), islands.end());
+
+  // Run temporal constraint check on this best island.
+  bool pass_temporal_constraint =
+      lcd_tp_wrapper_->checkTemporalConstraint(frame_id, best_island);
+
+  if (!pass_temporal_constraint) {
+    result->status_ = LCDStatus::FAILED_TEMPORAL_CONSTRAINT;
+    return;
+  }
+
+  verifyAndRecoverPose(result);
+}
+
+void LoopClosureDetector::verifyAndRecoverPose(LoopResult* result) {
+  CHECK_NOTNULL(result);
+
+  // Find correspondences between keypoints.
+  KeypointMatches matches_match_query;
+  computeDescriptorMatches(db_frames_[result->match_id_]->descriptors_mat_,
+                           db_frames_[result->query_id_]->descriptors_mat_,
+                           &matches_match_query,
+                           true);
+
+  // Perform geometric verification check.
+  gtsam::Pose3 camMatch_T_camQuery_2d;
+  std::vector<int> inliers;
+  bool pass_geometric_verification =
+      geometricVerificationCam2d2d(result->match_id_,
+                                   result->query_id_,
+                                   matches_match_query,
+                                   &camMatch_T_camQuery_2d,
+                                   &inliers);
+
+  if (!pass_geometric_verification) {
+    result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
+    return;
+  }
+
+  bool pose_valid = recoverPoseBody(result->match_id_,
+                                    result->query_id_,
+                                    camMatch_T_camQuery_2d,
+                                    matches_match_query,
+                                    &(result->relative_pose_),
+                                    &inliers);
+
+  result->status_ =
+      pose_valid ? LCDStatus::LOOP_DETECTED : LCDStatus::FAILED_POSE_RECOVERY;
 }
 
 LoopResult LoopClosureDetector::registerFrames(FrameId query_id,
@@ -630,36 +640,7 @@ LoopResult LoopClosureDetector::registerFrames(FrameId query_id,
     return result;
   }
 
-  // Find correspondences between keypoints.
-  KeypointMatches matches_match_query;
-  computeDescriptorMatches(db_frames_[result.match_id_]->descriptors_mat_,
-                           db_frames_[result.query_id_]->descriptors_mat_,
-                           &matches_match_query,
-                           true);
-
-  gtsam::Pose3 match_T_query;
-  std::vector<int> inliers;
-  bool pass_geometric_verification =
-      geometricVerificationCam2d2d(result.match_id_,
-                                   result.query_id_,
-                                   matches_match_query,
-                                   &match_T_query,
-                                   &inliers);
-
-  if (!pass_geometric_verification) {
-    result.status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
-    return result;
-  }
-
-  bool pose_valid = recoverPoseBody(result.match_id_,
-                                    result.query_id_,
-                                    match_T_query,
-                                    matches_match_query,
-                                    &(result.relative_pose_),
-                                    &inliers);
-
-  result.status_ =
-      pose_valid ? LCDStatus::LOOP_DETECTED : LCDStatus::FAILED_POSE_RECOVERY;
+  verifyAndRecoverPose(&result);
   return result;
 }
 
@@ -923,13 +904,11 @@ const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
 
 /* ------------------------------------------------------------------------ */
 const gtsam::Pose3 LoopClosureDetector::getMapPoseOdom() const {
-  if (W_Pose_Blkf_estimates_.size() > 1) {
+  if (db_frames_.size() > 1) {
     CHECK(pgo_);
-    const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
+    const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_B_kf_vio_.second;
     const gtsam::Pose3& w_Pose_Bkf_optimal =
-        pgo_->calculateEstimate().at<gtsam::Pose3>(
-            W_Pose_Blkf_estimates_.size() - 1);
-
+        pgo_->calculateEstimate().at<gtsam::Pose3>(W_Pose_B_kf_vio_.first);
     return w_Pose_Bkf_optimal.compose(w_Pose_Bkf_estim.inverse());
   }
 
@@ -1126,8 +1105,7 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
 
   // Update tracker for latest VIO estimate
   // NOTE: done here instead of in spinOnce() to make unit tests easier.
-  W_Pose_B_kf_vio_ =
-      std::make_pair(factor.cur_key_, factor.W_Pose_Blkf_);
+  W_Pose_B_kf_vio_ = std::make_pair(factor.cur_key_, factor.W_Pose_Blkf_);
 
   lcd_state_ = LcdState::Nominal;
 }

@@ -197,7 +197,7 @@ struct LoopResult {
     return status_str;
   }
 
-  LCDStatus status_;
+  LCDStatus status_ = LCDStatus::NO_MATCHES;
   FrameId query_id_;
   FrameId match_id_;
   gtsam::Pose3 relative_pose_;

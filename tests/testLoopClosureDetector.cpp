@@ -803,12 +803,12 @@ TEST_F(LCDFixture, detectLoop) {
 
   /* Test the detectLoop method against two images without closure */
   LoopResult loop_result_0;
-  lcd_detector_->detectLoop(frame_id_1, &loop_result_0);
+  lcd_detector_->detectLoopById(frame_id_1, &loop_result_0);
   EXPECT_EQ(loop_result_0.isLoop(), false);
 
   /* Test the detectLoop method against two non-identical, similar images */
   LoopResult loop_result_1;
-  lcd_detector_->detectLoop(frame_id_2, &loop_result_1);
+  lcd_detector_->detectLoopById(frame_id_2, &loop_result_1);
   EXPECT_EQ(loop_result_1.isLoop(), true);
   EXPECT_EQ(loop_result_1.match_id_, 0);
   EXPECT_EQ(loop_result_1.query_id_, 2);
