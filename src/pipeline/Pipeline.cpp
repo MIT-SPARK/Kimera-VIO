@@ -155,6 +155,15 @@ std::string Pipeline::printStatus() const {
 /* -------------------------------------------------------------------------- */
 bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
                                     const bool& print_stats) {
+  // defaults to only checking whether the pipeline itself has finished
+  return spinUntilShutdown(
+      []() -> bool { return true; }, sleep_time_ms, print_stats);
+}
+
+/* -------------------------------------------------------------------------- */
+bool Pipeline::spinUntilShutdown(const std::function<bool()>& data_done_cb,
+                                 const int& sleep_time_ms,
+                                 const bool& print_stats) {
   LOG_IF(INFO, parallel_run_)
       << "Shutting down VIO pipeline once processing has finished.";
 
@@ -162,7 +171,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
-  while (!hasFinished()) {
+  while (!hasFinished() && !data_done_cb()) {
     // Note that the values in the log below might be different than the
     // evaluation above since they are separately evaluated at different times.
     VLOG(5) << printStatus();
