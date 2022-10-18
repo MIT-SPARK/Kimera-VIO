@@ -142,9 +142,9 @@ class Pipeline {
    * @return true if shutdown succesful, false otherwise (only returns
    * if running in sequential mode, or if shutdown happens).
    */
-  virtual bool spinUntilShutdown(const std::function<bool()>& data_done_cb,
-                                 const int& sleep_time_ms = 500,
-                                 const bool& print_stats = false);
+  virtual bool waitForShutdown(const std::function<bool()>& data_done_cb,
+                               const int& sleep_time_ms = 501,
+                               const bool& print_stats = false);
 
   /**
    * @brief shutdown Shutdown processing pipeline: stops and joins threads,

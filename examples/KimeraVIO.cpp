@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
         std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline);
     auto handle_shutdown = std::async(
         std::launch::async,
-        &VIO::Pipeline::spinUntilShutdown,
+        &VIO::Pipeline::waitForShutdown,
         vio_pipeline,
         [&dataset_parser]() -> bool { return !dataset_parser->hasData(); },
         500,

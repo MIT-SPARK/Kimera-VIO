@@ -156,14 +156,14 @@ std::string Pipeline::printStatus() const {
 bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
                                     const bool& print_stats) {
   // defaults to only checking whether the pipeline itself has finished
-  return spinUntilShutdown(
+  return waitForShutdown(
       []() -> bool { return true; }, sleep_time_ms, print_stats);
 }
 
 /* -------------------------------------------------------------------------- */
-bool Pipeline::spinUntilShutdown(const std::function<bool()>& data_done_cb,
-                                 const int& sleep_time_ms,
-                                 const bool& print_stats) {
+bool Pipeline::waitForShutdown(const std::function<bool()>& data_done_cb,
+                               const int& sleep_time_ms,
+                               const bool& print_stats) {
   LOG_IF(INFO, parallel_run_)
       << "Shutting down VIO pipeline once processing has finished.";
 
