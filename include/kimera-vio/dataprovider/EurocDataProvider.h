@@ -66,6 +66,8 @@ class EurocDataProvider : public DataProviderInterface {
    */
   virtual bool spin() override;
 
+  virtual bool hasData() const override;
+
   /**
    * @brief print Print info about dataset.
    */

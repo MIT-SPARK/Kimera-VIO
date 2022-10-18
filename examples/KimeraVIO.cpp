@@ -129,11 +129,7 @@ int main(int argc, char* argv[]) {
         std::launch::async,
         &VIO::Pipeline::spinUntilShutdown,
         vio_pipeline,
-        [&handle]() -> bool {
-          // checks if the data provider has finished spinning
-          const auto ret = handle.wait_for(std::chrono::milliseconds(1));
-          return ret == std::future_status::ready;
-        },
+        [&dataset_parser]() -> bool { return !dataset_parser->hasData(); },
         500,
         true);
     vio_pipeline->spinViz();
