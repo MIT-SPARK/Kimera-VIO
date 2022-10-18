@@ -171,7 +171,7 @@ bool Pipeline::spinUntilShutdown(const std::function<bool()>& data_done_cb,
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
-  while (!hasFinished() && !data_done_cb()) {
+  while (!hasFinished() || !data_done_cb()) {
     // Note that the values in the log below might be different than the
     // evaluation above since they are separately evaluated at different times.
     VLOG(5) << printStatus();
