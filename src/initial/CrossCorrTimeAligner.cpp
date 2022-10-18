@@ -13,8 +13,8 @@
  */
 
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
-#include "kimera-vio/utils/UtilsNumerical.h"
 
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
@@ -177,28 +177,67 @@ void CrossCorrTimeAligner::interpNewImageMeasurements(
   }
 }
 
-double CrossCorrTimeAligner::getTimeShift() const {
-  using std::placeholders::_1;
-  std::vector<double> correlation = utils::crossCorrelation(
-      *vision_buffer_, *imu_buffer_, std::bind(valueAccessor, _1));
+template <typename T>
+std::string getBufferStr(const T& input) {
+  std::stringstream ss;
+  ss << "[";
 
-  // we start in the middle to keep the time shift stable under low
-  // correlation
-  const size_t N = vision_buffer_->size();
-  size_t max_idx = N;
-  double max_corr = correlation[N];
-  for (size_t i = 1; i < N; ++i) {
-    // TODO(nathan) think about a ratio based test
-    if (correlation[N - i] > max_corr) {
-      max_idx = N - i;
-      max_corr = correlation[max_idx];
+  auto iter = input.begin();
+  while (iter != input.end()) {
+    ss << *iter;
+    ++iter;
+    if (iter != input.end()) {
+      ss << ", ";
     }
-    if (correlation[N + i] > max_corr) {
+  }
+  ss << "]";
+  return ss.str();
+}
+
+size_t CrossCorrTimeAligner::getMaxFromN(const std::vector<double>& values,
+                                         size_t N) {
+  CHECK_LT(N, values.size());
+
+  // we either need to traverse values.size() - N - 1 values to cover the entire
+  // right-hand side of the buffer or N values to cover the entire left-hand
+  // side of the buffer, depending on whether N is closer to 0 or to
+  // values.size()
+  size_t limit = std::max(values.size() - N, N + 1);
+
+  // we step uniformly from N to make sure that we pick the nearest duplicate
+  // maxium value to N
+  size_t max_idx = N;
+  double max_value = values[N];
+  for (size_t i = 1; i < limit; ++i) {
+    if (i <= N && values[N - i] > max_value) {
+      max_idx = N - i;
+      max_value = values[max_idx];
+    }
+
+    if (N + i < values.size() && values[N + i] > max_value) {
       max_idx = N + i;
-      max_corr = correlation[max_idx];
+      max_value = values[max_idx];
     }
   }
 
+  VLOG(5) << "Max index: " << max_idx << " with value: " << max_value;
+  return max_idx;
+}
+
+double CrossCorrTimeAligner::getTimeShift() const {
+  using std::placeholders::_1;
+  const auto correlation = utils::crossCorrelation(
+      *vision_buffer_, *imu_buffer_, std::bind(valueAccessor, _1));
+
+  if (VLOG_IS_ON(5)) {
+    VLOG(5) << "Vision: " << getBufferStr(*vision_buffer_);
+    VLOG(5) << "IMU: " << getBufferStr(*imu_buffer_);
+    VLOG(5) << "Correlation: " << getBufferStr(correlation);
+    VLOG(5) << "IMU size: " << imu_buffer_->size();
+    VLOG(5) << "Vision size: " << vision_buffer_->size();
+  }
+
+  const size_t max_idx = getMaxFromN(correlation, vision_buffer_->size());
   int64_t offset = static_cast<int64_t>(vision_buffer_->size()) -
                    (correlation.size()) + max_idx;
   double timeshift = 0.0;
@@ -274,6 +313,8 @@ TimeAlignerBase::Result CrossCorrTimeAligner::attemptEstimation(
   using std::placeholders::_1;
   double imu_variance =
       utils::variance(*imu_buffer_, std::bind(valueAccessor, _1));
+  VLOG(1) << "Computed IMU variance of " << imu_variance
+          << "(threshold: " << imu_variance_threshold_ << ")";
   if (imu_variance < imu_variance_threshold_) {
     LOG(WARNING) << "Low gyro signal variance, delaying temporal calibration";
     logData(logger, num_imu_added, false, true, 0.0);

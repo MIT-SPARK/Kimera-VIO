@@ -13,12 +13,13 @@
  */
 
 #pragma once
+#include <gtsam/navigation/PreintegratedRotation.h>
+
 #include <Eigen/Dense>
 #include <cstddef>
 #include <iterator>
 #include <vector>
 
-#include <gtsam/navigation/PreintegratedRotation.h>
 #include "kimera-vio/initial/RingBuffer.h"
 #include "kimera-vio/initial/TimeAlignerBase.h"
 
@@ -56,6 +57,11 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
   typedef RingBuffer<Measurement> Buffer;
 
   CrossCorrTimeAligner(const ImuParams& params);
+
+  /**
+   * @brief get max of a vector starting at index N and iterating outwards
+   */
+  static size_t getMaxFromN(const std::vector<double>& values, size_t N);
 
  protected:
   /**
