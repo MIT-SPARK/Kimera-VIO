@@ -104,9 +104,11 @@ class LoopClosureDetectorParams : public PipelineParams {
   double betweenTranslationPrecision_ = 1 / (0.1 * 0.1);
 
   ////////////////////////////// PGO solver params /////////////////////////////
-  double pgo_rot_threshold_ = 0.01;
-  double pgo_trans_threshold_ = 0.1;
-  double gnc_alpha_ = 0.7;
+  double odom_rot_threshold_ = 0.01;
+  double odom_trans_threshold_ = 0.1;
+  double pcm_rot_threshold_ = -1;
+  double pcm_trans_threshold_ = -1;
+  double gnc_alpha_ = 0.9;
   //////////////////////////////////////////////////////////////////////////////
 
   int max_lc_cached_before_optimize_ = 10;

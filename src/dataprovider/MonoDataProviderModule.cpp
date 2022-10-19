@@ -90,7 +90,7 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
     switch (result) {
       case ThreadsafeOdometryBuffer::QueryResult::DataNotYetAvailable:
         // TODO(nathan) consider increasing verbosity here
-        VLOG(2) << "Odometry data not available yet, spinning";
+        VLOG(10) << "Odometry data not available yet, spinning";
         cached_left_frame_ =
             std::move(left_frame_payload);  // we need to spin some more
         return nullptr;

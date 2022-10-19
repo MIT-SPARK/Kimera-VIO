@@ -35,9 +35,11 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
-MonoImuPipeline::MonoImuPipeline(const VioParams& params,
-                                 Visualizer3D::UniquePtr&& visualizer,
-                                 DisplayBase::UniquePtr&& displayer)
+MonoImuPipeline::MonoImuPipeline(
+    const VioParams& params,
+    Visualizer3D::UniquePtr&& visualizer,
+    DisplayBase::UniquePtr&& displayer,
+    PreloadedVocab::Ptr&& preloaded_vocab)
     : Pipeline(params), camera_(nullptr) {
   // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for
   // MonoImuPipeline.";
@@ -179,7 +181,8 @@ MonoImuPipeline::MonoImuPipeline(const VioParams& params,
                               camera_->getBodyPoseCam(),
                               boost::none,
                               boost::none,
-                              FLAGS_log_output));
+                              FLAGS_log_output,
+                              std::move(preloaded_vocab)));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillBackendQueue,

@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include <DBoW2/DBoW2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 
@@ -31,7 +30,7 @@
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/logging/Logger.h"
-#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
+#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 
@@ -41,7 +40,36 @@ namespace KimeraRPGO {
 class RobustSolver;
 }
 
+namespace DBoW2 {
+class BowVector;
+class FORB;
+
+template <class D, class F>
+class TemplatedVocabulary;
+
+template <class D, class F>
+class TemplatedDatabase;
+
+}  // namespace DBoW2
+
+typedef DBoW2::TemplatedVocabulary<cv::Mat, DBoW2::FORB> OrbVocabulary;
+typedef DBoW2::TemplatedDatabase<cv::Mat, DBoW2::FORB> OrbDatabase;
+
 namespace VIO {
+
+class LcdThirdPartyWrapper;  // forward declare to avoid DBoW2 header
+
+// quick wrapper class to get around forward declaration of OrbVocabulary
+struct PreloadedVocab {
+  KIMERA_DELETE_COPY_CONSTRUCTORS(PreloadedVocab);
+  using Ptr = std::unique_ptr<PreloadedVocab>;
+
+  PreloadedVocab();
+  PreloadedVocab(PreloadedVocab&& other);
+  ~PreloadedVocab();
+
+  std::unique_ptr<OrbVocabulary> vocab;
+};
 
 /* ------------------------------------------------------------------------ */
 class LoopClosureDetector {
@@ -66,7 +94,8 @@ class LoopClosureDetector {
           boost::none,
       const boost::optional<StereoMatchingParams>& stereo_matching_params =
           boost::none,
-      bool log_output = false);
+      bool log_output = false,
+      PreloadedVocab::Ptr&& preloaded_vocab = nullptr);
 
   /* ------------------------------------------------------------------------ */
   virtual ~LoopClosureDetector();
@@ -114,14 +143,34 @@ class LoopClosureDetector {
   FrameId processAndAddStereoFrame(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
+  /** @brief Find a loop closure given a frame id
+   * @param[in] frame_id A FrameId representing the ID of the latest LCDFrame
+   *                     added to the database.
+   * @param[out] result A pointer to the LoopResult that is filled with the
+   *                    result of the loop-closure detection stage.
+   */
+  void detectLoopById(const FrameId& frame_id, LoopResult* result);
+
+  /* ------------------------------------------------------------------------ */
   /** @brief Runs all checks on a frame and determines whether it a loop-closure
-      with a previous frame or not. Fills the LoopResult with this information.
+   *         with a previous frame or not. Fills the LoopResult with this
+   *         information.
    * @param[in] frame_id A FrameId representing the ID of the latest LCDFrame
    * added to the database, which will be used to detect loop-closures.
+   * @param[in] bow_vec A descriptor vector for the latest LCDFrame to be scored
+   *                    and added to the database.
    * @param[out] result A pointer to the LoopResult that is filled with the
-   *  result of the loop-closure detection stage.
+   *                    result of the loop-closure detection stage.
    */
-  void detectLoop(const FrameId& frame_id, LoopResult* result);
+  void detectLoop(const FrameId& frame_id,
+                  const DBoW2::BowVector& bow_vec,
+                  LoopResult* result);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Perform geometric verification and pose recovery for a match
+   *  @param Input and ouput loop result (uses match and query id)
+   */
+  void verifyAndRecoverPose(LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Verify that the geometry between two frames is close enough to be
@@ -160,6 +209,14 @@ class LoopClosureDetector {
                        gtsam::Pose3* bodyMatch_T_bodyQuery_3d,
                        std::vector<int>* inliers);
 
+  /* ------------------------------------------------------------------------ */
+  /**
+   * @brief Register a loop closure between two frames in a threadsafe manner
+   * @param[in] query_id most recent frame
+   * @param[in] match_id previous frame that was matched to query
+   */
+  LoopResult registerFrames(FrameId query_id, FrameId match_id);
+
  public:
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the RAW pointer to the BoW database.
@@ -187,6 +244,13 @@ class LoopClosureDetector {
    * @return The pose of the map frame relative to the world frame.
    */
   const gtsam::Pose3 getWPoseMap() const;
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Returns the pose between the optimized world reference frame (map)
+   * and the VIO world reference frame (odom).
+   * @return The pose of the odom frame relative to the map frame.
+   */
+  const gtsam::Pose3 getMapPoseOdom() const;
 
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the values of the PGO, which is the full trajectory of the
@@ -378,8 +442,8 @@ class LoopClosureDetector {
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
-  LcdThirdPartyWrapper::UniquePtr lcd_tp_wrapper_;
-  DBoW2::BowVector latest_bowvec_;
+  std::unique_ptr<LcdThirdPartyWrapper> lcd_tp_wrapper_;
+  std::unique_ptr<DBoW2::BowVector> latest_bowvec_;
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_Cam_;

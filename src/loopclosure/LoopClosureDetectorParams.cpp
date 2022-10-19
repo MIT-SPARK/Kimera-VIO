@@ -84,8 +84,10 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
                           &betweenRotationPrecision_);
   yaml_parser.getYamlParam("betweenTranslationPrecision",
                           &betweenTranslationPrecision_);
-  yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
-  yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
+  yaml_parser.getYamlParam("odom_rot_threshold", &odom_rot_threshold_);
+  yaml_parser.getYamlParam("odom_trans_threshold", &odom_trans_threshold_);
+  yaml_parser.getYamlParam("pcm_rot_threshold", &pcm_rot_threshold_);
+  yaml_parser.getYamlParam("pcm_trans_threshold", &pcm_trans_threshold_);
   yaml_parser.getYamlParam("gnc_alpha", &gnc_alpha_);
 
   yaml_parser.getYamlParam("max_lc_cached_before_optimize",
@@ -199,10 +201,14 @@ void LoopClosureDetectorParams::print() const {
                         "betweenTranslationPrecision_: ",
                         betweenTranslationPrecision_,
 
-                        "pgo_rot_threshold_: ",
-                        pgo_rot_threshold_,
-                        "pgo_trans_threshold_: ",
-                        pgo_trans_threshold_,
+                        "odom_rot_threshold_: ",
+                        odom_rot_threshold_,
+                        "odom_trans_threshold_: ",
+                        odom_trans_threshold_,
+                        "pcm_rot_threshold_: ",
+                        pcm_rot_threshold_,
+                        "pcm_trans_threshold_: ",
+                        pcm_trans_threshold_,
                         "gnc_alpha_",
                         gnc_alpha_,
                         "max_lc_cached_before_optimize_",
@@ -240,8 +246,11 @@ bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2, dou
          (fabs(betweenTranslationPrecision_ -
                lp2.betweenTranslationPrecision_) <= tol) &&
 
-         (fabs(pgo_rot_threshold_ - lp2.pgo_rot_threshold_) <= tol) &&
-         (fabs(pgo_trans_threshold_ - lp2.pgo_trans_threshold_) <= tol) &&
+         (fabs(odom_rot_threshold_ - lp2.odom_rot_threshold_) <= tol) &&
+         (fabs(odom_trans_threshold_ - lp2.odom_trans_threshold_) <= tol) &&
+         (fabs(pcm_rot_threshold_ - lp2.pcm_rot_threshold_) <= tol) &&
+         (fabs(pcm_trans_threshold_ - lp2.pcm_trans_threshold_) <= tol) &&
+         (fabs(gnc_alpha_ - lp2.gnc_alpha_) <= tol) &&
          (max_lc_cached_before_optimize_ == lp2.max_lc_cached_before_optimize_);
 }
 

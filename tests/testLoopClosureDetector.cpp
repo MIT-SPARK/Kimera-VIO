@@ -12,6 +12,7 @@
  * @author Marcus Abate, Luca Carlone
  */
 
+#include <DBoW2/DBoW2.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -45,8 +46,10 @@ class LCDFixture : public ::testing::Test {
   const double rot_tol_mono = 0.05;  // radians
   const double tran_tol_mono =
       0.1;  // meters (error rescaled using ground-truth)
-  const double rot_tol_stereo = 0.3;   // radians
-  const double tran_tol_stereo = 0.6;  // meters TODO see why 0.5 will not pass TEST_F(LCDFixture, recoverPoseBodyPnpMono)
+  const double rot_tol_stereo = 0.3;  // radians
+  const double tran_tol_stereo =
+      0.6;  // meters TODO see why 0.5 will not pass TEST_F(LCDFixture,
+            // recoverPoseBodyPnpMono)
 
  public:
   LCDFixture()
@@ -124,8 +127,10 @@ class LCDFixture : public ::testing::Test {
         gtsam::Rot3(gtsam::Quaternion(0.39266, -0.590667, -0.58023, -0.400326)),
         gtsam::Point3(-0.345638, -0.501712, 1.320441));
 
-    bodyMatch1_T_bodyQuery1_gt_ = world_T_bodyMatch1_.between(world_T_bodyQuery1_);
-    bodyMatch2_T_bodyQuery2_gt_ = world_T_bodyMatch2_.between(world_T_bodyQuery2_);
+    bodyMatch1_T_bodyQuery1_gt_ =
+        world_T_bodyMatch1_.between(world_T_bodyQuery1_);
+    bodyMatch2_T_bodyQuery2_gt_ =
+        world_T_bodyMatch2_.between(world_T_bodyQuery2_);
 
     // Initialize StereoFrame objects for reference and current frames
     feature_detector_ =
@@ -280,7 +285,8 @@ class LCDFixture : public ::testing::Test {
   // Stored frame members
   gtsam::Pose3 world_T_bodyMatch1_, world_T_bodyMatch2_, world_T_bodyQuery1_,
       world_T_bodyQuery2_, world_T_match3_, world_T_query3_;
-  gtsam::Pose3 bodyMatch1_T_bodyQuery1_gt_, bodyMatch2_T_bodyQuery2_gt_, match3_T_query3_;
+  gtsam::Pose3 bodyMatch1_T_bodyQuery1_gt_, bodyMatch2_T_bodyQuery2_gt_,
+      match3_T_query3_;
   PointsWithIdMap W_match1_lmks3d_, W_query1_lmks3d_;
   PointsWithIdMap W_match2_lmks3d_, W_query2_lmks3d_;
   std::unique_ptr<StereoFrame> match1_stereo_frame_, query1_stereo_frame_;
@@ -588,7 +594,7 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
       bodyMatch2_T_bodyQuery2_gt_, bodyMatch2_T_bodyQuery2_stereo, false);
 
-  // TODO(marcus): add comment everywhere where this is tuned explaining why 
+  // TODO(marcus): add comment everywhere where this is tuned explaining why
   // tol_loose for use in places like this
   EXPECT_LT(error.first, rot_tol_stereo * 1.5);
   EXPECT_LT(error.second, tran_tol_stereo * 1.5);
@@ -721,7 +727,7 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
   // All matches are inliers for this test
   std::vector<int> inliers_1;
   for (size_t i = 0; i < matches1.size(); i++) {
-      inliers_1.push_back(i);
+    inliers_1.push_back(i);
   }
   gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
   lcd_detector_->recoverPoseBody(
@@ -797,12 +803,12 @@ TEST_F(LCDFixture, detectLoop) {
 
   /* Test the detectLoop method against two images without closure */
   LoopResult loop_result_0;
-  lcd_detector_->detectLoop(frame_id_1, &loop_result_0);
+  lcd_detector_->detectLoopById(frame_id_1, &loop_result_0);
   EXPECT_EQ(loop_result_0.isLoop(), false);
 
   /* Test the detectLoop method against two non-identical, similar images */
   LoopResult loop_result_1;
-  lcd_detector_->detectLoop(frame_id_2, &loop_result_1);
+  lcd_detector_->detectLoopById(frame_id_2, &loop_result_1);
   EXPECT_EQ(loop_result_1.isLoop(), true);
   EXPECT_EQ(loop_result_1.match_id_, 0);
   EXPECT_EQ(loop_result_1.query_id_, 2);
@@ -817,10 +823,8 @@ TEST_F(LCDFixture, detectLoop) {
 TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   /* Test the addition of odometry factors to the PGO */
   CHECK(lcd_detector_);
-  lcd_detector_->initializePGO(
-      OdometryFactor(0,
-                     gtsam::Pose3(),
-                     gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+  lcd_detector_->initializePGO(OdometryFactor(
+      0, gtsam::Pose3(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   OdometryFactor odom_factor(
       1, world_T_bodyMatch1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
@@ -845,7 +849,10 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
   lcd_detector_->addOdometryFactorAndOptimize(odom_factor_2);
 
   LoopClosureFactor lc_factor_1_2(
-      0, 1, bodyMatch1_T_bodyQuery1_gt_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+      0,
+      1,
+      bodyMatch1_T_bodyQuery1_gt_,
+      gtsam::noiseModel::Isotropic::Variance(6, 0.1));
   lcd_detector_->addLoopClosureFactorAndOptimize(lc_factor_1_2);
 
   gtsam::Values pgo_trajectory = lcd_detector_->getPGOTrajectory();
@@ -858,8 +865,10 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
 TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
   /* Add a lc but don't optimize because backend queue reports more packets */
   LoopClosureDetectorParams params;
-  params.pgo_rot_threshold_ = 1000;
-  params.pgo_trans_threshold_ = 1000;
+  params.odom_rot_threshold_ = -1;
+  params.odom_trans_threshold_ = -1;
+  params.pcm_rot_threshold_ = -1;
+  params.pcm_trans_threshold_ = -1;
   params.gnc_alpha_ = 0;
   params.max_lc_cached_before_optimize_ = 1000;
   lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
@@ -873,10 +882,8 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
       std::bind(&LCDFixture::lcdInputQueueCb, this));
   CHECK(lcd_detector_);
 
-  lcd_detector_->initializePGO(
-      OdometryFactor(0,
-                     gtsam::Pose3(),
-                     gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+  lcd_detector_->initializePGO(OdometryFactor(
+      0, gtsam::Pose3(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   size_t num_odom = 10;
   for (size_t i = 1; i < num_odom; i++) {
@@ -909,11 +916,11 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
   // Push a bad loop closure that would throw off the trajectory after
   // optimization. One per pair of odometry measurements
   for (size_t i = 1; i < num_odom; i++) {
-    lcd_detector_->addLoopClosureFactorAndOptimize(LoopClosureFactor(
-        i - 1,
-        i,
-        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(10, 0, 0)),
-        gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+    lcd_detector_->addLoopClosureFactorAndOptimize(
+        LoopClosureFactor(i - 1,
+                          i,
+                          gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(10, 0, 0)),
+                          gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
   }
 
   // Check that trajectory is the same as before.
@@ -928,11 +935,11 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
 
   // Now tell PGO to perform optimization via backend queue callback.
   is_backend_queue_filled_ = false;
-  lcd_detector_->addLoopClosureFactorAndOptimize(LoopClosureFactor(
-      0,
-      1,
-      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(10, 0, 0)),
-      gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+  lcd_detector_->addLoopClosureFactorAndOptimize(
+      LoopClosureFactor(0,
+                        1,
+                        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(10, 0, 0)),
+                        gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   // Check that trajectory is the different from before.
   gtsam::Values pgo_trajectory_second_lc = lcd_detector_->getPGOTrajectory();
@@ -948,15 +955,16 @@ TEST_F(LCDFixture, spinOnce) {
   CHECK(lcd_detector_);
   CHECK(match1_stereo_frame_);
   StereoFrontendOutput::Ptr stereo_frontend_output =
-      std::make_shared<StereoFrontendOutput>(match1_stereo_frame_->isKeyframe(),
-                                             StatusStereoMeasurementsPtr(),
-                                             stereo_camera_->getBodyPoseLeftCamRect(),
-                                             stereo_camera_->getBodyPoseRightCamRect(),
-                                             *match1_stereo_frame_,
-                                             ImuFrontend::PimPtr(),
-                                             ImuAccGyrS(),
-                                             cv::Mat(),
-                                             DebugTrackerInfo());
+      std::make_shared<StereoFrontendOutput>(
+          match1_stereo_frame_->isKeyframe(),
+          StatusStereoMeasurementsPtr(),
+          stereo_camera_->getBodyPoseLeftCamRect(),
+          stereo_camera_->getBodyPoseRightCamRect(),
+          *match1_stereo_frame_,
+          ImuFrontend::PimPtr(),
+          ImuAccGyrS(),
+          cv::Mat(),
+          DebugTrackerInfo());
   FrontendOutputPacketBase::Ptr frontend_output_match1 =
       VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
           stereo_frontend_output);
@@ -968,16 +976,16 @@ TEST_F(LCDFixture, spinOnce) {
                                        gtsam::Pose3()));
 
   CHECK(match2_stereo_frame_);
-  stereo_frontend_output =
-      std::make_shared<StereoFrontendOutput>(match2_stereo_frame_->isKeyframe(),
-                                             StatusStereoMeasurementsPtr(),
-                                             stereo_camera_->getBodyPoseLeftCamRect(),
-                                             stereo_camera_->getBodyPoseRightCamRect(),
-                                             *match2_stereo_frame_,
-                                             ImuFrontend::PimPtr(),
-                                             ImuAccGyrS(),
-                                             cv::Mat(),
-                                             DebugTrackerInfo());
+  stereo_frontend_output = std::make_shared<StereoFrontendOutput>(
+      match2_stereo_frame_->isKeyframe(),
+      StatusStereoMeasurementsPtr(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_->getBodyPoseRightCamRect(),
+      *match2_stereo_frame_,
+      ImuFrontend::PimPtr(),
+      ImuAccGyrS(),
+      cv::Mat(),
+      DebugTrackerInfo());
   FrontendOutputPacketBase::Ptr frontend_output_match2 =
       VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
           stereo_frontend_output);
@@ -989,16 +997,16 @@ TEST_F(LCDFixture, spinOnce) {
                                        gtsam::Pose3()));
 
   CHECK(query1_stereo_frame_);
-  stereo_frontend_output =
-      std::make_shared<StereoFrontendOutput>(query1_stereo_frame_->isKeyframe(),
-                                             StatusStereoMeasurementsPtr(),
-                                             stereo_camera_->getBodyPoseLeftCamRect(),
-                                             stereo_camera_->getBodyPoseRightCamRect(),
-                                             *query1_stereo_frame_,
-                                             ImuFrontend::PimPtr(),
-                                             ImuAccGyrS(),
-                                             cv::Mat(),
-                                             DebugTrackerInfo());
+  stereo_frontend_output = std::make_shared<StereoFrontendOutput>(
+      query1_stereo_frame_->isKeyframe(),
+      StatusStereoMeasurementsPtr(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_->getBodyPoseRightCamRect(),
+      *query1_stereo_frame_,
+      ImuFrontend::PimPtr(),
+      ImuAccGyrS(),
+      cv::Mat(),
+      DebugTrackerInfo());
   FrontendOutputPacketBase::Ptr frontend_output_query1 =
       VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
           stereo_frontend_output);

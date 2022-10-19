@@ -29,8 +29,10 @@ fast_threshold: 20
 betweenRotationPrecision: 10000 # 1/(0.01*0.01)
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 
-pgo_rot_threshold: 0.0
-pgo_trans_threshold: 0.0
+odom_rot_threshold: 0.01
+odom_trans_threshold: 0.05
+pcm_rot_threshold: -1
+pcm_trans_threshold: -1
 gnc_alpha: 0.7
 
 max_lc_cached_before_optimize: 10

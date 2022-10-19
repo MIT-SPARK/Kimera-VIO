@@ -18,8 +18,6 @@
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/Values.h>
 
 #include <string>
 #include <unordered_map>
@@ -34,7 +32,6 @@ namespace VIO {
 
 typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
-typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
 
 enum class LoopClosureDetectorType {
   BoW = 0u,  //! Bag of Words approach
@@ -200,7 +197,7 @@ struct LoopResult {
     return status_str;
   }
 
-  LCDStatus status_;
+  LCDStatus status_ = LCDStatus::NO_MATCHES;
   FrameId query_id_;
   FrameId match_id_;
   gtsam::Pose3 relative_pose_;
@@ -274,55 +271,6 @@ struct LcdInput : public PipelinePayload {
   const FrameId cur_kf_id_;
   const PointsWithIdMap W_points_with_ids_;
   const gtsam::Pose3 W_Pose_Blkf_;
-};
-
-struct LcdOutput : PipelinePayload {
-  KIMERA_POINTER_TYPEDEFS(LcdOutput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LcdOutput(bool is_loop_closure,
-            const Timestamp& timestamp_kf,
-            const Timestamp& timestamp_query,
-            const Timestamp& timestamp_match,
-            const FrameId& id_match,
-            const FrameId& id_recent,
-            const gtsam::Pose3& relative_pose,
-            const gtsam::Pose3& W_Pose_Map,
-            const gtsam::Values& states,
-            const gtsam::NonlinearFactorGraph& nfg)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(is_loop_closure),
-        timestamp_query_(timestamp_query),
-        timestamp_match_(timestamp_match),
-        id_match_(id_match),
-        id_recent_(id_recent),
-        relative_pose_(relative_pose),
-        W_Pose_Map_(W_Pose_Map),
-        states_(states),
-        nfg_(nfg) {}
-
-  LcdOutput(const Timestamp& timestamp_kf)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(false),
-        timestamp_query_(0),
-        timestamp_match_(0),
-        id_match_(0),
-        id_recent_(0),
-        relative_pose_(gtsam::Pose3()),
-        W_Pose_Map_(gtsam::Pose3()),
-        states_(gtsam::Values()),
-        nfg_(gtsam::NonlinearFactorGraph()) {}
-
-  // TODO(marcus): inlude stats/score of match
-  bool is_loop_closure_;
-  Timestamp timestamp_query_;
-  Timestamp timestamp_match_;
-  FrameId id_match_;
-  FrameId id_recent_;
-  gtsam::Pose3 relative_pose_;
-  gtsam::Pose3 W_Pose_Map_;
-  gtsam::Values states_;
-  gtsam::NonlinearFactorGraph nfg_;
 };
 
 }  // namespace VIO

@@ -36,9 +36,11 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
-StereoImuPipeline::StereoImuPipeline(const VioParams& params,
-                                     Visualizer3D::UniquePtr&& visualizer,
-                                     DisplayBase::UniquePtr&& displayer)
+StereoImuPipeline::StereoImuPipeline(
+    const VioParams& params,
+    Visualizer3D::UniquePtr&& visualizer,
+    DisplayBase::UniquePtr&& displayer,
+    PreloadedVocab::Ptr&& preloaded_vocab)
     : Pipeline(params), stereo_camera_(nullptr) {
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u)
@@ -176,7 +178,8 @@ StereoImuPipeline::StereoImuPipeline(const VioParams& params,
                               stereo_camera_->getBodyPoseLeftCamRect(),
                               stereo_camera_,
                               params.frontend_params_.stereo_matching_params_,
-                              FLAGS_log_output));
+                              FLAGS_log_output,
+                              std::move(preloaded_vocab)));
     //! Register input callbacks
     vio_backend_module_->registerOutputCallback(
         std::bind(&LcdModule::fillBackendQueue,

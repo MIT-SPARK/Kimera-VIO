@@ -56,6 +56,7 @@ class QueueSynchronizerBase {
                          T* pipeline_payload,
                          std::string name_id,
                          int max_iterations = 10,
+                         size_t timeout_ms = 10000u,
                          std::function<void(const T&)>* callback = nullptr) = 0;
   virtual ~QueueSynchronizerBase() = default;
 };
@@ -101,6 +102,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                  T* pipeline_payload,
                  std::string name_id,
                  int max_iterations = 10,
+                 size_t timeout_ms = 10000u,
                  std::function<void(const T&)>* callback = nullptr) {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
@@ -113,9 +115,6 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     // or we are past the asked timestamp (in which case, we failed).
 
     Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
-
-    //max amount of time the synchronizer will wait for a new packet when the queue is empty
-    static constexpr size_t timeout_ms = 10000u;
     
     while (true) {
       std::shared_ptr<T> curr_payload =
