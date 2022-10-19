@@ -63,6 +63,10 @@ bool DataProviderInterface::spin() {
   return false;
 }
 
+bool DataProviderInterface::hasData() const {
+  return false;
+}
+
 void DataProviderInterface::shutdown() {
   LOG_IF(ERROR, shutdown_)
       << "Shutdown requested, but DataProviderInterface was already "

@@ -138,6 +138,10 @@ bool EurocDataProvider::spin() {
   return false;
 }
 
+bool EurocDataProvider::hasData() const {
+  return current_k_ < final_k_;
+}
+
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spinOnce() {
   CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
