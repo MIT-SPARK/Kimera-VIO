@@ -259,7 +259,7 @@ bool VioBackend::initStateAndSetPriors(
   // the optimizer and _from_increments_ is used as a smooth output
   W_Pose_B_lkf_from_state_ = vio_nav_state_initial_seed.pose_;
   W_Pose_B_lkf_from_increments_ = vio_nav_state_initial_seed.pose_;
-  
+
   W_Vel_B_lkf_ = vio_nav_state_initial_seed.velocity_;
   imu_bias_lkf_ = vio_nav_state_initial_seed.imu_bias_;
   imu_bias_prev_kf_ = vio_nav_state_initial_seed.imu_bias_;
@@ -1130,8 +1130,7 @@ bool VioBackend::optimize(
   if (VLOG_IS_ON(10)) {
     // Get state before optimization to compute error.
     debug_info_.stateBeforeOpt = gtsam::Values(state_);
-    BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                   new_values_) {
+    for (const auto& key_value : new_values_) {
       debug_info_.stateBeforeOpt.insert(key_value.key, key_value.value);
     }
   }
@@ -1161,8 +1160,7 @@ bool VioBackend::optimize(
   // Needs to use DOUBLE because gtsam works with that, but we
   // are actually counting the number of states in the smoother.
   std::map<Key, double> key_frame_count;
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                 new_values_) {
+  for (const auto& key_value : new_values_) {
     key_frame_count[key_value.key] = cur_id;
   }
   DCHECK_EQ(key_frame_count.size(), new_values_.size());
@@ -1872,7 +1870,7 @@ void VioBackend::print() const {
 
 void VioBackend::printFeatureTracks() const {
   LOG(INFO) << "---- Feature tracks: --------- ";
-  BOOST_FOREACH (auto keyTrack_j, feature_tracks_) {
+  for (const auto& keyTrack_j : feature_tracks_) {
     LOG(INFO) << "Landmark " << keyTrack_j.first << " having ";
     keyTrack_j.second.print();
   }
@@ -1970,7 +1968,7 @@ void VioBackend::printSmootherInfo(
   LOG(INFO) << "Nr of values in state_ : " << state_.size() << ", with keys:";
   std::stringstream state_ss;
   state_ss << "[\n\t";
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value, state_) {
+  for (const auto& key_value : state_) {
     state_ss << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
   LOG(INFO) << state_ss.str();
@@ -1981,8 +1979,7 @@ void VioBackend::printSmootherInfo(
             << ", with keys:";
   std::stringstream new_values_ss;
   new_values_ss << "[\n\t";
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                 new_values_) {
+  for (const auto& key_value : new_values_) {
     new_values_ss << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
   LOG(INFO) << new_values_ss.str();

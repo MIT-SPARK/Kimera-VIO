@@ -172,8 +172,9 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
 
   // Add all landmarks to factor graph
   LandmarkIds landmarks_all_keyframes;
-  BOOST_FOREACH (auto keyTrack_j, feature_tracks_)
+  for (const auto& keyTrack_j : feature_tracks_) {
     landmarks_all_keyframes.push_back(keyTrack_j.first);
+  }
 
   addLandmarksToGraph(landmarks_all_keyframes);
 
@@ -330,8 +331,7 @@ std::vector<gtsam::Pose3> InitializationBackend::optimizeInitialVisualStates(
   VLOG(10) << "Levenberg Marquardt optimizer done.";
   // Query optimized poses in body frame (b0_T_bk)
   std::vector<gtsam::Pose3> initial_states;
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                 initial_values) {
+  for (const auto& key_value : initial_values) {
     initial_states.push_back(initial_values.at<gtsam::Pose3>(key_value.key));
   }
   VLOG(10) << "Initialization values retrieved.";
