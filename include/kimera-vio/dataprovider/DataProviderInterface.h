@@ -53,6 +53,12 @@ class DataProviderInterface {
   virtual bool spin();
 
   /**
+   * @brief return whether data still exists on this interface
+   * @return True if the dataset still has data
+   */
+  virtual bool hasData() const;
+
+  /**
    * @brief shutdown Call if you want to explicitly stop the data provider.
    * This is thread-safe, since shutdown_ is an atomic bool.
    * NOTE: this is only setting the shutdown_ flag to any class inheriting from
