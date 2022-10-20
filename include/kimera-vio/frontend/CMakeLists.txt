@@ -3,7 +3,6 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Camera.h"
   "${CMAKE_CURRENT_LIST_DIR}/CameraParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/DepthFrame.h"
-  "${CMAKE_CURRENT_LIST_DIR}/DepthCameraParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/Frame.h"
   "${CMAKE_CURRENT_LIST_DIR}/FrontendInputPacketBase.h"
   "${CMAKE_CURRENT_LIST_DIR}/FrontendOutputPacketBase.h"

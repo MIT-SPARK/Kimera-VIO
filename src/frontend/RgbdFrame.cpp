@@ -14,7 +14,6 @@
 
 #include "kimera-vio/frontend/RgbdFrame.h"
 
-#include "kimera-vio/frontend/DepthCameraParams.h"
 #include "kimera-vio/frontend/RgbdCamera.h"
 
 namespace VIO {
@@ -48,13 +47,9 @@ StereoFrame::Ptr RgbdFrame::getStereoFrame() const {
 
 void RgbdFrame::fillStereoFrame(const RgbdCamera& camera,
                                 StereoFrame& stereo_frame) const {
-  if (!camera.isRegistered()) {
-    const CameraParams color_params = camera.getCamParams();
-    depth_img_.registerDepth(camera.getDepthCamMatrix(),
-                             color_params.K_,
-                             color_params.distortion_coeff_mat_,
-                             camera.getDepthCamTransform(),
-                             color_params.image_size_);
+  const auto& params = camera.getCamParams();
+  if (!params.depth.is_registered_) {
+    depth_img_.registerDepth(params);
   }
 
   if (stereo_frame.left_frame_.keypoints_.size() >
@@ -67,9 +62,7 @@ void RgbdFrame::fillStereoFrame(const RgbdCamera& camera,
   auto& right_keypoints_rect = stereo_frame.right_keypoints_rectified_;
   auto& keypoint_depths = stereo_frame.keypoints_depth_;
 
-  const auto& params = camera.getDepthCameraParams();
-  const double fx_b =
-      camera.getCamParams().intrinsics_[0] * params.virtual_baseline_;
+  const double fx_b = params.intrinsics_[0] * params.depth.virtual_baseline_;
 
   // we could try and track matches / removed features, but this is easier
   // and likely only marginally less efficient
@@ -92,8 +85,9 @@ void RgbdFrame::fillStereoFrame(const RgbdCamera& camera,
 
     float keypoint_depth =
         depth_img_.getDepthAtPoint(stereo_frame.left_frame_.keypoints_[i]);
-    keypoint_depth *= params.depth_to_meters_;
-    if (keypoint_depth <= params.min_depth_ || !std::isfinite(keypoint_depth)) {
+    keypoint_depth *= params.depth.depth_to_meters_;
+    if (keypoint_depth <= params.depth.min_depth_ ||
+        !std::isfinite(keypoint_depth)) {
       right_keypoints_rect.push_back(
           std::make_pair(KeypointStatus::NO_DEPTH, KeypointCV(0.0, 0.0)));
       keypoint_depths.push_back(0.0);

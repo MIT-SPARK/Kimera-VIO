@@ -113,7 +113,6 @@ TEST_F(VioParamsFixture, explicitConstructorCorrect) {
                        FLAGS_test_data_path + "/AlternateTestParams/" + VioParams::kImuFilename,
                        FLAGS_test_data_path + "/EurocParams/" + VioParams::kLeftCameraFilename,
                        FLAGS_test_data_path + "/EurocParams/" + VioParams::kRightCameraFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kDepthCameraFilename,
                        FLAGS_test_data_path + "/EurocParams/" + VioParams::kFrontendFilename,
                        FLAGS_test_data_path + "/EurocParams/" + VioParams::kBackendFilename,
                        FLAGS_test_data_path + "/EurocParams/" + VioParams::kLcdFilename,

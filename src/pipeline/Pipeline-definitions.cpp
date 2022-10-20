@@ -26,12 +26,8 @@ namespace VIO {
 
 decltype(VioParams::kPipelineFilename) constexpr VioParams::kPipelineFilename;
 decltype(VioParams::kImuFilename) constexpr VioParams::kImuFilename;
-decltype(
-    VioParams::kLeftCameraFilename) constexpr VioParams::kLeftCameraFilename;
-decltype(
-    VioParams::kRightCameraFilename) constexpr VioParams::kRightCameraFilename;
-decltype(
-    VioParams::kDepthCameraFilename) constexpr VioParams::kDepthCameraFilename;
+decltype(VioParams::kLeftCameraFilename) constexpr VioParams::kLeftCameraFilename;
+decltype(VioParams::kRightCameraFilename) constexpr VioParams::kRightCameraFilename;
 decltype(VioParams::kFrontendFilename) constexpr VioParams::kFrontendFilename;
 decltype(VioParams::kBackendFilename) constexpr VioParams::kBackendFilename;
 decltype(VioParams::kLcdFilename) constexpr VioParams::kLcdFilename;
@@ -43,7 +39,6 @@ VioParams::VioParams(const std::string& params_folder_path)
                 params_folder_path + '/' + kImuFilename,
                 params_folder_path + '/' + kLeftCameraFilename,
                 params_folder_path + '/' + kRightCameraFilename,
-                params_folder_path + '/' + kDepthCameraFilename,
                 params_folder_path + '/' + kFrontendFilename,
                 params_folder_path + '/' + kBackendFilename,
                 params_folder_path + '/' + kLcdFilename,
@@ -58,7 +53,6 @@ VioParams::VioParams(const std::string& pipeline_params_filepath,
                      const std::string& imu_params_filepath,
                      const std::string& left_cam_params_filepath,
                      const std::string& right_cam_params_filepath,
-                     const std::string& depth_cam_params_filepath,
                      const std::string& frontend_params_filepath,
                      const std::string& backend_params_filepath,
                      const std::string& lcd_params_filepath,
@@ -81,7 +75,6 @@ VioParams::VioParams(const std::string& pipeline_params_filepath,
       imu_params_filepath_(imu_params_filepath),
       left_cam_params_filepath_(left_cam_params_filepath),
       right_cam_params_filepath_(right_cam_params_filepath),
-      depth_cam_params_filepath_(depth_cam_params_filepath),
       frontend_params_filepath_(frontend_params_filepath),
       backend_params_filepath_(backend_params_filepath),
       lcd_params_filepath_(lcd_params_filepath),
@@ -119,10 +112,6 @@ bool VioParams::parseYAML(const std::string&) {
     camera_params_.push_back(parseCameraParams(right_cam_params_filepath_));
   }
 
-  if (frontend_type_ == FrontendType::kRgbdImu) {
-    parsePipelineParams(depth_cam_params_filepath_, &depth_camera_params_);
-  }
-
   // Parse Backend params, needs a bit of help with backend_type
   switch (backend_type_) {
     case BackendType::kStereoImu: {
@@ -142,6 +131,7 @@ bool VioParams::parseYAML(const std::string&) {
   CHECK(backend_params_);
   parsePipelineParams(backend_params_filepath_, backend_params_.get());
 
+  // Parse Frontend params.
   parsePipelineParams(frontend_params_filepath_, &frontend_params_);
 
   // Parse LcdParams

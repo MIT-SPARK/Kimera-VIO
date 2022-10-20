@@ -15,10 +15,11 @@
 
 #include "kimera-vio/frontend/CameraParams.h"
 
+#include <gtsam/navigation/ImuBias.h>
+
 #include <fstream>
 #include <iostream>
-
-#include <gtsam/navigation/ImuBias.h>
+#include <opencv2/core/eigen.hpp>
 
 namespace VIO {
 
@@ -46,6 +47,13 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 
   // Convert intrinsics to cv::Mat format.
   convertIntrinsicsVectorToMatrix(intrinsics_, &K_);
+
+  // use required rgbd field to toggle whether or not to parse depth params
+  if (yaml_parser.hasParam("virtual_baseline")) {
+    parseDepthParams(yaml_parser);
+  } else {
+    depth.valid = false;
+  }
 
   // P_ = R_rectify_ * camera_matrix_;
   return true;
@@ -80,7 +88,8 @@ void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
 
     yaml_parser.getYamlParam("omni_affine", &omni_affine);
     CHECK_EQ(omni_affine.size(), 3);  // c, d, and e only
-    omni_affine_ << 1.0, omni_affine.at(0), omni_affine.at(1), omni_affine.at(2);
+    omni_affine_ << 1.0, omni_affine.at(0), omni_affine.at(1),
+        omni_affine.at(2);
     omni_affine_inv_ = omni_affine_.inverse();
   }
 }
@@ -137,10 +146,9 @@ const DistortionModel CameraParams::stringToDistortionModel(
                  << lower_case_distortion_model
                  << " Valid omni distortion model options are 'omni'.";
     }
-  }else {
-    LOG(FATAL)
-        << "Unrecognized camera model. "
-        << "Valid camera models are 'pinhole' and 'omni'.";
+  } else {
+    LOG(FATAL) << "Unrecognized camera model. "
+               << "Valid camera models are 'pinhole' and 'omni'.";
   }
 }
 
@@ -187,8 +195,8 @@ void CameraParams::parseBodyPoseCam(const YamlParser& yaml_parser,
   *body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 }
 
-const void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                               Intrinsics* _intrinsics) {
+void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
+                                         Intrinsics* _intrinsics) {
   CHECK_NOTNULL(_intrinsics);
   std::vector<double> intrinsics;
   yaml_parser.getYamlParam("intrinsics", &intrinsics);
@@ -268,10 +276,21 @@ void CameraParams::print() const {
                         intrinsics_[3],
                         "frame_rate_: ",
                         frame_rate_,
-                        "image_size_: \n - width",
+                        "image_size_: \n- width",
                         image_size_.width,
                         "- height",
-                        image_size_.height);
+                        image_size_.height,
+                        "depth_: \n- virtual_baseline",
+                        depth.virtual_baseline_,
+                        "- depth_to_meters",
+                        depth.depth_to_meters_,
+                        "- min_depth",
+                        depth.min_depth_,
+                        "- max_depth",
+                        depth.max_depth_,
+                        "- is_registered",
+                        depth.is_registered_);
+
   LOG(INFO) << out.str();
   LOG(INFO) << "- body_Pose_cam_: " << body_Pose_cam_ << '\n'
             << "- K: " << K_ << '\n'
@@ -279,24 +298,75 @@ void CameraParams::print() const {
             << "- Distortion Coeff:" << distortion_coeff_mat_;
 }
 
+template <typename T>
+inline bool floatWithinTol(const T& v1, const T& v2, double tolerance) {
+  return std::abs(v2 - v1) < static_cast<T>(tolerance);
+}
+
 //! Assert equality up to a tolerance.
 bool CameraParams::equals(const CameraParams& cam_par,
                           const double& tol) const {
   bool areIntrinsicEqual = true;
   for (size_t i = 0; i < intrinsics_.size(); i++) {
-    if (std::fabs(intrinsics_[i] - cam_par.intrinsics_[i]) > tol) {
+    if (!floatWithinTol(intrinsics_[i], cam_par.intrinsics_[i], tol)) {
       areIntrinsicEqual = false;
       break;
     }
   }
+
+  bool depth_params_equal;
+  if (depth.valid && !cam_par.depth.valid) {
+    depth_params_equal = true;
+  } else if (depth.valid != cam_par.depth.valid) {
+    depth_params_equal = false;
+  } else {
+    depth_params_equal =
+        floatWithinTol(
+            depth.virtual_baseline_, cam_par.depth.virtual_baseline_, tol) &&
+        floatWithinTol(
+            depth.depth_to_meters_, cam_par.depth.depth_to_meters_, tol) &&
+        floatWithinTol(depth.min_depth_, cam_par.depth.min_depth_, tol) &&
+        floatWithinTol(depth.max_depth_, cam_par.depth.max_depth_, tol);
+  }
+
   return camera_id_ == cam_par.camera_id_ && areIntrinsicEqual &&
+         depth_params_equal &&
          body_Pose_cam_.equals(cam_par.body_Pose_cam_, tol) &&
-         (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
+         floatWithinTol(frame_rate_, cam_par.frame_rate_, tol) &&
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
          UtilsOpenCV::compareCvMatsUpToTol(K_, cam_par.K_) &&
          UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_mat_,
                                            cam_par.distortion_coeff_mat_);
+}
+
+void CameraParams::parseDepthParams(const YamlParser& yaml_parser) {
+  yaml_parser.getYamlParam("virtual_baseline", &depth.virtual_baseline_);
+  CHECK_GT(depth.virtual_baseline_, 0.0) << "Baseline must be positive";
+  yaml_parser.getYamlParam("depth_to_meters", &depth.depth_to_meters_);
+  yaml_parser.getYamlParam("min_depth", &depth.min_depth_);
+  yaml_parser.getYamlParam("max_depth", &depth.max_depth_);
+  yaml_parser.getYamlParam("is_registered", &depth.is_registered_);
+
+  if (!depth.is_registered_) {
+    std::vector<double> pose_elements;
+    yaml_parser.getNestedYamlParam("T_color_depth", "data", &pose_elements);
+    gtsam::Pose3 T_CD = UtilsOpenCV::poseVectorToGtsamPose3(pose_elements);
+
+    // convert to cv::Mat for more efficient registration
+    depth.T_color_depth_ = cv::Mat(4, 4, CV_64F);
+    cv::eigen2cv(T_CD.matrix(), depth.T_color_depth_);
+
+    std::vector<double> intrinsics;
+    yaml_parser.getYamlParam("depth_intrinsics", &intrinsics);
+    depth.K_ = cv::Mat::eye(3, 3, CV_64F);
+    depth.K_.at<double>(0, 0) = intrinsics[0];
+    depth.K_.at<double>(1, 1) = intrinsics[1];
+    depth.K_.at<double>(0, 2) = intrinsics[2];
+    depth.K_.at<double>(1, 2) = intrinsics[3];
+  }
+
+  depth.valid = true;
 }
 
 }  // namespace VIO

@@ -16,7 +16,6 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
 #include <gtsam/geometry/Rot3.h>
 
 #include "kimera-vio/utils/Timer.h"
@@ -200,7 +199,7 @@ void RgbdVisionImuFrontend::processFirstFrame(const RgbdFrame& rgbd_frame) {
   // no need for retification during detection: right frame is hallucinated
   CHECK(feature_detector_);
   left_frame->detection_mask_ =
-      rgbd_frame.depth_img_.getDetectionMask(camera_->getDepthCameraParams());
+      rgbd_frame.depth_img_.getDetectionMask(camera_->getCamParams());
   feature_detector_->featureDetection(left_frame);
 
   // we put undistorted keypoints in the stereo container (as we reuse some of
@@ -397,7 +396,7 @@ void RgbdVisionImuFrontend::handleKeyframe(
   // hallucinated
   CHECK(feature_detector_);
   frame.left_frame_.detection_mask_ =
-      rgbd_frame.depth_img_.getDetectionMask(camera_->getDepthCameraParams());
+      rgbd_frame.depth_img_.getDetectionMask(camera_->getCamParams());
   feature_detector_->featureDetection(&frame.left_frame_);
   camera_->undistortKeypoints(frame.left_frame_.keypoints_,
                               &frame.left_keypoints_rectified_);
@@ -454,11 +453,13 @@ void RgbdVisionImuFrontend::fillSmartStereoMeasurements(
 
 cv::Mat drawDepthImage(const StereoFrame& stereo_frame,
                        const DepthFrame& depth_frame,
-                       const DepthCameraParams& params) {
+                       const CameraParams& params) {
   cv::Mat depth_img;
   // convert to uint8_t while so that [0, max_depth] maps to 255
   depth_frame.depth_img_.convertTo(
-      depth_img, CV_8UC1, params.depth_to_meters_ / params.max_depth_ * 255);
+      depth_img,
+      CV_8UC1,
+      params.depth.depth_to_meters_ / params.depth.max_depth_ * 255);
 
   cv::Mat img_rgb;
   cv::cvtColor(depth_img, img_rgb, cv::COLOR_GRAY2RGB);
@@ -508,8 +509,8 @@ void RgbdVisionImuFrontend::logTrackingImages(const StereoFrame& frame,
   }
 
   if (logger_valid && FLAGS_log_rgbd_tracking_images) {
-    cv::Mat rgbd_img = drawDepthImage(
-        frame, rgbd_frame.depth_img_, camera_->getDepthCameraParams());
+    cv::Mat rgbd_img =
+        drawDepthImage(frame, rgbd_frame.depth_img_, camera_->getCamParams());
     logger_->logFrontendImg(frame.id_,
                             rgbd_img,
                             "rgbdDepthFeatures",

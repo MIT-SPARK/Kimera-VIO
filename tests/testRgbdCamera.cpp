@@ -12,14 +12,13 @@
  * @author Antoni Rosinol
  */
 
-#include <math.h>
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <math.h>
 
 #include <opencv2/opencv.hpp>
+#include <string>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
@@ -53,8 +52,8 @@ class RgbdCameraFixture : public ::testing::Test {
     vio_params_.parallel_run_ = false;
 
     // Create RGB-D camera
-    rgbd_camera_ = VIO::make_unique<RgbdCamera>(
-        vio_params_.camera_params_.at(0), DepthCameraParams());
+    rgbd_camera_ =
+        VIO::make_unique<RgbdCamera>(vio_params_.camera_params_.at(0));
 
     // Create visualizer
     VisualizationType viz_type = VisualizationType::kPointcloud;

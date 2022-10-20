@@ -39,21 +39,10 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
                                  Visualizer3D::UniquePtr&& visualizer,
                                  DisplayBase::UniquePtr&& displayer,
                                  PreloadedVocab::Ptr&& preloaded_vocab)
-    : Pipeline(params), depth_params_(params.depth_camera_params_) {
+    : Pipeline(params) {
   CHECK_GE(params.camera_params_.size(), 1u)
       << "Need at least one camera for RgbdImuPipeline.";
-  if (depth_params_.is_registered_) {
-    // TODO(nathan) fix now that params are subsumed by camera
-    camera_ = std::make_shared<RgbdCamera>(params.camera_params_.at(0),
-                                           depth_params_);
-  } else {
-    // TODO(nathan) fix now that params are subsumed by camera
-    camera_ = std::make_shared<RgbdCamera>(params.camera_params_.at(0),
-                                           depth_params_,
-                                           depth_params_.depth_camera_matrix_,
-                                           depth_params_.T_color_depth_,
-                                           false);
-  }
+  camera_ = std::make_shared<RgbdCamera>(params.camera_params_.at(0));
 
   data_provider_module_ = VIO::make_unique<RgbdDataProviderModule>(
       &frontend_input_queue_, "Rgbd Data Provider", parallel_run_);
@@ -263,6 +252,14 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
   }
 
   launchThreads();
+}
+
+void RgbdImuPipeline::fillDepthFrameQueue(DepthFrame::UniquePtr frame) {
+  CHECK(data_provider_module_);
+  CHECK(frame);
+  auto provider =
+      dynamic_cast<RgbdDataProviderModule*>(data_provider_module_.get());
+  CHECK_NOTNULL(provider)->fillDepthFrameQueue(std::move(frame));
 }
 
 }  // namespace VIO

@@ -13,8 +13,10 @@
  */
 #include "kimera-vio/frontend/DepthFrame.h"
 
-#include <opencv2/core/eigen.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/rgbd.hpp>
+
+#include "kimera-vio/frontend/CameraParams.h"
 
 namespace VIO {
 
@@ -35,9 +37,32 @@ DepthFrame::DepthFrame(const DepthFrame& other)
       is_registered_(other.is_registered_),
       registered_img_(other.registered_img_) {}
 
-cv::Mat DepthFrame::getDetectionMask(const DepthCameraParams& params) const {
-  float min = params.min_depth_ * 1.0f / params.depth_to_meters_;
-  float max = params.max_depth_ * 1.0f / params.depth_to_meters_;
+float DepthFrame::getDepthAtPoint(const KeypointCV& point) const {
+  const auto x = static_cast<int>(point.x);
+  const auto y = static_cast<int>(point.y);
+  // lk tracking produces keypoints outside of the image...
+  if (x < 0 || x >= depth_img_.cols || y < 0 || y >= depth_img_.rows) {
+    VLOG(5) << "Found feature (" << point.x << ", " << point.y
+            << " outside image bounds: [" << depth_img_.cols << " x "
+            << depth_img_.rows << "]";
+    return std::numeric_limits<float>::quiet_NaN();
+  }
+
+  const cv::Mat& img = is_registered_ ? registered_img_ : depth_img_;
+  switch (depth_img_.type()) {
+    case CV_32FC1:
+      return img.at<float>(y, x);
+    case CV_16UC1:
+      return img.at<uint16_t>(y, x);
+    default:
+      LOG(FATAL) << "Invalid depth datatype: " << depth_img_.type();
+      return std::numeric_limits<float>::quiet_NaN();
+  }
+}
+
+cv::Mat DepthFrame::getDetectionMask(const CameraParams& params) const {
+  float min = params.depth.min_depth_ * 1.0f / params.depth.depth_to_meters_;
+  float max = params.depth.max_depth_ * 1.0f / params.depth.depth_to_meters_;
   const cv::Mat& img_to_use = is_registered_ ? registered_img_ : depth_img_;
   cv::Mat mask;
   switch (depth_img_.type()) {
@@ -58,24 +83,17 @@ cv::Mat DepthFrame::getDetectionMask(const DepthCameraParams& params) const {
   return mask;
 }
 
-void DepthFrame::registerDepth(const cv::Mat& depth_camera_matrix,
-                               const cv::Mat& color_camera_matrix,
-                               const cv::Mat& color_distortion_params,
-                               const gtsam::Pose3& T_color_depth,
-                               const cv::Size& color_size) const {
+void DepthFrame::registerDepth(const CameraParams& params) const {
   if (is_registered_) {
     return;
   }
 
-  cv::Mat Tcv_color_depth(4, 4, CV_64F);
-  cv::eigen2cv(T_color_depth.matrix(), Tcv_color_depth);
-
-  cv::rgbd::registerDepth(depth_camera_matrix,
-                          color_camera_matrix,
-                          color_distortion_params,
-                          Tcv_color_depth,
+  cv::rgbd::registerDepth(params.depth.K_,
+                          params.K_,
+                          params.distortion_coeff_mat_,
+                          params.depth.T_color_depth_,
                           depth_img_,
-                          color_size,
+                          params.image_size_,
                           registered_img_);
   is_registered_ = true;
 }

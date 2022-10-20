@@ -15,16 +15,16 @@
  * @author Nathan Hughes
  */
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <random>
 #include <string>
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/RgbdVisionImuFrontend.h"
@@ -82,7 +82,7 @@ class RgbdVisionImuFrontendFixture : public ::testing::Test {
   void initializeData() {
     CameraParams left_cam;
     left_cam.parseYAML(rgbd_data_path + "/sensorLeft.yaml");
-    camera.reset(new RgbdCamera(left_cam, depth_params));
+    camera.reset(new RgbdCamera(left_cam));
 
     // TODO(nathan) grab from rgbd frames?
     // Data for testing "geometricOutlierRejection2d2d"
@@ -204,7 +204,6 @@ class RgbdVisionImuFrontendFixture : public ::testing::Test {
 
   RgbdCamera::Ptr camera;
   ImuParams imu_params;
-  DepthCameraParams depth_params;
 };
 
 TEST_F(RgbdVisionImuFrontendFixture, fillSmartStereoMeasurements) {

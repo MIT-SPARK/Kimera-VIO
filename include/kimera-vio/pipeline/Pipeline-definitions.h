@@ -14,19 +14,18 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
+
 #include "kimera-vio/backend/RegularVioBackendParams.h"
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/frontend/CameraParams.h"
-#include "kimera-vio/frontend/DepthCameraParams.h"
 #include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontendParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 #include "kimera-vio/visualizer/DisplayParams.h"
-
-#include <gflags/gflags.h>
 
 DECLARE_bool(use_external_odometry);
 
@@ -89,7 +88,6 @@ struct VioParams : public PipelineParams {
             const std::string& imu_params_filepath,
             const std::string& left_cam_params_filepath,
             const std::string& right_cam_params_filepath,
-            const std::string& depth_cam_params_filepath,
             const std::string& frontend_params_filepath,
             const std::string& backend_params_filepath,
             const std::string& lcd_params_filepath,
@@ -103,7 +101,6 @@ struct VioParams : public PipelineParams {
    * @brief parseYAML
    * - ImuParams
    * - CameraParams
-   * - DepthCameraParams
    * - FrontendParams
    * - BackendParams
    * - LcdParams
@@ -124,7 +121,6 @@ struct VioParams : public PipelineParams {
   static constexpr char kImuFilename[] = "ImuParams.yaml";
   static constexpr char kLeftCameraFilename[] = "LeftCameraParams.yaml";
   static constexpr char kRightCameraFilename[] = "RightCameraParams.yaml";
-  static constexpr char kDepthCameraFilename[] = "DepthCameraParams.yaml";
   static constexpr char kFrontendFilename[] = "FrontendParams.yaml";
   static constexpr char kBackendFilename[] = "BackendParams.yaml";
   static constexpr char kLcdFilename[] = "LcdParams.yaml";
@@ -135,7 +131,6 @@ struct VioParams : public PipelineParams {
   //! Sensor parameters
   ImuParams imu_params_;
   MultiCameraParams camera_params_;
-  DepthCameraParams depth_camera_params_;
   //! Pipeline Modules paramters
   FrontendParams frontend_params_;
   //! Mind that this is shared btw the vio pipeline and dataprovider,
@@ -158,7 +153,6 @@ struct VioParams : public PipelineParams {
     const auto& rhs = static_cast<const VioParams&>(obj);
     return imu_params_ == rhs.imu_params_ &&
            camera_params_ == rhs.camera_params_ &&
-           depth_camera_params_ == rhs.depth_camera_params_ &&
            frontend_params_ == rhs.frontend_params_ &&
            backend_params_ == rhs.backend_params_ &&
            frontend_type_ == rhs.frontend_type_ &&
@@ -174,7 +168,6 @@ struct VioParams : public PipelineParams {
   std::string imu_params_filepath_;
   std::string left_cam_params_filepath_;
   std::string right_cam_params_filepath_;
-  std::string depth_cam_params_filepath_;
   std::string frontend_params_filepath_;
   std::string backend_params_filepath_;
   std::string lcd_params_filepath_;

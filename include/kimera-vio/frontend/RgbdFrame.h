@@ -24,7 +24,6 @@ namespace VIO {
 
 // forward declarations to break dependency on RgbdFrame in RgbdCamera
 class RgbdCamera;
-class DepthCameraParams;
 
 class RgbdFrame : public PipelinePayload {
  public:

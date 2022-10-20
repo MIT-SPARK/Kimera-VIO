@@ -34,18 +34,10 @@ class RgbdImuPipeline : public Pipeline {
 
   ~RgbdImuPipeline() = default;
 
-  inline void fillDepthFrameQueue(DepthFrame::UniquePtr frame) {
-    CHECK(data_provider_module_);
-    CHECK(frame);
-    CHECK_NOTNULL(
-        dynamic_cast<RgbdDataProviderModule*>(data_provider_module_.get()))
-        ->fillDepthFrameQueue(std::move(frame));
-  }
+  void fillDepthFrameQueue(DepthFrame::UniquePtr frame);
 
  protected:
   RgbdCamera::ConstPtr camera_;
-
-  DepthCameraParams depth_params_;
 };
 
 }  // namespace VIO

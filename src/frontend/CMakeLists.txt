@@ -3,11 +3,11 @@ target_sources(kimera_vio
   PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Camera.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/CameraParams.cpp"
-  "${CMAKE_CURRENT_LIST_DIR}/DepthCameraParams.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/DepthFrame.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/MonoImuSyncPacket.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/MonoVisionImuFrontend.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/OdometryParams.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/RgbdCamera.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/RgbdFrame.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/RgbdImuSyncPacket.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/RgbdVisionImuFrontend.cpp"
