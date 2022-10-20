@@ -74,6 +74,8 @@ class RgbdCamera : public Camera {
    */
   StereoCalibPtr getFakeStereoCalib() const;
 
+  gtsam::StereoCamera getFakeStereoCamera() const;
+
  public:
   /**
    * @brief convertRgbdToPointcloud

@@ -314,7 +314,13 @@ void RgbdVisionImuFrontend::handleKeyframe(
 
     TrackingStatusPose status_stereo;
     if (frontend_params_.use_stereo_tracking_) {
-      outlierRejectionStereo(frame, &status_stereo);
+      outlierRejectionStereo(
+          camera_->getFakeStereoCamera(),
+          keyframe_R_frame,
+          frame_lkf_.get(),
+          &frame,
+          &status_stereo,
+          &tracker_status_summary_.infoMatStereoTranslation_);
     } else {
       status_stereo.first = TrackingStatus::INVALID;
       status_stereo.second = gtsam::Pose3::identity();
@@ -360,18 +366,6 @@ void RgbdVisionImuFrontend::handleKeyframe(
   // log debugging info
   logTrackingImages(frame, rgbd_frame);
   frame.checkStatusRightKeypoints(&tracker_->debug_info_);
-}
-
-void RgbdVisionImuFrontend::outlierRejectionStereo(StereoFrame& frame,
-                                                   TrackingStatusPose* status) {
-  CHECK(tracker_);
-  CHECK_NOTNULL(status);
-
-  // TODO(nathan) 1-pt voting may make sense, but faking a stereo camera for
-  // the required back-projection covariance doesn't at the moment
-
-  *status = tracker_->geometricOutlierRejection3d3d(frame_lkf_.get(), &frame);
-  tracker_status_summary_.infoMatStereoTranslation_ = gtsam::Matrix3::Zero();
 }
 
 void RgbdVisionImuFrontend::fillSmartStereoMeasurements(

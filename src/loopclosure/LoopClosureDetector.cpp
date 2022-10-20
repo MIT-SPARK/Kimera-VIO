@@ -28,8 +28,8 @@
 #include <vector>
 
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
-#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/frontend/RgbdVisionImuFrontend-definitions.h"
+#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -782,7 +782,8 @@ bool LoopClosureDetector::recoverPoseBody(
     }
   } else {
     TrackingStatusPose result;
-    if (tracker_->tracker_params_.ransac_use_1point_stereo_ && stereo_camera_) {
+    const bool camera_valid = stereo_camera_ || rgbd_camera_;
+    if (tracker_->tracker_params_.ransac_use_1point_stereo_ && camera_valid) {
       // For 1pt we need stereo, so cast to derived form.
       StereoLCDFrame::Ptr ref_stereo_lcd_frame = nullptr;
       StereoLCDFrame::Ptr cur_stereo_lcd_frame = nullptr;
@@ -805,7 +806,8 @@ bool LoopClosureDetector::recoverPoseBody(
               cur_stereo_lcd_frame->right_keypoints_rectified_,
               ref_stereo_lcd_frame->keypoints_3d_,
               cur_stereo_lcd_frame->keypoints_3d_,
-              stereo_camera_,
+              stereo_camera_ ? stereo_camera_->getGtsamStereoCam()
+                             : rgbd_camera_->getFakeStereoCamera(),
               matches_match_query,
               camMatch_T_camQuery_2d.rotation(),
               inliers);

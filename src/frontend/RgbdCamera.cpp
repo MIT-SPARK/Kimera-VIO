@@ -99,6 +99,10 @@ StereoCalibPtr RgbdCamera::getFakeStereoCalib() const {
                                cam_params_.depth.virtual_baseline_));
 }
 
+gtsam::StereoCamera RgbdCamera::getFakeStereoCamera() const {
+  return {gtsam::Pose3(), getFakeStereoCalib()};
+}
+
 void RgbdCamera::convertRgbdToPointcloud(const RgbdFrame& rgbd_frame,
                                          cv::Mat* cloud,
                                          cv::Mat* colors) {

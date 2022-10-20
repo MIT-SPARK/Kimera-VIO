@@ -157,7 +157,14 @@ class VisionImuFrontend {
   void outlierRejectionMono(const gtsam::Rot3& keyframe_R_cur_frame,
                             Frame* frame_lkf,
                             Frame* frame_k,
-                            TrackingStatusPose* status_pose_mono);
+                            TrackingStatusPose* status_pose_mono) const;
+
+  void outlierRejectionStereo(const gtsam::StereoCamera& stereo_camera,
+                              const gtsam::Rot3& keyframe_R_cur_frame,
+                              StereoFrame* frame_lkf,
+                              StereoFrame* frame_k,
+                              TrackingStatusPose* status_pose_stereo,
+                              gtsam::Matrix3* translation_info_matrix) const;
 
   void outlierRejectionPnP(const StereoFrame& frame,
                            TrackingStatusPose* status_pnp) const;

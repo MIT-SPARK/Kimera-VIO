@@ -133,12 +133,6 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
       cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
-  void outlierRejectionStereo(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
-                              const StereoFrame::Ptr& left_frame_lkf,
-                              const StereoFrame::Ptr& left_frame_k,
-                              TrackingStatusPose* status_pose_stereo);
-
-  /* ------------------------------------------------------------------------ */
   // Static function to display output of stereo tracker
   static void printStatusStereoMeasurements(
       const StatusStereoMeasurements& statusStereoMeasurements);
@@ -155,15 +149,6 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   /* ------------------------------------------------------------------------ */
   // Log, visualize and/or save quality of temporal and stereo matching
   void sendMonoTrackingToLogger() const;
-
-  /* ------------------------------------------------------------------------ */
-  // Force use of 3/5 point methods in initialization phase.
-  // This despite the parameter specified in the tracker
-  void forceFiveThreePointMethod(const bool force_flag) {
-    force_53point_ransac_ = force_flag;
-    LOG(WARNING) << "Forcing of 5/3 point method has been turned "
-                 << (force_53point_ransac_ ? "ON!!" : "OFF");
-  }
 
  private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
@@ -189,9 +174,6 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
 
   // Set of functionalities for stereo matching
   StereoMatcher stereo_matcher_;
-
-  // Used to force the use of 5/3 point ransac, despite parameters
-  std::atomic_bool force_53point_ransac_ = {false};
 
   // This is not const as for debugging we want to redirect the image save path
   // where we like

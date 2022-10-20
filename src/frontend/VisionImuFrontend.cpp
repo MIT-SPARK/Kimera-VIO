@@ -92,11 +92,15 @@ void VisionImuFrontend::outlierRejectionMono(
     const gtsam::Rot3& keyframe_R_cur_frame,
     Frame* frame_lkf,
     Frame* frame_k,
-    TrackingStatusPose* status_pose_mono) {
+    TrackingStatusPose* status_pose_mono) const {
   CHECK_NOTNULL(status_pose_mono);
-  if (tracker_->tracker_params_.ransac_use_2point_mono_ &&
-      !keyframe_R_cur_frame.equals(gtsam::Rot3()) &&
-      frontend_state_ != FrontendState::InitialTimeAlignment) {
+
+  const bool given_rot = !keyframe_R_cur_frame.equals(gtsam::Rot3());
+  const bool time_aligned =
+      frontend_state_ != FrontendState::InitialTimeAlignment;
+  const bool imu_ok = given_rot && time_aligned;
+
+  if (tracker_->tracker_params_.ransac_use_2point_mono_ && imu_ok) {
     // 2-point RANSAC.
     // TODO(marcus): move things from tracker here, only ransac in tracker.cpp
     gtsam::Pose3 keyframe_Pose_cur_frame(keyframe_R_cur_frame, gtsam::Point3());
@@ -106,6 +110,37 @@ void VisionImuFrontend::outlierRejectionMono(
     // 5-point RANSAC.
     *status_pose_mono =
         tracker_->geometricOutlierRejection2d2d(frame_lkf, frame_k);
+  }
+}
+
+void VisionImuFrontend::outlierRejectionStereo(
+    const gtsam::StereoCamera& stereo_camera,
+    const gtsam::Rot3& keyframe_R_cur_frame,
+    StereoFrame* frame_lkf,
+    StereoFrame* frame_k,
+    TrackingStatusPose* status_pose_stereo,
+    gtsam::Matrix3* translation_info_matrix) const {
+  CHECK(frame_lkf);
+  CHECK(frame_k);
+  CHECK(tracker_);
+  CHECK_NOTNULL(status_pose_stereo);
+  CHECK_NOTNULL(translation_info_matrix);
+
+  const bool given_rot = !keyframe_R_cur_frame.equals(gtsam::Rot3());
+  const bool time_aligned =
+      frontend_state_ != FrontendState::InitialTimeAlignment;
+  const bool imu_ok = given_rot && time_aligned;
+
+  if (tracker_->tracker_params_.ransac_use_1point_stereo_ && imu_ok) {
+    // 1-point RANSAC.
+    std::tie(*status_pose_stereo, *translation_info_matrix) =
+        tracker_->geometricOutlierRejection3d3dGivenRotation(
+            *frame_lkf, *frame_k, stereo_camera, keyframe_R_cur_frame);
+  } else {
+    // 3-point RANSAC.
+    *status_pose_stereo =
+        tracker_->geometricOutlierRejection3d3d(frame_lkf, frame_k);
+    *translation_info_matrix = gtsam::Matrix3::Zero();
   }
 }
 

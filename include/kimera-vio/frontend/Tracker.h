@@ -26,7 +26,6 @@
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionImuTrackerParams.h"
@@ -130,7 +129,7 @@ class Tracker {
   geometricOutlierRejection3d3dGivenRotation(
       StereoFrame& ref_stereo_frame,
       StereoFrame& cur_stereo_frame,
-      StereoCamera::ConstPtr stereo_camera,
+      const gtsam::StereoCamera& stereo_cam,
       const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
   std::pair<TrackingStatusPose, gtsam::Matrix3>
@@ -141,7 +140,7 @@ class Tracker {
       const StatusKeypointsCV& cur_keypoints_status_right,
       const Landmarks& ref_keypoints_3d,
       const Landmarks& cur_keypoints_3d,
-      StereoCamera::ConstPtr stereo_camera,
+      const gtsam::StereoCamera& stereo_cam,
       const KeypointMatches& matches_ref_cur,
       const gtsam::Rot3& camLrectlkf_R_camLrectkf,
       std::vector<int>* inliers);

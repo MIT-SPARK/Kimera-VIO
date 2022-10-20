@@ -90,9 +90,6 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
                       StereoFrame& frame,
                       const gtsam::Rot3& keyframe_R_frame);
 
-  // do outlier rejection that requires feature depth
-  void outlierRejectionStereo(StereoFrame& frame, TrackingStatusPose* status);
-
   // display output of stereo tracker
   static void printStatusStereoMeasurements(
       const StatusStereoMeasurements& measurements);

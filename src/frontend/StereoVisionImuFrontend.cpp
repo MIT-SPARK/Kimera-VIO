@@ -366,10 +366,13 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
 
       TrackingStatusPose status_pose_stereo;
       if (frontend_params_.use_stereo_tracking_) {
-        outlierRejectionStereo(keyframe_R_cur_frame,
-                               stereoFrame_lkf_,
-                               stereoFrame_k_,
-                               &status_pose_stereo);
+        outlierRejectionStereo(
+            stereo_camera_->getGtsamStereoCam(),
+            keyframe_R_cur_frame,
+            stereoFrame_lkf_.get(),
+            stereoFrame_k_.get(),
+            &status_pose_stereo,
+            &tracker_status_summary_.infoMatStereoTranslation_);
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             status_pose_stereo.first;
 
@@ -475,39 +478,6 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                      // TODO(Toni): please, fix this, don't use std::pair...
                      // copies, manyyyy copies: actually thousands of copies...
                      smart_stereo_measurements));
-}
-
-/* -------------------------------------------------------------------------- */
-void StereoVisionImuFrontend::outlierRejectionStereo(
-    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
-    const StereoFrame::Ptr& left_frame_lkf,
-    const StereoFrame::Ptr& left_frame_k,
-    TrackingStatusPose* status_pose_stereo) {
-  CHECK(left_frame_lkf);
-  CHECK(left_frame_k);
-  CHECK(tracker_);
-  CHECK_NOTNULL(status_pose_stereo);
-
-  gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
-  if (tracker_->tracker_params_.ransac_use_1point_stereo_ &&
-      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3()) &&
-      !force_53point_ransac_ &&
-      frontend_state_ != FrontendState::InitialTimeAlignment) {
-    // 1-point RANSAC.
-    std::tie(*status_pose_stereo, infoMatStereoTranslation) =
-        tracker_->geometricOutlierRejection3d3dGivenRotation(
-            *stereoFrame_lkf_,
-            *stereoFrame_k_,
-            stereo_camera_,
-            calLrectLkf_R_camLrectKf_imu);
-  } else {
-    // 3-point RANSAC.
-    *status_pose_stereo = tracker_->geometricOutlierRejection3d3d(
-        stereoFrame_lkf_.get(), stereoFrame_k_.get());
-    LOG_IF(WARNING, force_53point_ransac_) << "3-point RANSAC was enforced!";
-  }
-
-  tracker_status_summary_.infoMatStereoTranslation_ = infoMatStereoTranslation;
 }
 
 /* -------------------------------------------------------------------------- */
