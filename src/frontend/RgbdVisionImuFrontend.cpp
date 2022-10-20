@@ -34,21 +34,21 @@ using RgbdInputPtr = FrontendInputPacketBase::UniquePtr;
 using utils::Timer;
 
 RgbdVisionImuFrontend::RgbdVisionImuFrontend(
+    const FrontendParams& frontend_params,
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
-    const FrontendParams& frontend_params,
     const RgbdCamera::ConstPtr& camera,
     DisplayQueue* display_queue,
     bool log_output,
     boost::optional<OdometryParams> odom_params)
-    : VisionImuFrontend(imu_params,
+    : VisionImuFrontend(frontend_params,
+                        imu_params,
                         imu_initial_bias,
                         display_queue,
                         log_output,
                         odom_params),
       keyframe_R_ref_frame_(gtsam::Rot3::identity()),
-      camera_(camera),
-      frontend_params_(frontend_params) {
+      camera_(camera) {
   CHECK(camera_);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
@@ -234,63 +234,6 @@ void RgbdVisionImuFrontend::checkAndLogKeyframe() {
   }
 }
 
-bool RgbdVisionImuFrontend::shouldBeKeyframe(const StereoFrame& frame) const {
-  const Timestamp kf_diff_ns = frame.timestamp_ - last_keyframe_timestamp_;
-  const bool min_time_elapsed =
-      kf_diff_ns >= frontend_params_.min_intra_keyframe_time_ns_;
-  const bool max_time_elapsed =
-      kf_diff_ns >= frontend_params_.max_intra_keyframe_time_ns_;
-
-  const size_t nr_valid_features = frame.left_frame_.getNrValidKeypoints();
-  const bool nr_features_low =
-      nr_valid_features <= frontend_params_.min_number_features_;
-
-  // check for large enough disparity
-  double current_disparity;
-  // TODO(nathan) this is probably done somewhere else
-  KeypointMatches matches_ref_cur;
-  tracker_->findMatchingKeypoints(
-      frame_lkf_->left_frame_, frame.left_frame_, &matches_ref_cur);
-
-  tracker_->computeMedianDisparity(frame_lkf_->left_frame_.keypoints_,
-                                   frame.left_frame_.keypoints_,
-                                   matches_ref_cur,
-                                   &current_disparity);
-
-  const bool is_disparity_low =
-      current_disparity < tracker_->tracker_params_.disparityThreshold_;
-  const bool disparity_low_first_time =
-      is_disparity_low && !(tracker_status_summary_.kfTrackingStatus_mono_ ==
-                            TrackingStatus::LOW_DISPARITY);
-  const bool enough_disparity = !is_disparity_low;
-
-  const bool max_disparity_reached =
-      current_disparity > frontend_params_.max_disparity_since_lkf_;
-  const bool disparity_flipped =
-      ((enough_disparity || disparity_low_first_time) && min_time_elapsed);
-
-  const bool need_new_keyframe = max_time_elapsed || max_disparity_reached ||
-                                 disparity_flipped || nr_features_low ||
-                                 frame.isKeyframe();
-
-  if (!need_new_keyframe) {
-    return false;  // no keyframe conditions are met
-  }
-
-  VLOG(2) << "Keyframe after [s]: " << UtilsNumerical::NsecToSec(kf_diff_ns);
-
-  // TODO(nathan) add logging here
-  // log why a keyframe was detected
-  LOG_IF(WARNING, frame.isKeyframe())
-      << "Keyframe reason: user enforced keyframe!";
-  VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
-  VLOG_IF(2, nr_features_low)
-      << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
-      << frontend_params_.min_number_features_ << ").";
-
-  return true;
-}
-
 StatusStereoMeasurementsPtr RgbdVisionImuFrontend::processFrame(
     const RgbdFrame& rgbd_frame,
     const gtsam::Rot3& keyframe_R_cur_frame,
@@ -331,7 +274,7 @@ StatusStereoMeasurementsPtr RgbdVisionImuFrontend::processFrame(
 
   StereoMeasurements stereo_measurements;
 
-  if (shouldBeKeyframe(*stereo_frame)) {
+  if (shouldBeKeyframe(stereo_frame->left_frame_, frame_lkf_->left_frame_)) {
     handleKeyframe(rgbd_frame, *stereo_frame, keyframe_R_cur_frame);
     stereo_frame->setIsKeyframe(true);
 
@@ -377,13 +320,24 @@ void RgbdVisionImuFrontend::handleKeyframe(
       status_stereo.second = gtsam::Pose3::identity();
     }
 
+    TrackingStatusPose status_pnp;
+    if (frontend_params_.use_pnp_tracking_) {
+      outlierRejectionPnP(frame, &status_pnp);
+    } else {
+      status_pnp.first = TrackingStatus::INVALID;
+      status_pnp.second = gtsam::Pose3::identity();
+    }
+
     tracker_status_summary_.kfTrackingStatus_stereo_ = status_stereo.first;
     tracker_status_summary_.lkf_T_k_stereo_ = status_stereo.second;
     tracker_status_summary_.kfTrackingStatus_mono_ = status_mono.first;
     tracker_status_summary_.lkf_T_k_mono_ = status_mono.second;
+    tracker_status_summary_.kfTracking_status_pnp_ = status_pnp.first;
+    tracker_status_summary_.W_T_k_pnp_ = status_pnp.second;
   } else {
     tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
     tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
+    tracker_status_summary_.kfTracking_status_pnp_ = TrackingStatus::DISABLED;
   }
 
   if (VLOG_IS_ON(2)) {

@@ -17,7 +17,6 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
 #include <gtsam/geometry/Rot3.h>
 
 #include "kimera-vio/utils/Timer.h"
@@ -28,14 +27,15 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 namespace VIO {
 
 StereoVisionImuFrontend::StereoVisionImuFrontend(
+    const FrontendParams& frontend_params,
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
-    const FrontendParams& frontend_params,
     const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output,
     boost::optional<OdometryParams> odom_params)
-    : VisionImuFrontend(imu_params,
+    : VisionImuFrontend(frontend_params,
+                        imu_params,
                         imu_initial_bias,
                         display_queue,
                         log_output,
@@ -47,8 +47,7 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
       feature_detector_(nullptr),
       stereo_camera_(stereo_camera),
       stereo_matcher_(stereo_camera, frontend_params.stereo_matching_params_),
-      output_images_path_("./outputImages/"),
-      frontend_params_(frontend_params) {
+      output_images_path_("./outputImages/") {
   CHECK(stereo_camera_);
 
   feature_detector_ = VIO::make_unique<FeatureDetector>(
@@ -337,58 +336,11 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
 
   StereoMeasurements smart_stereo_measurements;
 
-  const bool min_time_elapsed =
-      stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      frontend_params_.min_intra_keyframe_time_ns_;
-  const bool max_time_elapsed =
-      stereoFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      frontend_params_.max_intra_keyframe_time_ns_;
-  const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
-  const bool nr_features_low =
-      nr_valid_features <= frontend_params_.min_number_features_;
-
-  // check for large enough disparity
-  double current_disparity;
-  KeypointMatches matches_ref_cur;
-  tracker_->findMatchingKeypoints(
-      stereoFrame_lkf_->left_frame_, *left_frame_k, &matches_ref_cur);
-
-  tracker_->computeMedianDisparity(stereoFrame_lkf_->left_frame_.keypoints_,
-                                   left_frame_k->keypoints_,
-                                   matches_ref_cur,
-                                   &current_disparity);
-
-  const bool is_disparity_low =
-      current_disparity < tracker_->tracker_params_.disparityThreshold_;
-  const bool dispary_low_first_time =
-      is_disparity_low && !(tracker_status_summary_.kfTrackingStatus_mono_ ==
-                            TrackingStatus::LOW_DISPARITY);
-  const bool enough_disparity = !is_disparity_low;
-  const bool max_disparity_reached =
-      current_disparity > frontend_params_.max_disparity_since_lkf_;
-
-  // Also if the user requires the keyframe to be enforced
-  LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // determine if frame should be a keyframe
-  if (max_time_elapsed || max_disparity_reached ||
-      ((enough_disparity || dispary_low_first_time) && min_time_elapsed) ||
-      nr_features_low || stereoFrame_k_->isKeyframe()) {
+  const bool new_keyframe = shouldBeKeyframe(stereoFrame_k_->left_frame_,
+                                             stereoFrame_lkf_->left_frame_);
+  if (new_keyframe) {
     ++keyframe_count_;  // mainly for debugging
-
-    VLOG(2) << "Keyframe after [s]: "
-            << UtilsNumerical::NsecToSec(stereoFrame_k_->timestamp_ -
-                                         last_keyframe_timestamp_);
-
-    VLOG_IF(2, (enough_disparity && min_time_elapsed))
-        << "Keyframe reason: enough disparity and min time elapsed).";
-    VLOG_IF(2, dispary_low_first_time)
-        << "Keyframe reason: disparity low first time.";
-    VLOG_IF(2, max_disparity_reached)
-        << "Keyframe reason: max disparity reached.";
-    VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
-    VLOG_IF(2, nr_features_low)
-        << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
-        << frontend_params_.min_number_features_ << ").";
 
     tracker_status_summary_.kfTrackingStatus_mono_ = TrackingStatus::INVALID;
     tracker_status_summary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
@@ -431,32 +383,12 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
             TrackingStatus::INVALID;
       }
 
-      // TODO(Toni): add this to Mono, or even base class VisionImuFrontend
       if (frontend_params_.use_pnp_tracking_) {
-        gtsam::Pose3 best_absolute_pose;
-        std::vector<int> inliers;
-        if (tracker_->pnp(*stereoFrame_k_, &best_absolute_pose, &inliers) &&
-            inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
-          tracker_status_summary_.kfTracking_status_pnp_ =
-              TrackingStatus::VALID;
-          VLOG(5) << "PnP tracking success:\n"
-                       << "- # inliers: " << inliers.size() << '\n'
-                       << "- # outliers: "
-                       << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
-                       << '\n'
-                       << "Total: " << stereoFrame_k_->keypoints_3d_.size();
-        } else {
-          VLOG(5) << "PnP tracking failed...\n"
-                  << "- # inliers: " << inliers.size() << '\n'
-                  << "- # outliers: "
-                  << stereoFrame_k_->keypoints_3d_.size() - inliers.size()
-                  << '\n'
-                  << "Total: " << stereoFrame_k_->keypoints_3d_.size();
-          tracker_status_summary_.kfTracking_status_pnp_ =
-              TrackingStatus::FEW_MATCHES;
-        }
-        tracker_status_summary_.W_T_k_pnp_ = best_absolute_pose;
-        // TODO(Toni): remove outliers from the tracking?
+        TrackingStatusPose status_pose_pnp;
+        outlierRejectionPnP(*stereoFrame_k_, &status_pose_pnp);
+
+        tracker_status_summary_.kfTracking_status_pnp_ = status_pose_pnp.first;
+        tracker_status_summary_.W_T_k_pnp_ = status_pose_pnp.second;
       } else {
         tracker_status_summary_.kfTracking_status_pnp_ =
             TrackingStatus::INVALID;

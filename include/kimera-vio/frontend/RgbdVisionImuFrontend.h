@@ -13,13 +13,13 @@
  */
 
 #pragma once
+#include <atomic>
+#include <memory>
+
 #include "kimera-vio/frontend/RgbdCamera.h"
 #include "kimera-vio/frontend/RgbdImuSyncPacket.h"
 #include "kimera-vio/frontend/RgbdVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontend.h"
-
-#include <atomic>
-#include <memory>
 
 namespace VIO {
 
@@ -31,9 +31,9 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
 
  public:
   RgbdVisionImuFrontend(
+      const FrontendParams& frontend_params,
       const ImuParams& imu_params,
       const ImuBias& imu_initial_bias,
-      const FrontendParams& frontend_params,
       const RgbdCamera::ConstPtr& camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,
@@ -79,9 +79,6 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
   // high-level consistency checks and logging
   void checkAndLogKeyframe();
 
-  // check for keyframe insertion
-  bool shouldBeKeyframe(const StereoFrame& frame) const;
-
   // Frontend nominal processing
   StatusStereoMeasurementsPtr processFrame(
       const RgbdFrame& cur_frame,
@@ -121,9 +118,6 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
 
   //! the camera for the frontend
   RgbdCamera::ConstPtr camera_;
-
-  //! Parameters
-  FrontendParams frontend_params_;
 };
 
 }  // namespace VIO

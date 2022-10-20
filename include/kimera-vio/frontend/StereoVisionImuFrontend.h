@@ -50,13 +50,14 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
 
  public:
   StereoVisionImuFrontend(
+      const FrontendParams& params,
       const ImuParams& imu_params,
       const ImuBias& imu_initial_bias,
-      const FrontendParams& tracker_params,
       const StereoCamera::ConstPtr& stereo_camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,
       boost::optional<OdometryParams> odom_params = boost::none);
+
   virtual ~StereoVisionImuFrontend();
 
  public:
@@ -195,9 +196,6 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   // This is not const as for debugging we want to redirect the image save path
   // where we like
   std::string output_images_path_;
-
-  // Parameters
-  FrontendParams frontend_params_;
 };
 
 }  // namespace VIO
