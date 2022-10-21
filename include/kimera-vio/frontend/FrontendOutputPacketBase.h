@@ -59,6 +59,8 @@ class FrontendOutputPacketBase : public PipelinePayload {
 
   virtual const gtsam::Pose3* getBodyPoseCamRight() const { return nullptr; }
 
+  virtual const TrackerStatusSummary* getTrackerStatus() const { return nullptr; }
+
  public:
   const bool is_keyframe_;
   const FrontendType frontend_type_;

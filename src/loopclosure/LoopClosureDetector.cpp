@@ -797,7 +797,6 @@ bool LoopClosureDetector::recoverPoseBody(
                       "stereo frontend inputs.";
       }
 
-      CHECK(stereo_camera_);
       std::pair<TrackingStatusPose, gtsam::Matrix3> result_full =
           tracker_->geometricOutlierRejection3d3dGivenRotation(
               ref_stereo_lcd_frame->left_keypoints_rectified_,

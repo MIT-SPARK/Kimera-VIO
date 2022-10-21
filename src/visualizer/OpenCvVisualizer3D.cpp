@@ -389,8 +389,9 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
                        input.frontend_output_->getBodyPoseCamRight(),
                        &output->widgets_);
 
-  // Visualize frontend data
-  visualizeFrontend(input.frontend_output_, W_Pose_Bllkf_, &output->widgets_);
+  // Visualize frontend RANSAC data
+  visualizeFrontendRansac(
+      input.frontend_output_, W_Pose_Bllkf_, &output->widgets_);
 
   // Add widgets to remove
   output->widget_ids_to_remove_ = widget_ids_to_remove_;
@@ -402,83 +403,52 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   return output;
 }
 
-void OpenCvVisualizer3D::visualizeFrontend(
+void OpenCvVisualizer3D::visualizeFrontendRansac(
     const FrontendOutputPacketBase::Ptr& frontend_output,
     const gtsam::Pose3& W_Pose_Bllkf,
     WidgetsMap* widgets) {
   CHECK(frontend_output);
-  if (frontend_output->frontend_type_ == FrontendType::kStereoImu) {
-    visualizeStereoFrontend(
-        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-            frontend_output),
-        W_Pose_Bllkf,
-        widgets);
-  } else {
-    visualizeMonoFrontend(
-        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-            frontend_output),
-        W_Pose_Bllkf,
-        widgets);
+  CHECK_NOTNULL(widgets);
+
+  const auto status = frontend_output->getTrackerStatus();
+  const gtsam::Pose3 b_T_c = *CHECK_NOTNULL(frontend_output->getBodyPoseCam());
+
+  if (!status) {
+    VLOG(3) << "RANSAC tracking status not available to visualize";
+    return;
   }
-}
 
-void OpenCvVisualizer3D::visualizeMonoFrontend(
-    const MonoFrontendOutput::Ptr& mono_frontend_output,
-    const gtsam::Pose3& W_Pose_Bllkf,
-    WidgetsMap* widgets) {
-  CHECK(mono_frontend_output);
-  CHECK_NOTNULL(widgets);
-}
+  //! Draw Pnp guess.
+  if (status->kfTracking_status_pnp_ == TrackingStatus::VALID) {
+    std::string pnp_cam_id =
+        "pnp pose " + std::to_string(frontend_output->timestamp_);
+    (*widgets)[pnp_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, pnp_guess_frustum_scale_, pnp_guess_frustum_color_);
+    (*widgets)[pnp_cam_id]->setPose(
+        UtilsOpenCV::gtsamPose3ToCvAffine3d(status->W_T_k_pnp_));
+    widget_ids_to_remove_in_next_iter_.push_back(pnp_cam_id);
+  }
 
-void OpenCvVisualizer3D::visualizeStereoFrontend(
-    const StereoFrontendOutput::Ptr& stereo_frontend_output,
-    const gtsam::Pose3& W_Pose_Bllkf,
-    WidgetsMap* widgets) {
-  CHECK(stereo_frontend_output);
-  CHECK_NOTNULL(widgets);
-  //! Draw initial guesses from mono, stereo, and pnp.
-  const StatusStereoMeasurementsPtr& status_stereo_measurements =
-      stereo_frontend_output->status_stereo_measurements_;
-  if (status_stereo_measurements) {
-    const TrackerStatusSummary& tracking_status =
-        status_stereo_measurements->first;
+  //! Draw Stereo RANSAC guess.
+  if (status->kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
+    std::string stereo_cam_id =
+        "stereo pose " + std::to_string(frontend_output->timestamp_);
+    (*widgets)[stereo_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, stereo_guess_frustum_scale_, stereo_guess_frustum_color_);
+    (*widgets)[stereo_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
+        W_Pose_Bllkf * b_T_c * status->lkf_T_k_stereo_));
+    widget_ids_to_remove_in_next_iter_.push_back(stereo_cam_id);
+  }
 
-    //! Draw Pnp guess.
-    if (tracking_status.kfTracking_status_pnp_ == TrackingStatus::VALID) {
-      std::string pnp_cam_id =
-          "pnp pose " + std::to_string(stereo_frontend_output->timestamp_);
-      (*widgets)[pnp_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, pnp_guess_frustum_scale_, pnp_guess_frustum_color_);
-      (*widgets)[pnp_cam_id]->setPose(
-          UtilsOpenCV::gtsamPose3ToCvAffine3d(tracking_status.W_T_k_pnp_));
-      widget_ids_to_remove_in_next_iter_.push_back(pnp_cam_id);
-    }
-
-    //! Draw Stereo RANSAC guess.
-    if (tracking_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
-      std::string stereo_cam_id =
-          "stereo pose " + std::to_string(stereo_frontend_output->timestamp_);
-      (*widgets)[stereo_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, stereo_guess_frustum_scale_, stereo_guess_frustum_color_);
-      (*widgets)[stereo_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-          W_Pose_Bllkf * stereo_frontend_output->b_Pose_camL_rect_ *
-          tracking_status.lkf_T_k_stereo_));
-      widget_ids_to_remove_in_next_iter_.push_back(stereo_cam_id);
-    }
-
-    //! Draw Mono RANSAC guess.
-    if (tracking_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
-      std::string mono_cam_id =
-          "mono pose " + std::to_string(stereo_frontend_output->timestamp_);
-      (*widgets)[mono_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, mono_guess_frustum_scale_, mono_guess_frustum_color_);
-      (*widgets)[mono_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-          W_Pose_Bllkf * stereo_frontend_output->b_Pose_camL_rect_ *
-          tracking_status.lkf_T_k_mono_));
-      widget_ids_to_remove_in_next_iter_.push_back(mono_cam_id);
-    }
-  } else {
-    VLOG(5) << "No stereo measurements, not 3D visualizing stereo frontend...";
+  //! Draw Mono RANSAC guess.
+  if (status->kfTrackingStatus_mono_ == TrackingStatus::VALID) {
+    std::string mono_cam_id =
+        "mono pose " + std::to_string(frontend_output->timestamp_);
+    (*widgets)[mono_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, mono_guess_frustum_scale_, mono_guess_frustum_color_);
+    (*widgets)[mono_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
+        W_Pose_Bllkf * b_T_c * status->lkf_T_k_mono_));
+    widget_ids_to_remove_in_next_iter_.push_back(mono_cam_id);
   }
 }
 

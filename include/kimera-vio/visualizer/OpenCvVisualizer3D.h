@@ -272,15 +272,11 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                  const gtsam::Point3& point,
                                  WidgetsMap* widgets);
 
-  void visualizeFrontend(const FrontendOutputPacketBase::Ptr& frontend_output,
-                         const gtsam::Pose3& W_Pose_Bllkf,
-                         WidgetsMap* widgets);
-  void visualizeMonoFrontend(
-      const MonoFrontendOutput::Ptr& mono_frontend_output,
-      const gtsam::Pose3& W_Pose_Bllkf,
-      WidgetsMap* widgets);
-  void visualizeStereoFrontend(
-      const StereoFrontendOutput::Ptr& stereo_frontend_output,
+  /**
+   * @brief Visualize RANSAC estimates for frontend
+   */
+  void visualizeFrontendRansac(
+      const FrontendOutputPacketBase::Ptr& frontend_output,
       const gtsam::Pose3& W_Pose_Bllkf,
       WidgetsMap* widgets);
 

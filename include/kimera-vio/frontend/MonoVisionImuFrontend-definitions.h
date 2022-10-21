@@ -63,9 +63,7 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
 
   virtual ~MonoFrontendOutput() = default;
 
-  virtual const Frame* getTrackingFrame() const override {
-    return &frame_lkf_;
-  }
+  virtual const Frame* getTrackingFrame() const override { return &frame_lkf_; }
 
   virtual const cv::Mat* getTrackingImage() const override {
     return &feature_tracks_;
@@ -73,6 +71,11 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
 
   virtual const gtsam::Pose3* getBodyPoseCam() const override {
     return &b_Pose_cam_rect_;
+  }
+
+  virtual const TrackerStatusSummary* getTrackerStatus() const override {
+    return status_mono_measurements_ ? &(status_mono_measurements_->first)
+                                     : nullptr;
   }
 
  public:

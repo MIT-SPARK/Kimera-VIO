@@ -70,6 +70,11 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
     return &b_Pose_camR_rect_;
   }
 
+  virtual const TrackerStatusSummary* getTrackerStatus() const override {
+    return status_stereo_measurements_ ? &(status_stereo_measurements_->first)
+                                       : nullptr;
+  }
+
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
   const gtsam::Pose3 b_Pose_camL_rect_;
