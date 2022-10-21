@@ -33,8 +33,7 @@ rankTolerance: 1
 #   * if the landmark is triangulated at distance larger than this,
 #   * result is flagged as degenerate.
 #   */
-landmarkDistanceThreshold: 2  # TODO(nathan) check this, might be interferring with smart factors
-# TODO(nathan) thinking about masking features
+landmarkDistanceThreshold: 10
 
 # DynamicOutlierRejection:
 #  /**
@@ -42,7 +41,7 @@ landmarkDistanceThreshold: 2  # TODO(nathan) check this, might be interferring w
 #   * is smaller than this threshold after triangulation, otherwise result is
 #   * flagged as degenerate.
 #   */
-outlierRejection: 2  # TODO(nathan) consider 4 or 5
+outlierRejection: 3  # TODO(nathan) consider 4 or 5
 # ///< threshold to decide whether to re-triangulate
 retriangulationThreshold: 0.001
 
@@ -66,12 +65,12 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 # OPTIMIZATION PARAMETERS #####################################################
 relinearizeThreshold: 0.01
 relinearizeSkip: 1
-zeroVelocitySigma: 0.001
-noMotionPositionSigma: 0.001
-noMotionRotationSigma: 0.0001
-constantVelSigma: 0.01
+zero_velocity_precision: 1000
+no_motion_position_precision: 1000
+no_motion_rotation_precision: 10000
+constant_vel_precision: 100
 numOptimize: 1
-horizon: 6 # In seconds.
+nr_states: 30 # number of nodes in horizon.
 # ISAM2GaussNewtonParams: continue updating the linear delta only when
 # changes are above this threshold (default: 0.001)
 wildfire_threshold: 0.001
@@ -85,3 +84,12 @@ useDogLeg: 0
 #   * flagged as degenerate.
 #   */
 #  double dynamicOutlierRejectionThreshold;
+# Method used to generate the initial guess for the pose of the keyframe
+# PoseGuessSource:
+#   IMU = 0
+#   MONO = 1
+#   STEREO = 2
+#   PNP = 3
+#   EXTERNAL_ODOM = 4
+pose_guess_source: 0
+mono_translation_scale_factor: 0.1

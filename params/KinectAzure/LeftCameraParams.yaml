@@ -24,3 +24,10 @@ camera_model: pinhole
 intrinsics: [292.450703472, 292.153474955, 322.341962521, 190.20545595]  # [fu, fv, cu, cv]
 distortion_model: radtan
 distortion_coefficients: [0.06807911, -0.02809412,  0.00466678,  0.00043785]  # model dependent
+
+# Depth specific parameters
+virtual_baseline: 0.3
+min_depth: 0.0
+depth_to_meters: 1.0
+max_depth: 10.0
+is_registered: 1
