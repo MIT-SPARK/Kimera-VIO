@@ -47,7 +47,6 @@ RgbdVisionImuFrontend::RgbdVisionImuFrontend(
                         display_queue,
                         log_output,
                         odom_params),
-      keyframe_R_ref_frame_(gtsam::Rot3::identity()),
       camera_(camera) {
   CHECK(camera_);
 
@@ -282,7 +281,7 @@ StatusStereoMeasurementsPtr RgbdVisionImuFrontend::processFrame(
 
     frame_lkf_ = stereo_frame;
     last_keyframe_timestamp_ = stereo_frame->timestamp_;
-    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+    keyframe_R_ref_frame_ = gtsam::Rot3();
     ++keyframe_count_;
   } else {
     CHECK_EQ(stereo_measurements.size(), 0u);
@@ -323,7 +322,7 @@ void RgbdVisionImuFrontend::handleKeyframe(
           &tracker_status_summary_.infoMatStereoTranslation_);
     } else {
       status_stereo.first = TrackingStatus::INVALID;
-      status_stereo.second = gtsam::Pose3::identity();
+      status_stereo.second = gtsam::Pose3();
     }
 
     TrackingStatusPose status_pnp;
@@ -331,7 +330,7 @@ void RgbdVisionImuFrontend::handleKeyframe(
       outlierRejectionPnP(frame, &status_pnp);
     } else {
       status_pnp.first = TrackingStatus::INVALID;
-      status_pnp.second = gtsam::Pose3::identity();
+      status_pnp.second = gtsam::Pose3();
     }
 
     tracker_status_summary_.kfTrackingStatus_stereo_ = status_stereo.first;
