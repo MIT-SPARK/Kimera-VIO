@@ -63,6 +63,7 @@ void RgbdFrame::fillStereoFrame(const RgbdCamera& camera,
   auto& keypoint_depths = stereo_frame.keypoints_depth_;
 
   const double fx_b = params.intrinsics_[0] * params.depth.virtual_baseline_;
+  const KeypointCV null_point(0.0, 0.0);
 
   // we could try and track matches / removed features, but this is easier
   // and likely only marginally less efficient
@@ -76,20 +77,17 @@ void RgbdFrame::fillStereoFrame(const RgbdCamera& camera,
   for (size_t i = 0; i < left_keypoints_rect.size(); ++i) {
     const auto& status_keypoint_pair = left_keypoints_rect[i];
     if (status_keypoint_pair.first != KeypointStatus::VALID) {
-      right_keypoints_rect.push_back(
-          std::make_pair(status_keypoint_pair.first, KeypointCV(0.0, 0.0)));
+      right_keypoints_rect.push_back({status_keypoint_pair.first, null_point});
       keypoint_depths.push_back(0.0);
       stereo_frame.keypoints_3d_.push_back(Vector3::Zero());
       continue;
     }
 
-    float keypoint_depth =
-        depth_img_.getDepthAtPoint(stereo_frame.left_frame_.keypoints_[i]);
-    keypoint_depth *= params.depth.depth_to_meters_;
-    if (keypoint_depth <= params.depth.min_depth_ ||
-        !std::isfinite(keypoint_depth)) {
-      right_keypoints_rect.push_back(
-          std::make_pair(KeypointStatus::NO_DEPTH, KeypointCV(0.0, 0.0)));
+    const float keypoint_depth = depth_img_.getDepthAtPoint(
+        params, stereo_frame.left_frame_.keypoints_[i]);
+
+    if (!std::isfinite(keypoint_depth)) {
+      right_keypoints_rect.push_back({KeypointStatus::NO_DEPTH, null_point});
       keypoint_depths.push_back(0.0);
       stereo_frame.keypoints_3d_.push_back(Vector3::Zero());
       continue;
@@ -98,21 +96,20 @@ void RgbdFrame::fillStereoFrame(const RgbdCamera& camera,
     const float disparity = fx_b / keypoint_depth;
     const float uR = status_keypoint_pair.second.x - disparity;
     if (uR < 0.0f) {
-      right_keypoints_rect.push_back(
-          std::make_pair(KeypointStatus::NO_DEPTH, KeypointCV(0.0, 0.0)));
+      right_keypoints_rect.push_back({KeypointStatus::NO_DEPTH, null_point});
       keypoint_depths.push_back(0.0);
       stereo_frame.keypoints_3d_.push_back(Vector3::Zero());
       continue;
     }
 
     const Vector3& versor = stereo_frame.left_frame_.versors_[i];
-
-    right_keypoints_rect.push_back(std::make_pair(
-        KeypointStatus::VALID, KeypointCV(uR, status_keypoint_pair.second.y)));
+    const KeypointCV right_point(uR, status_keypoint_pair.second.y);
+    right_keypoints_rect.push_back({KeypointStatus::VALID, right_point});
     keypoint_depths.push_back(keypoint_depth);
     stereo_frame.keypoints_3d_.push_back(versor * keypoint_depth / versor(2));
   }
 
+  // TODO(nathan) consider dropping so we can use a generic camera
   camera.distortKeypoints(right_keypoints_rect,
                           &(stereo_frame.right_frame_.keypoints_));
 }

@@ -33,10 +33,30 @@ class DepthFrame : public PipelinePayload {
 
   DepthFrame(const DepthFrame& other);
 
-  float getDepthAtPoint(const KeypointCV& point) const;
+  /**
+   * @brief Get depth (in meters) at a image point
+   * @param[in] params Camera params for RGBD camera
+   * @param[in] point Image point to extract depth for
+   * @returns depth in meters or NaN if depth is not valid
+   */
+  float getDepthAtPoint(const CameraParams& params,
+                        const KeypointCV& point) const;
 
+  /**
+   * @brief Get cv::Mat mask for invalid feature extraction regions
+   * @param[in] params Camera params for RGBD camera
+   * @returns cv::Mat with 255u values for image regions with valid depth
+   */
   cv::Mat getDetectionMask(const CameraParams& params) const;
 
+  /**
+   * @brief Register depth to be in the same frame as the RGB image
+   *
+   * Note that this caches the registered image after the first call;
+   * repeated calls will just return registered_img_;
+   *
+   * @param[in] params Camera params for RGBD camera
+   */
   void registerDepth(const CameraParams& params) const;
 
  public:

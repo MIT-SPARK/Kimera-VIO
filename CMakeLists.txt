@@ -227,6 +227,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testEurocPlayground.cpp
     tests/testCamera.cpp # NEEDS UPDATE
     tests/testCrossCorrelation.cpp
+    tests/testDepthFrame.cpp
     tests/testStereoCamera.cpp # NEEDS UPDATE
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
@@ -253,6 +254,7 @@ if(KIMERA_BUILD_TESTS)
     #tests/testRegularVioBackend.cpp # rotten
     tests/testRegularVioBackendParams.cpp
     tests/testRgbdCamera.cpp
+    tests/testRgbdFrame.cpp
     tests/testRgbdVisionImuFrontend.cpp
     tests/testStereoFrame.cpp # NEEDS UPDATE
     tests/testStereoMatcher.cpp

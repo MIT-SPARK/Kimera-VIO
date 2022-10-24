@@ -37,27 +37,40 @@ DepthFrame::DepthFrame(const DepthFrame& other)
       is_registered_(other.is_registered_),
       registered_img_(other.registered_img_) {}
 
-float DepthFrame::getDepthAtPoint(const KeypointCV& point) const {
+float DepthFrame::getDepthAtPoint(const CameraParams& params,
+                                  const KeypointCV& point) const {
   const auto x = static_cast<int>(point.x);
   const auto y = static_cast<int>(point.y);
-  // lk tracking produces keypoints outside of the image...
+
+  float depth = std::numeric_limits<float>::quiet_NaN();
   if (x < 0 || x >= depth_img_.cols || y < 0 || y >= depth_img_.rows) {
-    VLOG(5) << "Found feature (" << point.x << ", " << point.y
-            << " outside image bounds: [" << depth_img_.cols << " x "
-            << depth_img_.rows << "]";
-    return std::numeric_limits<float>::quiet_NaN();
+    VLOG(10) << "Found feature (" << point.x << ", " << point.y
+             << ") outside image bounds: [" << depth_img_.cols << " x "
+             << depth_img_.rows << "]";
+    return depth;
   }
 
   const cv::Mat& img = is_registered_ ? registered_img_ : depth_img_;
   switch (depth_img_.type()) {
     case CV_32FC1:
-      return img.at<float>(y, x);
+      depth = img.at<float>(y, x);
+      break;
     case CV_16UC1:
-      return img.at<uint16_t>(y, x);
+      depth = img.at<uint16_t>(y, x);
+      break;
     default:
       LOG(FATAL) << "Invalid depth datatype: " << depth_img_.type();
-      return std::numeric_limits<float>::quiet_NaN();
+      return depth;
   }
+
+  depth *= params.depth.depth_to_meters_;
+  if (depth < params.depth.min_depth_) {
+    return std::numeric_limits<float>::quiet_NaN();
+  }
+
+  // TODO(nathan) optionally filter by max depth as well
+
+  return depth;
 }
 
 cv::Mat DepthFrame::getDetectionMask(const CameraParams& params) const {

@@ -18,3 +18,18 @@ camera_model: pinhole
 intrinsics: [415.69219381653056, 415.69219381653056, 360.0, 240.0]
 distortion_model: radial-tangential
 distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+
+# Depth specific parameters
+virtual_baseline: 0.3
+min_depth: 0.0
+depth_to_meters: 1.0
+max_depth: 10.0
+is_registered: 0
+T_color_depth:
+  cols: 4
+  rows: 4
+  data: [ 1.0,  0.0, 0.0, 0.0,
+          0.0,  1.0, 0.0, 0.0,
+          0.0,  0.0, 1.0, 0.0,
+          0.0,  0.0, 0.0, 1.0]
+depth_intrinsics: [415.69219381653056, 415.69219381653056, 360.0, 240.0]

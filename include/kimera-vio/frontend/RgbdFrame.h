@@ -38,8 +38,18 @@ class RgbdFrame : public PipelinePayload {
 
   RgbdFrame(const RgbdFrame& other);
 
+  /**
+   * @brief get a fake stereo frame from the RGB image
+   * @returns StereoFrame with a valid left frame and a right frame with the
+   * correct timestamp
+   */
   StereoFrame::Ptr getStereoFrame() const;
 
+  /**
+   * @brief Fill fake right features based on the depth frame
+   * @param[in] camera RGBD camera for the frames
+   * @param[out] stereo_frame Stereo frame to fill with features
+   */
   void fillStereoFrame(const RgbdCamera& camera,
                        StereoFrame& stereo_frame) const;
 
