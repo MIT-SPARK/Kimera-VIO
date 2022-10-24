@@ -94,8 +94,7 @@ void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
   }
 }
 
-const CameraModel CameraParams::stringToCameraModel(
-    const std::string& camera_model) {
+CameraModel CameraParams::stringToCameraModel(const std::string& camera_model) {
   std::string lower_case_camera_model = camera_model;
   std::transform(lower_case_camera_model.begin(),
                  lower_case_camera_model.end(),
@@ -112,7 +111,7 @@ const CameraModel CameraParams::stringToCameraModel(
   }
 }
 
-const DistortionModel CameraParams::stringToDistortionModel(
+DistortionModel CameraParams::stringToDistortionModel(
     const std::string& distortion_model,
     const CameraModel& camera_model) {
   std::string lower_case_distortion_model = distortion_model;

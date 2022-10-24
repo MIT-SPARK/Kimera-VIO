@@ -155,7 +155,7 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
   W_Pose_B_lkf_from_increments_ = gtsam::Pose3();
 
   // Insert relative poses for bundle adjustment
-  for (int i = 0; i < input.size(); i++) {
+  for (size_t i = 0; i < input.size(); i++) {
     const BackendInput& input_iter = *input[i];
     VLOG(5) << "Adding initial visual state.";
     // Features and IMU line up --> do iSAM update
@@ -189,7 +189,7 @@ InitializationBackend::addInitialVisualStatesAndOptimize(
 
   // All relative to initial pose, as we need to fix x0 from the BA.
   gtsam::Pose3 initial_pose;
-  for (int j = 0; j < estimated_poses.size(); j++) {
+  for (size_t j = 0; j < estimated_poses.size(); j++) {
     if (j == 0) {
       initial_pose = estimated_poses.at(0);
       estimated_poses.at(0) = gtsam::Pose3();
@@ -258,10 +258,6 @@ void InitializationBackend::addInitialVisualState(
   const StereoMeasurements& smartStereoMeasurements_kf =
       status_smart_stereo_measurements_kf.second;
 
-  // if stereo ransac failed, remove all right pixels:
-  const TrackingStatus& kfTrackingStatus_stereo =
-      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
-
   // extract relevant information from stereo frame
   LandmarkIds landmarks_kf;
   addStereoMeasurementsToFeatureTracks(
@@ -291,11 +287,6 @@ std::vector<gtsam::Pose3> InitializationBackend::optimizeInitialVisualStates(
     const std::vector<size_t>& extra_factor_slots_to_delete,
     const int verbosity_) {  // TODO: Remove verbosity and use VLOG
 
-  // Only for statistics and debugging.
-  // Store start time to calculate absolute total time taken.
-  const auto& total_start_time = utils::Timer::tic();
-  // Store start time to calculate per module total time.
-  auto start_time = total_start_time;
   // Reset all timing info.
   debug_info_.resetTimes();
 

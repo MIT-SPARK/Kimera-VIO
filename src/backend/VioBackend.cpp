@@ -72,10 +72,11 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
                        const BackendOutputParams& backend_output_params,
                        bool log_output,
                        boost::optional<OdometryParams> odom_params)
-    : backend_params_(backend_params),
+    : backend_state_(BackendState::Bootstrap),
+      backend_params_(backend_params),
       imu_params_(imu_params),
       backend_output_params_(backend_output_params),
-      backend_state_(BackendState::Bootstrap),
+      odom_params_(odom_params),
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
       W_Vel_B_lkf_(gtsam::Vector3::Zero()),
@@ -88,8 +89,7 @@ VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
       curr_kf_id_(0),
       landmark_count_(0),
       log_output_(log_output),
-      logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr),
-      odom_params_(odom_params) {
+      logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr) {
 // TODO the parsing of the params should be done inside here out from the
 // path to the params file, otherwise other derived VIO Backends will be
 // stuck with the parameters used by vanilla VIO, as there is no polymorphic
@@ -461,7 +461,7 @@ void VioBackend::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
     } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
-      LOG_IF(FATAL, obs_kf.first != curr_kf_id_)
+      LOG_IF(FATAL, obs_kf.first != static_cast<FrameId>(curr_kf_id_))
           << "addLandmarksToGraph: last obs is not from the current "
              "keyframe!\n";
 

@@ -34,6 +34,7 @@ class UndistorterRectifier {
  public:
   KIMERA_POINTER_TYPEDEFS(UndistorterRectifier);
   KIMERA_DELETE_COPY_CONSTRUCTORS(UndistorterRectifier);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW // not needed
 
   /**
    * @brief UndistorterRectifier

@@ -22,7 +22,6 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
@@ -105,14 +104,14 @@ RegularVioBackend::RegularVioBackend(
     const BackendOutputParams& backend_output_params,
     const bool& log_output,
     boost::optional<OdometryParams> odom_params)
-    : regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)),
-      VioBackend(B_Pose_leftCamRect,
+    : VioBackend(B_Pose_leftCamRect,
                  stereo_calibration,
                  backend_params,
                  imu_params,
                  backend_output_params,
                  log_output,
-                 odom_params) {
+                 odom_params),
+      regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)) {
   LOG(INFO) << "Using Regular VIO Backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.
@@ -222,13 +221,13 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     default: {
       kfTrackingStatus_mono == TrackingStatus::VALID
           ? VLOG(1) << "Tracker has a VALID status."
-          : kfTrackingStatus_mono == TrackingStatus::FEW_MATCHES
-                ? VLOG(1) << "Tracker has a FEW_MATCHES status."
-                : kfTrackingStatus_mono == TrackingStatus::INVALID
-                      ? VLOG(1) << "Tracker has a INVALID status."
-                      : kfTrackingStatus_mono == TrackingStatus::DISABLED
-                            ? VLOG(1) << "Tracker has a DISABLED status."
-                            : VLOG(10) << "";
+      : kfTrackingStatus_mono == TrackingStatus::FEW_MATCHES
+          ? VLOG(1) << "Tracker has a FEW_MATCHES status."
+      : kfTrackingStatus_mono == TrackingStatus::INVALID
+          ? VLOG(1) << "Tracker has a INVALID status."
+      : kfTrackingStatus_mono == TrackingStatus::DISABLED
+          ? VLOG(1) << "Tracker has a DISABLED status."
+          : VLOG(10) << "";
 
       if (kfTrackingStatus_mono == TrackingStatus::VALID) {
         // Extract lmk ids that are involved in a regularity.
@@ -426,7 +425,8 @@ void RegularVioBackend::addLandmarksToGraph(
     // (otherwise uninformative)
     // TODO(TONI): parametrize this min_num_of_obs... should be in Frontend
     // rather than Backend though...
-    if (feature_track.obs_.size() >= FLAGS_min_num_of_observations) {
+    if (feature_track.obs_.size() >=
+        static_cast<size_t>(FLAGS_min_num_of_observations)) {
       // We have enough observations of the lmk.
       if (!feature_track.in_ba_graph_) {
         // The lmk has not yet been added to the graph.
@@ -902,8 +902,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
-                                         "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to stay as it is since it is "
+                "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -916,8 +917,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
-                                         "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to be a proj. factor, as it "
+                "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,
@@ -1085,8 +1087,9 @@ void RegularVioBackend::addRegularityFactors(
                 RegularityType::POINT_PLANE;
           }
 
-          if (list_of_constraints.size() >
-              FLAGS_min_num_of_plane_constraints_to_add_factors) {
+          const auto min_num_plane_constraints = static_cast<size_t>(
+              FLAGS_min_num_of_plane_constraints_to_add_factors);
+          if (list_of_constraints.size() > min_num_plane_constraints) {
             // Acknowledge that the plane is constrained.
             is_plane_constrained = true;
 

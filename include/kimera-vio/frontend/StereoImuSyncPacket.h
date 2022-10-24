@@ -82,11 +82,12 @@ class StereoImuSyncPacket : public FrontendInputPacketBase {
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   StereoImuSyncPacket() = delete;
-  StereoImuSyncPacket(const StereoFrame& stereo_frame,
-                      const ImuStampS& imu_stamps,
-                      const ImuAccGyrS& imu_accgyr,
-                      boost::optional<gtsam::NavState> external_odometry = boost::none,
-                      const ReinitPacket& reinit_packet = ReinitPacket());
+  StereoImuSyncPacket(
+      const StereoFrame& stereo_frame,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr,
+      boost::optional<gtsam::NavState> external_odometry = boost::none,
+      const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 
   // Careful, returning references to members can lead to dangling refs.
@@ -94,9 +95,7 @@ class StereoImuSyncPacket : public FrontendInputPacketBase {
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
   inline const ImuAccGyrS& getImuAccGyrs() const { return imu_accgyrs_; }
   inline const ReinitPacket& getReinitPacket() const { return reinit_packet_; }
-  inline const bool getReinitFlag() const {
-    return reinit_packet_.getReinitFlag();
-  }
+  inline bool getReinitFlag() const { return reinit_packet_.getReinitFlag(); }
 
   void print() const;
 
