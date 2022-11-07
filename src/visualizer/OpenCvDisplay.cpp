@@ -30,7 +30,7 @@ namespace VIO {
 OpenCv3dDisplay::OpenCv3dDisplay(
     DisplayParams::Ptr display_params,
     const ShutdownPipelineCallback& shutdown_pipeline_cb)
-    : DisplayBase(display_params->display_type_), // DANGEROUS
+    : DisplayBase(display_params->display_type_),  // DANGEROUS
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb),
       params_(VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
@@ -61,7 +61,9 @@ OpenCv3dDisplay::OpenCv3dDisplay(
 void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
   CHECK(display_input);
   // Display 2D images.
-  spin2dWindow(*display_input);
+  if (display_input) {
+    spin2dWindow(*display_input);
+  }
   // Display 3D window.
   spin3dWindow(safeDisplayInputCast(std::move(display_input)));
 }
@@ -69,7 +71,10 @@ void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
 // Adds 3D widgets to the window, and displays it.
 void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
   // Only display if we have a valid pointer.
-  if (!viz_output) return;
+  if (!viz_output) {
+    window_data_.window_.spinOnce(1, false);  // spin to allow for user input
+    return;
+  }
 
   if (viz_output->visualization_type_ != VisualizationType::kNone) {
     if (window_data_.window_.wasStopped()) {
@@ -83,7 +88,7 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     }
 
     // Remove requested widgets, do this first, to not remove new things.
-    for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
+    for (const std::string& widget_id : viz_output->widget_ids_to_remove_) {
       removeWidget(widget_id);
     }
 
@@ -248,16 +253,19 @@ void OpenCv3dDisplay::setMeshRepresentation(const uchar& code,
                                             WindowData* window_data) {
   CHECK_NOTNULL(window_data);
   if (code == '0') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                           "a point cloud.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh representation to "
+                    "a point cloud.";
     window_data->mesh_representation_ = 0u;
   } else if (code == '1') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                           "a mesh.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh representation to "
+                    "a mesh.";
     window_data->mesh_representation_ = 1u;
   } else if (code == '2') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                           "a wireframe.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh representation to "
+                    "a wireframe.";
     window_data->mesh_representation_ = 2u;
   }
 }
@@ -267,16 +275,19 @@ void OpenCv3dDisplay::setMeshShadingCallback(const uchar& code,
                                              WindowData* window_data) {
   CHECK_NOTNULL(window_data);
   if (code == '4') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
-                                           "flat.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh shading to "
+                    "flat.";
     window_data->mesh_shading_ = 0u;
   } else if (code == '5') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
-                                           "Gouraud.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh shading to "
+                    "Gouraud.";
     window_data->mesh_shading_ = 1u;
   } else if (code == '6') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
-                                           "Phong.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh shading to "
+                    "Phong.";
     window_data->mesh_shading_ = 2u;
   }
 }
