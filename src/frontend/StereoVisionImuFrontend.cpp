@@ -109,7 +109,8 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
   // egration!! Should we remove them??
   // Actually, currently does not integrate fake interpolated meas as it does
   // not take the last measurement into account (although it takes its stamp
-  // into account!!!).
+  // into account!!!). 
+  // TOFO(Saching): Cross validate this IMU logic here
   auto tic_full_preint = utils::Timer::tic();
   const ImuFrontend::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
       input->getImuStamps(), input->getImuAccGyrs());
@@ -124,7 +125,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
       << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
       << " Hz. (" << full_preint_duration << " us).";
 
-  // On the left camera rectified!!
+  // On the left camera rectified!! pose e.r.t body
   const gtsam::Rot3 body_Rot_cam =
       stereo_camera_->getBodyPoseLeftCamRect().rotation();
   const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
