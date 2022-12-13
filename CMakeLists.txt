@@ -35,6 +35,7 @@ find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(DBoW2 REQUIRED)
+find_package(depthai REQUIRED)
 if(NOT TARGET DBoW2::DBoW2)
   add_library(DBoW2::DBoW2 INTERFACE IMPORTED)
   set_target_properties(DBoW2::DBoW2 PROPERTIES
@@ -182,6 +183,11 @@ add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
+
+add_executable(stereoVIO_OAKD  ./examples/OakKimeraVIO.cpp)
+target_link_libraries(stereoVIO_OAKD PUBLIC kimera_vio::kimera_vio
+                                            depthai::core
+                                            depthai::opencv)
 
 ############################### TESTS ##########################################
 ### Add testing

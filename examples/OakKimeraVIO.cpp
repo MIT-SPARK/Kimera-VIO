@@ -20,10 +20,10 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include "depthai/depthai.hpp"
 
-#include "kimera-vio/dataprovider/EurocDataProvider.h"
-#include "kimera-vio/dataprovider/KittiDataProvider.h"
+#include <depthai/depthai.hpp>
+
+#include "kimera-vio/dataprovider/OAKDataProvider.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
@@ -32,58 +32,13 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-class OAKInterface{
-  // TODO(saching) Check how to parse the vio parameters. 
-  // Or may be use the Calibration Parameters to load the Camera Info here
-  public:
-    OAKInterface(VIO::Pipeline::Ptr vioPipeline):
-                      dataProvider_(dataProvider),vio_pipeline_(vioPipeline)
-    {      
-
-    }
-    
-    setupCamera(){
-      dai::Pipeline pipeline = createPipeline();
-      device_ = std::make_shared<dai::Device>(pipeline);
-
-    }
-
-    parseParams(){
-      
-    }
-
-
-    connectCallbacks(OAKDataProvider& dataProvider){
-      
-      leftRectQueue_ = device_->getOutputQueue("rectified_left", 30, false);
-      rightRectQueue_ = device_->getOutputQueue("rectified_right", 30, false);
-      imuQueue_ = device_->getOutputQueue("imu", 30, false);
-    }
-
-    spin(){
-      
-    }
-
-    ~OAKInterface(){
-
-    }
-
-  private:
-    VIO::Pipeline::Ptr vioPipeline_;
-    VIO::OAKDataProvider& dataProvider_;
-    std::shared_ptr<dai::Device> device_;
-
-    std::shared_ptr<dai::DataOutputQueue> leftRectQueue_;
-    std::shared_ptr<dai::DataOutputQueue> rightRectQueue_;
-    std::shared_ptr<dai::DataOutputQueue> imuQueue_;
-
-    dai::Pipeline createPipeline(){
+dai::Pipeline createPipeline(){
       dai::Pipeline pipeline;
       pipeline.setXLinkChunkSize(0);
       // Define sources and outputs
       auto monoLeft = pipeline.create<dai::node::MonoCamera>();
       auto monoRight = pipeline.create<dai::node::MonoCamera>();
-      auto stereo = pipeline.create<dai::node::StereoDepth>()
+      // auto stereo = pipeline.create<dai::node::StereoDepth>()
       auto imu = pipeline.create<dai::node::IMU>();
 
       // enable ACCELEROMETER_RAW at 500 hz rate
@@ -98,9 +53,6 @@ class OAKInterface{
       // useful to reduce device's CPU load  and number of lost packets, if CPU load is high on device side due to multiple nodes
       imu->setMaxBatchReports(20);
 
-      // auto xoutRight = pipeline.create<dai::node::XLinkOut>();
-      // auto xoutDisp = pipeline.create<dai::node::XLinkOut>();
-      // auto xoutDepth = pipeline.create<dai::node::XLinkOut>();
       auto xoutImu = pipeline.create<dai::node::XLinkOut>();
       auto xoutRectifL = pipeline.create<dai::node::XLinkOut>();
       auto xoutRectifR = pipeline.create<dai::node::XLinkOut>();
@@ -110,8 +62,8 @@ class OAKInterface{
       // xoutRight->setStreamName("right");
       // xoutDisp->setStreamName("disparity");
       // xoutDepth->setStreamName("depth");
-      xoutRectifL->setStreamName("rectified_left");
-      xoutRectifR->setStreamName("rectified_right");
+      xoutRectifL->setStreamName("left");
+      xoutRectifR->setStreamName("right");
 
       // Properties
       monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
@@ -119,27 +71,29 @@ class OAKInterface{
       monoRight->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
       monoRight->setBoardSocket(dai::CameraBoardSocket::RIGHT);
 
-      stereo->setDefaultProfilePreset(dai::node::StereoDepth::PresetMode::HIGH_DENSITY); // HIGH_ACCURACY
-      stereo->setRectifyEdgeFillColor(0);
-      stereo->initialConfig.setMedianFilter(dai::MedianFilter::KERNEL_5x5);
+      // stereo->setDefaultProfilePreset(dai::node::StereoDepth::PresetMode::HIGH_DENSITY); // HIGH_ACCURACY
+      // stereo->setRectifyEdgeFillColor(0);
+      // stereo->initialConfig.setMedianFilter(dai::MedianFilter::KERNEL_5x5);
       
-      stereo->setSubpixel(true);
-      stereo->setLeftRightCheck(true);
-      stereo->setExtendedDisparity(false);
+      // stereo->setSubpixel(true);
+      // stereo->setLeftRightCheck(true);
+      // stereo->setExtendedDisparity(false);
       
-      stereo->enableDistortionCorrection(true);
+      // stereo->enableDistortionCorrection(true);
 
       //  Linking
-      monoLeft->out.link(stereo->left);
-      monoRight->out.link(stereo->right);
+      // monoLeft->out.link(stereo->left);
+      // monoRight->out.link(stereo->right);
 
       // stereo->syncedLeft.link(xoutLeft->input);
       // stereo->syncedRight.link(xoutRight->input);
       // stereo->disparity.link(xoutDisp->input);
 
       // if(outputRectified) {
-      stereo->rectifiedLeft.link(xoutRectifL->input);
-      stereo->rectifiedRight.link(xoutRectifR->input);
+      // stereo->rectifiedLeft.link(xoutRectifL->input);
+      // stereo->rectifiedRight.link(xoutRectifR->input);
+      monoLeft->out.link(xoutRectifL->input);
+      monoRight->out.link(xoutRectifR->input);
       // }
       imu->out.link(xoutImu->input);
 
@@ -149,27 +103,10 @@ class OAKInterface{
       return pipeline;
     }
 
-}
-
-
-DEFINE_int32(dataset_type, 0, "Type of parser to use:\n "
-                              "0: Euroc \n 1: Kitti (not supported).");
 DEFINE_string(
     params_folder_path,
-    "../params/Euroc",
+    "../params/OAK-D",
     "Path to the folder containing the yaml files with the VIO parameters.");
-
-// dai::CalibrationHandler calibData
-dai::Pipeline createPipeline(){
-
-}
-
-// Sample Callback function
-void daiCallback(std::string name, std::shared_ptr<ADatatype> data) {
-    // std::cout << "In callback " << name << std::endl;
-    auto daiDataPtr = std::dynamic_pointer_cast<SimMsg>(data);
-    // publishHelper(daiDataPtr);
-}
 
 int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
@@ -178,52 +115,21 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // Parse VIO parameters from gflags.
-  VIO::VioParams vio_params(FLAGS_params_folder_path);
+  VIO::VioParams vio_params(FLAGS_params_folder_path,
+  "PipelineParams.yaml",
+                "ImuParams.yaml",
+                "LeftCameraParamsS2BNO.yaml",
+                "RightCameraParamsS2BNO.yaml",
+                "FrontendParams.yaml",
+                "BackendParams.yaml",
+                "LcdParams.yaml",
+                "DisplayParams.yaml");
 
-  // ------------------------ Loading the OAK's Pipeline ------------------------
-  dai::Pipeline pipeline = createPipeline()
-  std::shared_ptr<dai::Device> device = std::make_shared<dai::Device>(pipeline);
-
-  auto leftRectQueue = device->getOutputQueue("rectified_left", 30, false);
-  auto rightRectQueue = device->getOutputQueue("rectified_right", 30, false);
-  auto imuQueue = device->getOutputQueue("imu", 30, false);
-
-
-
-
-
-
-
-  // ------------------------ ------------------------ ------------------------ 
   // Build dataset parser.
-  VIO::DataProviderInterface::Ptr dataset_parser = nullptr;
-  switch (FLAGS_dataset_type) {
-    case 0: {
-      switch (vio_params.frontend_type_) {
-        case VIO::FrontendType::kMonoImu: {
-          dataset_parser =
-              VIO::make_unique<VIO::MonoEurocDataProvider>(vio_params);
-        } break;
-        case VIO::FrontendType::kStereoImu: {
-          dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
-        } break;
-        default: {
-          LOG(FATAL) << "Unrecognized Frontend type: "
-                     << VIO::to_underlying(vio_params.frontend_type_)
-                     << ". 0: Mono, 1: Stereo.";
-        }
-      }
-    } break;
-    case 1: {
-      dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
-    } break;
-    default: {
-      LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
-                 << " 0: EuRoC, 1: Kitti.";
-    }
-  }
+  VIO::DataProviderInterface::Ptr dataset_parser = VIO::make_unique<VIO::OAKDataProvider>(vio_params);
   CHECK(dataset_parser);
 
+  // ------------------------ VIO Pipeline Config ------------------------  //
   VIO::Pipeline::Ptr vio_pipeline;
 
   switch (vio_params.frontend_type_) {
@@ -267,6 +173,20 @@ int main(int argc, char* argv[]) {
                   stereo_pipeline,
                   std::placeholders::_1));
   }
+
+  // ------------------------ The OAK's Pipeline ------------------------ //
+  dai::Pipeline pipeline = createPipeline();
+  auto daiDevice = std::make_shared<dai::Device>(pipeline);
+
+  auto leftQueue = daiDevice->getOutputQueue("left", 30, false);
+  auto rightQueue = daiDevice->getOutputQueue("right", 30, false);
+  auto imuQueue = daiDevice->getOutputQueue("imu", 30, false);
+
+  leftQueue->addCallback(std::bind(&VIO::OAKDataProvider::leftImageCallback, dataset_parser, std::placeholders::_1, std::placeholders::_2));
+  rightQueue->addCallback(std::bind(&VIO::OAKDataProvider::rightImageCallback, dataset_parser, std::placeholders::_1, std::placeholders::_2));
+  imuQueue->addCallback(std::bind(&VIO::OAKDataProvider::imuCallback, dataset_parser, std::placeholders::_1, std::placeholders::_2));
+
+// ---------------------------ASYNC Launch-------------------------------- //
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();

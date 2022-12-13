@@ -15,9 +15,11 @@
 #include "kimera-vio/dataprovider/OAKDataProvider.h"
 
 #include <algorithm>  // for max
+#include <chrono>
 #include <fstream>
 #include <map>
 #include <string>
+#include <thread>
 #include <utility>  // for pair<>
 #include <vector>
 
@@ -77,67 +79,11 @@ bool OAKDataProvider::spin() {
 
         return true;
       }
+      std::this_thread::sleep_for(std::chrono::milliseconds(34));
     }
   LOG_IF(INFO, shutdown_) << "OAKD DataProvider shutdown requested.";
   return false;
 }
-
-/* -------------------------------------------------------------------------- */
-/* bool OAKDataProvider::spinOnce() {
-  CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
-      << "Are you sure you've initialized current_k_?";
-  if (current_k_ >= final_k_) {
-    LOG(INFO) << "Finished spinning Euroc dataset.";
-    return false;
-  }
-
-  const CameraParams& left_cam_info = vio_params_.camera_params_.at(0);
-  const CameraParams& right_cam_info = vio_params_.camera_params_.at(1);
-  const bool& equalize_image =
-      vio_params_.frontend_params_.stereo_matching_params_.equalize_image_;
-
-  const Timestamp& timestamp_frame_k = timestampAtFrame(timestamp);
-  VLOG(10) << "Sending left/right frames k= " << current_k_
-           << " with timestamp: " << timestamp_frame_k;
-
-  // TODO(Toni): ideally only send cv::Mat raw images...:
-  // - pass params to vio_pipeline ctor
-  // - make vio_pipeline actually equalize or transform images as necessary.
-  std::string left_img_filename;
-  bool available_left_img = getLeftImgName(current_k_, &left_img_filename);
-  std::string right_img_filename;
-  bool available_right_img = getRightImgName(current_k_, &right_img_filename);
-  if (available_left_img && available_right_img) {
-    // Both stereo images are available, send data to VIO
-    CHECK(left_frame_callback_);
-    left_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
-                                timestamp_frame_k,
-                                // TODO(Toni): this info should be passed to
-                                // the camera... not all the time here...
-                                left_cam_info,
-                                UtilsOpenCV::ReadAndConvertToGrayScale(
-                                    left_img_filename, equalize_image)));
-    CHECK(right_frame_callback_);
-    right_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
-                                timestamp_frame_k,
-                                // TODO(Toni): this info should be passed to
-                                // the camera... not all the time here...
-                                right_cam_info,
-                                UtilsOpenCV::ReadAndConvertToGrayScale(
-                                    right_img_filename, equalize_image)));
-  } else {
-    LOG(ERROR) << "Missing left/right stereo pair, proceeding to the next one.";
-  }
-
-  // This is done directly when parsing the Imu data.
-  // imu_single_callback_(imu_meas);
-
-  VLOG(10) << "Finished VIO processing for frame k = " << current_k_;
-  current_k_++;
-  return true;
-} */
 
 void OAKDataProvider::leftImageCallback(std::string name, std::shared_ptr<dai::ADatatype> data){
 
@@ -148,7 +94,7 @@ void OAKDataProvider::leftImageCallback(std::string name, std::shared_ptr<dai::A
     left_frame_callback_(
         VIO::make_unique<Frame>(daiDataPtr->getSequenceNum();,
                                 timestampAtFrame(daiDataPtr->getTimestamp()),
-                                left_cam_info,
+                                left_cam_info_,
                                 imageFrame));
 }
 
@@ -160,7 +106,7 @@ void OAKDataProvider::rightImageCallback(std::string name, std::shared_ptr<dai::
     right_frame_callback_(
         VIO::make_unique<Frame>(daiDataPtr->getSequenceNum();,
                                 timestampAtFrame(daiDataPtr->getTimestamp()),
-                                right_cam_info,
+                                right_cam_info_,
                                 imageFrame));
 }
 
@@ -319,7 +265,7 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imu
 }
 
 
-void OAKDataProvider::SendImuMeasurement(dai::IMUReportAccelerometer accel, dai::IMUReportGyroscope gyro) {
+void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai::IMUReportGyroscope gyro) {
 
     Vector6 imu_accgyr;
     imu_accgyr << accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z;
@@ -336,7 +282,7 @@ void OAKDataProvider::SendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
     imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
 }
 
-void imuCallback(std::string name, std::shared_ptr<dai::ADatatype> data){
+void OAKDataProvider::imuCallback(std::string name, std::shared_ptr<dai::ADatatype> data){
   // TODO(saching): Maybe I should do this only once ?
     CHECK(imu_single_callback_) << "Did you forget to register the IMU callback to the VIO Pipeline?";
 

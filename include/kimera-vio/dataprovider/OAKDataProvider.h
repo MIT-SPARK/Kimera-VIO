@@ -21,6 +21,8 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
 
+#include <depthai/depthai.hpp>
+
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
@@ -105,7 +107,7 @@ class OAKDataProvider : public DataProviderInterface {
 
 
 // Get timestamp of a given pair of stereo images & IMU (synchronized).
-Timestamp OAKDataProvider::timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clock, std::chrono::steady_clock::duration>& timestamp);
+Timestamp timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clock, std::chrono::steady_clock::duration>& timestamp);
 
 
 
