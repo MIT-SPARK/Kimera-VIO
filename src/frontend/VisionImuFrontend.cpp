@@ -183,7 +183,6 @@ bool VisionImuFrontend::shouldBeKeyframe(const Frame& frame,
   const bool nr_features_low =
       nr_valid_features <= frontend_params_.min_number_features_;
 
-  // TODO(nathan) this is probably done somewhere else
   KeypointMatches matches_ref_cur;
   tracker_->findMatchingKeypoints(frame_lkf, frame, &matches_ref_cur);
 
@@ -218,7 +217,10 @@ bool VisionImuFrontend::shouldBeKeyframe(const Frame& frame,
   VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
   VLOG_IF(2, max_disparity_reached)
       << "Keyframe reason: max disparity reached.";
-  VLOG_IF(2, disparity_flipped) << "Keyframe reason: disparity flipped.";
+  VLOG_IF(2, (enough_disparity && min_time_elapsed))
+      << "Keyframe reason: enough disparity and min time elapsed).";
+  VLOG_IF(2, disparity_low_first_time)
+      << "Keyframe reason: disparity low first time.";
   VLOG_IF(2, nr_features_low)
       << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
       << frontend_params_.min_number_features_ << ").";
