@@ -116,8 +116,8 @@ public:
   TrackerStatusSummary() :
     kfTrackingStatus_mono_(TrackingStatus::INVALID),
     kfTrackingStatus_stereo_(TrackingStatus::INVALID),
-    lkf_T_k_mono_(gtsam::Pose3::identity()),
-    lkf_T_k_stereo_(gtsam::Pose3::identity()),
+    lkf_T_k_mono_(gtsam::Pose3::Identity()),
+    lkf_T_k_stereo_(gtsam::Pose3::Identity()),
     infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 
 

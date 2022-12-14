@@ -1038,7 +1038,7 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   VIO::StereoCamera ref_stereo_camera(ref_stereo_frame->left_frame_.cam_param_,
                                       ref_stereo_frame->right_frame_.cam_param_);
   gtsam::StereoCamera stereoCam =
-      gtsam::StereoCamera(gtsam::Pose3::identity(),
+      gtsam::StereoCamera(gtsam::Pose3::Identity(),
                           ref_stereo_camera.getStereoCalib());
 
   // create a stereo point:

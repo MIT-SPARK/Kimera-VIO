@@ -88,7 +88,7 @@ class BackendFixture : public ::testing::Test {
   void createCameraPoses(StereoPoses* stereo_poses) {
     CHECK_NOTNULL(stereo_poses);
     stereo_poses->reserve(num_keyframes_);
-    Pose3 L_pose_R(Rot3::identity(), gtsam::Point3(baseline, 0, 0));
+    Pose3 L_pose_R(Rot3::Identity(), gtsam::Point3(baseline, 0, 0));
 
     // The camera is assumed to face (0, 0, 1): z-forward, y down and x to the
     // right
@@ -98,7 +98,7 @@ class BackendFixture : public ::testing::Test {
       gtsam::Vector3 p_offset =
           velocity_x_ * f_id * (keyframe_time_step_ / ((double)1e9));
 
-      Pose3 pose_left(Rot3::identity(), p0 + p_offset);
+      Pose3 pose_left(Rot3::Identity(), p0 + p_offset);
       Pose3 pose_right = pose_left.compose(L_pose_R);
 
       stereo_poses->push_back(std::make_pair(pose_left, pose_right));

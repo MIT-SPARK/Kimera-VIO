@@ -225,7 +225,7 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   // Solve.
   if (!mono_ransac_.computeModel(0)) {
     VLOG(5) << "failure: 5pt RANSAC could not find a solution.";
-    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::Identity());
   }
 
   VLOG(5) << "geometricOutlierRejectionMono: RANSAC complete.";
@@ -315,7 +315,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   // Solve.
   if (!mono_ransac_given_rot_.computeModel(0)) {
     LOG(WARNING) << "2-point RANSAC could not find a solution!";
-    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::Identity());
   }
   VLOG(5) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
 
@@ -427,7 +427,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   Matrix3 stereoPtCov = Matrix3::Identity();  // 3 px std in each direction
 
   // Create stereo camera in the ref frame of the left camera.
-  gtsam::StereoCamera stereoCam(gtsam::Pose3::identity(),
+  gtsam::StereoCamera stereoCam(gtsam::Pose3::Identity(),
                                 stereo_camera->getStereoCalib());
 
   double timeMatchingAndAllocation_p =
@@ -573,7 +573,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   if (maxCoherentSetSize < 2) {
     LOG(WARNING) << "1-point RANSAC (voting) could not find a solution.";
     return std::make_pair(
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity()),
+        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::Identity()),
         gtsam::Matrix3::Zero());
   }
 
@@ -676,7 +676,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                  << "\n  size of matches_ref_cur: " << matches_ref_cur.size()
                  << "\n  size of f_ref: " << f_ref.size()
                  << "\n  size of f_cur: " << f_cur.size();
-    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::identity());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3::Identity());
   }
 
   VLOG(5) << "geometricOutlierRejectionStereo: voting complete.";

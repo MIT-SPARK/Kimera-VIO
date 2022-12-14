@@ -1,10 +1,8 @@
 # Use an official Python runtime as a parent image
 FROM ubuntu:18.04
 
-MAINTAINER Antoni Rosinol "arosinol@mit.edu"
-
 # To avoid tzdata asking for geographic location...
-ENV DEBIAN_frontend noninteractive
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Set the working directory to /root
 ENV DIRPATH /root
@@ -28,13 +26,19 @@ RUN cd gtsam && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
     make -j$(nproc) install
 
+RUN apt-get update && apt-get install -y \
+      build-essential libatlas-base-dev gfortran
+
 # Install OpenCV for Ubuntu 18.04
 RUN apt-get update && apt-get install -y \
-      build-essential cmake unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
+      pkg-config cmake unzip 
+
+RUN apt-get update && apt-get install -y \
       libvtk6-dev \
-      libgtk-3-dev \
-      libatlas-base-dev gfortran
+      libgtk-3-dev 
+
+
 
 RUN git clone https://github.com/opencv/opencv.git
 RUN cd opencv && \
@@ -89,8 +93,7 @@ RUN apt-get update && \
 RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get update && \
-    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk
-RUN python3.5 -m pip install PyQt5==5.14
+    apt-get install -y python3.5 python3.5-dev python-pip python3-pip python-tk python3-tk python3-pyqt5
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.

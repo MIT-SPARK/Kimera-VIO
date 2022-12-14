@@ -900,7 +900,7 @@ void OpenCvVisualizer3D::drawBtwFactor(
   static constexpr double kCylinderRadius = 0.005;
   static constexpr double kSphereRadius = 0.02;
   // Do we have a no-motion prior?
-  if (btw_factor.measured().equals(gtsam::Pose3::identity())) {
+  if (btw_factor.measured().equals(gtsam::Pose3::Identity())) {
     // Connect involved poses with a cylinder
     std::string no_motion_prior_id =
         "No Motion prior: " + std::to_string(pose_symbol_1.index());

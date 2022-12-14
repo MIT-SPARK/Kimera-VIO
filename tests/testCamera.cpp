@@ -164,7 +164,7 @@ TEST_F(CameraFixture, project) {
 
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   // Make it easy first, use identity pose and simple intrinsics
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   CameraParams::Intrinsics& intrinsics = camera_params.intrinsics_;
   intrinsics.at(0) = 1.0;  // fx
   intrinsics.at(1) = 1.0;  // fy
@@ -188,7 +188,7 @@ TEST_F(CameraFixture, projectCheirality) {
   // landmark behind camera
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   // Make it easy first, use identity pose and simple intrinsics
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   LandmarkCV lmk_behind_cam = LandmarkCV(0.0, 0.0, -2.0);
@@ -202,7 +202,7 @@ TEST_F(CameraFixture, backProjectSingleSimple) {
   // Easy test first, back-project keypoint at the center of the image with
   // a given depth.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(camera_params.intrinsics_.at(2),
@@ -221,7 +221,7 @@ TEST_F(CameraFixture, backProjectMultipleSimple) {
   // Easy test first, back-project keypoints at the center of the image with
   // different depths.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(camera_params.intrinsics_.at(2),
@@ -248,7 +248,7 @@ TEST_F(CameraFixture, backProjectSingleTopLeft) {
   double px = 190.0;
   double py = 240.0;
   camera_params.intrinsics_ = {fx, fy, px, py};
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   LandmarkCV actual_lmk;
@@ -270,7 +270,7 @@ TEST_F(CameraFixture, backProjectSingleRandom) {
   double px = 390.8;
   double py = 142.2;
   camera_params.intrinsics_ = {fx, fy, px, py};
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   LandmarkCV actual_lmk;
@@ -294,7 +294,7 @@ TEST_F(CameraFixture, backProjectMultipleComplex) {
   double px = 390.8;
   double py = 142.2;
   camera_params.intrinsics_ = {fx, fy, px, py};
-  camera_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  camera_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   mono_camera_ = VIO::make_unique<Camera>(camera_params);
 
   KeypointsCV kpts;

@@ -516,7 +516,7 @@ TEST_F(LCDFixture, detectLoop) {
   EXPECT_EQ(loop_result_2.query_id_, 1);
   EXPECT_EQ(loop_result_2.match_id_, 0);
   EXPECT_TRUE(loop_result_2.relative_pose_.equals(
-      gtsam::Pose3(gtsam::Rot3::identity(), gtsam::Point3(0, 0, 0)), tol));
+      gtsam::Pose3(gtsam::Rot3::Identity(), gtsam::Point3(0, 0, 0)), tol));
 
   lcd_detector_->detectLoop(*match1_stereo_frame_, &loop_result_1);
   EXPECT_EQ(loop_result_1.isLoop(), false);
@@ -538,7 +538,7 @@ TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
   /* Test the addition of odometry factors to the PGO */
   CHECK(lcd_detector_);
   lcd_detector_->initializePGO(OdometryFactor(
-      0, gtsam::Pose3::identity(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+      0, gtsam::Pose3::Identity(), gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
 
   OdometryFactor odom_factor(
       1, world_T_match1_, gtsam::noiseModel::Isotropic::Variance(6, 0.1));
@@ -581,9 +581,9 @@ TEST_F(LCDFixture, spinOnce) {
       std::make_shared<StereoFrontendOutput>(match1_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
                                              TrackingStatus(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
+                                             gtsam::Pose3::Identity(),
+                                             gtsam::Pose3::Identity(),
+                                             gtsam::Pose3::Identity(),
                                              *match1_stereo_frame_,
                                              ImuFrontend::PimPtr(),
                                              ImuAccGyrS(),
@@ -603,9 +603,9 @@ TEST_F(LCDFixture, spinOnce) {
       std::make_shared<StereoFrontendOutput>(match2_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
                                              TrackingStatus(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
+                                             gtsam::Pose3::Identity(),
+                                             gtsam::Pose3::Identity(),
+                                             gtsam::Pose3::Identity(),
                                              *match2_stereo_frame_,
                                              ImuFrontend::PimPtr(),
                                              ImuAccGyrS(),
@@ -625,9 +625,9 @@ TEST_F(LCDFixture, spinOnce) {
       std::make_shared<StereoFrontendOutput>(query1_stereo_frame_->isKeyframe(),
                                              StatusStereoMeasurementsPtr(),
                                              TrackingStatus(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
-                                             gtsam::Pose3::identity(),
+                                             gtsam::Pose3::Identity(),
+                                             gtsam::Pose3::Identity(),
+                                             gtsam::Pose3::Identity(),
                                              *query1_stereo_frame_,
                                              ImuFrontend::PimPtr(),
                                              ImuAccGyrS(),

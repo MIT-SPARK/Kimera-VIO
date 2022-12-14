@@ -140,7 +140,7 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
   // same params
   VLOG(1) << "Creating mono cam.";
   // Make identity for simplicity, but should test as well for non-identity
-  cam_params.body_Pose_cam_ = gtsam::Pose3::identity();
+  cam_params.body_Pose_cam_ = gtsam::Pose3::Identity();
   Camera mono_cam(cam_params);
   cv::Mat_<cv::Point3f> expected_cloud =
       cv::Mat(height, width, CV_32FC3, cv::Scalar(0.0, 0.0, 0.0));

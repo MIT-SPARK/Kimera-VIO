@@ -130,7 +130,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
       it++;
     }
     // Set initial pose to identity as we compute all relative to it
-    estimated_poses_[0] = gtsam::Pose3::identity();
+    estimated_poses_[0] = gtsam::Pose3::Identity();
   }
 
   void initializeImuParams(ImuParams* imu_params) const {

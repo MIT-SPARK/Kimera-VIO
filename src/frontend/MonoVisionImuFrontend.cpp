@@ -34,7 +34,7 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
     mono_frame_k_(nullptr),
     mono_frame_km1_(nullptr),
     mono_frame_lkf_(nullptr),
-    keyframe_R_ref_frame_(gtsam::Rot3::identity()),
+    keyframe_R_ref_frame_(gtsam::Rot3::Identity()),
     feature_detector_(nullptr),
     mono_camera_(camera),
     frontend_params_(frontend_params) {
@@ -68,7 +68,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
                                               nullptr,
                                               TrackingStatus::DISABLED,
-                                              gtsam::Pose3::identity(),  // no stereo!
+                                              gtsam::Pose3::Identity(),  // no stereo!
                                               mono_camera_->getBodyPoseCam(),
                                               *mono_frame_lkf_,
                                               nullptr,
@@ -139,7 +139,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
       // to not require that.
       logger_->logFrontendRansac(mono_frame_lkf_->timestamp_,
                                  tracker_status_summary_.lkf_T_k_mono_,
-                                 gtsam::Pose3::identity());
+                                 gtsam::Pose3::Identity());
     }
     //////////////////////////////////////////////////////////////////////////////
 
@@ -156,7 +156,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         true,
         status_mono_measurements,
         TrackingStatus::DISABLED,  // This is a stereo status only
-        gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
+        gtsam::Pose3::Identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -172,7 +172,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
         false,
         status_mono_measurements,
         TrackingStatus::DISABLED,  // This is a stereo status only
-        gtsam::Pose3::identity(),  // don't pass stereo pose to Backend!
+        gtsam::Pose3::Identity(),  // don't pass stereo pose to Backend!
         mono_camera_->getBodyPoseCam(),
         *mono_frame_lkf_,  //! This is really the current keyframe in this if
         pim,
@@ -317,7 +317,7 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
   }
 
   if (mono_frame_k_->isKeyframe_) {
-    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+    keyframe_R_ref_frame_ = gtsam::Rot3::Identity();
   } else {
     keyframe_R_ref_frame_ = keyframe_R_cur_frame;
   }

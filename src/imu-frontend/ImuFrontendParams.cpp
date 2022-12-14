@@ -47,7 +47,7 @@ bool ImuParams::parseYAML(const std::string& filepath) {
       UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: IMU is usually chosen as the body frame.
-  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3::identity()))
+  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3::Identity()))
       << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
   double rate_hz = 0.0;

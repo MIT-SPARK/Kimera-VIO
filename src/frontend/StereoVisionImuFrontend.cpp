@@ -39,7 +39,7 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
       stereoFrame_k_(nullptr),
       stereoFrame_km1_(nullptr),
       stereoFrame_lkf_(nullptr),
-      keyframe_R_ref_frame_(gtsam::Rot3::identity()),
+      keyframe_R_ref_frame_(gtsam::Rot3::Identity()),
       feature_detector_(nullptr),
       frontend_params_(frontend_params),
       stereo_camera_(stereo_camera),
@@ -198,7 +198,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
         tracker_status_summary_.kfTrackingStatus_stereo_,
         tracker_->tracker_params_.useStereoTracking_
             ? getRelativePoseBodyStereo()
-            : gtsam::Pose3::identity(),
+            : gtsam::Pose3::Identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,  //! This is really the current keyframe in this if
@@ -218,7 +218,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
         TrackingStatus::INVALID,
         tracker_->tracker_params_.useStereoTracking_
             ? getRelativePoseBodyStereo()
-            : gtsam::Pose3::identity(),
+            : gtsam::Pose3::Identity(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_->getBodyPoseRightCamRect(),
         *stereoFrame_lkf_,
@@ -369,7 +369,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
         }
       } else {
         status_pose_stereo.first = TrackingStatus::INVALID;
-        status_pose_stereo.second = gtsam::Pose3::identity();
+        status_pose_stereo.second = gtsam::Pose3::Identity();
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             TrackingStatus::INVALID;
       }
@@ -439,7 +439,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // Update keyframe to reference frame for next iteration.
   if (stereoFrame_k_->isKeyframe()) {
     // Reset relative rotation if we have a keyframe.
-    keyframe_R_ref_frame_ = gtsam::Rot3::identity();
+    keyframe_R_ref_frame_ = gtsam::Rot3::Identity();
   } else {
     // Update rotation from keyframe to next iteration reference frame (aka
     // cur_frame in current iteration).
@@ -470,7 +470,7 @@ void StereoVisionImuFrontend::outlierRejectionStereo(
 
   gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
   if (tracker_->tracker_params_.ransac_use_1point_stereo_ &&
-      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
+      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::Identity()) &&
       !force_53point_ransac_) {
     // 1-point RANSAC.
     std::tie(*status_pose_stereo, infoMatStereoTranslation) =
