@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.10.2)  # CMake version in Ubuntu 18.04 LTS
 project(kimera_vio VERSION 1.0 LANGUAGES CXX C)
 
 # Make sure that custom modules like FindXXXX are found

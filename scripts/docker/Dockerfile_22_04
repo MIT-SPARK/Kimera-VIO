@@ -121,7 +121,7 @@ RUN cmake --build depthai-core/build --target install --parallel 4
 
 
 # Install Kimera-VIO
-RUN git clone https://github.com/sacing13/Kimera-VIO.git --branch std-oak-vio
+RUN git clone https://github.com/saching13/Kimera-VIO.git --branch std-oak-vio
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 # RUN apt-get update && apt-get install -y wget
 
