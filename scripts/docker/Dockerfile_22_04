@@ -116,12 +116,13 @@ RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # install depthai
 RUN git clone --recursive https://github.com/luxonis/depthai-core.git --branch main
-RUN cmake -Hdepthai-core -Bdepthai-core/build -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+RUN cmake -Hdepthai-core -Bdepthai-core/build -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local
 RUN cmake --build depthai-core/build --target install --parallel 4
 
 
 # Install Kimera-VIO
 RUN git clone https://github.com/saching13/Kimera-VIO.git --branch std-oak-vio
+# COPY ./ ./Kimera-VIO
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 # RUN apt-get update && apt-get install -y wget
 
