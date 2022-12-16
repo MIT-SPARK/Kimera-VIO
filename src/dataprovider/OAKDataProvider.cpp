@@ -43,18 +43,13 @@ namespace VIO {
 OAKDataProvider::OAKDataProvider(const VioParams& vio_params)
     : DataProviderInterface(),
       vio_params_(vio_params),
-      imu_measurements_(){
+      imu_measurements_(),
+      left_cam_info_(vio_params_.camera_params_.at(0)),
+     right_cam_info_(vio_params_.camera_params_.at(1)){
 
-  left_cam_info_ = vio_params_.camera_params_.at(0);
-  right_cam_info_ = vio_params_.camera_params_.at(1);
+//   left_cam_info_ =  vio_params_.camera_params_.at(0);
+//   right_cam_info_ = vio_params_.camera_params_.at(1);
 
-  // Parse the actual dataset first, then run it.
-  if (!shutdown_) {
-    LOG(INFO) << "Parsing OAK's streams...";
-    parse();
-    CHECK_GT(imu_measurements_.size(), 0u);
-
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -66,9 +61,7 @@ OAKDataProvider::~OAKDataProvider() {
 bool OAKDataProvider::spin() {
     // Spin.
     CHECK_EQ(vio_params_.camera_params_.size(), 2u);
-    // We log only the first one, because we may be running in sequential mode.
-    LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
-                         << " and frame " << final_k_;
+
     while (!shutdown_) {
       /* 
         TODO(saching): Add sequential callbacks for queues to cross check in sequencial mode. But would ne needed most lieky with dataset
@@ -92,7 +85,7 @@ void OAKDataProvider::leftImageCallback(std::string name, std::shared_ptr<dai::A
     cv::Mat imageFrame = daiDataPtr->getCvFrame();
     // TODO(saching): Add option to equalize the image from histogram
     left_frame_callback_(
-        VIO::make_unique<Frame>(daiDataPtr->getSequenceNum();,
+        VIO::make_unique<Frame>(daiDataPtr->getSequenceNum(),
                                 timestampAtFrame(daiDataPtr->getTimestamp()),
                                 left_cam_info_,
                                 imageFrame));
@@ -104,20 +97,20 @@ void OAKDataProvider::rightImageCallback(std::string name, std::shared_ptr<dai::
     cv::Mat imageFrame = daiDataPtr->getCvFrame();
     // TODO(saching): Add option to equalize the image from histogram
     right_frame_callback_(
-        VIO::make_unique<Frame>(daiDataPtr->getSequenceNum();,
+        VIO::make_unique<Frame>(daiDataPtr->getSequenceNum(),
                                 timestampAtFrame(daiDataPtr->getTimestamp()),
                                 right_cam_info_,
                                 imageFrame));
 }
 
 
-void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imuPackets) {
+void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>& imuPackets) {
     // int accelSequenceNum = -1, gyroSequenceNum = -1;
     static std::deque<dai::IMUReportAccelerometer> accelHist;
     static std::deque<dai::IMUReportGyroscope> gyroHist;
     // std::deque<dai::IMUReportRotationVectorWAcc> rotationVecHist;
 
-    for(int i = 0; i < imuPackets.size(); ++i) {
+    for(unsigned int i = 0; i < imuPackets.size(); ++i) {
         if(accelHist.size() == 0) {
             accelHist.push_back(imuPackets[i].acceleroMeter);
         } else if(accelHist.back().sequence != imuPackets[i].acceleroMeter.sequence) {
@@ -130,14 +123,14 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imu
             gyroHist.push_back(imuPackets[i].gyroscope);
         }
 
-        if(sync_mode_ == ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL) {
+        if(syncMode_ == ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL) {
             if(accelHist.size() < 3) {
                 continue;
             } else {
                 dai::IMUReportAccelerometer accel0, accel1;
                 dai::IMUReportGyroscope currGyro;
                 accel0.sequence = -1;
-                LOG(DEBUG) << "IMU INTERPOLATION: ", " Interpolating LINEAR_INTERPOLATE_ACCEL mode ";
+                LOG(INFO) << "IMU INTERPOLATION: Interpolating LINEAR_INTERPOLATE_ACCEL mode ";
                 while(accelHist.size()) {
                     if(accel0.sequence == -1) {
                         accel0 = accelHist.front();
@@ -154,20 +147,20 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imu
                         double dt = duration_ms.count();
 
                         if(!gyroHist.size()) {
-                            LOG(DEBUG) << "IMU INTERPOLATION: ", "Gyro data not found. Dropping accel data points";
+                            LOG(INFO) << "IMU INTERPOLATION: Gyro data not found. Dropping accel data points";
                         }
                         while(gyroHist.size()) {
                             currGyro = gyroHist.front();
 
-                            LOG(DEBUG) <<
+                            /* LOG(INFO) <<
                                 "IMU INTERPOLATION: ",
                                 "Accel 0: Seq => " << accel0.sequence << " timeStamp => " << (accel0.timestamp.get() - _steadyBaseTime).count();
-                            LOG(DEBUG) << "IMU INTERPOLATION: ",
+                            LOG(INFO) << "IMU INTERPOLATION: ",
                                                      "currGyro 0: Seq => " << currGyro.sequence << "timeStamp => "
                                                                            << (currGyro.timestamp.get() - _steadyBaseTime).count();
-                            LOG(DEBUG) <<
+                            LOG(INFO) <<
                                 "IMU INTERPOLATION: ",
-                                "Accel 1: Seq => " << accel1.sequence << " timeStamp => " << (accel1.timestamp.get() - _steadyBaseTime).count();
+                                "Accel 1: Seq => " << accel1.sequence << " timeStamp => " << (accel1.timestamp.get() - _steadyBaseTime).count(); */
                             if(currGyro.timestamp.get() > accel0.timestamp.get() && currGyro.timestamp.get() <= accel1.timestamp.get()) {
                                 // auto alpha = std::chrono::duration_cast<std::chrono::nanoseconds>(currGyro.timestamp.get() - accel0.timestamp.get()).count();
                                 // / dt;
@@ -189,25 +182,25 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imu
                                 }
                             } else {
                                 gyroHist.pop_front();
-                                LOG(DEBUG) << "IMU INTERPOLATION: ", "Droppinh GYRO with old timestamps which are below accel10";
+                                LOG(INFO) << "IMU INTERPOLATION: Dropping GYRO with old timestamps which are below accel10";
                             }
                         }
                         // gyroHist.push_back(currGyro); // Undecided whether this is necessary
                         accel0 = accel1;
                     }
                 }
-                LOG(DEBUG) << "IMU INTERPOLATION: ", "Count  ->" << i << " Placing Accel 0 Seq Number :" << accel0.sequence;
+                LOG(INFO) << "IMU INTERPOLATION: Count  ->" << i << " Placing Accel 0 Seq Number :" << accel0.sequence;
 
                 accelHist.push_back(accel0);
             }
-        } else if(_syncMode == ImuSyncMethod::LINEAR_INTERPOLATE_GYRO) {
+        } else if(syncMode_ == ImuSyncMethod::LINEAR_INTERPOLATE_GYRO) {
             if(gyroHist.size() < 3) {
                 continue;
             } else {
                 dai::IMUReportGyroscope gyro0, gyro1;
                 dai::IMUReportAccelerometer currAccel;
                 gyro0.sequence = -1;
-                LOG(DEBUG) << "IMU INTERPOLATION: ", " Interpolating LINEAR_INTERPOLATE_GYRO mode ";
+                LOG(INFO) << "IMU INTERPOLATION: Interpolating LINEAR_INTERPOLATE_GYRO mode ";
                 while(gyroHist.size()) {
                     if(gyro0.sequence == -1) {
                         gyro0 = gyroHist.front();
@@ -220,19 +213,20 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imu
                         double dt = duration_ms.count();
 
                         if(!accelHist.size()) {
-                            LOG(DEBUG) << "IMU INTERPOLATION: ", "Accel data not found. Dropping data";
+                            LOG(INFO) << "IMU INTERPOLATION: Accel data not found. Dropping data";
                         }
                         while(accelHist.size()) {
                             currAccel = accelHist.front();
-                            LOG(DEBUG) << "IMU INTERPOLATION: ",
+                            /*                             
+                            LOG(INFO) << "IMU INTERPOLATION: ",
                                                      "gyro 0: Seq => " << gyro0.sequence << std::endl
                                                                        << "       timeStamp => " << (gyro0.timestamp.get() - _steadyBaseTime).count();
-                            LOG(DEBUG) << "IMU INTERPOLATION: ",
+                            LOG(INFO) << "IMU INTERPOLATION: ",
                                                      "currAccel 0: Seq => " << currAccel.sequence << std::endl
                                                                             << "       timeStamp => " << (currAccel.timestamp.get() - _steadyBaseTime).count();
-                            LOG(DEBUG)  << "IMU INTERPOLATION: ",
+                            LOG(INFO)  << "IMU INTERPOLATION: ",
                                                      "gyro 1: Seq => " << gyro1.sequence << std::endl
-                                                                       << "       timeStamp => " << (gyro1.timestamp.get() - _steadyBaseTime).count();
+                                                                       << "       timeStamp => " << (gyro1.timestamp.get() - _steadyBaseTime).count(); */
                             if(currAccel.timestamp.get() > gyro0.timestamp.get() && currAccel.timestamp.get() <= gyro1.timestamp.get()) {
                                 // remove std::milli to get in seconds
                                 std::chrono::duration<double, std::milli> diff = currAccel.timestamp.get() - gyro0.timestamp.get();
@@ -252,7 +246,7 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<IMUPacket>& imu
                                 }
                             } else {
                                 accelHist.pop_front();
-                                LOG(DEBUG) << "IMU INTERPOLATION: ", "Droppinh ACCEL with old timestamps which are below accel10";
+                                LOG(INFO) << "IMU INTERPOLATION: Droppinh ACCEL with old timestamps which are below accel10";
                             }
                         }
                         gyro0 = gyro1;
@@ -271,12 +265,12 @@ void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
     imu_accgyr << accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z;
     ImuStamp timestamp;
 
-    if(_syncMode == ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL) {
-        timestamp = timestampAtFrame(_rosBaseTime, _steadyBaseTime, gyro.timestamp.get());
-    } else if(_syncMode == ImuSyncMethod::LINEAR_INTERPOLATE_GYRO) {
-        timestamp = timestampAtFrame(_rosBaseTime, _steadyBaseTime, accel.timestamp.get());
+    if(syncMode_ == ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL) {
+        timestamp = timestampAtFrame(gyro.timestamp.get());
+    } else if(syncMode_ == ImuSyncMethod::LINEAR_INTERPOLATE_GYRO) {
+        timestamp = timestampAtFrame(accel.timestamp.get());
     } else {
-        timestamp = timestampAtFrame(_rosBaseTime, _steadyBaseTime, accel.timestamp.get());
+        timestamp = timestampAtFrame(accel.timestamp.get());
     }
 
     imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
@@ -287,13 +281,13 @@ void OAKDataProvider::imuCallback(std::string name, std::shared_ptr<dai::ADataty
     CHECK(imu_single_callback_) << "Did you forget to register the IMU callback to the VIO Pipeline?";
 
     auto daiIMUDataPtr = std::dynamic_pointer_cast<dai::IMUData>(data);
-    if(_syncMode != ImuSyncMethod::COPY) {
+    if(syncMode_ != ImuSyncMethod::COPY) {
         FillImuDataLinearInterpolation(daiIMUDataPtr->packets);
     } else {
-        for(int i = 0; i < inData->packets.size(); ++i) {
-            auto accel = inData->packets[i].acceleroMeter;
-            auto gyro = inData->packets[i].gyroscope;
-            sendUnitMessage(accel, gyro);
+        for(int i = 0; i < daiIMUDataPtr->packets.size(); ++i) {
+            auto accel = daiIMUDataPtr->packets[i].acceleroMeter;
+            auto gyro = daiIMUDataPtr->packets[i].gyroscope;
+            sendImuMeasurement(accel, gyro);
         }
     }
 }

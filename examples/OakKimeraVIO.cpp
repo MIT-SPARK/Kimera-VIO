@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
                 "DisplayParams.yaml");
 
   // Build dataset parser.
-  VIO::DataProviderInterface::Ptr dataset_parser = VIO::make_unique<VIO::OAKDataProvider>(vio_params);
+  VIO::DataProviderInterface::Ptr dataset_parser = std::make_shared<VIO::OAKDataProvider>(vio_params);
   CHECK(dataset_parser);
 
   // ------------------------ VIO Pipeline Config ------------------------  //
@@ -182,9 +182,11 @@ int main(int argc, char* argv[]) {
   auto rightQueue = daiDevice->getOutputQueue("right", 30, false);
   auto imuQueue = daiDevice->getOutputQueue("imu", 30, false);
 
-  leftQueue->addCallback(std::bind(&VIO::OAKDataProvider::leftImageCallback, dataset_parser, std::placeholders::_1, std::placeholders::_2));
-  rightQueue->addCallback(std::bind(&VIO::OAKDataProvider::rightImageCallback, dataset_parser, std::placeholders::_1, std::placeholders::_2));
-  imuQueue->addCallback(std::bind(&VIO::OAKDataProvider::imuCallback, dataset_parser, std::placeholders::_1, std::placeholders::_2));
+  VIO::OAKDataProvider::Ptr oak_data_parser =
+        VIO::safeCast<VIO::DataProviderInterface, VIO::OAKDataProvider>(dataset_parser);
+  leftQueue->addCallback(std::bind(&VIO::OAKDataProvider::leftImageCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
+  rightQueue->addCallback(std::bind(&VIO::OAKDataProvider::rightImageCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
+  imuQueue->addCallback(std::bind(&VIO::OAKDataProvider::imuCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
 
 // ---------------------------ASYNC Launch-------------------------------- //
 

@@ -126,7 +126,7 @@ class TestTracker : public ::testing::Test {
         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
     stereo_matcher_ = VIO::make_unique<VIO::StereoMatcher>(
         stereo_camera_, tp.stereo_matching_params_);
-    tracker_ = VIO::make_unique<Tracker>(tracker_params_, stereo_camera_->getOriginalLeftCamera());
+    tracker_ = VIO::make_unique<VIO::Tracker>(tracker_params_, stereo_camera_->getOriginalLeftCamera());
 
     feature_detector_ = VIO::make_unique<VIO::FeatureDetector>(
         tp.feature_detector_params_);
@@ -556,7 +556,7 @@ class TestTracker : public ::testing::Test {
  protected:
   // Perform Ransac
   FrontendParams tracker_params_;
-  Tracker::UniquePtr tracker_;
+  VIO::Tracker::UniquePtr tracker_;
   VIO::FeatureDetector::UniquePtr feature_detector_;
 
   Frame::Ptr ref_frame, cur_frame;
@@ -636,7 +636,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
-      Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
+      VIO::Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -833,7 +833,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 
       FrontendParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
-      Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
+      VIO::Tracker tracker(trackerParams, stereo_camera_->getOriginalLeftCamera());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -1063,7 +1063,7 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   // use function to get actual answer
   Vector3 f_ref_i_expected, f_ref_i_actual;
   Matrix3 cov_ref_i_expected, cov_ref_i_actual;
-  tie(f_ref_i_actual, cov_ref_i_actual) = Tracker::getPoint3AndCovariance(
+  tie(f_ref_i_actual, cov_ref_i_actual) = VIO::Tracker::getPoint3AndCovariance(
       *ref_stereo_frame, stereoCam, pointId, stereoPtCov);
 
   // use monte carlo method to get expected answer
@@ -1108,7 +1108,7 @@ TEST_F(TestTracker, findOutliers) {
     random_shuffle(inliers.begin(), inliers.end());
 
     vector<int> outliers_actual;
-    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
+    VIO::Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
 
     // check that outliers_actual matches outliers_expected
     EXPECT_EQ(outliers_expected.size(), outliers_actual.size());
@@ -1136,7 +1136,7 @@ TEST_F(TestTracker, findOutliers) {
     vector<pair<size_t, size_t>> matches_ref_cur(num_outliers);
 
     vector<int> outliers_actual;
-    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
+    VIO::Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
 
     // check that outliers_actual matches outliers_expected
     EXPECT_EQ(outliers_expected.size(), outliers_actual.size());
@@ -1163,7 +1163,7 @@ TEST_F(TestTracker, findOutliers) {
     random_shuffle(inliers.begin(), inliers.end());
 
     vector<int> outliers_actual;
-    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
+    VIO::Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
 
     // check that outliers_actual matches outliers_expected
     EXPECT_EQ(outliers_actual.size(), 0);
@@ -1213,7 +1213,7 @@ TEST_F(TestTracker, FindMatchingKeypoints) {
   random_shuffle(cur_frame->landmarks_.begin(), cur_frame->landmarks_.end());
 
   vector<pair<size_t, size_t>> matches_ref_cur;
-  Tracker::findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
+  VIO::Tracker::findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
 
   // Check the correctness of matches_ref_cur
   EXPECT_EQ(matches_ref_cur.size(), num_landmarks_common);
@@ -1302,7 +1302,7 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
   }
 
   vector<pair<size_t, size_t>> matches_ref_cur;
-  Tracker::findMatchingStereoKeypoints(
+  VIO::Tracker::findMatchingStereoKeypoints(
       *ref_stereo_frame, *cur_stereo_frame, &matches_ref_cur);
 
   // Check the correctness!

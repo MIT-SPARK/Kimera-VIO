@@ -18,6 +18,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <opencv2/viz.hpp>
+
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/frontend/Camera.h"

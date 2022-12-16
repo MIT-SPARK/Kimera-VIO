@@ -232,3 +232,5 @@ Shows that the Frontend input queue got sampled `301` times, at a rate of `75.38
 # 7. BSD License
 
 Kimera-VIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.
+
+

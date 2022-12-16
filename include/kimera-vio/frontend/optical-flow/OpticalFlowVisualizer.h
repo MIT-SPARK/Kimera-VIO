@@ -16,7 +16,7 @@
 
 #include <math.h>
 
-#include <opencv/cv.h>
+// #include <opencv/cv.h>
 #include <opencv2/opencv.hpp>
 
 #include "kimera-vio/utils/Macros.h"

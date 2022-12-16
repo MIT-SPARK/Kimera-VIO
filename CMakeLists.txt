@@ -142,6 +142,8 @@ target_link_libraries(${PROJECT_NAME}
     ${GLOG_LIBRARIES}
     gtsam
     gtsam_unstable
+    depthai::core
+    depthai::opencv
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -187,7 +189,8 @@ target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
 add_executable(stereoVIO_OAKD  ./examples/OakKimeraVIO.cpp)
 target_link_libraries(stereoVIO_OAKD PUBLIC kimera_vio::kimera_vio
                                             depthai::core
-                                            depthai::opencv)
+                                            depthai::opencv
+                                            libnop)
 
 ############################### TESTS ##########################################
 ### Add testing
