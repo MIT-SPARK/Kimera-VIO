@@ -32,13 +32,14 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
+bool enableStereo = false;
+
 dai::Pipeline createPipeline(){
       dai::Pipeline pipeline;
       pipeline.setXLinkChunkSize(0);
       // Define sources and outputs
       auto monoLeft = pipeline.create<dai::node::MonoCamera>();
       auto monoRight = pipeline.create<dai::node::MonoCamera>();
-      // auto stereo = pipeline.create<dai::node::StereoDepth>()
       auto imu = pipeline.create<dai::node::IMU>();
 
       // enable ACCELEROMETER_RAW at 500 hz rate
@@ -47,13 +48,15 @@ dai::Pipeline createPipeline(){
       imu->enableIMUSensor(dai::IMUSensor::GYROSCOPE_RAW, 400);
 
       // min number of imu msgs in batch of X, if the host is not blocked and USB bandwidth is available
-      imu->setBatchReportThreshold(1);
+      imu->setBatchReportThreshold(8);
       // maximum number of IMU packets in a batch, if it's reached device will block sending until host can receive it
       // if lower or equal to batchReportThreshold then the sending is always blocking on device
       // useful to reduce device's CPU load  and number of lost packets, if CPU load is high on device side due to multiple nodes
       imu->setMaxBatchReports(20);
 
       auto xoutImu = pipeline.create<dai::node::XLinkOut>();
+      auto xoutL = pipeline.create<dai::node::XLinkOut>();
+      auto xoutR = pipeline.create<dai::node::XLinkOut>();
       auto xoutRectifL = pipeline.create<dai::node::XLinkOut>();
       auto xoutRectifR = pipeline.create<dai::node::XLinkOut>();
 
@@ -62,8 +65,10 @@ dai::Pipeline createPipeline(){
       // xoutRight->setStreamName("right");
       // xoutDisp->setStreamName("disparity");
       // xoutDepth->setStreamName("depth");
-      xoutRectifL->setStreamName("left");
-      xoutRectifR->setStreamName("right");
+      xoutRectifL->setStreamName("rectLeft");
+      xoutRectifR->setStreamName("rectRight");
+      xoutL->setStreamName("left");
+      xoutR->setStreamName("right");
 
       // Properties
       monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
@@ -81,20 +86,28 @@ dai::Pipeline createPipeline(){
       
       // stereo->enableDistortionCorrection(true);
 
-      //  Linking
-      // monoLeft->out.link(stereo->left);
-      // monoRight->out.link(stereo->right);
-
+    if (enableStereo){
+      auto stereo = pipeline.create<dai::node::StereoDepth>();
       // stereo->syncedLeft.link(xoutLeft->input);
       // stereo->syncedRight.link(xoutRight->input);
       // stereo->disparity.link(xoutDisp->input);
+      //  Linking
+      monoLeft->out.link(stereo->left);
+      monoRight->out.link(stereo->right);
 
+      stereo->setRectification(false);
       // if(outputRectified) {
-      // stereo->rectifiedLeft.link(xoutRectifL->input);
-      // stereo->rectifiedRight.link(xoutRectifR->input);
-      monoLeft->out.link(xoutRectifL->input);
-      monoRight->out.link(xoutRectifR->input);
-      // }
+      stereo->syncedLeft.link(xoutL->input);
+      stereo->syncedRight.link(xoutR->input);
+      stereo->rectifiedLeft.link(xoutRectifL->input);
+      stereo->rectifiedRight.link(xoutRectifR->input);
+      
+    }
+    else{
+      monoLeft->out.link(xoutL->input);
+      monoRight->out.link(xoutR->input);
+    }
+      
       imu->out.link(xoutImu->input);
 
       // if(outputDepth) {

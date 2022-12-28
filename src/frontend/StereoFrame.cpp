@@ -43,7 +43,10 @@ StereoFrame::StereoFrame(const FrameId& id,
   CHECK_EQ(id_, left_frame_.id_);
   CHECK_EQ(id_, right_frame_.id_);
   CHECK_EQ(timestamp_, left_frame_.timestamp_);
-  CHECK_EQ(timestamp_, right_frame_.timestamp_);
+  // CHECK_EQ(timestamp_, right_frame_.timestamp_);
+    // Keeping it less than 15000 ns. a.k.a 0.015 milliseconds
+  CHECK(std::abs(timestamp_ - right_frame_.timestamp_) < 15000);  
+
 }
 
 void StereoFrame::setRectifiedImages(const cv::Mat& left_rectified_img,
