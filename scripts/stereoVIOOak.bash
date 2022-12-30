@@ -88,7 +88,12 @@ $BUILD_PATH/stereoVIO_OAKD \
   --save_frontend_images=1 \
   --visualize_frontend_images=1 \
   --output_path="$OUTPUT_PATH" \
-  --logbuflevel=1
+  --logbuflevel=1 \
+  --log_stereo_matching_images \
+  --visualize_feature_predictions \
+  --v 2
+
+
 
 # If in debug mode, you can run gdb to trace problems.
 #export PARAMS_PATH=../params/Euroc

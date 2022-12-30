@@ -57,6 +57,12 @@ OAKDataProvider::~OAKDataProvider() {
   LOG(INFO) << "OAKDatasetParser destructor called.";
 }
 
+void OAKDataProvider::setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr<dai::DataOutputQueue> right_queue, std::shared_ptr<dai::DataOutputQueue> imu_queue){
+    left_queue_ = left_queue;
+    right_queue_ = right_queue;
+    imu_queue_ = imu_queue;
+}
+
 /* -------------------------------------------------------------------------- */
 bool OAKDataProvider::spin() {
     // Spin.
@@ -67,12 +73,17 @@ bool OAKDataProvider::spin() {
         TODO(saching): Add sequential callbacks for queues to cross check in sequencial mode. But would ne needed most lieky with dataset
       */
       if (!vio_params_.parallel_run_) {
-        // Return, instead of blocking, when running in sequential mode.
-            LOG(ERROR) << "Sequential mode is not implemented for OAK-D's pipeline yet.";
-
+        std::shared_ptr<dai::ADatatype> left_image       = left_queue_->get<dai::ADatatype>();
+        std::shared_ptr<dai::ADatatype> right_image      = right_queue_->get<dai::ADatatype>();
+        std::shared_ptr<dai::ADatatype> imu_measurements = imu_queue_->get<dai::ADatatype>();
+        
+        std::string name = "";
+        leftImageCallback(name, left_image);
+        rightImageCallback(name, right_image);
+        imuCallback(name, imu_measurements);
         return true;
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(34));
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
   LOG_IF(INFO, shutdown_) << "OAKD DataProvider shutdown requested.";
   return false;
@@ -133,7 +144,7 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>
                 dai::IMUReportAccelerometer accel0, accel1;
                 dai::IMUReportGyroscope currGyro;
                 accel0.sequence = -1;
-                LOG(WARNING) << "IMU INTERPOLATION: Interpolating LINEAR_INTERPOLATE_ACCEL mode ";
+                // LOG(WARNING) << "IMU INTERPOLATION: Interpolating LINEAR_INTERPOLATE_ACCEL mode ";
                 while(accelHist.size()) {
                     if(accel0.sequence == -1) {
                         accel0 = accelHist.front();
@@ -192,7 +203,7 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>
                         accel0 = accel1;
                     }
                 }
-                LOG(WARNING) << "IMU INTERPOLATION: Count  ->" << i << " Placing Accel 0 Seq Number :" << accel0.sequence;
+                // LOG(WARNING) << "IMU INTERPOLATION: Count  ->" << i << " Placing Accel 0 Seq Number :" << accel0.sequence;
 
                 accelHist.push_back(accel0);
             }
@@ -203,7 +214,7 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>
                 dai::IMUReportGyroscope gyro0, gyro1;
                 dai::IMUReportAccelerometer currAccel;
                 gyro0.sequence = -1;
-                LOG(WARNING) << "IMU INTERPOLATION: Interpolating LINEAR_INTERPOLATE_GYRO mode ";
+                // LOG(WARNING) << "IMU INTERPOLATION: Interpolating LINEAR_INTERPOLATE_GYRO mode ";
                 while(gyroHist.size()) {
                     if(gyro0.sequence == -1) {
                         gyro0 = gyroHist.front();
@@ -275,6 +286,7 @@ void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
     } else {
         timestamp = timestampAtFrame(accel.timestamp.get());
     }
+    LOG(INFO) << "Calling imu_single_callback_ Callback data";
 
     imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
 }

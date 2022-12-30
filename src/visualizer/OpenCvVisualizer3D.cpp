@@ -1265,7 +1265,8 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   }
 
   // No points/mesh to visualize.
-  if (map_points_3d.rows == 0 || polygons_mesh.rows == 0) {
+  if (map_points_3d.rows == 0 || polygons_mesh.rows == 0 || colors.rows == 0 
+    || tcoords.rows == 0) {
     return;
   }
 

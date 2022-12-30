@@ -21,7 +21,7 @@ LOG_OUTPUT=0
 # All paths can be absolute or relative to this file location.
 
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../build"
+BUILD_PATH="../buildParallel"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params/Euroc"
@@ -107,7 +107,11 @@ $BUILD_PATH/stereoVIOEuroc \
   --log_euroc_gt_data="$LOG_OUTPUT" \
   --save_frontend_images=1 \
   --visualize_frontend_images=1 \
-  --output_path="$OUTPUT_PATH"
+  --output_path="$OUTPUT_PATH" \
+  --logbuflevel=1 \
+  --log_stereo_matching_images \
+  --visualize_feature_predictions \
+  --log_backtrace_at="linenum.5"
 
 # If in debug mode, you can run gdb to trace problems.
 #export PARAMS_PATH=../params/Euroc

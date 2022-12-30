@@ -70,6 +70,8 @@ class OAKDataProvider : public DataProviderInterface {
 
   virtual ~OAKDataProvider();
 
+void setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr<dai::DataOutputQueue> right_queue, std::shared_ptr<dai::DataOutputQueue> imu_queue);
+
   /**
    * @brief spin Spins the dataset until it finishes. If set in sequential mode,
    * it will return each time a frame is sent. In parallel mode, it will not
@@ -137,6 +139,7 @@ Timestamp timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clo
   //! Pre-stored imu-measurements
   std::vector<ImuMeasurement> imu_measurements_;
   ImuSyncMethod syncMode_ = ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL;
+  std::shared_ptr<dai::DataOutputQueue> left_queue_, right_queue_, imu_queue_;
   // FIXME(Saching): Replace the EurocGtLogger later)
   // EurocGtLogger::UniquePtr logger_;
 };
