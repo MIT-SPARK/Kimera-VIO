@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/RgbdVisionImuFrontend-definitions.h"
 #include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -84,6 +85,7 @@ LoopClosureDetector::LoopClosureDetector(
     const gtsam::Pose3& B_Pose_Cam,
     const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
     const boost::optional<StereoMatchingParams>& stereo_matching_params,
+    const boost::optional<VIO::RgbdCamera::ConstPtr>& rgbd_camera,
     bool log_output,
     PreloadedVocab::Ptr&& preloaded_vocab)
     : lcd_state_(LcdState::Bootstrap),
@@ -100,6 +102,7 @@ LoopClosureDetector::LoopClosureDetector(
       B_Pose_Cam_(B_Pose_Cam),
       stereo_camera_(stereo_camera ? stereo_camera.get() : nullptr),
       stereo_matcher_(nullptr),
+      rgbd_camera_(rgbd_camera ? rgbd_camera.get() : nullptr),
       pgo_(nullptr),
       W_Pose_B_kf_vio_(),
       num_lc_unoptimized_(0),
@@ -225,6 +228,14 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
           processAndAddStereoFrame(stereo_frontend_output->stereo_frame_lkf_);
       break;
     }
+    case FrontendType::kRgbdImu: {
+      RgbdFrontendOutput::Ptr rgbd_frontend_output =
+          VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
+              input.frontend_output_);
+      lcd_frame_id =
+          processAndAddRgbdFrame(rgbd_frontend_output->rgbd_frame_lkf_);
+      break;
+    }
     default: {
       LOG(FATAL)
           << "LoopClosureDetector not implemented for this frontend type.";
@@ -236,6 +247,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                       curr_bow_vec);
 
   LoopResult loop_result;
+  loop_result.status_ = LCDStatus::NO_MATCHES;
   if (!FLAGS_lcd_no_detection) {
     detectLoop(lcd_frame_id, curr_bow_vec, &loop_result);
   }
@@ -464,6 +476,47 @@ FrameId LoopClosureDetector::processAndAddStereoFrame(
       cp_stereo_frame.left_frame_.versors_,
       cp_stereo_frame.left_keypoints_rectified_,
       cp_stereo_frame.right_keypoints_rectified_));
+
+  CHECK(!db_frames_.empty());
+  return db_frames_.back()->id_;
+}
+
+/* ------------------------------------------------------------------------ */
+FrameId LoopClosureDetector::processAndAddRgbdFrame(
+    const RgbdFrame& rgbd_frame) {
+  std::vector<cv::KeyPoint> keypoints;
+  OrbDescriptor descriptors_mat;
+  OrbDescriptorVec descriptors_vec;
+  getNewFeaturesAndDescriptors(
+      rgbd_frame.intensity_img_.img_, &keypoints, &descriptors_mat);
+  descriptorMatToVec(descriptors_mat, &descriptors_vec);
+
+  // Fill StereoFrame with ORB keypoints and perform stereo matching.
+  auto cp_stereo_frame = rgbd_frame.getStereoFrame();
+  for (const cv::KeyPoint& keypoint : keypoints) {
+    cp_stereo_frame->left_frame_.keypoints_.push_back(keypoint.pt);
+    cp_stereo_frame->left_frame_.versors_.push_back(
+        UndistorterRectifier::GetBearingVector(
+            keypoint.pt, cp_stereo_frame->left_frame_.cam_param_));
+    cp_stereo_frame->left_frame_.scores_.push_back(1.0);
+  }
+
+  CHECK(rgbd_camera_) << "RGBD camera required for RGBD LCD";
+  rgbd_frame.fillStereoFrame(*rgbd_camera_, *cp_stereo_frame);
+
+  // Build and store LCDFrame object.
+  db_frames_.push_back(std::make_shared<StereoLCDFrame>(
+      cp_stereo_frame->timestamp_,
+      db_frames_.size(),
+      cp_stereo_frame->id_,
+      keypoints,
+      // keypoints_3d_ are in local (camera) frame
+      cp_stereo_frame->keypoints_3d_,
+      descriptors_vec,
+      descriptors_mat,
+      cp_stereo_frame->left_frame_.versors_,
+      cp_stereo_frame->left_keypoints_rectified_,
+      cp_stereo_frame->right_keypoints_rectified_));
 
   CHECK(!db_frames_.empty());
   return db_frames_.back()->id_;
@@ -729,7 +782,8 @@ bool LoopClosureDetector::recoverPoseBody(
     }
   } else {
     TrackingStatusPose result;
-    if (tracker_->tracker_params_.ransac_use_1point_stereo_) {
+    const bool camera_valid = stereo_camera_ || rgbd_camera_;
+    if (tracker_->tracker_params_.ransac_use_1point_stereo_ && camera_valid) {
       // For 1pt we need stereo, so cast to derived form.
       StereoLCDFrame::Ptr ref_stereo_lcd_frame = nullptr;
       StereoLCDFrame::Ptr cur_stereo_lcd_frame = nullptr;
@@ -743,7 +797,6 @@ bool LoopClosureDetector::recoverPoseBody(
                       "stereo frontend inputs.";
       }
 
-      CHECK(stereo_camera_);
       std::pair<TrackingStatusPose, gtsam::Matrix3> result_full =
           tracker_->geometricOutlierRejection3d3dGivenRotation(
               ref_stereo_lcd_frame->left_keypoints_rectified_,
@@ -752,7 +805,8 @@ bool LoopClosureDetector::recoverPoseBody(
               cur_stereo_lcd_frame->right_keypoints_rectified_,
               ref_stereo_lcd_frame->keypoints_3d_,
               cur_stereo_lcd_frame->keypoints_3d_,
-              stereo_camera_,
+              stereo_camera_ ? stereo_camera_->getGtsamStereoCam()
+                             : rgbd_camera_->getFakeStereoCamera(),
               matches_match_query,
               camMatch_T_camQuery_2d.rotation(),
               inliers);
@@ -789,7 +843,15 @@ gtsam::Pose3 LoopClosureDetector::refinePoses(
     const FrameId cur_id,
     const gtsam::Pose3& camMatch_T_camQuery_3d,
     const KeypointMatches& matches_match_query) {
-  const auto& stereo_calib = stereo_camera_->getStereoCalib();
+  gtsam::Cal3_S2Stereo::shared_ptr stereo_calib;
+  if (stereo_camera_) {
+    stereo_calib = stereo_camera_->getStereoCalib();
+  } else if (rgbd_camera_) {
+    stereo_calib = rgbd_camera_->getFakeStereoCalib();
+  } else {
+    LOG(FATAL) << "refinePose requires stereo or rgbd camera";
+    return camMatch_T_camQuery_3d;
+  }
 
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values values;

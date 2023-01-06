@@ -19,7 +19,7 @@
 
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/DepthFrame.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 

@@ -34,6 +34,7 @@ class LcdFactory {
       const gtsam::Pose3& B_Pose_Cam,
       const boost::optional<StereoCamera::ConstPtr>& stereo_camera,
       const boost::optional<StereoMatchingParams>& stereo_matching_params,
+      const boost::optional<RgbdCamera::ConstPtr>& rgbd_camera,
       bool log_output,
       PreloadedVocab::Ptr&& preloaded_vocab = nullptr) {
     switch (lcd_type) {
@@ -43,6 +44,7 @@ class LcdFactory {
                                                      B_Pose_Cam,
                                                      stereo_camera,
                                                      stereo_matching_params,
+                                                     rgbd_camera,
                                                      log_output,
                                                      std::move(preloaded_vocab));
       }

@@ -56,9 +56,6 @@ class StereoMatchingParams : public PipelineParams {
   bool subpixel_refinement_ = false;
   // do equalize image before processing options to use RGB-D vs. stereo.
   bool equalize_image_ = false;
-  VisionSensorType vision_sensor_type_ = VisionSensorType::STEREO;
-  double min_depth_factor_ = 0.3;    // min-depth to be used with RGB-D
-  double map_depth_factor_ = 0.001;  // depth-map to be used with RGB-D
 };
 
 // TODO(Toni) make it a pipeline params and parseable.

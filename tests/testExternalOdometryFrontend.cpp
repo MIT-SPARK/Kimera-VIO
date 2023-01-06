@@ -13,13 +13,13 @@
  * @author Nathan Hughes
  */
 
-#include <future>
-#include <limits>
-#include <utility>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include <future>
+#include <limits>
+#include <utility>
 
 #include "kimera-vio/dataprovider/StereoDataProviderModule.h"
 #include "kimera-vio/frontend/Frame.h"
@@ -119,7 +119,8 @@ ImuParams makeFakeImuParams() {
 class MockVisionImuFrontend : public VisionImuFrontend {
  public:
   explicit MockVisionImuFrontend(const OdometryParams& params)
-      : VisionImuFrontend(makeFakeImuParams(),
+      : VisionImuFrontend(FrontendParams(),
+                          makeFakeImuParams(),
                           ImuBias(),
                           nullptr,
                           false,

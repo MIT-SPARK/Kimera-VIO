@@ -1,0 +1,35 @@
+%YAML:1.0
+# General sensor definitions.
+camera_id: left_cam
+
+# Sensor extrinsics wrt. the body-frame.
+T_BS:
+  cols: 4
+  rows: 4
+  data: [ 0.0,  0.0, 1.0, 0.0,
+         -1.0,  0.0, 0.0, 0.05,
+          0.0, -1.0, 0.0, 0.0,
+          0.0,  0.0, 0.0, 1.0]
+
+# Camera specific definitions.
+rate_hz: 20
+resolution: [720, 480]
+camera_model: pinhole
+intrinsics: [415.69219381653056, 415.69219381653056, 360.0, 240.0]
+distortion_model: radial-tangential
+distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+
+# Depth specific parameters
+virtual_baseline: 0.3
+min_depth: 0.0
+depth_to_meters: 1.0
+max_depth: 10.0
+is_registered: 0
+T_color_depth:
+  cols: 4
+  rows: 4
+  data: [ 1.0,  0.0, 0.0, 0.0,
+          0.0,  1.0, 0.0, 0.0,
+          0.0,  0.0, 1.0, 0.0,
+          0.0,  0.0, 0.0, 1.0]
+depth_intrinsics: [415.69219381653056, 415.69219381653056, 360.0, 240.0]

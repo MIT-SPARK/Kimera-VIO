@@ -424,6 +424,8 @@ FrontendLogger::FrontendLogger()
       (output_frontend_img_path_ + "stereoMatchingUnrectifiedImg").c_str()));
   boost::filesystem::create_directory(boost::filesystem::path(
       (output_frontend_img_path_ + "stereoMatchingRectifiedImg").c_str()));
+  boost::filesystem::create_directory(boost::filesystem::path(
+      (output_frontend_img_path_ + "rgbdDepthFeaturesImg").c_str()));
 }
 
 void FrontendLogger::logFrontendStats(

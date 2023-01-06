@@ -216,7 +216,7 @@ class PipelineModule : public PipelineModuleBase {
         timing_stats.AddSample(spin_duration);
       } else {
         // TODO(nathan) switch to VLOG_IS_ON(1) when we fix how spinning works
-        LOG_IF_EVERY_N(WARNING, VLOG_IS_ON(2), 20)
+        LOG_IF_EVERY_N(WARNING, VLOG_IS_ON(10), 50)
             << "Module: " << name_id_ << " - No Input received.";
       }
 

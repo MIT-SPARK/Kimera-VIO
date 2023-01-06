@@ -12,10 +12,11 @@
  * @author Marcus Abate
  */
 
+#include "kimera-vio/frontend/MonoVisionImuFrontend.h"
+
 #include <memory>
 
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
-#include "kimera-vio/frontend/MonoVisionImuFrontend.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 
 DEFINE_bool(log_mono_matching_images,
@@ -26,14 +27,15 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 namespace VIO {
 
 MonoVisionImuFrontend::MonoVisionImuFrontend(
+    const FrontendParams& frontend_params,
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
-    const MonoFrontendParams& frontend_params,
     const Camera::ConstPtr& camera,
     DisplayQueue* display_queue,
     bool log_output,
     boost::optional<OdometryParams> odom_params)
-    : VisionImuFrontend(imu_params,
+    : VisionImuFrontend(frontend_params,
+                        imu_params,
                         imu_initial_bias,
                         display_queue,
                         log_output,
@@ -43,8 +45,7 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
       mono_frame_lkf_(nullptr),
       keyframe_R_ref_frame_(gtsam::Rot3()),
       feature_detector_(nullptr),
-      mono_camera_(camera),
-      frontend_params_(frontend_params) {
+      mono_camera_(camera) {
   CHECK(mono_camera_);
 
   tracker_ = VIO::make_unique<Tracker>(
@@ -87,15 +88,14 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   }
 
   // Create mostly invalid output
-  return VIO::make_unique<MonoFrontendOutput>(
-      mono_frame_lkf_->isKeyframe_,
-      nullptr,
-      mono_camera_->getBodyPoseCam(),
-      *mono_frame_lkf_,
-      nullptr,
-      input->getImuAccGyrs(),
-      cv::Mat(),
-      getTrackerInfo());
+  return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
+                                              nullptr,
+                                              mono_camera_->getBodyPoseCam(),
+                                              *mono_frame_lkf_,
+                                              nullptr,
+                                              input->getImuAccGyrs(),
+                                              cv::Mat(),
+                                              getTrackerInfo());
 }
 
 MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
@@ -113,7 +113,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
 
   if (VLOG_IS_ON(10)) input->print();
 
-  //auto tic_full_preint = utils::Timer::tic();
+  // auto tic_full_preint = utils::Timer::tic();
   const ImuFrontend::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
       input->getImuStamps(), input->getImuAccGyrs());
   CHECK(pim);
@@ -190,15 +190,14 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     // We don't have a keyframe, so instead we forward the newest frame in this
     // packet for use in the temporal calibration (if enabled)
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<MonoFrontendOutput>(
-        false,
-        status_mono_measurements,
-        mono_camera_->getBodyPoseCam(),
-        *mono_frame_km1_,
-        pim,
-        input->getImuAccGyrs(),
-        feature_tracks,
-        getTrackerInfo());
+    return VIO::make_unique<MonoFrontendOutput>(false,
+                                                status_mono_measurements,
+                                                mono_camera_->getBodyPoseCam(),
+                                                *mono_frame_km1_,
+                                                pim,
+                                                input->getImuAccGyrs(),
+                                                feature_tracks,
+                                                getTrackerInfo());
   }
 }
 
@@ -262,25 +261,10 @@ StatusMonoMeasurementsPtr MonoVisionImuFrontend::processFrame(
 
   MonoMeasurements smart_mono_measurements;
 
-  const bool max_time_elapsed =
-      mono_frame_k_->timestamp_ - last_keyframe_timestamp_ >=
-      frontend_params_.min_intra_keyframe_time_ns_;
-  const size_t& nr_valid_features = mono_frame_k_->getNrValidKeypoints();
-  const bool nr_features_low =
-      nr_valid_features <= frontend_params_.min_number_features_;
-
-  LOG_IF(WARNING, mono_frame_k_->isKeyframe_) << "User enforced keyframe!";
-
-  if (max_time_elapsed || nr_features_low || mono_frame_k_->isKeyframe_) {
-    VLOG(2) << "Keframe after [s]: "
-            << UtilsNumerical::NsecToSec(mono_frame_k_->timestamp_ -
-                                         last_keyframe_timestamp_);
+  // determine if frame should be a keyframe
+  const bool new_keyframe = shouldBeKeyframe(*mono_frame_k_, *mono_frame_lkf_);
+  if (new_keyframe) {
     ++keyframe_count_;
-
-    VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
-    VLOG_IF(2, nr_features_low)
-        << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
-        << frontend_params_.min_number_features_ << ").";
 
     if (frontend_params_.useRANSAC_) {
       TrackingStatusPose status_pose_mono;
@@ -447,9 +431,9 @@ void MonoVisionImuFrontend::printStatusMonoMeasurements(
   LOG(INFO) << " stereo points:";
   const MonoMeasurements& mono_measurements = status_mono_measurements.second;
   for (const auto& meas : mono_measurements) {
-    std::cout << " " << meas.second << " ";
+    LOG(INFO) << " " << meas.second << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << std::endl;
 }
 
 }  // namespace VIO

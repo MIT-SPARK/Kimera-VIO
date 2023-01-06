@@ -15,6 +15,7 @@
 #pragma once
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
@@ -49,6 +50,16 @@ class FrontendOutputPacketBase : public PipelinePayload {
         body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
   virtual ~FrontendOutputPacketBase() = default;
+
+  virtual const Frame* getTrackingFrame() const { return nullptr; }
+
+  virtual const cv::Mat* getTrackingImage() const { return nullptr; }
+
+  virtual const gtsam::Pose3* getBodyPoseCam() const { return nullptr; }
+
+  virtual const gtsam::Pose3* getBodyPoseCamRight() const { return nullptr; }
+
+  virtual const TrackerStatusSummary* getTrackerStatus() const { return nullptr; }
 
  public:
   const bool is_keyframe_;

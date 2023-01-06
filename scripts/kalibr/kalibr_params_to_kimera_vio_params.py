@@ -113,7 +113,7 @@ def numpy_display(value, flat=True, format_str=" 1.8f"):
             # return single line vector
             elements = np.squeeze(value).tolist()
             contents = ", ".join(map(float_format, elements))
-            return "[{}]".format(contents[1:] if contents[0] == ' ' else contents)
+            return "[{}]".format(contents[1:] if contents[0] == " " else contents)
 
         # flatten each line and assemble a list
         to_render = [
@@ -122,7 +122,7 @@ def numpy_display(value, flat=True, format_str=" 1.8f"):
         contents = ",\n".join(to_render)
 
         # handle weirdness at start of list
-        if contents[0] == ' ':
+        if contents[0] == " ":
             return " [{}]".format(contents[1:])
         else:
             return "[{}]".format(contents)
@@ -225,11 +225,14 @@ def get_args():
     parser.add_argument(
         "--kalibr_camera_ids",
         help="kalibr camera ids",
-        nargs=2,
+        nargs="+",
         default=["cam0", "cam1"],
     )
     parser.add_argument("--kalibr_imu_id", help="kalibr imu id", default="imu0")
 
+    parser.add_argument(
+        "--imu_bias_init_sigma", help="initial bias covariance", default=1.0e-3
+    )
     parser.add_argument(
         "--imu_integration_sigma", help="integration covariance", default=1.0e-8
     )
@@ -256,7 +259,9 @@ def verify_args(args):
     return input_files_valid
 
 
-def output_kimera_configs(output, left_camera_config, right_camera_config, imu_config):
+def output_kimera_configs(
+    output, imu_config, left_camera_config, right_camera_config=None
+):
     """Write configurations to disk."""
     env = get_jinja_env()
     imu_template = env.get_template("imu.yaml")
@@ -267,14 +272,17 @@ def output_kimera_configs(output, left_camera_config, right_camera_config, imu_c
     else:
         output_path = pathlib.Path(".").absolute()
 
+    with (output_path / "ImuParams.yaml").open("w") as fout:
+        fout.write(imu_template.render(**imu_config))
+
     with (output_path / "LeftCameraParams.yaml").open("w") as fout:
         fout.write(camera_template.render(**left_camera_config))
 
+    if right_camera_config is None:
+        return
+
     with (output_path / "RightCameraParams.yaml").open("w") as fout:
         fout.write(camera_template.render(**right_camera_config))
-
-    with (output_path / "ImuParams.yaml").open("w") as fout:
-        fout.write(imu_template.render(**imu_config))
 
 
 def main():
@@ -310,18 +318,23 @@ def main():
 
     extra_imu_information = extra_information.copy()
     extra_imu_information["imu_integration_sigma"] = args.imu_integration_sigma
+    extra_imu_information["imu_bias_init_sigma"] = args.imu_bias_init_sigma
     extra_imu_information["n_gravity"] = np.array(args.gravity)
+
+    kimera_imu = make_imu_config(kalibr_imu, args.kalibr_imu_id, extra_imu_information)
 
     kimera_left_camera = make_camera_config(
         kalibr_camera, args.kalibr_camera_ids[0], "left_cam", extra_cam_information
     )
-    kimera_right_camera = make_camera_config(
-        kalibr_camera, args.kalibr_camera_ids[1], "right_cam", extra_cam_information
-    )
-    kimera_imu = make_imu_config(kalibr_imu, args.kalibr_imu_id, extra_imu_information)
+
+    kimera_right_camera = None
+    if len(args.kalibr_camera_ids) > 1:
+        kimera_right_camera = make_camera_config(
+            kalibr_camera, args.kalibr_camera_ids[1], "right_cam", extra_cam_information
+        )
 
     output_kimera_configs(
-        args.output, kimera_left_camera, kimera_right_camera, kimera_imu
+        args.output, kimera_imu, kimera_left_camera, kimera_right_camera
     )
 
 

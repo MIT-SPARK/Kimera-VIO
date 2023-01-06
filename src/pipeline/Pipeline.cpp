@@ -219,6 +219,34 @@ bool Pipeline::hasFinished() const {
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
+  const bool fqueue_done =
+      frontend_input_queue_.isShutdown() || frontend_input_queue_.empty();
+  const bool bqueue_done =
+      backend_input_queue_.isShutdown() || backend_input_queue_.empty();
+  const bool dqueue_done =
+      display_input_queue_.isShutdown() || display_input_queue_.empty();
+  const bool mesher_done =
+      mesher_module_ != nullptr ? !mesher_module_->isWorking() : true;
+  const bool lcd_done =
+      lcd_module_ != nullptr ? !lcd_module_->isWorking() : true;
+  const bool visualizer_done =
+      visualizer_module_ != nullptr ? !visualizer_module_->isWorking() : true;
+  const bool display_done =
+      display_module_ != nullptr ? !display_module_->isWorking() : true;
+
+  VLOG(10) << std::endl
+          << std::boolalpha
+          << "  - data: " << data_provider_module_->isWorking() << std::endl
+          << "  - frontend_input_queue: " << fqueue_done << std::endl
+          << "  - frontend: " << vio_frontend_module_->isWorking() << std::endl
+          << "  - backend_input_queue: " << bqueue_done << std::endl
+          << "  - backend: " << vio_backend_module_->isWorking() << std::endl
+          << "  - mesher: " << mesher_done << std::endl
+          << "  - lcd: " << lcd_done << std::endl
+          << "  - visualizer: " << visualizer_done << std::endl
+          << "  - display_input_queue: " << dqueue_done << std::endl
+          << "  - display: " << display_done << std::endl;
+
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
@@ -266,6 +294,12 @@ void Pipeline::shutdown() {
   }
   LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
             << "VIO Pipeline successful shutdown.";
+
+  if (FLAGS_log_output) {
+    PipelineLogger logger;
+    // TODO(nathan) consider adding actual elapsed time
+    logger.logPipelineOverallTiming(std::chrono::milliseconds(0));
+  }
 }
 
 void Pipeline::resume() {

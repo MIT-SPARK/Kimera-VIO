@@ -437,7 +437,7 @@ void UtilsOpenCV::PlainMatchTemplate(const cv::Mat stripe,
   for (int ii = 0; ii < templ.rows; ii++) {
     for (int jj = 0; jj < templ.cols; jj++) {
       tempSq += pow((int)templ.at<uchar>(ii, jj), 2);
-      // std::cout << " templ.at<double>(ii,jj) " << (int)
+      // VLOG(10) << " templ.at<double>(ii,jj) " << (int)
       // templ.at<uchar>(ii,jj) << std::endl;
     }
   }
@@ -735,7 +735,7 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
 
   for (size_t i = 0; i < matches.size(); i++) {
     cv::Mat baseCanvas = canvas.clone();
-    std::cout << "Match " << i << std::endl;
+    LOG(INFO) << "Match " << i;
     cv::line(baseCanvas,
              corners1[matches[i].queryIdx],
              corners2[matches[i].trainIdx] + ptOffset,

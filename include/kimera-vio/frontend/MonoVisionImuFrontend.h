@@ -40,13 +40,14 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
 
  public:
   MonoVisionImuFrontend(
+      const FrontendParams& frontend_params,
       const ImuParams& imu_params,
       const ImuBias& imu_initial_bias,
-      const MonoFrontendParams& frontend_params,
       const Camera::ConstPtr& camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,
       boost::optional<OdometryParams> odom_params = boost::none);
+
   virtual ~MonoVisionImuFrontend();
 
  private:
@@ -105,8 +106,6 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
   FeatureDetector::UniquePtr feature_detector_;
 
   Camera::ConstPtr mono_camera_;
-
-  MonoFrontendParams frontend_params_;
 };
 
 }  // namespace VIO

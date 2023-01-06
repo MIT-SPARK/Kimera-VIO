@@ -10,7 +10,7 @@
 
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -20,10 +20,12 @@ class RgbdImuSyncPacket : public FrontendInputPacketBase {
   KIMERA_POINTER_TYPEDEFS(RgbdImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  RgbdImuSyncPacket(const Timestamp& timestamp,
-                    RgbdFrame::UniquePtr rgbd_frame,
-                    const ImuStampS& imu_stamps,
-                    const ImuAccGyrS& imu_accgyr);
+  RgbdImuSyncPacket(
+      const Timestamp& timestamp,
+      RgbdFrame::UniquePtr rgbd_frame,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr,
+      boost::optional<gtsam::NavState> external_odometry = boost::none);
   virtual ~RgbdImuSyncPacket() = default;
 
   void print() const;

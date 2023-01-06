@@ -108,7 +108,9 @@ bool VioParams::parseYAML(const std::string&) {
 
   // Parse Camera parameters
   camera_params_.push_back(parseCameraParams(left_cam_params_filepath_));
-  camera_params_.push_back(parseCameraParams(right_cam_params_filepath_));
+  if (frontend_type_ == FrontendType::kStereoImu) {
+    camera_params_.push_back(parseCameraParams(right_cam_params_filepath_));
+  }
 
   // Parse Backend params, needs a bit of help with backend_type
   switch (backend_type_) {

@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend.h"
+#include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 
 namespace VIO {
@@ -40,9 +40,9 @@ class VisionImuFrontendFactory {
       boost::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
-        return VIO::make_unique<MonoVisionImuFrontend>(imu_params,
+        return VIO::make_unique<MonoVisionImuFrontend>(frontend_params,
+                                                       imu_params,
                                                        imu_initial_bias,
-                                                       frontend_params,
                                                        camera,
                                                        display_queue,
                                                        log_output,
@@ -79,9 +79,9 @@ class VisionImuFrontendFactory {
                    << "with a StereoCamera!";
       }
       case FrontendType::kStereoImu: {
-        return VIO::make_unique<StereoVisionImuFrontend>(imu_params,
+        return VIO::make_unique<StereoVisionImuFrontend>(frontend_params,
+                                                         imu_params,
                                                          imu_initial_bias,
-                                                         frontend_params,
                                                          stereo_camera,
                                                          display_queue,
                                                          log_output,

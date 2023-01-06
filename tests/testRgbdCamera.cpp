@@ -12,19 +12,18 @@
  * @author Antoni Rosinol
  */
 
-#include <math.h>
-#include <string>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <math.h>
 
 #include <opencv2/opencv.hpp>
+#include <string>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
-#include "kimera-vio/frontend/rgbd/RgbdCamera.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdCamera.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -169,7 +168,7 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
       VIO::make_unique<Frame>(0u, 0u, cam_params, intensity_img);
   DepthFrame::UniquePtr depth_frame =
       VIO::make_unique<DepthFrame>(0u, 0u, depth_map);
-  RgbdFrame rgbd_frame(0u, 0u, std::move(frame), std::move(depth_frame));
+  RgbdFrame rgbd_frame(0u, 0u, *frame, *depth_frame);
   cv::Mat actual_cloud;
   cv::Mat colors;
   rgbd_camera_->convertRgbdToPointcloud(rgbd_frame, &actual_cloud, &colors);

@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
+
 #include "kimera-vio/backend/RegularVioBackendParams.h"
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
@@ -150,17 +152,16 @@ struct VioParams : public PipelineParams {
   bool equals(const PipelineParams& obj) const override {
     const auto& rhs = static_cast<const VioParams&>(obj);
     return imu_params_ == rhs.imu_params_ &&
-        camera_params_ == rhs.camera_params_ &&
-        frontend_params_ == rhs.frontend_params_ &&
-        backend_params_ == rhs.backend_params_ &&
-        frontend_type_ == rhs.frontend_type_ &&
-        backend_type_ == rhs.backend_type_ &&
-        display_type_ == rhs.display_type_ &&
-        lcd_params_ == rhs.lcd_params_ &&
-        display_params_ == rhs.display_params_ &&
-        parallel_run_ == rhs.parallel_run_;
+           camera_params_ == rhs.camera_params_ &&
+           frontend_params_ == rhs.frontend_params_ &&
+           backend_params_ == rhs.backend_params_ &&
+           frontend_type_ == rhs.frontend_type_ &&
+           backend_type_ == rhs.backend_type_ &&
+           display_type_ == rhs.display_type_ &&
+           lcd_params_ == rhs.lcd_params_ &&
+           display_params_ == rhs.display_params_ &&
+           parallel_run_ == rhs.parallel_run_;
   }
-
 
   //! Names of the YAML files with the parameters.
   std::string pipeline_params_filepath_;

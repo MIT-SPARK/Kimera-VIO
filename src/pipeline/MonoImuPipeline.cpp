@@ -181,6 +181,7 @@ MonoImuPipeline::MonoImuPipeline(
                               camera_->getBodyPoseCam(),
                               boost::none,
                               boost::none,
+                              boost::none,
                               FLAGS_log_output,
                               std::move(preloaded_vocab)));
     //! Register input callbacks

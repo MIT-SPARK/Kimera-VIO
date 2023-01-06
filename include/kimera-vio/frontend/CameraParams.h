@@ -14,13 +14,12 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
-#include <opencv2/core/core.hpp>
-
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
+
+#include <opencv2/core/core.hpp>
+#include <string>
+#include <vector>
 
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/Macros.h"
@@ -128,6 +127,33 @@ class CameraParams : public PipelineParams {
   // Eigen::Matrix<double, kInversePolynomialOrder, 1>
   //     omni_pol_inv_;             // polynomial for Ocamcalib projection
 
+  //! RGBD only parameters
+  struct DepthParams {
+    //! Whether or not the parameters were read
+    bool valid = false;
+
+    //! Virtual depth baseline: smaller means less disparity
+    float virtual_baseline_ = 1.0e-2f;
+
+    //! Conversion factor between raw depth measurements and meters
+    float depth_to_meters_ = 1.0f;
+
+    //! Minimum depth to convert
+    float min_depth_ = 0.0f;
+
+    //! Maximum depth to convert
+    float max_depth_ = 10.0f;
+
+    //! Whether or not the image is registered
+    bool is_registered_ = true;
+
+    //! Camera matrix for the depth image
+    cv::Mat K_;
+
+    //! Extrinsic transform between the depth and rgb cameras
+    cv::Mat T_color_depth_;
+  } depth;
+
  public:
   static void convertDistortionVectorToMatrix(
       const std::vector<double>& distortion_coeffs,
@@ -148,18 +174,22 @@ class CameraParams : public PipelineParams {
       const std::string& distortion_model,
       const CameraModel& camera_model);
 
-  static const CameraModel stringToCameraModel(
-      const std::string& camera_model);
+  static const CameraModel stringToCameraModel(const std::string& camera_model);
 
  private:
-  void parseDistortion(const YamlParser& yaml_parser);
   static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
   static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
   static void parseBodyPoseCam(const YamlParser& yaml_parser,
                                gtsam::Pose3* body_Pose_cam);
-  const void parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                   Intrinsics* _intrinsics);
+
+  void parseDistortion(const YamlParser& yaml_parser);
+
+  void parseCameraIntrinsics(const YamlParser& yaml_parser,
+                             Intrinsics* _intrinsics);
+
+  void parseDepthParams(const YamlParser& yaml_parser);
 };
+
 // TODO(Toni): this should be a base class, so that stereo camera is a specific
 // type of a multi camera sensor rig, or something along these lines.
 typedef std::vector<CameraParams> MultiCameraParams;

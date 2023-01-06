@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "kimera-vio/frontend/RgbdCamera.h"
 #include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
@@ -94,6 +95,8 @@ class LoopClosureDetector {
           boost::none,
       const boost::optional<StereoMatchingParams>& stereo_matching_params =
           boost::none,
+      const boost::optional<VIO::RgbdCamera::ConstPtr>& rgbd_camera =
+          boost::none,
       bool log_output = false,
       PreloadedVocab::Ptr&& preloaded_vocab = nullptr);
 
@@ -132,6 +135,15 @@ class LoopClosureDetector {
   FrameId processAndAddMonoFrame(const Frame& frame,
                                  const PointsWithIdMap& W_points_with_ids,
                                  const gtsam::Pose3& W_Pose_Blkf);
+
+  /* ------------------------------------------------------------------------ */
+  /** @brief Processed a single rgbd-frame and adds it to relevant internal
+   * databases.
+   * @param[in] rgbd_frame A RgbdFrame object with two images and a pose to
+   * the body frame at a minimum. Other fields may also be populated.
+   * @return The local ID of the frame after it is added to the databases.
+   */
+  FrameId processAndAddRgbdFrame(const RgbdFrame& rgbd_frame);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single stereo-frame and adds it to relevant internal
@@ -449,6 +461,9 @@ class LoopClosureDetector {
   gtsam::Pose3 B_Pose_Cam_;
   StereoCamera::ConstPtr stereo_camera_;
   StereoMatcher::UniquePtr stereo_matcher_;
+
+  // Rgbd specific camera
+  RgbdCamera::ConstPtr rgbd_camera_;
 
   // Robust PGO members
   std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;

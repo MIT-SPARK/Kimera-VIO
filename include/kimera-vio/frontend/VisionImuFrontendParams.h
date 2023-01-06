@@ -29,7 +29,9 @@ struct FrontendParams : public PipelineParams {
 
  public:
   void print() const;
+
   bool parseYAML(const std::string& filepath);
+
   bool equals(const FrontendParams& tp2, double tol = 1e-10) const;
 
  protected:

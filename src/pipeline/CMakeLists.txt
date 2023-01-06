@@ -8,5 +8,6 @@ target_sources(kimera_vio
     "${CMAKE_CURRENT_LIST_DIR}/Pipeline.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/Pipeline-definitions.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/QueueSynchronizer.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/RgbdImuPipeline.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/StereoImuPipeline.cpp"
 )

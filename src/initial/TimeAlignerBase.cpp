@@ -55,30 +55,14 @@ void TimeAlignerBase::mergeImuData(const ImuStampS& latest_stamps,
   imu_value_cache_.clear();
 }
 
-inline Frame::UniquePtr getFrameFromOutput(
-    const FrontendOutputPacketBase& output) {
-  switch (output.frontend_type_) {
-    case FrontendType::kMonoImu:
-      return dynamic_cast<const MonoFrontendOutput&>(output)
-          .frame_lkf_.getRansacFrame();
-    case FrontendType::kStereoImu:
-      return dynamic_cast<const StereoFrontendOutput&>(output)
-          .stereo_frame_lkf_.left_frame_.getRansacFrame();
-    default:
-      LOG(ERROR)
-          << "Temporal calibration encountered an unknown frontend output "
-             "type. Giving up and defaulting to a time offset of 0.0 [s]";
-      return nullptr;
-  }
-}
-
 TimeAlignerBase::Result TimeAlignerBase::estimateTimeAlignment(
     Tracker& tracker,
     const FrontendOutputPacketBase& output,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_accgyrs,
     FrontendLogger* logger) {
-  Frame::UniquePtr curr_frame = getFrameFromOutput(output);
+  Frame::UniquePtr curr_frame =
+      CHECK_NOTNULL(output.getTrackingFrame())->getRansacFrame();
   if (!curr_frame) {
     return {true, 0.0};
   }

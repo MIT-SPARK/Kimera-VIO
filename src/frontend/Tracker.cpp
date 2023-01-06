@@ -362,7 +362,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
                                  matches_ref_cur,
                                  &disparity)) {
         if (disparity < tracker_params_.disparityThreshold_) {
-          LOG(ERROR) << "Low mono disparity.";
+          LOG(INFO) << "Low mono disparity.";
           result.first = TrackingStatus::LOW_DISPARITY;
         }
       } else {
@@ -385,7 +385,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
     const StatusKeypointsCV& cur_keypoints_status_right,
     const Landmarks& ref_keypoints_3d,
     const Landmarks& cur_keypoints_3d,
-    StereoCamera::ConstPtr stereo_camera,
+    const gtsam::StereoCamera& stereo_cam,
     const KeypointMatches& matches_ref_cur,
     const gtsam::Rot3& camLrectlkf_R_camLrectkf,
     std::vector<int>* inliers) {
@@ -399,12 +399,6 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
   // Stereo point covariance: for covariance propagation.
   // 3 px std in each direction
   gtsam::Matrix3 stereo_pt_cov = gtsam::Matrix3::Identity();
-
-  // Create stereo camera in the ref frame of the left camera.
-  // TODO(TONI): don't create stereo cameras all the time... and this
-  // stereo_camera should have the camLrect pose...
-  gtsam::StereoCamera stereo_cam(gtsam::Pose3(),
-                                 stereo_camera->getStereoCalib());
 
   double timeMatchingAndAllocation_p =
       utils::Timer::toc(start_time_tic).count();
@@ -544,7 +538,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
     }
     // timeMaxSet += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
   }
-  // std::cout << "timeMahalanobis: " << timeMahalanobis << std::endl
+  // LOG(INFO) << "timeMahalanobis: " << timeMahalanobis << std::endl
   //<< "timeAllocate: " << timeAllocate << std::endl
   //<< "timePushBack: " << timePushBack << std::endl
   //<< "timeMaxSet: " << timeMaxSet << std::endl
@@ -570,7 +564,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
   // Sort inliers.
   std::sort(inliers->begin(), inliers->end());
   // UtilsOpenCV::PrintVector<int>(inliers,"inliers");
-  // std::cout << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
+  // LOG(INFO) << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
 
   VLOG(5) << "RANSAC (STEREO): \n"
           << "- #iter = " << 1 << '\n'
@@ -638,7 +632,7 @@ std::pair<TrackingStatusPose, gtsam::Matrix3>
 Tracker::geometricOutlierRejection3d3dGivenRotation(
     StereoFrame& ref_stereo_frame,
     StereoFrame& cur_stereo_frame,
-    StereoCamera::ConstPtr stereo_camera,
+    const gtsam::StereoCamera& stereo_camera,
     const gtsam::Rot3& camLrectlkf_R_camLrectkf) {
   KeypointMatches matches_ref_cur;
   findMatchingStereoKeypoints(

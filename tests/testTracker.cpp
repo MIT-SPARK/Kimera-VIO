@@ -14,14 +14,14 @@
  * @author Marcus Abate
  */
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
 
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
@@ -1121,7 +1121,10 @@ TEST_F(TestTracker, geometricOutlierRejection3d3dGivenRotation) {
       Matrix3 infoMat;
       tie(poseStatus, infoMat) =
           tracker_->geometricOutlierRejection3d3dGivenRotation(
-              *ref_stereo_frame, *cur_stereo_frame, stereo_camera_, R);
+              *ref_stereo_frame,
+              *cur_stereo_frame,
+              stereo_camera_->getGtsamStereoCam(),
+              R);
 
       TrackingStatus tracking_status = poseStatus.first;
       Pose3 estimated_pose = poseStatus.second;

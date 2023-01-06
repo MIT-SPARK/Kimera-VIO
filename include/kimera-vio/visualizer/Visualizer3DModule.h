@@ -58,6 +58,10 @@ class VisualizerModule
 
   void fillMesherQueue(const VizMesherInput& mesher_payload);
 
+  inline void disableMesherQueue() { mesher_queue_.reset(nullptr); }
+
+  inline void disableLcdQueue() { lcd_queue_.reset(nullptr); }
+
  protected:
   //! Synchronize input queues. Currently doing it in a crude way:
   //! Pop blocking the payload that should be the last to be computed,

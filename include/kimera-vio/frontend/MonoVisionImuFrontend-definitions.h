@@ -24,7 +24,6 @@
 namespace VIO {
 
 using MonoFrontendInputPayload = MonoImuSyncPacket;
-using MonoFrontendParams = FrontendParams;
 
 using MonoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using MonoMeasurements = std::vector<MonoMeasurement>;
@@ -63,6 +62,21 @@ struct MonoFrontendOutput : public FrontendOutputPacketBase {
         feature_tracks_(feature_tracks) {}
 
   virtual ~MonoFrontendOutput() = default;
+
+  virtual const Frame* getTrackingFrame() const override { return &frame_lkf_; }
+
+  virtual const cv::Mat* getTrackingImage() const override {
+    return &feature_tracks_;
+  }
+
+  virtual const gtsam::Pose3* getBodyPoseCam() const override {
+    return &b_Pose_cam_rect_;
+  }
+
+  virtual const TrackerStatusSummary* getTrackerStatus() const override {
+    return status_mono_measurements_ ? &(status_mono_measurements_->first)
+                                     : nullptr;
+  }
 
  public:
   const StatusMonoMeasurementsPtr status_mono_measurements_;

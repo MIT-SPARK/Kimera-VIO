@@ -14,16 +14,15 @@
 
 #include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
 
-#include <algorithm>      // for min
-#include <memory>         // for shared_ptr<>
+#include <gflags/gflags.h>
+
+#include <algorithm>  // for min
+#include <memory>     // for shared_ptr<>
+#include <opencv2/viz.hpp>
 #include <string>         // for string
 #include <unordered_map>  // for unordered_map<>
 #include <utility>        // for pair<>
 #include <vector>         // for vector<>
-
-#include <gflags/gflags.h>
-
-#include <opencv2/viz.hpp>
 // To convert from/to eigen
 #include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/nonlinear/LinearContainerFactor.h>
@@ -118,14 +117,11 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   output->visualization_type_ = visualization_type_;
 
   cv::Mat mesh_2d_img;  // Only for visualization.
-  const Frame& left_stereo_keyframe =
-      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
-          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                input.frontend_output_)
-                ->stereo_frame_lkf_.left_frame_
-          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                input.frontend_output_)
-                ->frame_lkf_;
+  const Frame* left_stereo_keyframe =
+      input.frontend_output_->getTrackingFrame();
+  CHECK(left_stereo_keyframe)
+      << "Attempting to retrieve frame from malformed frontend output";
+
   switch (visualization_type_) {
     // Computes and visualizes 3D mesh from 2D triangulation.
     // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
@@ -141,7 +137,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
         const ImageToDisplay& mesh_display = ImageToDisplay(
             "Mesh 2D",
             visualizeMesh2DStereo(input.mesher_output_->mesh_2d_for_viz_,
-                                  left_stereo_keyframe));
+                                  *left_stereo_keyframe));
         if (FLAGS_visualize_mesh_2d) {
           output->images_to_display_.push_back(mesh_display);
         }
@@ -333,13 +329,14 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
       mesh_3d_viz_props_prev =
           // Call semantic mesh segmentation if someone registered a callback.
           mesh3d_viz_properties_callback_
-              ? mesh3d_viz_properties_callback_(left_stereo_keyframe.timestamp_,
-                                                left_stereo_keyframe.img_,
-                                                input.mesher_output_->mesh_2d_,
-                                                input.mesher_output_->mesh_3d_)
+              ? mesh3d_viz_properties_callback_(
+                    left_stereo_keyframe->timestamp_,
+                    left_stereo_keyframe->img_,
+                    input.mesher_output_->mesh_2d_,
+                    input.mesher_output_->mesh_3d_)
               : (FLAGS_texturize_3d_mesh ? OpenCvVisualizer3D::texturizeMesh3D(
-                                               left_stereo_keyframe.timestamp_,
-                                               left_stereo_keyframe.img_,
+                                               left_stereo_keyframe->timestamp_,
+                                               left_stereo_keyframe->img_,
                                                input.mesher_output_->mesh_2d_,
                                                input.mesher_output_->mesh_3d_)
                                          : Mesh3DVizProperties()),
@@ -368,13 +365,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   // First, add current pose to trajectory
   VLOG(10) << "Starting trajectory visualization...";
   const gtsam::Pose3& b_Pose_cam_Lrect =
-      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
-          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                input.frontend_output_)
-                ->b_Pose_camL_rect_
-          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                input.frontend_output_)
-                ->b_Pose_cam_rect_;
+      *CHECK_NOTNULL(input.frontend_output_->getBodyPoseCam());
   addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
       input.backend_output_->W_State_Blkf_.pose_.compose(b_Pose_cam_Lrect)));
   // Generate line through all poses
@@ -385,34 +376,22 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   visualizePoseWithImgInFrustum(
       FLAGS_visualize_mesh_in_frustum
           ? mesh_2d_img
-          : input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
-                ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                      input.frontend_output_)
-                      ->feature_tracks_
-                : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                      input.frontend_output_)
-                      ->feature_tracks_,
+          : *CHECK_NOTNULL(input.frontend_output_->getTrackingImage()),
       trajectory_poses_3d_.back(),
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
 
   // Visualize the factor-graph in 3D, this trajectory might be different
   // than the one above!
-  visualizeFactorGraph(
-      input.backend_output_->state_,
-      input.backend_output_->factor_graph_,
-      b_Pose_cam_Lrect,
-      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
-          ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                input.frontend_output_)
-                ->b_Pose_camR_rect_
-          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                input.frontend_output_)
-                ->b_Pose_cam_rect_,  // TODO(marcus): should be null
-      &output->widgets_);
+  visualizeFactorGraph(input.backend_output_->state_,
+                       input.backend_output_->factor_graph_,
+                       b_Pose_cam_Lrect,
+                       input.frontend_output_->getBodyPoseCamRight(),
+                       &output->widgets_);
 
-  // Visualize frontend data
-  visualizeFrontend(input.frontend_output_, W_Pose_Bllkf_, &output->widgets_);
+  // Visualize frontend RANSAC data
+  visualizeFrontendRansac(
+      input.frontend_output_, W_Pose_Bllkf_, &output->widgets_);
 
   // Add widgets to remove
   output->widget_ids_to_remove_ = widget_ids_to_remove_;
@@ -424,83 +403,52 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   return output;
 }
 
-void OpenCvVisualizer3D::visualizeFrontend(
+void OpenCvVisualizer3D::visualizeFrontendRansac(
     const FrontendOutputPacketBase::Ptr& frontend_output,
     const gtsam::Pose3& W_Pose_Bllkf,
     WidgetsMap* widgets) {
   CHECK(frontend_output);
-  if (frontend_output->frontend_type_ == FrontendType::kStereoImu) {
-    visualizeStereoFrontend(
-        VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-            frontend_output),
-        W_Pose_Bllkf,
-        widgets);
-  } else {
-    visualizeMonoFrontend(
-        VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-            frontend_output),
-        W_Pose_Bllkf,
-        widgets);
+  CHECK_NOTNULL(widgets);
+
+  const auto status = frontend_output->getTrackerStatus();
+  const gtsam::Pose3 b_T_c = *CHECK_NOTNULL(frontend_output->getBodyPoseCam());
+
+  if (!status) {
+    VLOG(3) << "RANSAC tracking status not available to visualize";
+    return;
   }
-}
 
-void OpenCvVisualizer3D::visualizeMonoFrontend(
-    const MonoFrontendOutput::Ptr& mono_frontend_output,
-    const gtsam::Pose3& W_Pose_Bllkf,
-    WidgetsMap* widgets) {
-  CHECK(mono_frontend_output);
-  CHECK_NOTNULL(widgets);
-}
+  //! Draw Pnp guess.
+  if (status->kfTracking_status_pnp_ == TrackingStatus::VALID) {
+    std::string pnp_cam_id =
+        "pnp pose " + std::to_string(frontend_output->timestamp_);
+    (*widgets)[pnp_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, pnp_guess_frustum_scale_, pnp_guess_frustum_color_);
+    (*widgets)[pnp_cam_id]->setPose(
+        UtilsOpenCV::gtsamPose3ToCvAffine3d(status->W_T_k_pnp_));
+    widget_ids_to_remove_in_next_iter_.push_back(pnp_cam_id);
+  }
 
-void OpenCvVisualizer3D::visualizeStereoFrontend(
-    const StereoFrontendOutput::Ptr& stereo_frontend_output,
-    const gtsam::Pose3& W_Pose_Bllkf,
-    WidgetsMap* widgets) {
-  CHECK(stereo_frontend_output);
-  CHECK_NOTNULL(widgets);
-  //! Draw initial guesses from mono, stereo, and pnp.
-  const StatusStereoMeasurementsPtr& status_stereo_measurements =
-      stereo_frontend_output->status_stereo_measurements_;
-  if (status_stereo_measurements) {
-    const TrackerStatusSummary& tracking_status =
-        status_stereo_measurements->first;
+  //! Draw Stereo RANSAC guess.
+  if (status->kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
+    std::string stereo_cam_id =
+        "stereo pose " + std::to_string(frontend_output->timestamp_);
+    (*widgets)[stereo_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, stereo_guess_frustum_scale_, stereo_guess_frustum_color_);
+    (*widgets)[stereo_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
+        W_Pose_Bllkf * b_T_c * status->lkf_T_k_stereo_));
+    widget_ids_to_remove_in_next_iter_.push_back(stereo_cam_id);
+  }
 
-    //! Draw Pnp guess.
-    if (tracking_status.kfTracking_status_pnp_ == TrackingStatus::VALID) {
-      std::string pnp_cam_id =
-          "pnp pose " + std::to_string(stereo_frontend_output->timestamp_);
-      (*widgets)[pnp_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, pnp_guess_frustum_scale_, pnp_guess_frustum_color_);
-      (*widgets)[pnp_cam_id]->setPose(
-          UtilsOpenCV::gtsamPose3ToCvAffine3d(tracking_status.W_T_k_pnp_));
-      widget_ids_to_remove_in_next_iter_.push_back(pnp_cam_id);
-    }
-
-    //! Draw Stereo RANSAC guess.
-    if (tracking_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
-      std::string stereo_cam_id =
-          "stereo pose " + std::to_string(stereo_frontend_output->timestamp_);
-      (*widgets)[stereo_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, stereo_guess_frustum_scale_, stereo_guess_frustum_color_);
-      (*widgets)[stereo_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-          W_Pose_Bllkf * stereo_frontend_output->b_Pose_camL_rect_ *
-          tracking_status.lkf_T_k_stereo_));
-      widget_ids_to_remove_in_next_iter_.push_back(stereo_cam_id);
-    }
-
-    //! Draw Mono RANSAC guess.
-    if (tracking_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
-      std::string mono_cam_id =
-          "mono pose " + std::to_string(stereo_frontend_output->timestamp_);
-      (*widgets)[mono_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
-          K_, mono_guess_frustum_scale_, mono_guess_frustum_color_);
-      (*widgets)[mono_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
-          W_Pose_Bllkf * stereo_frontend_output->b_Pose_camL_rect_ *
-          tracking_status.lkf_T_k_mono_));
-      widget_ids_to_remove_in_next_iter_.push_back(mono_cam_id);
-    }
-  } else {
-    VLOG(5) << "No stereo measurements, not 3D visualizing stereo frontend...";
+  //! Draw Mono RANSAC guess.
+  if (status->kfTrackingStatus_mono_ == TrackingStatus::VALID) {
+    std::string mono_cam_id =
+        "mono pose " + std::to_string(frontend_output->timestamp_);
+    (*widgets)[mono_cam_id] = VIO::make_unique<cv::viz::WCameraPosition>(
+        K_, mono_guess_frustum_scale_, mono_guess_frustum_color_);
+    (*widgets)[mono_cam_id]->setPose(UtilsOpenCV::gtsamPose3ToCvAffine3d(
+        W_Pose_Bllkf * b_T_c * status->lkf_T_k_mono_));
+    widget_ids_to_remove_in_next_iter_.push_back(mono_cam_id);
   }
 }
 
@@ -508,7 +456,7 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
     const gtsam::Values& state,
     const gtsam::NonlinearFactorGraph& factor_graph,
     const gtsam::Pose3& body_pose_camLrect,
-    const gtsam::Pose3& body_pose_camRrect,
+    const gtsam::Pose3* body_pose_camRrect,
     WidgetsMap* widgets_map) {
   CHECK_NOTNULL(widgets_map);
   // Assert consistency between state and factor_graph
@@ -576,9 +524,9 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
       }
 
       // Right Cam
-      if (draw_right_cam) {
+      if (body_pose_camRrect != nullptr) {
         const gtsam::Pose3& world_pose_camRrect =
-            imu_pose.compose(body_pose_camRrect);
+            imu_pose.compose(*body_pose_camRrect);
         drawRightCam(world_pose_camRrect, variable_index, widgets_map);
       }
 
