@@ -221,13 +221,13 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     default: {
       kfTrackingStatus_mono == TrackingStatus::VALID
           ? VLOG(1) << "Tracker has a VALID status."
-      : kfTrackingStatus_mono == TrackingStatus::FEW_MATCHES
-          ? VLOG(1) << "Tracker has a FEW_MATCHES status."
-      : kfTrackingStatus_mono == TrackingStatus::INVALID
-          ? VLOG(1) << "Tracker has a INVALID status."
-      : kfTrackingStatus_mono == TrackingStatus::DISABLED
-          ? VLOG(1) << "Tracker has a DISABLED status."
-          : VLOG(10) << "";
+          : kfTrackingStatus_mono == TrackingStatus::FEW_MATCHES
+                ? VLOG(1) << "Tracker has a FEW_MATCHES status."
+                : kfTrackingStatus_mono == TrackingStatus::INVALID
+                      ? VLOG(1) << "Tracker has a INVALID status."
+                      : kfTrackingStatus_mono == TrackingStatus::DISABLED
+                            ? VLOG(1) << "Tracker has a DISABLED status."
+                            : VLOG(10) << "";
 
       if (kfTrackingStatus_mono == TrackingStatus::VALID) {
         // Extract lmk ids that are involved in a regularity.
