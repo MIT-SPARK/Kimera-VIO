@@ -90,7 +90,8 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
              "odometry source is disabled! Measurements will be ignored";
       return;
     }
-    external_odometry_buffer_->add(odom.timestamp_, odom.odom_data_);
+    external_odometry_buffer_->add(
+        odom.timestamp_ + external_odometry_time_shift_ns_, odom.odom_data_);
   }
 
   /**
@@ -115,6 +116,19 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
    */
   inline void setImuTimeShift(const double& imu_time_shift_s) {
     imu_time_shift_ns_ = UtilsNumerical::SecToNsec(imu_time_shift_s);
+  }
+
+  /**
+   * @brief Set the "fine" timestamp correction between the External odometry
+   * and Camera
+   *
+   * Apply the estimate of the delay between the external
+   * odometry and Camera.
+   */
+  inline void setExternalOdometryTimeShift(
+      const double& external_odometry_time_shift_s) {
+    external_odometry_time_shift_ns_ =
+        UtilsNumerical::SecToNsec(external_odometry_time_shift_s);
   }
 
  protected:
@@ -163,6 +177,7 @@ class DataProviderModule : public MISOPipelineModule<FrontendInputPacketBase,
   bool do_coarse_imu_camera_temporal_sync_;
   Timestamp imu_timestamp_correction_;
   std::atomic<Timestamp> imu_time_shift_ns_;  // t_imu = t_cam + imu_shift
+  std::atomic<Timestamp> external_odometry_time_shift_ns_;
   PipelineOutputCallback vio_pipeline_callback_;
   //! External odometry source
   ThreadsafeOdometryBuffer::UniquePtr external_odometry_buffer_;

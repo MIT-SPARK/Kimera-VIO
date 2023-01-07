@@ -43,6 +43,7 @@ protected:
   double velocityPrecision_ = 0.0;
 
   double nominal_sampling_time_s_ = 0.0;
+  double time_shift_s_ = 0.0;
 };
 
 }  // namespace VIO
