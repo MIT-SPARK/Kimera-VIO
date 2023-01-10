@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y xvfb
 RUN apt-get update && apt-get install -y libboost-all-dev
 ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
-RUN cd gtsam && git checkout 686e16aaae26c9a4f23d4af7f2d4a504125ec9c3
+RUN cd gtsam && git checkout 6425000775da29c93719f37dce3f2de38a0064ec
 RUN cd gtsam && \
     git fetch && \
     mkdir build && \
