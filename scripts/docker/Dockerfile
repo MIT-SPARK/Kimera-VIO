@@ -84,7 +84,7 @@ RUN cd Kimera-RPGO && \
 
 ## [Optional] Install Kimera-VIO-Evaluation from PyPI
 RUN apt-get update && \
-    apt-get install software-properties-common -y
+    apt-get install software-properties-common libffi-dev -y  
 # Get python3
 RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa
