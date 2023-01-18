@@ -37,7 +37,7 @@ public:
         , kimera_pipeline(kimera_pipeline_params)
         , _m_pose{sb->get_writer<pose_type>("slow_pose")}
         , _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
-        , cam{nullptr}
+        , cam_buffer{nullptr}
         , _m_cam{sb->get_buffered_reader<cam_type>("cam")}
     {
         // TODO: read Kimera flag file path from runner and find a better way of passing it to gflag
@@ -85,15 +85,30 @@ public:
         imu_raw_vals << datum->linear_a.cast<double>(), datum->angular_v.cast<double>();
 
         // Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
-        // assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
         kimera_pipeline.fillSingleImuQueue(VIO::ImuMeasurement(datum->time.time_since_epoch().count(), imu_raw_vals));
 
-		// Buffered Async:
-		cam = _m_cam.size() == 0 ? nullptr : _m_cam.dequeue();
-		// If there is not cam data this func call, break early
-		if (!cam) {
-			return;
-		}
+        // To prevent a cam pair from going downstream prematurely (before all the imu samples earlier than the cam are received),
+        // we check its timestamp against the latest imu's timestamp. If the timestamp of the cam is larger than
+        // that of the latest imu, we buffer the cam until we receive a imu sample whose timestamp is equal to or
+        // larger than the cam.
+        if (cam_buffer) {
+            if (cam_buffer->time <= datum->time) {
+                cam = cam_buffer;
+                cam_buffer = nullptr;
+            } else {
+                return;
+            }
+        } else {
+            cam = _m_cam.size() == 0 ? nullptr : _m_cam.dequeue();
+            // If there is not cam data this func call, break early
+            if (!cam) {
+                return;
+            }
+            if (cam->time > datum->time) {
+                cam_buffer = cam;
+                return;
+            }
+        }
 
 #ifdef CV_HAS_METRICS
         cv::metrics::setAccount(new std::string{std::to_string(iteration_no)});
@@ -112,10 +127,10 @@ public:
         VIO::CameraParams left_cam_info = kimera_pipeline_params.camera_params_.at(0);
         VIO::CameraParams right_cam_info = kimera_pipeline_params.camera_params_.at(1);
         kimera_pipeline.fillLeftFrameQueue(VIO::make_unique<VIO::Frame>(kimera_current_frame_id,
-																	datum->time.time_since_epoch().count(),
+																	cam->time.time_since_epoch().count(),
                                                                     left_cam_info, img0));
         kimera_pipeline.fillRightFrameQueue(VIO::make_unique<VIO::Frame>(kimera_current_frame_id,
-																	datum->time.time_since_epoch().count(),
+																	cam->time.time_since_epoch().count(),
                                                                     right_cam_info, img1));
 
 		// Ok this needs to be filed in a later task to dig up what sets errno in Kimera
@@ -197,6 +212,7 @@ private:
     VIO::Pipeline kimera_pipeline;
     
     switchboard::ptr<const cam_type> cam;
+    switchboard::ptr<const cam_type> cam_buffer;
 	switchboard::buffered_reader<cam_type> _m_cam;
     time_point previous_timestamp = time_point{duration{-1}};
 };
