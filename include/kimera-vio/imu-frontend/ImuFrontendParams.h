@@ -51,6 +51,7 @@ protected:
   double imu_integration_sigma_ = 0.0;
 
   gtsam::Vector3 n_gravity_ = gtsam::Vector3::Zero();
+  gtsam::Pose3 body_Pose_imu_; // Pose of IMU w.r.t Body
 };
 
 }  // namespace VIO

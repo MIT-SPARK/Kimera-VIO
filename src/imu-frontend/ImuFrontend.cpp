@@ -231,4 +231,8 @@ ImuFrontend::generateRegularImuParams(const ImuParams& imu_params) {
   return regular_imu_params;
 }
 
+gtsam::Pose3 ImuFrontend::getBodyPoseImu(){
+  return imu_params_.body_Pose_imu_;
+}
+
 }  // namespace VIO

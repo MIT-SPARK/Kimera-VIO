@@ -110,6 +110,7 @@ public:
  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamp& imu_stamps,
                                           const ImuAccGyr& imu_accgyr) = delete;
 
+
  /* ------------------------------------------------------------------------ */
  // This should be called by the Backend, whenever there
  // is a new imu bias estimate. Note that we only store the new
@@ -193,6 +194,9 @@ public:
 
   static boost::shared_ptr<gtsam::PreintegratedImuMeasurements::Params>
   generateRegularImuParams(const ImuParams& imu_params);
+
+  // Pose of IMU w.r.t Body
+  gtsam::Pose3 getBodyPoseImu();
 
  private:
   void initializeImuFrontend(const ImuBias& imu_bias);

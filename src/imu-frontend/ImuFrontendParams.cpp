@@ -43,8 +43,7 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   // CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
-  const gtsam::Pose3& body_Pose_cam =
-      UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
+  body_Pose_imu_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: IMU is usually chosen as the body frame.
   // LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3::Identity()))
