@@ -1,0 +1,34 @@
+%YAML:1.0
+# General sensor definitions.
+camera_id: left_cam
+
+# Sensor extrinsics wrt. the body-frame.
+T_BS:
+  cols: 4
+  rows: 4
+  data: [ 1.000,  0.000,  0.000,  -0.075,  # got from -> ros2 run tf2_ros tf2_echo world left_camera
+          0.000,  1.000,  0.000,   0.001,  # TODO(saching): But is the direction of tf correct ?
+          0.000,  0.000,  1.000,   0.000,
+          0.000,  0.000,  0.000,   1.000]
+
+
+# Camera specific definitions.
+rate_hz: 30
+resolution: [1280, 720]
+camera_model: pinhole
+intrinsics: [803.0302124, 808.99627686, 621.92236328, 383.08587646] #fu, fv, cu, cv
+distortion_model: radial-tangential
+distortion_coefficients: [-9.614694595336914, 93.05743408203125, 0.00044157583033666015, 0.000760012655518949, -63.35219955444336, -9.665799140930176, 92.62857055664062, -61.96283721923828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+
+
+# ros2 run tf2_ros tf2_echo world left_camera
+
+
+
+
+# WRT IMU
+  # data: [-0.0000038,  1.0000000,  0.0000027,  -0.00231,
+  #        1.0000000,   0.0000038,  0.0000000,   -0.06935,
+  #        -0.0000000,  0.0000027, -1.0000000,   0.0,
+  #        0.0, 0.0, 0.0, 1.0]

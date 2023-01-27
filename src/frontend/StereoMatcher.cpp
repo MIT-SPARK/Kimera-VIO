@@ -363,7 +363,7 @@ void StereoMatcher::searchRightKeypointEpipolar(
 
   // Compensate when the template falls off the image
   int offset_stripe = 0;
-  // y-component of upper left corner of stripe
+  // x-component of upper left corner of stripe
   int stripe_corner_x = rounded_left_rectified_i_x +
                         (stereo_matching_params.templ_cols_ - 1) / 2 -
                         stripe_cols;
@@ -401,6 +401,7 @@ void StereoMatcher::searchRightKeypointEpipolar(
   // do we need to normalize??
 
   // Position within the result matrix
+  // TODO(saching): Why is offset_temp added back again. to cross check this later
   cv::Point matchLoc = min_loc;
   matchLoc.x += stripe_corner_x + (stereo_matching_params.templ_cols_ - 1) / 2 +
                 offset_temp;

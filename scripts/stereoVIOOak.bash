@@ -14,10 +14,10 @@ LOG_OUTPUT=0
 # All paths can be absolute or relative to this file location.
 
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../buildParallel"
+BUILD_PATH="../buildParallels"
 
 # Params path: specify where the parameters for Kimera are.
-PARAMS_PATH="../params/OAK-D"
+PARAMS_PATH="../params/OAK-D-mod"
 # PARAMS_PATH="../params/EurocMono"  # use this for monocular-mode (left cam only)
 
 # Vocabulary path: specify where the vocabulary for loop closure is.
@@ -82,16 +82,16 @@ $BUILD_PATH/stereoVIO_OAKD \
   --logtostderr=1 \
   --colorlogtostderr=1 \
   --log_prefix=1 \
-  --v=0 \
-  --vmodule=Pipeline*=00 \
+  --v=5 \
   --log_output="$LOG_OUTPUT" \
-  --save_frontend_images=1 \
-  --visualize_frontend_images=1 \
+  --save_frontend_images=0 \
+  --visualize_frontend_images=0 \
   --output_path="$OUTPUT_PATH" \
   --logbuflevel=1 \
   --log_stereo_matching_images \
-  --visualize_feature_predictions \
-  --v 2
+  --visualize_feature_predictions
+
+  # --vmodule=Pipeline*=00 \
 
 
 

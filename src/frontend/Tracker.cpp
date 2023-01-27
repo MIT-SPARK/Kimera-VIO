@@ -130,6 +130,7 @@ void Tracker::featureTracking(Frame* ref_frame,
   VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
 
   // TODO(Toni): use the error to further take only the best tracks?
+  // TODO(saching): use the error to further take only the best tracks?
 
   // At this point cur_frame should have no keypoints...
   CHECK(cur_frame->keypoints_.empty());
@@ -348,7 +349,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   LOG_IF(ERROR, !median_disparity_success)
       << "Median disparity calculation failed...";
 
-  VLOG(5) << "median disparity " << disparity;
+  VLOG(5) << "median disparity -> " << disparity;
   if (disparity < tracker_params_.disparityThreshold_) {
     VLOG(5) << "LOW_DISPARITY: " << disparity;
     status = TrackingStatus::LOW_DISPARITY;

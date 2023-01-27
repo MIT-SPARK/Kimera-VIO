@@ -67,8 +67,8 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
 
   // Initialization done, set state to nominal
   frontend_state_ = FrontendState::Nominal;
+  VLOG(4) <<" Relative pose of Curr Stereo frame w.r.t body frame in bootstrapSpinStereo -> " << getRelativePoseBodyStereo();
 
-  // Create mostly unvalid output, to send the imu_acc_gyrs to the Backend.
   CHECK(stereoFrame_lkf_);
   return VIO::make_unique<StereoFrontendOutput>(
       stereoFrame_lkf_->isKeyframe(),
@@ -110,7 +110,6 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
   // Actually, currently does not integrate fake interpolated meas as it does
   // not take the last measurement into account (although it takes its stamp
   // into account!!!). 
-  // TOFO(Saching): Cross validate this IMU logic here
   auto tic_full_preint = utils::Timer::tic();
   const ImuFrontend::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
       input->getImuStamps(), input->getImuAccGyrs());
@@ -125,15 +124,25 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
       << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
       << " Hz. (" << full_preint_duration << " us).";
 
-  // On the left camera rectified!! pose e.r.t body
+  // On the left camera rectified!! pose w.r.t body
   const gtsam::Rot3 body_Rot_cam =
       stereo_camera_->getBodyPoseLeftCamRect().rotation();
   const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
+  
+  // IMU pose w.r.t body
+  gtsam::Rot3 body_R_imu = imu_frontend_->getBodyPoseImu().rotation();
+  gtsam::Rot3 imu_R_body = body_R_imu.inverse();
+
+  // pim.deltaRij() corresponds to imuLKF_R_K_imu
+  gtsam::Rot3 imuLKF_R_K_imu = pim->deltaRij();
+  gtsam::Rot3 bodyImuLkf_R_bodyK_imu = body_R_imu * imuLKF_R_K_imu * imu_R_body;
+  VLOG(4) <<" Relative rotation of Curr IMU frame w.r.t IMU at LKF -> " << imuLKF_R_K_imu;
+  VLOG(4) <<" Relative rotation of Curr Body frame w.r.t Previuos Body Frame at LKF using IMU only -> " << bodyImuLkf_R_bodyK_imu;
 
   // Relative rotation of the left cam rectified from the last keyframe to the
-  // curr frame. pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
+  // curr frame.
   gtsam::Rot3 camLrectLkf_R_camLrectK_imu =
-      cam_Rot_body * pim->deltaRij() * body_Rot_cam;
+      cam_Rot_body * bodyImuLkf_R_bodyK_imu * body_Rot_cam;
 
   if (VLOG_IS_ON(10)) {
     body_Rot_cam.print("Body_Rot_cam");
@@ -249,7 +258,7 @@ void StereoVisionImuFrontend::processFirstStereoFrame(
   // Perform feature detection.
   CHECK(feature_detector_);
   feature_detector_->featureDetection(left_frame, stereo_camera_->getR1());
-
+  
   // Get 3D points via stereo.
   stereo_matcher_.sparseStereoReconstruction(stereoFrame_k_.get());
 
@@ -285,6 +294,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // TODO this copies the stereo frame!!
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
   Frame* left_frame_k = &stereoFrame_k_->left_frame_;
+  LOG(WARNING) << "Features in the previous frame -> " << stereoFrame_km1_->left_frame_.keypoints_.size();
 
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
@@ -295,6 +305,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
                            left_frame_k,
                            ref_frame_R_cur_frame,
                            stereo_camera_->getR1());
+
   if (feature_tracks) {
     // TODO(Toni): these feature tracks are not outlier rejected...
     // TODO(Toni): this image should already be computed and inside the
@@ -302,7 +313,9 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     // if it is sent to the tracker.
     *feature_tracks = tracker_->getTrackerImage(stereoFrame_lkf_->left_frame_,
                                                stereoFrame_k_->left_frame_);
+    LOG(WARNING) << "getting feature_tracks image w.r.t Key frame ............... " ;
   }
+
   VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
 
@@ -445,6 +458,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
     // cur_frame in current iteration).
     keyframe_R_ref_frame_ = keyframe_R_cur_frame;
   }
+  VLOG(4) <<" Relative pose of Curr Stereo frame w.r.t body frame in Stereo process -> " << getRelativePoseBodyStereo();
 
   // Reset frames.
   stereoFrame_km1_ = stereoFrame_k_;

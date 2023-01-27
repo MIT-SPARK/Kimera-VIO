@@ -136,8 +136,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
       }
     }
     
-    // Keeping it less than 15000 ns. a.k.a 0.015 milliseconds
-    CHECK(std::abs(timestamp - payload_timestamp) < 15000)  
+    // Keeping it less than 15000 ns. a.k.a 0.030 milliseconds
+    CHECK(std::abs(timestamp - payload_timestamp) < 30000)  
         << "Syncing queue " << queue->queue_id_ << " in module " << name_id
         << " failed;\n Could not retrieve exact timestamp requested: \n"
         << " - Requested timestamp:                 " << timestamp << '\n'

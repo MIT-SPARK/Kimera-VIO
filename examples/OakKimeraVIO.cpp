@@ -48,11 +48,11 @@ dai::Pipeline createPipeline(){
       imu->enableIMUSensor(dai::IMUSensor::GYROSCOPE_RAW, 400);
 
       // min number of imu msgs in batch of X, if the host is not blocked and USB bandwidth is available
-      imu->setBatchReportThreshold(8);
+      imu->setBatchReportThreshold(15);
       // maximum number of IMU packets in a batch, if it's reached device will block sending until host can receive it
       // if lower or equal to batchReportThreshold then the sending is always blocking on device
       // useful to reduce device's CPU load  and number of lost packets, if CPU load is high on device side due to multiple nodes
-      imu->setMaxBatchReports(20);
+      imu->setMaxBatchReports(25);
 
       auto xoutImu = pipeline.create<dai::node::XLinkOut>();
       auto xoutL = pipeline.create<dai::node::XLinkOut>();
@@ -191,22 +191,25 @@ int main(int argc, char* argv[]) {
   dai::Pipeline pipeline = createPipeline();
   auto daiDevice = std::make_shared<dai::Device>(pipeline);
 
-  auto leftQueue = daiDevice->getOutputQueue("left", 30, false);
-  auto rightQueue = daiDevice->getOutputQueue("right", 30, false);
-  auto imuQueue = daiDevice->getOutputQueue("imu", 30, false);
+  auto leftQueue = daiDevice->getOutputQueue("left", 10, false);
+  auto rightQueue = daiDevice->getOutputQueue("right", 10, false);
+  auto imuQueue = daiDevice->getOutputQueue("imu", 10, false);
 
   VIO::OAKDataProvider::Ptr oak_data_parser =
         VIO::safeCast<VIO::DataProviderInterface, VIO::OAKDataProvider>(dataset_parser);
-  leftQueue->addCallback(std::bind(&VIO::OAKDataProvider::leftImageCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
-  rightQueue->addCallback(std::bind(&VIO::OAKDataProvider::rightImageCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
-  imuQueue->addCallback(std::bind(&VIO::OAKDataProvider::imuCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
 
 // ---------------------------ASYNC Launch-------------------------------- //
+  oak_data_parser->setQueues(leftQueue, rightQueue, imuQueue);
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
   if (vio_params.parallel_run_) {
+
+    // leftQueue->addCallback(std::bind(&VIO::OAKDataProvider::leftImageCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
+    // rightQueue->addCallback(std::bind(&VIO::OAKDataProvider::rightImageCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
+    // imuQueue->addCallback(std::bind(&VIO::OAKDataProvider::imuCallback, oak_data_parser, std::placeholders::_1, std::placeholders::_2));
+
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              dataset_parser);
@@ -218,7 +221,7 @@ int main(int argc, char* argv[]) {
         std::async(std::launch::async,
                    &VIO::Pipeline::shutdownWhenFinished,
                    vio_pipeline,
-                   500,
+                   800,
                    true);
     vio_pipeline->spinViz();
     is_pipeline_successful = !handle.get();

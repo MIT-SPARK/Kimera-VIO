@@ -39,6 +39,11 @@ bool DataProviderModule::getTimeSyncedImuMeasurements(
     return false;
   }
 
+    VLOG(4) << "Last frame timestamp: " << timestamp_last_frame_;
+    VLOG(4) << "current frame timestamp: " << timestamp;
+    VLOG(4) << "IMU buffer size: " << imu_data_.imu_buffer_.size();
+    
+
   // Extract imu measurements between consecutive frames.
   if (timestamp_last_frame_ == kNoFrameYet) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to

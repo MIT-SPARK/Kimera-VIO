@@ -72,7 +72,19 @@ class StereoDataProviderModule : public MonoDataProviderModule {
 
   //! Checks if the module has work to do (should check input queues are empty)
   inline bool hasWork() const override {
-    return MonoDataProviderModule::hasWork() || !right_frame_queue_.empty();
+    // THis module fails if there is a slight delay in feeding the frames. 
+    // So current idea is to poll and check it for 40ms every 5ms before returning that queue is empty
+    // TODO(saching): Maybe look for a better way to optimize this logic 
+    /* bool has_work = MonoDataProviderModule::hasWork() || !right_frame_queue_.empty();
+    int count = 0;
+    int max_count = 8;
+    while (!has_work and count < max_count) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      count++;
+      has_work = MonoDataProviderModule::hasWork() || !right_frame_queue_.empty();
+    }
+    return has_work; */
+    return true;
   }
 
  private:

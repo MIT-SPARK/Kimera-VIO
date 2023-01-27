@@ -87,6 +87,8 @@ bool Pipeline::spin() {
   // Feed data to the pipeline
   CHECK(data_provider_module_);
   LOG(INFO) << "Spinning Kimera-VIO.";
+  VLOG(5) << printStatus();
+  // PipelineModule has the spin for data_provider_module_ which is inherited
   return data_provider_module_->spin();
 }
 
@@ -198,6 +200,22 @@ bool Pipeline::hasFinished() const {
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
+  LOG(INFO) << "data_provider_module_->isWorking()  >-> "  << data_provider_module_->isWorking();
+  LOG(INFO) << "frontend_input_queue_->isShutdown() >-> "  << frontend_input_queue_.isShutdown();
+  LOG(INFO) << "frontend_input_queue_->empty()      >-> "  << frontend_input_queue_.empty();
+  LOG(INFO) << "vio_frontend_module_->isWorking()   >-> "  << vio_frontend_module_->isWorking();
+  LOG(INFO) << "backend_input_queue_->isShutdown()  >-> "  << backend_input_queue_.isShutdown();
+  LOG(INFO) << "backend_input_queue_->empty()       >-> "  << backend_input_queue_.empty();
+  LOG(INFO) << "vio_backend_module_->isWorking()    >-> "  << vio_backend_module_->isWorking();
+
+  LOG(INFO) << "~mesher_module_->isWorking()        >-> "  << (mesher_module_ ? !mesher_module_->isWorking() : false);
+  LOG(INFO) << "~lcd_module_->isWorking()           >-> "  << (lcd_module_ ? !lcd_module_->isWorking() : false);
+  LOG(INFO) << "~visualizer_module_->isWorking()    >-> "  << (visualizer_module_ ? !visualizer_module_->isWorking() : false);
+  LOG(INFO) << "display_module_->isWorking()        >-> "  << (display_module_ ? !display_module_->isWorking() : false);
+
+  LOG(INFO) << "display_input_queue_->isShutdown()  >-> "  << display_input_queue_.isShutdown();
+  LOG(INFO) << "display_input_queue_->empty()       >-> "  << display_input_queue_.empty();
+  
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.

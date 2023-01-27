@@ -67,23 +67,21 @@ void OAKDataProvider::setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue
 bool OAKDataProvider::spin() {
     // Spin.
     CHECK_EQ(vio_params_.camera_params_.size(), 2u);
+  LOG(INFO) << "Data OAKDataProvider Interface: <-------------- Spinning -------------->";
 
     while (!shutdown_) {
-      /* 
-        TODO(saching): Add sequential callbacks for queues to cross check in sequencial mode. But would ne needed most lieky with dataset
-      */
-      if (!vio_params_.parallel_run_) {
+
         std::shared_ptr<dai::ADatatype> left_image       = left_queue_->get<dai::ADatatype>();
         std::shared_ptr<dai::ADatatype> right_image      = right_queue_->get<dai::ADatatype>();
         std::shared_ptr<dai::ADatatype> imu_measurements = imu_queue_->get<dai::ADatatype>();
         
         std::string name = "";
-        leftImageCallback(name, left_image);
-        rightImageCallback(name, right_image);
         imuCallback(name, imu_measurements);
-        return true;
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        syncImageSend(left_image, right_image);
+        if (!vio_params_.parallel_run_) {
+            return true;
+        }
+    //   std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   LOG_IF(INFO, shutdown_) << "OAKD DataProvider shutdown requested.";
   return false;
@@ -117,6 +115,34 @@ void OAKDataProvider::rightImageCallback(std::string name, std::shared_ptr<dai::
                                 imageFrame));
 }
 
+void OAKDataProvider::syncImageSend(std::shared_ptr<dai::ADatatype> left_msg, std::shared_ptr<dai::ADatatype> right_msg){
+    left_sync_queue_.push(left_msg);
+    right_sync_queue_.push(right_msg);
+    if (left_sync_queue_.size() > 8 || right_sync_queue_.size() > 8){
+        LOG(ERROR) << "Queue Sizes exceeded the max of "<< left_sync_queue_.size() << " and " << right_sync_queue_.size();
+        // left_sync_queue_.clear();
+        // right_sync_queue_.clear();
+    }
+    while(!left_sync_queue_.empty() && !right_sync_queue_.empty()){
+        std::shared_ptr<dai::ImgFrame> left_msg  = std::dynamic_pointer_cast<dai::ImgFrame>(left_sync_queue_.front());
+        std::shared_ptr<dai::ImgFrame> right_msg = std::dynamic_pointer_cast<dai::ImgFrame>(right_sync_queue_.front());
+        int64_t leftSeqNum = left_msg->getSequenceNum();
+        int64_t rightSeqNum = right_msg->getSequenceNum();
+        if (leftSeqNum == rightSeqNum){
+            right_msg->setTimestamp(left_msg->getTimestamp());
+            leftImageCallback("left",   left_sync_queue_.front());
+            rightImageCallback("right", right_sync_queue_.front());
+            left_sync_queue_.pop();
+            right_sync_queue_.pop();
+        }
+        else if (leftSeqNum > rightSeqNum){
+            right_sync_queue_.pop();
+        }
+        else if (rightSeqNum > leftSeqNum){
+            left_sync_queue_.pop();
+        }
+    }
+}
 
 void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>& imuPackets) {
     // int accelSequenceNum = -1, gyroSequenceNum = -1;
@@ -286,7 +312,7 @@ void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
     } else {
         timestamp = timestampAtFrame(accel.timestamp.get());
     }
-    LOG(INFO) << "Calling imu_single_callback_ Callback data";
+    // LOG(INFO) << "Calling imu_single_callback_ with timestamp " << timestamp;
 
     imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
 }
@@ -313,7 +339,7 @@ void OAKDataProvider::sendImuData() const {
   Timestamp previous_timestamp = -1;
   for (const ImuMeasurement& imu_meas : imu_measurements_) {
     CHECK_GT(imu_meas.timestamp_, previous_timestamp)
-        << "Euroc IMU data is not in chronological order!";
+        << "OAK IMU data is not in chronological order!";
     previous_timestamp = imu_meas.timestamp_;
     imu_single_callback_(imu_meas);
   }

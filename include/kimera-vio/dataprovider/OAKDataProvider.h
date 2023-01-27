@@ -16,6 +16,10 @@
 
 #include <map>
 #include <string>
+#include <stack> // for syncing
+#include <queue> // for syncing
+
+#include <unordered_map> // for syncing
 #include <vector>
 
 #include <opencv2/calib3d/calib3d.hpp>
@@ -124,10 +128,13 @@ void setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr
 // Get timestamp of a given pair of stereo images & IMU (synchronized).
 Timestamp timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clock, std::chrono::steady_clock::duration>& timestamp);
 
-
+void syncImageSend(std::shared_ptr<dai::ADatatype> left_msg, std::shared_ptr<dai::ADatatype> right_msg);
 
  protected:
   VioParams vio_params_;
+  // TODO(Saching): move these to the backend Queues later. 
+  std::stack<std::pair<std::shared_ptr<dai::ADatatype>, std::shared_ptr<dai::ADatatype>>> sync_msgs_;
+  std::queue<std::shared_ptr<dai::ADatatype>> left_sync_queue_, right_sync_queue_;
 
   /// Images data.
   // TODO(Toni): remove camera_names_ and camera_image_lists_...

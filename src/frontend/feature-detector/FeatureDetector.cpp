@@ -94,7 +94,7 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
   CHECK_NOTNULL(cur_frame);
 
   // Check how many new features we need: maxFeaturesPerFrame_ - n_existing
-  // features If ref_frame has zero features this simply detects
+  // features If cur_frame has zero features this simply detects
   // maxFeaturesPerFrame_ new features for cur_frame
   int n_existing = 0;  // count existing (tracked) features
   for (size_t i = 0u; i < cur_frame->landmarks_.size(); ++i) {
@@ -133,6 +133,8 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
     cur_frame->versors_.reserve(new_nr_keypoints);
 
     // Incremental id assigned to new landmarks
+    // TODO(Saching): Isn't landmark id's are being repeated 
+    // from the keypoints that are already existing ?
     static LandmarkId lmk_id = 0;
     const CameraParams& cam_param = cur_frame->cam_param_;
     for (const KeypointCV& corner : corners) {
@@ -142,6 +144,7 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
       cur_frame->keypoints_.push_back(corner);
       cur_frame->scores_.push_back(0.0);  // NOT IMPLEMENTED
       // TODO(saching): What are versors ?
+      // TODO(saching): Check if full distortion coeffs of 14 are used. 
       cur_frame->versors_.push_back(UndistorterRectifier::UndistortKeypointAndGetVersor(corner, cam_param, R));
       ++lmk_id;
     }

@@ -21,7 +21,7 @@ LOG_OUTPUT=0
 # All paths can be absolute or relative to this file location.
 
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../buildParallel"
+BUILD_PATH="../buildParallels"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params/Euroc"
@@ -89,7 +89,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --dataset_type="$DATASET_TYPE" \
   --dataset_path="$DATASET_PATH" \
   --initial_k=50 \
-  --final_k=10000 \
+  --final_k=100\
   --params_folder_path="$PARAMS_PATH" \
   --use_lcd="$USE_LCD" \
   --vocabulary_path="$VOCABULARY_PATH/ORBvoc.yml" \
@@ -101,8 +101,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --logtostderr=1 \
   --colorlogtostderr=1 \
   --log_prefix=1 \
-  --v=0 \
-  --vmodule=Pipeline*=00 \
+  --v=2 \
   --log_output="$LOG_OUTPUT" \
   --log_euroc_gt_data="$LOG_OUTPUT" \
   --save_frontend_images=1 \

@@ -97,6 +97,7 @@ VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
 // VioBackendParams as weird as this may sound...
 // For now we have polymorphic params, with dynamic_cast to derived class,
 // aka suboptimal...
+  LOG(WARNING) << "B_Pose_leftCam From the VIO backend ---> " << B_Pose_leftCam;
 
 //////////////////////////////////////////////////////////////////////////////
 // Initialize smoother.
