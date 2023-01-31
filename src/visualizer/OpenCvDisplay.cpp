@@ -79,6 +79,8 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       // terminate called after throwing an instance of 'std::system_error'
       // what():  Resource deadlock avoided
       // ```
+      VLOG(6) << "  cv::viz::Viz3d window was stopped. Shutting down everything ";
+
       shutdown_pipeline_cb_();
     }
     // viz_output.window_->spinOnce(1, true);
@@ -113,6 +115,7 @@ void OpenCv3dDisplay::spin2dWindow(const DisplayInputBase& viz_output) {
   for (const ImageToDisplay& img_to_display : viz_output.images_to_display_) {
     cv::namedWindow(img_to_display.name_);
     cv::imshow(img_to_display.name_, img_to_display.image_);
+    VLOG(10) << "Spin Visualize 2D  of name -> " << img_to_display.name_;
   }
   VLOG(10) << "Spin Visualize 2D output.";
   if (params_.hold_2d_display_) {

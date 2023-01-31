@@ -130,19 +130,19 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
   const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
   
   // IMU pose w.r.t body
-  gtsam::Rot3 body_R_imu = imu_frontend_->getBodyPoseImu().rotation();
-  gtsam::Rot3 imu_R_body = body_R_imu.inverse();
+  // gtsam::Rot3 body_R_imu = imu_frontend_->getBodyPoseImu().rotation();
+  // gtsam::Rot3 imu_R_body = body_R_imu.inverse();
 
   // pim.deltaRij() corresponds to imuLKF_R_K_imu
   gtsam::Rot3 imuLKF_R_K_imu = pim->deltaRij();
-  gtsam::Rot3 bodyImuLkf_R_bodyK_imu = body_R_imu * imuLKF_R_K_imu * imu_R_body;
-  VLOG(4) <<" Relative rotation of Curr IMU frame w.r.t IMU at LKF -> " << imuLKF_R_K_imu;
-  VLOG(4) <<" Relative rotation of Curr Body frame w.r.t Previuos Body Frame at LKF using IMU only -> " << bodyImuLkf_R_bodyK_imu;
+  // gtsam::Rot3 bodyImuLkf_R_bodyK_imu = body_R_imu * imuLKF_R_K_imu * imu_R_body;
+  VLOG(5) <<" Relative rotation of Curr IMU frame w.r.t IMU at LKF -> " << imuLKF_R_K_imu << "it's rpy rotation is -> "<< imuLKF_R_K_imu.rpy();
+  // VLOG(5) <<" Relative rotation of Curr Body frame w.r.t Previuos Body Frame at LKF using IMU only -> " << bodyImuLkf_R_bodyK_imu;
 
   // Relative rotation of the left cam rectified from the last keyframe to the
   // curr frame.
   gtsam::Rot3 camLrectLkf_R_camLrectK_imu =
-      cam_Rot_body * bodyImuLkf_R_bodyK_imu * body_Rot_cam;
+      cam_Rot_body * imuLKF_R_K_imu * body_Rot_cam;
 
   if (VLOG_IS_ON(10)) {
     body_Rot_cam.print("Body_Rot_cam");
