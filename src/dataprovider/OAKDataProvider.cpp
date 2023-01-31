@@ -302,7 +302,13 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>
 void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai::IMUReportGyroscope gyro) {
 
     Vector6 imu_accgyr;
-    imu_accgyr << accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z;
+    // imu_accgyr << accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z; // Original order
+    
+    // IMU position w.r.t baseframe is different. It's rotated such that Z is pointing backwards. 
+    // So we need to tweak the measurements axis accel and gyro values to match the baseframe 
+    // to match with Kimera-VIO convention. An alternative would be to modify 
+    // the IMU usage by plugging in the IMU positions in both frountend and backed of VIO
+    imu_accgyr << accel.y, -accel.z, -accel.x, gyro.y, -gyro.z, -gyro.x; // Order of accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z in the order interms of base.
     ImuStamp timestamp;
 
     if(syncMode_ == ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL) {

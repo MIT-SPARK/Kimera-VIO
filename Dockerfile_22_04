@@ -27,11 +27,11 @@ RUN apt-get update && apt-get install -y \
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev libopencv-dev
-ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
+# ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
-    git checkout develop && \
+    git checkout af6a4f2417af4f537fe8ce43c471781267776b6c && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF .. && \
@@ -58,7 +58,7 @@ RUN cd DBoW2 && \
       make -j$(nproc) install
 
 # Install RobustPGO
-ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
+# ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
 RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
 RUN cd Kimera-RPGO && \
       mkdir build && \
@@ -80,14 +80,14 @@ RUN apt-get update && \
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
-ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
+# ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/evo-1.git
 RUN cd evo-1 && python3.10 $(which pip3) install .
 
 # Install Kimera VIO Evaluation
 RUN python3.10 $(which pip3) install ipython prompt_toolkit
 # Hack to avoid Docker's cache when Kimera VIO Evaluation master branch is updated.
-ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
+# ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git
 # We use `pip3 install -e .` so that Jinja2 has access to the webiste template...
 RUN cd Kimera-VIO-Evaluation && git fetch && git checkout master && python3.10 $(which pip3) install -e .

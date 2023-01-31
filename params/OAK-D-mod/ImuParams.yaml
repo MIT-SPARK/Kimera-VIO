@@ -9,9 +9,9 @@ imu_preintegration_type: 1
 T_BS:
   cols: 4
   rows: 4
-  data: [  0.000,  1.000,  0.000,  0.000,
-           0.000,  0.000, -1.000,  0.000,
-          -1.000,  0.000,  0.000,  0.000,
+  data: [  1.000,  0.000,  0.000,  0.000,
+           0.000,  1.000,  0.000,  0.000,
+           0.000,  0.000,  1.000,  0.000,
            0.000,  0.000,  0.000,  1.000 ]
 
 rate_hz: 400
@@ -26,11 +26,16 @@ accelerometer_random_walk: 0.00147    # [ m / s^3 / sqrt(Hz) ].  ( accel bias di
 # Extra parameters
 imu_integration_sigma: 1.0e-8
 imu_time_shift: 0.0
-# n_gravity: [0.0, 0.0, -9.81]
-n_gravity: [9.81, 0.0, 0.0]
+n_gravity: [0.0, 0.0, -9.81]
+
 # n_gravity: [9.81, 0.0, 0.0] # because X+ is facing down in IMU frame. 
 # [ 0.000,  0.000, -1.000,  0.000,
 #   0.000, -1.000,  0.000,  0.000,
 #   -1.000,  0.000,  0.000,  0.000,
 #   0.000,  0.000,  0.000,  1.000]
 
+# IMU rotation from base. We will use the transformed IMU to base for now
+  # data: [  0.000,  1.000,  0.000,  0.000,
+  #          0.000,  0.000, -1.000,  0.000,
+  #         -1.000,  0.000,  0.000,  0.000,
+  #          0.000,  0.000,  0.000,  1.000 ]
