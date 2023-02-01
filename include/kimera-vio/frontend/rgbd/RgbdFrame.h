@@ -35,6 +35,8 @@ class RgbdFrame : public PipelinePayload {
   const FrameId id_;
   Frame::UniquePtr intensity_img_;
   DepthFrame::UniquePtr depth_img_;
+  std::vector<gtsam::Vector3> keypoints_3d_;
+
 };
 
 }  // namespace VIO
