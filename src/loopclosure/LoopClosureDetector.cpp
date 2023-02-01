@@ -122,8 +122,12 @@ LoopClosureDetector::LoopClosureDetector(
   if (stereo_camera) {
     VLOG(5) << "LoopClosureDetector initializing in stereo mode.";
     CHECK(stereo_camera_);
-    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
-        stereo_camera_, stereo_matching_params.get());
+    StereoMatchingParams lcd_stereo_params = stereo_matching_params.get();
+    // In LCD we set min_dist and max_dist to not discard points
+    lcd_stereo_params.min_point_dist_ = 0.01;
+    lcd_stereo_params.max_point_dist_ = 100.0;
+    stereo_matcher_ =
+        VIO::make_unique<StereoMatcher>(stereo_camera_, lcd_stereo_params);
   } else {
     VLOG(5) << "LoopClosureDetector initializing in mono mode.";
   }
