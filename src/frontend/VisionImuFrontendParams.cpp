@@ -106,6 +106,8 @@ bool FrontendParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("ransac_probability", &ransac_probability_);
   yaml_parser.getYamlParam("ransac_randomize", &ransac_randomize_);
 
+  yaml_parser.getYamlParam("use_on_device_tracking", &use_on_device_tracking_);
+
   // Given in seconds, needs to be converted to nanoseconds.
   double intra_keyframe_time_seconds;
   yaml_parser.getYamlParam("intra_keyframe_time", &intra_keyframe_time_seconds);

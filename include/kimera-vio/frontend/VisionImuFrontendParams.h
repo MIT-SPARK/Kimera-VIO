@@ -65,6 +65,8 @@ protected:
   // Encapsulate StereoMatchingParams.
   StereoMatchingParams stereo_matching_params_ = StereoMatchingParams();
 
+  bool use_on_device_tracking_ = false;
+
   // RANSAC parameters
   bool useRANSAC_ = true;
   int minNrMonoInliers_ = 10;

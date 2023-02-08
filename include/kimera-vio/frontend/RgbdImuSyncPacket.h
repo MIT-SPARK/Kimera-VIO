@@ -10,7 +10,7 @@
 
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -20,16 +20,20 @@ class RgbdImuSyncPacket : public FrontendInputPacketBase {
   KIMERA_POINTER_TYPEDEFS(RgbdImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  RgbdImuSyncPacket(const Timestamp& timestamp,
-                    RgbdFrame::UniquePtr rgbd_frame,
+  RgbdImuSyncPacket(const RgbdFrame& rgbd_frame,
                     const ImuStampS& imu_stamps,
                     const ImuAccGyrS& imu_accgyr);
   virtual ~RgbdImuSyncPacket() = default;
 
+  // Careful, returning references to members can lead to dangling refs.
+  inline const RgbdFrame& getRgbdFrame() const { return rgbd_frame_; }
+  inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
+  inline const ImuAccGyrS& getImuAccGyrs() const { return imu_accgyrs_; }
+
   void print() const;
 
  public:
-  RgbdFrame::UniquePtr rgbd_frame_;
+  RgbdFrame rgbd_frame_;
 };
 
 }  // namespace VIO

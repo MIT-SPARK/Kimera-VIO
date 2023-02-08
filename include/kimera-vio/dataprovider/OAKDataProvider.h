@@ -74,7 +74,7 @@ class OAKDataProvider : public DataProviderInterface {
 
   virtual ~OAKDataProvider();
 
-void setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr<dai::DataOutputQueue> right_queue, std::shared_ptr<dai::DataOutputQueue> imu_queue);
+  void setLeftImuQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr<dai::DataOutputQueue> imu_queue);
 
   /**
    * @brief spin Spins the dataset until it finishes. If set in sequential mode,
@@ -95,12 +95,6 @@ void setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr
    * 
    */ 
   void leftImageCallback(std::string name, std::shared_ptr<dai::ADatatype> data);
-
-  /**
-   * @brief Callback to connect to Undistorted right Queue
-   * 
-   */ 
-  void rightImageCallback(std::string name, std::shared_ptr<dai::ADatatype> data);
 
   // // Retrieve absolute gt pose at *approx* timestamp.
   // inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
@@ -128,25 +122,17 @@ void setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr
 // Get timestamp of a given pair of stereo images & IMU (synchronized).
 Timestamp timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clock, std::chrono::steady_clock::duration>& timestamp);
 
-void syncImageSend(std::shared_ptr<dai::ADatatype> left_msg, std::shared_ptr<dai::ADatatype> right_msg);
-
  protected:
   VioParams vio_params_;
-  // TODO(Saching): move these to the backend Queues later. 
-  std::stack<std::pair<std::shared_ptr<dai::ADatatype>, std::shared_ptr<dai::ADatatype>>> sync_msgs_;
-  std::queue<std::shared_ptr<dai::ADatatype>> left_sync_queue_, right_sync_queue_;
 
   /// Images data.
-  // TODO(Toni): remove camera_names_ and camera_image_lists_...
   // This matches the names of the folders in the dataset
-  std::vector<std::string> camera_names_;
   CameraParams& left_cam_info_;
-  CameraParams& right_cam_info_;
 
   //! Pre-stored imu-measurements
   std::vector<ImuMeasurement> imu_measurements_;
   ImuSyncMethod syncMode_ = ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL;
-  std::shared_ptr<dai::DataOutputQueue> left_queue_, right_queue_, imu_queue_;
+  std::shared_ptr<dai::DataOutputQueue> left_queue_, imu_queue_;
   // FIXME(Saching): Replace the EurocGtLogger later)
   // EurocGtLogger::UniquePtr logger_;
 };

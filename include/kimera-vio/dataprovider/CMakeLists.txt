@@ -7,5 +7,6 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/DataProviderInterface.h"
   "${CMAKE_CURRENT_LIST_DIR}/EurocDataProvider.h"
   "${CMAKE_CURRENT_LIST_DIR}/OAKDataProvider.h"
-  # "${CMAKE_CURRENT_LIST_DIR}/KittiDataProvider.h"
+  "${CMAKE_CURRENT_LIST_DIR}/OAKStereoDataProvider.h"
+  "${CMAKE_CURRENT_LIST_DIR}/OAK3DFeatureDataProvider.h"
   )

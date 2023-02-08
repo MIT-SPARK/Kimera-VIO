@@ -44,24 +44,18 @@ OAKDataProvider::OAKDataProvider(const VioParams& vio_params)
     : DataProviderInterface(),
       vio_params_(vio_params),
       imu_measurements_(),
-      left_cam_info_(vio_params_.camera_params_.at(0)),
-     right_cam_info_(vio_params_.camera_params_.at(1)){
-
-//   left_cam_info_ =  vio_params_.camera_params_.at(0);
-//   right_cam_info_ = vio_params_.camera_params_.at(1);
-
-}
+      left_cam_info_(vio_params_.camera_params_.at(0)){}
 
 /* -------------------------------------------------------------------------- */
 OAKDataProvider::~OAKDataProvider() {
   LOG(INFO) << "OAKDatasetParser destructor called.";
 }
 
-void OAKDataProvider::setQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr<dai::DataOutputQueue> right_queue, std::shared_ptr<dai::DataOutputQueue> imu_queue){
+void OAKDataProvider::setLeftImuQueues(std::shared_ptr<dai::DataOutputQueue> left_queue, std::shared_ptr<dai::DataOutputQueue> imu_queue){
     left_queue_ = left_queue;
-    right_queue_ = right_queue;
     imu_queue_ = imu_queue;
 }
+
 
 /* -------------------------------------------------------------------------- */
 bool OAKDataProvider::spin() {
@@ -70,14 +64,12 @@ bool OAKDataProvider::spin() {
   LOG(INFO) << "Data OAKDataProvider Interface: <-------------- Spinning -------------->";
 
     while (!shutdown_) {
-
         std::shared_ptr<dai::ADatatype> left_image       = left_queue_->get<dai::ADatatype>();
-        std::shared_ptr<dai::ADatatype> right_image      = right_queue_->get<dai::ADatatype>();
         std::shared_ptr<dai::ADatatype> imu_measurements = imu_queue_->get<dai::ADatatype>();
         
         std::string name = "";
         imuCallback(name, imu_measurements);
-        syncImageSend(left_image, right_image);
+        leftImageCallback("left", left_image);
         if (!vio_params_.parallel_run_) {
             return true;
         }
@@ -99,49 +91,6 @@ void OAKDataProvider::leftImageCallback(std::string name, std::shared_ptr<dai::A
                                 localTimestamp,
                                 left_cam_info_,
                                 imageFrame));
-}
-
-void OAKDataProvider::rightImageCallback(std::string name, std::shared_ptr<dai::ADatatype> data){
-    CHECK(right_frame_callback_) << "Did you forget to register the right image callback to the VIO Pipeline?";
-    auto daiDataPtr = std::dynamic_pointer_cast<dai::ImgFrame>(data);
-    cv::Mat imageFrame = daiDataPtr->getCvFrame();
-    Timestamp localTimestamp = timestampAtFrame(daiDataPtr->getTimestamp());
-    
-    // TODO(saching): Add option to equalize the image from histogram
-    right_frame_callback_(
-        VIO::make_unique<Frame>(daiDataPtr->getSequenceNum(),
-                                localTimestamp,
-                                right_cam_info_,
-                                imageFrame));
-}
-
-void OAKDataProvider::syncImageSend(std::shared_ptr<dai::ADatatype> left_msg, std::shared_ptr<dai::ADatatype> right_msg){
-    left_sync_queue_.push(left_msg);
-    right_sync_queue_.push(right_msg);
-    if (left_sync_queue_.size() > 8 || right_sync_queue_.size() > 8){
-        LOG(ERROR) << "Queue Sizes exceeded the max of "<< left_sync_queue_.size() << " and " << right_sync_queue_.size();
-        // left_sync_queue_.clear();
-        // right_sync_queue_.clear();
-    }
-    while(!left_sync_queue_.empty() && !right_sync_queue_.empty()){
-        std::shared_ptr<dai::ImgFrame> left_msg  = std::dynamic_pointer_cast<dai::ImgFrame>(left_sync_queue_.front());
-        std::shared_ptr<dai::ImgFrame> right_msg = std::dynamic_pointer_cast<dai::ImgFrame>(right_sync_queue_.front());
-        int64_t leftSeqNum = left_msg->getSequenceNum();
-        int64_t rightSeqNum = right_msg->getSequenceNum();
-        if (leftSeqNum == rightSeqNum){
-            right_msg->setTimestamp(left_msg->getTimestamp());
-            leftImageCallback("left",   left_sync_queue_.front());
-            rightImageCallback("right", right_sync_queue_.front());
-            left_sync_queue_.pop();
-            right_sync_queue_.pop();
-        }
-        else if (leftSeqNum > rightSeqNum){
-            right_sync_queue_.pop();
-        }
-        else if (rightSeqNum > leftSeqNum){
-            left_sync_queue_.pop();
-        }
-    }
 }
 
 void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>& imuPackets) {
@@ -355,9 +304,6 @@ void OAKDataProvider::sendImuData() const {
 
 /* -------------------------------------------------------------------------- */
 Timestamp OAKDataProvider::timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clock, std::chrono::steady_clock::duration>& timestamp) {
-  // CHECK_GT(camera_names_.size(), 0);
-  // CHECK_LT(frame_number,
-  //          camera_image_lists_.at(camera_names_[0]).img_lists_.size());
   return std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp.time_since_epoch())
                                                                           .count();
 }

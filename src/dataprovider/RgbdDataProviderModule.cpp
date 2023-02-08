@@ -16,7 +16,7 @@
 #include "kimera-vio/dataprovider/RgbdDataProviderModule.h"
 
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
-#include "kimera-vio/frontend/rgbd/RgbdImuSyncPacket.h"
+#include "kimera-vio/frontend/RgbdImuSyncPacket.h"
 
 namespace VIO {
 
@@ -52,13 +52,12 @@ RgbdDataProviderModule::getInputPacket() {
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);
     vio_pipeline_callback_(VIO::make_unique<RgbdImuSyncPacket>(
-        timestamp,
-        VIO::make_unique<RgbdFrame>(left_frame_id,
-                                    timestamp,
-                                    std::move(mono_imu_sync_packet->frame_),
-                                    std::move(depth_frame_payload)),
-        mono_imu_sync_packet->imu_stamps_,
-        mono_imu_sync_packet->imu_accgyrs_));
+                            RgbdFrame(left_frame_id,
+                                      timestamp,
+                                      std::move(mono_imu_sync_packet->frame_),
+                                      std::move(depth_frame_payload)),
+                            mono_imu_sync_packet->imu_stamps_,
+                            mono_imu_sync_packet->imu_accgyrs_));
   }
 
   // Push the synced messages to the Frontend's input queue

@@ -10,4 +10,6 @@ target_sources(kimera_vio
     "${CMAKE_CURRENT_LIST_DIR}/EurocDataProvider.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/KittiDataProvider.cpp"
     "${CMAKE_CURRENT_LIST_DIR}/OAKDataProvider.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/OAKStereoDataProvider.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/OAK3DFeatureDataProvider.cpp"
 )

@@ -32,7 +32,17 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-bool enableStereo = false;
+
+DEFINE_string(
+    params_folder_path,
+    "../params/OAK-D-mod",
+    "Path to the folder containing the yaml files with the VIO parameters.");
+
+DEFINE_bool(enable_ondevice_stereo_feature,
+            true,
+            "Enable Stereo and Feature tracking from On-Device");
+
+bool enableStereoFeature = false;
 
 dai::Pipeline createPipeline(){
       dai::Pipeline pipeline;
@@ -56,19 +66,10 @@ dai::Pipeline createPipeline(){
 
       auto xoutImu = pipeline.create<dai::node::XLinkOut>();
       auto xoutL = pipeline.create<dai::node::XLinkOut>();
-      auto xoutR = pipeline.create<dai::node::XLinkOut>();
-      auto xoutRectifL = pipeline.create<dai::node::XLinkOut>();
-      auto xoutRectifR = pipeline.create<dai::node::XLinkOut>();
 
       // XLinkOut
       xoutImu->setStreamName("imu");
-      // xoutRight->setStreamName("right");
-      // xoutDisp->setStreamName("disparity");
-      // xoutDepth->setStreamName("depth");
-      xoutRectifL->setStreamName("rectLeft");
-      xoutRectifR->setStreamName("rectRight");
       xoutL->setStreamName("left");
-      xoutR->setStreamName("right");
 
       // Properties
       monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
@@ -76,50 +77,56 @@ dai::Pipeline createPipeline(){
       monoRight->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
       monoRight->setBoardSocket(dai::CameraBoardSocket::RIGHT);
 
-      // stereo->setDefaultProfilePreset(dai::node::StereoDepth::PresetMode::HIGH_DENSITY); // HIGH_ACCURACY
-      // stereo->setRectifyEdgeFillColor(0);
-      // stereo->initialConfig.setMedianFilter(dai::MedianFilter::KERNEL_5x5);
-      
-      // stereo->setSubpixel(true);
-      // stereo->setLeftRightCheck(true);
-      // stereo->setExtendedDisparity(false);
-      
-      // stereo->enableDistortionCorrection(true);
-
-    if (enableStereo){
+    if (enableStereoFeature){
       auto stereo = pipeline.create<dai::node::StereoDepth>();
-      // stereo->syncedLeft.link(xoutLeft->input);
-      // stereo->syncedRight.link(xoutRight->input);
-      // stereo->disparity.link(xoutDisp->input);
+      // Stereo Config
+      stereo->setDefaultProfilePreset(dai::node::StereoDepth::PresetMode::HIGH_ACCURACY);
+      stereo->initialConfig.setMedianFilter(dai::MedianFilter::KERNEL_5x5);
+      stereo->setLeftRightCheck(true);
+      stereo->setExtendedDisparity(false);
+      stereo->setSubpixel(true);
+      stereo->setDepthAlign(dai::CameraBoardSocket::LEFT)
+
       //  Linking
+      auto xoutDepth = pipeline.create<dai::node::XLinkOut>();
+      xoutDepth->setStreamName("depth");
+
+      stereo->depth.link(xoutDepth->input);
       monoLeft->out.link(stereo->left);
       monoRight->out.link(stereo->right);
 
-      stereo->setRectification(false);
-      // if(outputRectified) {
-      stereo->syncedLeft.link(xoutL->input);
-      stereo->syncedRight.link(xoutR->input);
-      stereo->rectifiedLeft.link(xoutRectifL->input);
-      stereo->rectifiedRight.link(xoutRectifR->input);
-      
+      stereo->syncedLeft.link(xoutL->input);      
+
+      // Feature Tracker setup
+      auto featureTrackerRight = pipeline.create<dai::node::FeatureTracker>();
+      monoLeft->out.link(featureTrackerRight->inputImage);
+
+      auto numShaves = 2;
+      auto numMemorySlices = 2;
+      featureTrackerRight->setHardwareResources(numShaves, numMemorySlices);
+
+      // COnfig Optical FLow  
+      auto featureTrackerConfig = dai::FeatureTrackerConfig();
+      featureTrackerConfig.setOpticalFlow();
+      // TODO(Saching): Use FULL control of Corner Detector in future for experimentation
+      featureTrackerConfig.setCornerDetector(dai::FeatureTrackerConfig::CornerDetector::HARRIS);
+      featureTrackerConfig.setFeatureMaintainer(true);
+      featureTrackerRight->initialConfig = featureTrackerConfig;
+
+      auto xoutTrackedFeaturesR = pipeline.create<dai::node::XLinkOut>();
+      xoutTrackedFeaturesR->setStreamName("trackers");
+      featureTrackerRight->outputFeatures.link(xoutTrackedFeaturesR->input);
     }
     else{
+      auto xoutR = pipeline.create<dai::node::XLinkOut>();
+      xoutR->setStreamName("right");
       monoLeft->out.link(xoutL->input);
       monoRight->out.link(xoutR->input);
     }
-      
-      imu->out.link(xoutImu->input);
 
-      // if(outputDepth) {
-          // stereo->depth.link(xoutDepth->input);
-      // }
-      return pipeline;
+    imu->out.link(xoutImu->input);
+    return pipeline;
     }
-
-DEFINE_string(
-    params_folder_path,
-    "../params/OAK-D",
-    "Path to the folder containing the yaml files with the VIO parameters.");
 
 int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
@@ -139,7 +146,13 @@ int main(int argc, char* argv[]) {
                 "DisplayParams.yaml");
 
   // Build dataset parser.
-  VIO::DataProviderInterface::Ptr dataset_parser = std::make_shared<VIO::OAKDataProvider>(vio_params);
+  VIO::DataProviderInterface::Ptr dataset_parser;
+  if(enableStereoFeature){
+    dataset_parser = std::make_shared<VIO::OAK3DFeatureDataProvider>(vio_params);
+  }
+  else{
+    dataset_parser = std::make_shared<VIO::OAKDataProvider>(vio_params);
+  }
   CHECK(dataset_parser);
 
   // ------------------------ VIO Pipeline Config ------------------------  //
@@ -151,6 +164,9 @@ int main(int argc, char* argv[]) {
     } break;
     case VIO::FrontendType::kStereoImu: {
       vio_pipeline = VIO::make_unique<VIO::StereoImuPipeline>(vio_params);
+    } break;
+    case VIO::FrontendType::kRgbdImu: {
+      vio_pipeline = VIO::make_unique<VIO::RgbdImuPipeline>(vio_params);
     } break;
     default: {
       LOG(FATAL) << "Unrecognized Frontend type: "
@@ -186,20 +202,47 @@ int main(int argc, char* argv[]) {
                   stereo_pipeline,
                   std::placeholders::_1));
   }
+  else if (vio_params.frontend_type_ == VIO::FrontendType::kRgbdImu) {
+    VIO::StereoImuPipeline::Ptr rgbd_pipeline =
+        VIO::safeCast<VIO::Pipeline, VIO::RgbdImuPipeline>(
+            vio_pipeline);
+
+    dataset_parser->registerDepthFrameCallback(
+        std::bind(&VIO::RgbdImuPipeline::fillDepthFrameQueue,
+                  rgbd_pipeline,
+                  std::placeholders::_1));
+    dataset_parser->registerFeatureTrackletsCallback(
+        std::bind(&VIO::RgbdImuPipeline::fillFeatureTrackletsQueue,
+                  rgbd_pipeline,
+                  std::placeholders::_1));
+
+  }
+
+
 
   // ------------------------ The OAK's Pipeline ------------------------ //
   dai::Pipeline pipeline = createPipeline();
   auto daiDevice = std::make_shared<dai::Device>(pipeline);
 
   auto leftQueue = daiDevice->getOutputQueue("left", 10, false);
-  auto rightQueue = daiDevice->getOutputQueue("right", 10, false);
   auto imuQueue = daiDevice->getOutputQueue("imu", 10, false);
 
   VIO::OAKDataProvider::Ptr oak_data_parser =
         VIO::safeCast<VIO::DataProviderInterface, VIO::OAKDataProvider>(dataset_parser);
 
 // ---------------------------ASYNC Launch-------------------------------- //
-  oak_data_parser->setQueues(leftQueue, rightQueue, imuQueue);
+  oak_data_parser->setLeftImuQueues(leftQueue, imuQueue);
+  if(enableStereoFeature){
+    auto depthQueue = daiDevice->getOutputQueue("depth", 10, false);
+    auto featureQueue = daiDevice->getOutputQueue("trackers", 10, false);
+    VIO::OAKDataProvider::Ptr oak_feature_data_parser =
+      VIO::safeCast<VIO::DataProviderInterface, VIO::OAK3DFeatureDataProvider>(dataset_parser);
+    oak_feature_data_parser->setDepthFeatureQueues(depthQueue, featureQueue);
+  }
+  else{
+    auto rightQueue = daiDevice->getOutputQueue("right", 10, false);
+    oak_data_parser->setRightQueue(rightQueue);
+  }
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
