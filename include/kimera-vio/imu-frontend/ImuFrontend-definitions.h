@@ -79,9 +79,7 @@ safeCastToPreintegratedImuMeasurements(const gtsam::PreintegrationType& pim) {
                   "PreintegratedImuMeasurements, but this object is not "
                   "a PreintegratedImuMeasurements!";
     LOG(FATAL) << e.what();
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when casting to "
-                  "PreintegratedImuMeasurements.";
+    throw e;
   }
 }
 
@@ -96,9 +94,7 @@ safeCastToPreintegratedCombinedImuMeasurements(
                   "PreintegratedCombinedMeasurements, but this object is not "
                   "a PreintegratedCombinedMeasurements!";
     LOG(FATAL) << e.what();
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when casting to "
-                  "PreintegratedCombinedMeasurements.";
+    throw e;
   }
 }
 

@@ -170,11 +170,11 @@ class CameraParams : public PipelineParams {
    * @param camera_model
    * @return actual distortion model enum class
    */
-  static const DistortionModel stringToDistortionModel(
+  static DistortionModel stringToDistortionModel(
       const std::string& distortion_model,
       const CameraModel& camera_model);
 
-  static const CameraModel stringToCameraModel(const std::string& camera_model);
+  static CameraModel stringToCameraModel(const std::string& camera_model);
 
  private:
   static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);

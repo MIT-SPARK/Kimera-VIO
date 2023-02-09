@@ -155,7 +155,9 @@ void VisionImuFrontend::outlierRejectionPnP(
   const auto num_points = frame.keypoints_3d_.size();
   const auto num_outliers = num_points - inliers.size();
 
-  if (valid && inliers.size() > tracker_->tracker_params_.min_pnp_inliers_) {
+  const auto min_inliers =
+      static_cast<size_t>(tracker_->tracker_params_.min_pnp_inliers_);
+  if (valid && inliers.size() > min_inliers) {
     status_pnp->first = TrackingStatus::VALID;
     VLOG(5) << "PnP tracking success:" << std::endl
             << "- # inliers: " << inliers.size() << std::endl

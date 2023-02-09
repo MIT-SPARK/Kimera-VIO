@@ -36,7 +36,7 @@ namespace anms {
 
 std::vector<cv::KeyPoint> TopN(const std::vector<cv::KeyPoint>& keyPoints,
                                int numRetPoints) {
-  if (numRetPoints > keyPoints.size()) {
+  if (static_cast<size_t>(numRetPoints) > keyPoints.size()) {
     return keyPoints;
   }
 
@@ -49,7 +49,7 @@ std::vector<cv::KeyPoint> TopN(const std::vector<cv::KeyPoint>& keyPoints,
 
 std::vector<cv::KeyPoint> BrownANMS(const std::vector<cv::KeyPoint>& keyPoints,
                                     int numRetPoints) {
-  if (numRetPoints > keyPoints.size()) {
+  if (static_cast<size_t>(numRetPoints) > keyPoints.size()) {
     return keyPoints;
   }
 

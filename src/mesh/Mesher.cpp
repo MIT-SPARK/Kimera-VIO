@@ -186,9 +186,9 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 Mesher::Mesher(const MesherParams& mesher_params, const bool& serialize_meshes)
-    : mesher_params_(mesher_params),
-      mesh_2d_(),
+    : mesh_2d_(),
       mesh_3d_(),
+      mesher_params_(mesher_params),
       mesher_logger_(nullptr),
       serialize_meshes_(serialize_meshes) {
   mesher_logger_ = VIO::make_unique<MesherLogger>();
@@ -253,7 +253,7 @@ std::vector<cv::Vec6f> Mesher::computeDelaunayTriangulation(
   in.numberofpoints = keypoints.size();
   in.pointlist = (float*)malloc(in.numberofpoints * 2 * sizeof(float));
   k = 0;
-  for (int32_t i = 0; i < keypoints.size(); i++) {
+  for (int32_t i = 0; i < static_cast<int32_t>(keypoints.size()); i++) {
     in.pointlist[k++] = keypoints[i].x;
     in.pointlist[k++] = keypoints[i].y;
   }
@@ -775,7 +775,6 @@ void Mesher::clusterNormalsPerpendicularToAxis(
     const double& tolerance,
     std::vector<int>* cluster_normals_idx) {
   size_t idx = 0;
-  static constexpr bool log_normals = false;
   std::vector<cv::Point3f> cluster_normals;
   for (const cv::Point3f& normal : normals) {
     if (isNormalPerpendicularToAxis(axis, normal, tolerance)) {

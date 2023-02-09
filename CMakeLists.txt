@@ -169,7 +169,7 @@ else(Pangolin_FOUND)
   message(STATUS "Pangolin not found.")
 endif(Pangolin_FOUND)
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -pipe)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter -pipe)
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(${PROJECT_NAME} PUBLIC
