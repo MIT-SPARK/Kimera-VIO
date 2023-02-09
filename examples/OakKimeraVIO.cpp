@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
 
   // Parse VIO parameters from gflags.
   VIO::VioParams vio_params(FLAGS_params_folder_path,
-  "PipelineParams.yaml",
+                "PipelineParams.yaml",
                 "ImuParams.yaml",
                 "LeftCameraParamsS2BNO.yaml",
                 "RightCameraParamsS2BNO.yaml",
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
     dataset_parser = std::make_shared<VIO::OAK3DFeatureDataProvider>(vio_params);
   }
   else{
-    dataset_parser = std::make_shared<VIO::OAKDataProvider>(vio_params);
+    dataset_parser = std::make_shared<VIO::OAKStereoDataProvider>(vio_params);
   }
   CHECK(dataset_parser);
 
@@ -240,8 +240,11 @@ int main(int argc, char* argv[]) {
     oak_feature_data_parser->setDepthFeatureQueues(depthQueue, featureQueue);
   }
   else{
+    VIO::OAKDataProvider::Ptr oak_feature_data_parser =
+      VIO::safeCast<VIO::DataProviderInterface, VIO::OAKStereoDataProvider>(dataset_parser);
+    
     auto rightQueue = daiDevice->getOutputQueue("right", 10, false);
-    oak_data_parser->setRightQueue(rightQueue);
+    oak_feature_data_parser->setRightQueue(rightQueue);
   }
 
   // Spin dataset.

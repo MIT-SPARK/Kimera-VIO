@@ -22,7 +22,7 @@ namespace VIO {
 
 class DepthFrame : public PipelinePayload {
  public:
-  KIMERA_DELETE_COPY_CONSTRUCTORS(DepthFrame);
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(DepthFrame);
   KIMERA_POINTER_TYPEDEFS(DepthFrame);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

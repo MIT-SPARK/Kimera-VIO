@@ -45,7 +45,8 @@ StereoFrame::StereoFrame(const FrameId& id,
   CHECK_EQ(timestamp_, left_frame_.timestamp_);
   // CHECK_EQ(timestamp_, right_frame_.timestamp_);
   // TODO(saching): Change it to less than 15000 ns or zero
-    // Keeping it less than 15000 ns. a.k.a 0.015 milliseconds
+  // Keeping it less than 15000 ns. a.k.a 0.015 milliseconds
+  // At the moment sync is happening based on seqNumber so it doesn't make a difference.
   CHECK(std::abs(timestamp_ - right_frame_.timestamp_) < 30000);  
 
 }

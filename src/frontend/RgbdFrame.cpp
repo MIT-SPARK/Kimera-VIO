@@ -20,9 +20,9 @@ RgbdFrame::RgbdFrame(const FrameId& id,
                      const Timestamp& timestamp,
                      Frame::UniquePtr intensity_img,
                      DepthFrame::UniquePtr depth_img)
-    : PipelinePayload(timestamp),
+    : is_keyframe_(false),
       id_(id),
-      is_keyframe_(false),
+      timestamp_(timestamp),
       intensity_img_(std::move(intensity_img)),
       depth_img_(std::move(depth_img)) {
   CHECK(intensity_img_);
@@ -32,8 +32,31 @@ RgbdFrame::RgbdFrame(const FrameId& id,
   CHECK(depth_img_->depth_img_.type() == CV_16UC1 ||
         depth_img_->depth_img_.type() == CV_32FC1)
       << "The provided depth image is not in the expected format...";
+  CHECK_EQ(id_, intensity_img_.id_);
+  CHECK_EQ(id_, depth_img_.id_);
+  CHECK_EQ(timestamp_, intensity_img_.timestamp_);
   CHECK_EQ(intensity_img_->img_.size, depth_img_->depth_img_.size);
 }
+
+// RgbdFrame::RgbdFrame(const RgbdFrame& other_frame)
+//     : is_keyframe_(other_frame.is_keyframe_),
+//       id_(other_frame.id_),
+//       timestamp_(other_frame.timestamp_)
+//  {
+//   intensity_img_ = std::move(other_frame.intensity_img_);
+//   depth_img_ = std::move(other_frame.depth_img_);
+//   CHECK(intensity_img_);
+//   CHECK(depth_img_);
+//   CHECK_EQ(intensity_img_.img_.type(), CV_8UC1)
+//       << "The provided left image is not grayscale...";
+//   CHECK(depth_img_.depth_img_.type() == CV_16UC1 ||
+//         depth_img_.depth_img_.type() == CV_32FC1)
+//       << "The provided depth image is not in the expected format...";
+//   CHECK_EQ(id_, intensity_img_.id_);
+//   CHECK_EQ(id_, depth_img_.id_);
+//   CHECK_EQ(timestamp_, intensity_img_.timestamp_);
+//   CHECK_EQ(intensity_img_.img_.size, depth_img_.depth_img_.size);
+// }
 
 void RgbdFrame::calculate3dKeypoints(){
   CHECK_GT(intensity_img_->versors_.size(), 0u)
@@ -73,7 +96,7 @@ void RgbdFrame::calculate3dKeypoints(){
   }
 }
 
-void RgbdFrame::checkRgbdFrame(){
+void RgbdFrame::checkRgbdFrame() const{
   intensity_img_->checkFrame();
   const size_t nrKeypoints = intensity_img_->keypoints_.size();
   CHECK_EQ(keypoints_3d_.size(), nrKeypoints) << "checkRgbdFrame: number of keypoints does not match with size of keypoints_3d_";

@@ -69,7 +69,7 @@ bool OAK3DFeatureDataProvider::spin() {
         
         std::string name = "";
         imuCallback(name, imu_measurements);
-        syncImageFeaturegrab(left_image, depth_image. feature_map);
+        syncImageFeaturegrab(left_image, depth_image, feature_map);
         while(!sync_msgs_.empty()){
             std::shared_ptr<dai::ADatatype> synced_left_image, synced_depth_image, synced_feature_map;
             std::tie(synced_left_image, synced_depth_image, synced_feature_map) = sync_msgs_.front();
@@ -88,7 +88,7 @@ bool OAK3DFeatureDataProvider::spin() {
 
 void OAK3DFeatureDataProvider::syncImageFeaturegrab(std::shared_ptr<dai::ADatatype> image, std::shared_ptr<dai::ADatatype> depth, std::shared_ptr<dai::ADatatype> feature_map){
     left_sync_queue_.push(image);
-    depth_sync_queue_.push(depth_msg);
+    depth_sync_queue_.push(depth);
     feature_sync_queue_.push(feature_map);
     if (left_sync_queue_.size() > 8 || depth_sync_queue_.size() > 8 || feature_sync_queue_.size() > 8){
         LOG(ERROR) << "Queue Sizes exceeded the max of "<< left_sync_queue_.size() << ", " << depth_sync_queue_.size() << " and " << feature_sync_queue_.size();
@@ -104,13 +104,14 @@ void OAK3DFeatureDataProvider::syncImageFeaturegrab(std::shared_ptr<dai::ADataty
         if (left_seq_num == depth_seq_num && left_seq_num == feature_seq_num){
             depth_msg->setTimestamp(left_msg->getTimestamp());
             feature_msg->setTimestamp(left_msg->getTimestamp());
-            sync_msgs_.push(left_sync_queue_.front(), depth_sync_queue_.front(), feature_sync_queue_.front());
+            sync_msgs_.push(std::make_tuple(left_sync_queue_.front(), depth_sync_queue_.front(), feature_sync_queue_.front()));
+
             left_sync_queue_.pop();
             depth_sync_queue_.pop();
             feature_sync_queue_.pop();
         }
         else {
-            int64_t maxSeq = std::max(std::max(left_seq_num, depth_seq_num), feature_seq_min);
+            int64_t maxSeq = std::max(std::max(left_seq_num, depth_seq_num), feature_seq_num);
             if(left_seq_num < maxSeq){
                 left_sync_queue_.pop();
             }
@@ -127,7 +128,7 @@ void OAK3DFeatureDataProvider::syncImageFeaturegrab(std::shared_ptr<dai::ADataty
 void OAK3DFeatureDataProvider::leftImageFeatureCallback(std::shared_ptr<dai::ADatatype> image, std::shared_ptr<dai::ADatatype> feature_map){
 
     CHECK(left_frame_callback_) << "Did you forget to register the left image callback to the VIO Pipeline?";
-    auto daiDataPtr = std::dynamic_pointer_cast<dai::ImgFrame>(data);
+    auto daiDataPtr = std::dynamic_pointer_cast<dai::ImgFrame>(image);
     auto tracked_features = std::dynamic_pointer_cast<dai::TrackedFeatures>(feature_map)->trackedFeatures;
 
     cv::Mat imageFrame = daiDataPtr->getCvFrame();    
@@ -144,15 +145,16 @@ void OAK3DFeatureDataProvider::leftImageFeatureCallback(std::shared_ptr<dai::ADa
     left_frame->versors_.reserve(tracked_features.size());
 
     for (auto& feature : tracked_features) {
+        KeypointCV keypoint(feature.position.x, feature.position.y);
         left_frame->landmarks_.push_back(feature.id);
         left_frame->landmarks_age_.push_back(feature.age);
         left_frame->scores_.push_back(feature.harrisScore);
-        left_frame->keypoints_.push_back(KeypointCV(feature.position.x, feature.position.y));
+        left_frame->keypoints_.push_back(keypoint);
         left_frame->versors_.push_back(
-        UndistorterRectifier::UndistortKeypointAndGetVersor(left_frame->keypoints_[i], left_frame->cam_param_));
-
+        UndistorterRectifier::UndistortKeypointAndGetVersor(keypoint, left_frame->cam_param_));
+        VLOG(5) << "Printing KeypointCV: x -> " << keypoint.x << " y -> " << keypoint.y << " id -> " << feature.id;
     } 
-    left_frame_callback_(left_frame);
+    left_frame_callback_(std::move(left_frame));
 }
 
 void OAK3DFeatureDataProvider::depthImageCallback(std::string name, std::shared_ptr<dai::ADatatype> data){
@@ -163,7 +165,7 @@ void OAK3DFeatureDataProvider::depthImageCallback(std::string name, std::shared_
     
     depth_frame_callback_(
         VIO::make_unique<DepthFrame>(daiDataPtr->getSequenceNum(),
-                                localTimestamp
+                                localTimestamp,
                                 imageFrame));
 }
 

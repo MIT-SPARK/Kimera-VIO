@@ -20,9 +20,9 @@
 
 namespace VIO {
 
-class RgbdFrame : public PipelinePayload {
+class RgbdFrame {
   public:
-  KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdFrame);
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdFrame);
   KIMERA_POINTER_TYPEDEFS(RgbdFrame);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -38,7 +38,7 @@ class RgbdFrame : public PipelinePayload {
 
   inline bool isKeyframe() const { return is_keyframe_; }
 
-  void calculate3dKeypoints(Camera::ConstPtr camera);
+  void calculate3dKeypoints();
 
   void checkRgbdFrame() const;
   private:
@@ -47,10 +47,12 @@ class RgbdFrame : public PipelinePayload {
 
   public:
     const FrameId id_;
+    //! Timestamp of this stereo frame.
+    const Timestamp timestamp_;
     Frame::UniquePtr intensity_img_;
     DepthFrame::UniquePtr depth_img_;
     std::vector<gtsam::Vector3> keypoints_3d_;
-  
+
 };
 
 }  // namespace VIO

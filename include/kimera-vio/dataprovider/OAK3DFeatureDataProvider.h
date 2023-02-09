@@ -93,12 +93,11 @@ class OAK3DFeatureDataProvider : public OAKDataProvider {
   void syncImageFeaturegrab(std::shared_ptr<dai::ADatatype> image, std::shared_ptr<dai::ADatatype> depth, std::shared_ptr<dai::ADatatype> feature_map);
 
  protected:
-  VioParams vio_params_;
   // TODO(Saching): move these to the backend Queues later. 
   std::queue<std::tuple<std::shared_ptr<dai::ADatatype>, std::shared_ptr<dai::ADatatype>, std::shared_ptr<dai::ADatatype>>> sync_msgs_;
   std::queue<std::shared_ptr<dai::ADatatype>> left_sync_queue_, depth_sync_queue_, feature_sync_queue_;
-  std::shared_ptr<dai::DataOutputQueue> depth_queue_, feature_queue_;
 
+  std::shared_ptr<dai::DataOutputQueue> depth_queue_, feature_queue_;
   // FIXME(Saching): Replace the EurocGtLogger later)
   // EurocGtLogger::UniquePtr logger_;
 };

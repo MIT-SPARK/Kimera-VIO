@@ -13,7 +13,7 @@ namespace VIO {
 RgbdImuSyncPacket::RgbdImuSyncPacket(const RgbdFrame& rgbd_frame,
                                      const ImuStampS& imu_stamps,
                                      const ImuAccGyrS& imu_accgyr)
-    : FrontendInputPacketBase(rgbd_frame->timestamp_, imu_stamps, imu_accgyr),
+    : FrontendInputPacketBase(rgbd_frame.timestamp_, imu_stamps, imu_accgyr),
       rgbd_frame_(rgbd_frame) {}
 
 void RgbdImuSyncPacket::print() const {
