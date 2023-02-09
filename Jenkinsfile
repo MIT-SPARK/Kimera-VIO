@@ -57,7 +57,7 @@ pipeline {
               steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                   wrap([$class: 'Xvfb']) {
-                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=5'
+                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
 
                     // Process the CTest xml output
                     junit 'build/testresults.xml'
@@ -165,7 +165,7 @@ pipeline {
             stage('Test') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=5'
+                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
 
                   // Process the CTest xml output
                   junit 'build/testresults.xml'
@@ -211,7 +211,7 @@ pipeline {
             stage('Test') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=5'
+                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
 
                   // Process the CTest xml output
                   junit 'build/testresults.xml'
