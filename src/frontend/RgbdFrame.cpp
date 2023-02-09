@@ -32,38 +32,38 @@ RgbdFrame::RgbdFrame(const FrameId& id,
   CHECK(depth_img_->depth_img_.type() == CV_16UC1 ||
         depth_img_->depth_img_.type() == CV_32FC1)
       << "The provided depth image is not in the expected format...";
-  CHECK_EQ(id_, intensity_img_.id_);
-  CHECK_EQ(id_, depth_img_.id_);
-  CHECK_EQ(timestamp_, intensity_img_.timestamp_);
+  CHECK_EQ(id_, intensity_img_->id_);
+  CHECK_EQ(id_, depth_img_->id_);
+  CHECK_EQ(timestamp_, intensity_img_->timestamp_);
   CHECK_EQ(intensity_img_->img_.size, depth_img_->depth_img_.size);
 }
 
-// RgbdFrame::RgbdFrame(const RgbdFrame& other_frame)
-//     : is_keyframe_(other_frame.is_keyframe_),
-//       id_(other_frame.id_),
-//       timestamp_(other_frame.timestamp_)
-//  {
-//   intensity_img_ = std::move(other_frame.intensity_img_);
-//   depth_img_ = std::move(other_frame.depth_img_);
-//   CHECK(intensity_img_);
-//   CHECK(depth_img_);
-//   CHECK_EQ(intensity_img_.img_.type(), CV_8UC1)
-//       << "The provided left image is not grayscale...";
-//   CHECK(depth_img_.depth_img_.type() == CV_16UC1 ||
-//         depth_img_.depth_img_.type() == CV_32FC1)
-//       << "The provided depth image is not in the expected format...";
-//   CHECK_EQ(id_, intensity_img_.id_);
-//   CHECK_EQ(id_, depth_img_.id_);
-//   CHECK_EQ(timestamp_, intensity_img_.timestamp_);
-//   CHECK_EQ(intensity_img_.img_.size, depth_img_.depth_img_.size);
-// }
+RgbdFrame::RgbdFrame(const RgbdFrame& rgbd_frame)
+    : is_keyframe_(rgbd_frame.is_keyframe_),
+      id_(rgbd_frame.id_),
+      timestamp_(rgbd_frame.timestamp_)
+ {
+  intensity_img_ = VIO::make_unique<Frame>(*rgbd_frame.intensity_img_);
+  depth_img_ = VIO::make_unique<DepthFrame>(*rgbd_frame.depth_img_);
+  CHECK(intensity_img_);
+  CHECK(depth_img_);
+  CHECK_EQ(intensity_img_->img_.type(), CV_8UC1)
+      << "The provided left image is not grayscale...";
+  CHECK(depth_img_->depth_img_.type() == CV_16UC1 ||
+        depth_img_->depth_img_.type() == CV_32FC1)
+      << "The provided depth image is not in the expected format...";
+  CHECK_EQ(id_, intensity_img_->id_);
+  CHECK_EQ(id_, depth_img_->id_);
+  CHECK_EQ(timestamp_, intensity_img_->timestamp_);
+  CHECK_EQ(intensity_img_->img_.size, depth_img_->depth_img_.size);
+}
 
 void RgbdFrame::calculate3dKeypoints(){
   CHECK_GT(intensity_img_->versors_.size(), 0u)
       << "Versors are empty to calculate the 3D keypoints...";
 
   CHECK(depth_img_->depth_img_.type() == CV_16UC1 ||
-        depth_img_->depth_img_.type() == CV_32FC1)
+        depth_img_->depth_img_.type() == CV_32FC1);
 
   for (size_t i = 0; i < intensity_img_->versors_.size(); ++i) {
     if (intensity_img_->keypoints_undistorted_[i].first == 

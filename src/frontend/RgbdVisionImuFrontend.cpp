@@ -47,8 +47,9 @@ RgbdVisionImuFrontend::RgbdVisionImuFrontend(
       frontend_params_.feature_detector_params_);
   }
   if (VLOG_IS_ON(1)) tracker_->tracker_params_.print();
-  VLOG(8) <<"Body pose of the left Camera: " << stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam() 
-          << "  Body pose of the left Rectified Camera: " << stereo_camera_->getBodyPoseLeftCamRect();
+  CHECK_EQ(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam(), stereo_camera_->getBodyPoseLeftCamRect()) 
+  << "Body pose of the left Camera: " << stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam() 
+  << " and Body pose of the left Rectified Camera: " << stereo_camera_->getBodyPoseLeftCamRect() << " do not match.";
 }
 
 RgbdVisionImuFrontend::~RgbdVisionImuFrontend() {
@@ -68,7 +69,7 @@ RgbdFrontendOutput::UniquePtr RgbdVisionImuFrontend::bootstrapSpinRgbd(
   // Create mostly invalid output
   CHECK(rgbd_frame_lkf_);
   CHECK(stereo_camera_);
-  return VIO::make_unique<RgbdFrontendOutput>(rgbd_frame_lkf_->isKeyframe_,
+  return VIO::make_unique<RgbdFrontendOutput>(rgbd_frame_lkf_->isKeyframe(),
                                               nullptr,
                                               TrackingStatus::DISABLED,
                                               getRelativePoseBodyRgbd(),
@@ -118,7 +119,7 @@ RgbdFrontendOutput::UniquePtr RgbdVisionImuFrontend::nominalSpinRgbd(
 
   // On the left camera rectified!! pose w.r.t body
   const gtsam::Rot3 body_R_cam = 
-      camera_->getBodyPoseCam().rotation();
+      stereo_camera_->getBodyPoseLeftCamRect().rotation();
   const gtsam::Rot3 cam_R_body = body_R_cam.inverse();
   gtsam::Rot3 imuLKF_R_K_imu = pim->deltaRij();
 

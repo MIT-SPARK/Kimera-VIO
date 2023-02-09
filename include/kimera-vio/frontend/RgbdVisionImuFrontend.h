@@ -18,7 +18,7 @@
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/frontend/RgbdImuSyncPacket.h"
 #include "kimera-vio/frontend/RgbdVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontend.h"
@@ -46,6 +46,23 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
                      DisplayQueue* display_queue = nullptr,
                      bool log_output = false);
   virtual ~RgbdVisionImuFrontend();
+
+  /* ------------------------------------------------------------------------ */
+  // Converts the RGBD information into Mimicing stereo format and sends the mimiced
+  // feature points on left and right camera n a suitable format for VIO.
+  void getSmartRgbdMeasurements(const RgbdFrame::Ptr& frame,
+                                RgbdMeasurements* smart_rgbd_measurements);
+
+/* ------------------------------------------------------------------------ */
+  // Return relative pose between last (lkf) and
+  // current keyframe (k) - MONO RANSAC.
+  gtsam::Pose3 getRelativePoseBodyMono() const;
+
+  /* ------------------------------------------------------------------------ */
+  // Return relative pose between last (lkf) and
+  // current keyframe (k) - STEREO RANSAC
+  // Mimicing stereo setup
+  gtsam::Pose3 getRelativePoseBodyRgbd() const;
 
  private:
   void processFirstFrame(const RgbdFrame& firstFrame);
@@ -78,9 +95,6 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
       const RgbdFrame& cur_frame,
       const gtsam::Rot3& keyframe_R_ref_frame,
       cv::Mat* feature_tracks = nullptr);
-
-  void getSmartRgbdMeasurements(const RgbdFrame::Ptr& frame,
-                                RgbdMeasurements* smart_rgbd_measurements);
 
   // void sendFeatureTracksToLogger() const;
 

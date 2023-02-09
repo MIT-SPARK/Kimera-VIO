@@ -33,6 +33,11 @@ class DepthFrame : public PipelinePayload {
     CHECK(depth_img_.type() == CV_32FC1 || depth_img_.type() == CV_16UC1);
   }
 
+  DepthFrame(const DepthFrame& depth_frame)
+  : PipelinePayload(depth_frame.timestamp_),
+        id_(depth_frame.id_),
+        depth_img_(depth_frame.depth_img_){}
+
  public:
   const FrameId id_;
   const cv::Mat depth_img_;

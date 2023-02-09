@@ -31,6 +31,8 @@ class RgbdFrame {
             Frame::UniquePtr intensity_img,
             DepthFrame::UniquePtr depth_img);
 
+  RgbdFrame(const RgbdFrame& rgbd_frame);
+
   inline void setIsKeyframe(bool is_kf) {
     is_keyframe_ = is_kf;
     intensity_img_->isKeyframe_ = is_kf;
