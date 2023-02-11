@@ -222,7 +222,7 @@ void RgbdVisionImuFrontend::processFirstFrame(const RgbdFrame& first_frame) {
 
   if(!frontend_params_.use_on_device_tracking_){
     CHECK(feature_detector_);
-    feature_detector_->featureDetection(rgbd_frame_k_.get());
+    feature_detector_->featureDetection(rgbd_frame_k_->intensity_img_.get());
   }
 
   // Undistort keypoints:
@@ -250,15 +250,15 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.timestamp_ << " empirical framerate (sec): "
           << UtilsNumerical::NsecToSec(cur_frame.timestamp_ -
-                                       rgbdFrame_km1_->timestamp_)
+                                       rgbd_frame_km1_->timestamp_)
           << " (timestamp diff: "
-          << cur_frame.timestamp_ - rgbdFrame_km1_->timestamp_ << ")";
+          << cur_frame.timestamp_ - rgbd_frame_km1_->timestamp_ << ")";
   auto start_time = utils::Timer::tic();
 
   // TODO this copies the rgbd frame!!
-  rgbdFrame_k_ = std::make_shared<RgbdFrame>(cur_frame);
-  Frame* left_frame_k = &rgbdFrame_k_->intensity_img_;
- VLOG(5) << "Features in the previous frame -> " << rgbdFrame_km1_->intensity_img_.keypoints_.size();
+  rgbd_frame_k_ = std::make_shared<RgbdFrame>(cur_frame);
+  Frame* left_frame_k = rgbd_frame_k_->intensity_img_.get();
+ VLOG(5) << "Features in the previous frame -> " << rgbd_frame_km1_->intensity_img_->keypoints_.size();
 
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
@@ -269,7 +269,7 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
   //TODO(saching): Currently when on-device feature tracking is used, 
   // we are skipping the marking of old features to be not used at the time. 
   if (!frontend_params_.use_on_device_tracking_) {
-    tracker_->featureTracking(&rgbdFrame_km1_->intensity_img_,
+    tracker_->featureTracking(rgbd_frame_km1_->intensity_img_.get(),
                             left_frame_k,
                             ref_frame_R_cur_frame);
   }
@@ -279,8 +279,8 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
     // TODO(Toni): this image should already be computed and inside the
     // display_queue
     // if it is sent to the tracker.
-    *feature_tracks = tracker_->getTrackerImage(rgbdFrame_lkf_->intensity_img_,
-                                               rgbdFrame_k_->intensity_img_);
+    *feature_tracks = tracker_->getTrackerImage(*rgbd_frame_lkf_->intensity_img_.get(),
+                                               *rgbd_frame_k_->intensity_img_.get());
     VLOG(5) << "getting feature_tracks image w.r.t Key frame ............... " ;
   }
 
@@ -295,20 +295,20 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
   RgbdMeasurements smart_rgbd_measurements;
 
   const bool max_time_elapsed =
-      rgbdFrame_k_->timestamp_ - last_keyframe_timestamp_ >=
+      rgbd_frame_k_->timestamp_ - last_keyframe_timestamp_ >=
       tracker_->tracker_params_.intra_keyframe_time_ns_;
   const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= tracker_->tracker_params_.min_number_features_;
 
   // Also if the user requires the keyframe to be enforced
-  LOG_IF(WARNING, rgbdFrame_k_->isKeyframe()) << "User enforced keyframe!";
+  LOG_IF(WARNING, rgbd_frame_k_->isKeyframe()) << "User enforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
-  if (max_time_elapsed || nr_features_low || rgbdFrame_k_->isKeyframe()) {
+  if (max_time_elapsed || nr_features_low || rgbd_frame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
 
     VLOG(2) << "Keyframe after [s]: "
-            << UtilsNumerical::NsecToSec(rgbdFrame_k_->timestamp_ -
+            << UtilsNumerical::NsecToSec(rgbd_frame_k_->timestamp_ -
                                          last_keyframe_timestamp_);
 
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
@@ -320,7 +320,7 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
     if (tracker_->tracker_params_.useRANSAC_) {
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
-      Frame* left_frame_lkf = &rgbdFrame_lkf_->intensity_img_;
+      Frame* left_frame_lkf = rgbd_frame_lkf_->intensity_img_.get();
       outlierRejectionMono(keyframe_R_cur_frame,
                            left_frame_lkf,
                            left_frame_k,
@@ -338,18 +338,18 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
       stereo_camera_->undistortRectifyLeftKeypoints(rgbd_frame_k_->intensity_img_->keypoints_,
                                       &rgbd_frame_k_->intensity_img_->keypoints_undistorted_);
 
-      // camera_->undistortKeypoints(rgbdFrame_k_->intensity_img_->keypoints_,
-      //                                &rgbdFrame_k_->intensity_img_->keypoints_undistorted_);
+      // camera_->undistortKeypoints(rgbd_frame_k_->intensity_img_->keypoints_,
+      //                                &rgbd_frame_k_->intensity_img_->keypoints_undistorted_);
 
-      rgbdFrame_k_->calculate3dKeypoints();
+      rgbd_frame_k_->calculate3dKeypoints();
       sparse_rgbd_time = utils::Timer::toc(start_time).count();
 
       TrackingStatusPose status_pose_rgbd;
       if (tracker_->tracker_params_.useStereoTracking_) {
-        outlierRejectionStereo(keyframe_R_cur_frame,
-                               rgbdFrame_lkf_,
-                               rgbdFrame_k_,
-                               &status_pose_stereo);
+        outlierRejectionRgbd(keyframe_R_cur_frame,
+                               rgbd_frame_lkf_,
+                               rgbd_frame_k_,
+                               &status_pose_rgbd);
         tracker_status_summary_.kfTrackingStatus_stereo_ =
             status_pose_rgbd.first;
 
@@ -377,8 +377,8 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
     }
 
     // If its been long enough, make it a keyframe
-    last_keyframe_timestamp_ = rgbdFrame_k_->timestamp_;
-    rgbdFrame_k_->setIsKeyframe(true);
+    last_keyframe_timestamp_ = rgbd_frame_k_->timestamp_;
+    rgbd_frame_k_->setIsKeyframe(true);
 
     // Perform feature detection (note: this must be after RANSAC,
     // since if we discard more features, we need to extract more)
@@ -391,38 +391,37 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
     if (logger_ &&
         (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
       if (FLAGS_log_feature_tracks) sendFeatureTracksToLogger();
-      if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
-      if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
+      if (FLAGS_log_mono_tracking_images) sendMonoTrackingToLogger();
     }
     if (display_queue_ && FLAGS_visualize_feature_tracks) {
-      displayImage(rgbdFrame_k_->timestamp_,
+      displayImage(rgbd_frame_k_->timestamp_,
                    "feature_tracks",
-                   tracker_->getTrackerImage(rgbdFrame_lkf_->left_frame_,
-                                            rgbdFrame_k_->left_frame_),
+                   tracker_->getTrackerImage(*rgbd_frame_lkf_->intensity_img_.get(),
+                                               *rgbd_frame_k_->intensity_img_.get()),
                    display_queue_);
     }
 
     // Populate statistics.
     // TODO(saching): Add statistics for the current frame.
-    // rgbdFrame_k_->checkStatusRightKeypoints(&tracker_->debug_info_);
+    // rgbd_frame_k_->checkStatusRightKeypoints(&tracker_->debug_info_);
 
     // Move on.
-    rgbdFrame_lkf_ = rgbdFrame_k_;
+    rgbd_frame_lkf_ = rgbd_frame_k_;
 
     // Get relevant info for keyframe.
     start_time = utils::Timer::tic();
-    getSmartRgbdMeasurements(rgbdFrame_k_, &smart_rgbd_measurements);
+    getSmartRgbdMeasurements(rgbd_frame_k_, &smart_rgbd_measurements);
     double get_smart_rgbd_meas_time = utils::Timer::toc(start_time).count();
 
     VLOG(2) << "timeSparseRgbd: " << sparse_rgbd_time << '\n'
             << "timeGetMeasurements: " << get_smart_rgbd_meas_time;
   } else {
     CHECK_EQ(smart_rgbd_measurements.size(), 0u);
-    rgbdFrame_k_->setIsKeyframe(false);
+    rgbd_frame_k_->setIsKeyframe(false);
   }
 
   // Update keyframe to reference frame for next iteration.
-  if (rgbdFrame_k_->isKeyframe()) {
+  if (rgbd_frame_k_->isKeyframe()) {
     // Reset relative rotation if we have a keyframe.
     keyframe_R_ref_frame_ = gtsam::Rot3::Identity();
   } else {
@@ -433,8 +432,8 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
   VLOG(4) <<" Relative pose of Curr Rgbd frame w.r.t body frame in Rgbd process -> " << getRelativePoseBodyRgbd();
 
   // Reset frames.
-  rgbdFrame_km1_ = rgbdFrame_k_;
-  rgbdFrame_k_.reset();
+  rgbd_frame_km1_ = rgbd_frame_k_;
+  rgbd_frame_k_.reset();
   ++frame_count_;
   return std::make_shared<StatusRgbdMeasurements>(
       std::make_pair(tracker_status_summary_,
@@ -448,22 +447,23 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
 // but want to switch to gtsam::Point2
 // TODO(saching): Check if gtsam::StereoPoint2 makes sense for us. 
 void RgbdVisionImuFrontend::getSmartRgbdMeasurements(
-    const RgbdFrame::Ptr& rgbdFrame_kf, RgbdMeasurements* smart_rgbd_measurements) {
+    const RgbdFrame::Ptr& rgbd_frame_kf, RgbdMeasurements* smart_rgbd_measurements) {
   // TODO(marcus): convert to point2 when ready!
   CHECK_NOTNULL(smart_rgbd_measurements);
-  rgbdFrame_kf->checkRgbdFrame();
+  rgbd_frame_kf->checkRgbdFrame();
 
   // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
   double fx_b =
-      stereo_camera_->getStereoCalib()->fx() * stereo_camera_->getBaseline()
-  VLOG(8) << "Fx from stereo Camera: " << stereo_camera_->getStereoCalib()->fx() 
-          << "Fx from Left Camera: " << stereo_camera_->getOriginalLeftCamera()->fx()
-          << "Baseline is -> " stereo_camera_->getBaseline();
+      stereo_camera_->getStereoCalib()->fx() * stereo_camera_->getBaseline();
 
-  const LandmarkIds& landmarkId_kf = rgbdFrame_kf->intensity_img_->landmarks_;
+  VLOG(8) << "Fx from stereo Camera: " << stereo_camera_->getStereoCalib()->fx() 
+          << "Fx from Left Camera: " << stereo_camera_->getOriginalLeftCamera()->getCalibration().fx()
+          << "Baseline is -> " << stereo_camera_->getBaseline();
+
+  const LandmarkIds& landmarkId_kf = rgbd_frame_kf->intensity_img_->landmarks_;
   const StatusKeypointsCV& keypoints_undistorted =
-      rgbdFrame_kf->intensity_img_->keypoints_undistorted_;
-  const std::vector<gtsam::Vector3>& keypoints_3d = rgbdFrame_kf->keypoints_3d_;
+      rgbd_frame_kf->intensity_img_->keypoints_undistorted_;
+  const std::vector<gtsam::Vector3>& keypoints_3d = rgbd_frame_kf->keypoints_3d_;
   // Pack information in landmark structure.
   smart_rgbd_measurements->clear();
   smart_rgbd_measurements->reserve(landmarkId_kf.size());
@@ -494,6 +494,37 @@ void RgbdVisionImuFrontend::getSmartRgbdMeasurements(
     smart_rgbd_measurements->push_back(
         std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
+}
+
+void RgbdVisionImuFrontend::outlierRejectionRgbd(
+    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+    const RgbdFrame::Ptr& rgbd_frame_lkf,
+    const RgbdFrame::Ptr& rgbd_frame_k,
+    TrackingStatusPose* status_pose_rgbd) {
+  CHECK(rgbd_frame_lkf);
+  CHECK(rgbd_frame_k);
+  CHECK(tracker_);
+  CHECK_NOTNULL(status_pose_rgbd);
+
+  gtsam::Matrix infoMatRgbdTranslation = gtsam::Matrix3::Zero();
+  if (tracker_->tracker_params_.ransac_use_1point_stereo_ &&
+      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::Identity()) &&
+      !force_53point_ransac_) {
+    // 1-point RANSAC.
+    std::tie(*status_pose_rgbd, infoMatRgbdTranslation) =
+        tracker_->geometricOutlierRejectionRgbdGivenRotation(
+            *rgbd_frame_lkf,
+            *rgbd_frame_k,
+            stereo_camera_,
+            calLrectLkf_R_camLrectKf_imu);
+  } else {
+    // 3-point RANSAC.
+    *status_pose_rgbd = tracker_->geometricOutlierRejectionRgbd(
+        *rgbd_frame_lkf, *rgbd_frame_k);
+    LOG_IF(WARNING, force_53point_ransac_) << "3-point RANSAC was enforced!";
+  }
+
+  tracker_status_summary_.infoMatStereoTranslation_ = infoMatRgbdTranslation;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -530,5 +561,65 @@ void RgbdVisionImuFrontend::printStatusRgbdMeasurements(
   }
   std::cout << std::endl;
 } 
+
+/* -------------------------------------------------------------------------- */
+void RgbdVisionImuFrontend::sendFeatureTracksToLogger() const {
+  CHECK(tracker_);
+  const Frame& intensity_img_k(*rgbd_frame_k_ ->intensity_img_);
+  cv::Mat img_left =
+      tracker_->getTrackerImage(*rgbd_frame_lkf_->intensity_img_, intensity_img_k);
+
+  logger_->logFrontendImg(intensity_img_k.id_,
+                          img_left,
+                          "monoFeatureTracksLeft",
+                          "/monoFeatureTracksLeftImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
+}
+
+void RgbdVisionImuFrontend::sendMonoTrackingToLogger() const {
+  const Frame& cur_left_frame = *rgbd_frame_k_->intensity_img_;
+  const Frame& ref_left_frame = *rgbd_frame_lkf_->intensity_img_;
+
+  // Find keypoint matches.
+  DMatchVec matches;
+  for (size_t i = 0; i < cur_left_frame.keypoints_.size(); ++i) {
+    if (cur_left_frame.landmarks_.at(i) != -1) {  // if landmark is valid
+      auto it = find(ref_left_frame.landmarks_.begin(),
+                     ref_left_frame.landmarks_.end(),
+                     cur_left_frame.landmarks_.at(i));
+      if (it != ref_left_frame.landmarks_.end()) {  // if landmark was found
+        int nPos = std::distance(ref_left_frame.landmarks_.begin(), it);
+        matches.push_back(cv::DMatch(nPos, i, 0));
+      }
+    }
+  }
+  //############################################################################
+
+  // Plot matches.
+  cv::Mat img_left_lkf_kf =
+      UtilsOpenCV::DrawCornersMatches(ref_left_frame.img_,
+                                      ref_left_frame.keypoints_,
+                                      cur_left_frame.img_,
+                                      cur_left_frame.keypoints_,
+                                      matches,
+                                      false);  // true: random color
+  cv::putText(img_left_lkf_kf,
+              "M:" + std::to_string(keyframe_count_ - 1) + "-" +
+                  std::to_string(keyframe_count_),
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
+              cv::Scalar(0, 255, 0));
+
+  logger_->logFrontendImg(cur_left_frame.id_,
+                          img_left_lkf_kf,
+                          "monoTrackingUnrectified",
+                          "/monoTrackingUnrectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
+  //############################################################################
+  // TODO Visualization must be done in the main thread.
+}
 
 }  // namespace VIO

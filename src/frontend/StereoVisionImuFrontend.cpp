@@ -474,8 +474,8 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
 /* -------------------------------------------------------------------------- */
 void StereoVisionImuFrontend::outlierRejectionStereo(
     const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
-    const StereoFrame::Ptr& left_frame_lkf,
-    const StereoFrame::Ptr& left_frame_k,
+    const StereoFrame::Ptr& stereo_frame_lkf,
+    const StereoFrame::Ptr& stereo_frame_k,
     TrackingStatusPose* status_pose_stereo) {
   CHECK(left_frame_lkf);
   CHECK(left_frame_k);
@@ -489,14 +489,14 @@ void StereoVisionImuFrontend::outlierRejectionStereo(
     // 1-point RANSAC.
     std::tie(*status_pose_stereo, infoMatStereoTranslation) =
         tracker_->geometricOutlierRejectionStereoGivenRotation(
-            *stereoFrame_lkf_,
-            *stereoFrame_k_,
+            *stereo_frame_lkf,
+            *stereo_frame_k,
             stereo_camera_,
             calLrectLkf_R_camLrectKf_imu);
   } else {
     // 3-point RANSAC.
     *status_pose_stereo = tracker_->geometricOutlierRejectionStereo(
-        *stereoFrame_lkf_, *stereoFrame_k_);
+        *stereo_frame_lkf, *stereo_frame_k);
     LOG_IF(WARNING, force_53point_ransac_) << "3-point RANSAC was enforced!";
   }
 

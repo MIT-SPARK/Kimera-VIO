@@ -81,6 +81,12 @@ class Tracker {
       StereoFrame& ref_frame,
       StereoFrame& cur_frame);
 
+  // TODO(saching): this function is almost a replica of the Stereo version,
+  // factorize.
+  std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionRgbd(
+      RgbdFrame& ref_frame,
+      RgbdFrame& cur_frame);
+
   // Contrarily to the previous 2 this also returns a 3x3 covariance for the
   // translation estimate.
   std::pair<TrackingStatus, gtsam::Pose3>
@@ -96,6 +102,13 @@ class Tracker {
       VIO::StereoCamera::ConstPtr stereo_camera,
       const gtsam::Rot3& camLrectlkf_R_camLrectkf);
 
+std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
+  geometricOutlierRejectionRgbdGivenRotation(
+      RgbdFrame& ref_stereoFrame,
+      RgbdFrame& cur_stereoFrame,
+      VIO::StereoCamera::ConstPtr stereo_camera,
+      const gtsam::Rot3& camLrectlkf_R_camLrectkf);
+
   void removeOutliersMono(const std::vector<int>& inliers,
                           Frame* ref_frame,
                           Frame* cur_frame,
@@ -104,6 +117,11 @@ class Tracker {
   void removeOutliersStereo(const std::vector<int>& inliers,
                             StereoFrame* ref_stereoFrame,
                             StereoFrame* cur_stereoFrame,
+                            KeypointMatches* matches_ref_cur);
+
+  void removeOutliersRgbd(const std::vector<int>& inliers,
+                            RgbdFrame* ref_stereoFrame,
+                            RgbdFrame* cur_stereoFrame,
                             KeypointMatches* matches_ref_cur);
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
@@ -134,6 +152,17 @@ class Tracker {
       const KeypointMatches& matches_ref_cur_mono,
       KeypointMatches* matches_ref_cur_stereo);
 
+  void findMatchingRgbdKeypoints(
+      const RgbdFrame& ref_rgbdFrame,
+      const RgbdFrame& cur_rgbdFrame,
+      KeypointMatches* matches_ref_cur_rgbd);
+
+  void findMatchingRgbdKeypoints(
+      const RgbdFrame& ref_rgbdFrame,
+      const RgbdFrame& cur_rgbdFrame,
+      const KeypointMatches& matches_ref_cur_mono,
+      KeypointMatches* matches_ref_cur_rgbd);
+
   static bool computeMedianDisparity(const KeypointsCV& ref_frame_kpts,
                                      const KeypointsCV& cur_frame_kpts,
                                      const KeypointMatches& matches_ref_cur,
@@ -146,6 +175,12 @@ class Tracker {
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
+  static std::pair<Vector3, Matrix3> getPoint3AndCovarianceRgbd(
+                        const RgbdFrame& rgbdFrame,
+                        const gtsam::StereoCamera& stereoCam,
+                        const size_t pointId,
+                        const Matrix3& stereoPtCov,
+                        boost::optional<gtsam::Matrix3> Rmat);
  public:
   //! Debug info (its public to allow stereo frames to populate it).
   DebugTrackerInfo debug_info_;

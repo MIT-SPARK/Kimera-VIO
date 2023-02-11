@@ -64,6 +64,23 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
   // Mimicing stereo setup
   gtsam::Pose3 getRelativePoseBodyRgbd() const;
 
+  /* ------------------------------------------------------------------------ */
+  // Force use of 3/5 point methods in initialization phase.
+  // This despite the parameter specified in the tracker
+  void forceFiveThreePointMethod(const bool force_flag) {
+    force_53point_ransac_ = force_flag;
+    LOG(WARNING) << "Forcing of 5/3 point method has been turned "
+                 << (force_53point_ransac_ ? "ON!!" : "OFF");
+  }
+
+    /* ------------------------------------------------------------------------ */
+  // Log, visualize and/or save the feature tracks on the current left frame
+  void sendFeatureTracksToLogger() const;
+
+  /* ------------------------------------------------------------------------ */
+  // Log, visualize and/or save quality of temporal and stereo matching
+  void sendMonoTrackingToLogger() const;
+
  private:
   void processFirstFrame(const RgbdFrame& firstFrame);
 
@@ -84,6 +101,14 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
         VIO::safeCast<FrontendInputPacketBase, RgbdFrontendInputPayload>(
             std::move(input)));
   }
+
+  /* ------------------------------------------------------------------------ */
+  // TODO(Saching): Duplicate from StereoVisionImuFrontend. Maybe moveit back into VisionIMUFrontend?
+  // Mimicing stereo agian
+  void outlierRejectionRgbd(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+                              const RgbdFrame::Ptr& left_frame_lkf,
+                              const RgbdFrame::Ptr& left_frame_k,
+                              TrackingStatusPose* status_pose_stereo);
 
   RgbdFrontendOutput::UniquePtr nominalSpinRgbd(
       RgbdFrontendInputPayload::UniquePtr&& input);
@@ -114,6 +139,9 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
   gtsam::Rot3 keyframe_R_ref_frame_;
 
   FeatureDetector::UniquePtr feature_detector_;
+
+  // Used to force the use of 5/3 point ransac, despite parameters
+  std::atomic_bool force_53point_ransac_ = {false};
 
 //   Camera::ConstPtr camera_;
 

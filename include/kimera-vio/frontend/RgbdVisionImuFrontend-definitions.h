@@ -44,12 +44,12 @@ struct RgbdFrontendOutput : public FrontendOutputPacketBase {
                      const TrackingStatus& tracker_status,
                      const gtsam::Pose3& relative_pose_body_rgbd,
                      const gtsam::Pose3& b_Pose_cam_rect,
-                     const Frame& frame_lkf,
+                     const RgbdFrame& rgbd_frame_lkf,
                      const ImuFrontend::PimPtr& pim,
                      const ImuAccGyrS& imu_acc_gyrs,
                      const cv::Mat& feature_tracks,
                      const DebugTrackerInfo& debug_tracker_info)
-      : FrontendOutputPacketBase(frame_lkf.timestamp_,
+      : FrontendOutputPacketBase(rgbd_frame_lkf.timestamp_,
                                  is_keyframe,
                                  FrontendType::kRgbdImu,
                                  pim,
@@ -59,7 +59,7 @@ struct RgbdFrontendOutput : public FrontendOutputPacketBase {
         tracker_status_(tracker_status),
         relative_pose_body_rgbd_(relative_pose_body_rgbd),
         b_Pose_cam_rect_(b_Pose_cam_rect),
-        frame_lkf_(frame_lkf),
+        rgbd_frame_lkf_(rgbd_frame_lkf),
         feature_tracks_(feature_tracks) {}
 
   virtual ~RgbdFrontendOutput() = default;
@@ -69,7 +69,7 @@ struct RgbdFrontendOutput : public FrontendOutputPacketBase {
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_rgbd_;
   const gtsam::Pose3 b_Pose_cam_rect_;
-  const Frame frame_lkf_;
+  const RgbdFrame rgbd_frame_lkf_;
   const cv::Mat feature_tracks_;
 };
 
