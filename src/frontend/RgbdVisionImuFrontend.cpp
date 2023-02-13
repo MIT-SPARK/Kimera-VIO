@@ -47,9 +47,16 @@ RgbdVisionImuFrontend::RgbdVisionImuFrontend(
       frontend_params_.feature_detector_params_);
   }
   if (VLOG_IS_ON(1)) tracker_->tracker_params_.print();
-  CHECK_EQ(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam(), stereo_camera_->getBodyPoseLeftCamRect()) 
-  << "Body pose of the left Camera: " << stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam() 
+  std::ostringstream pose_error;
+  pose_error << "Body pose of the left Camera: " << stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam() 
   << " and Body pose of the left Rectified Camera: " << stereo_camera_->getBodyPoseLeftCamRect() << " do not match.";
+  // CHECK_EQ(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().rotation(), stereo_camera_->getBodyPoseLeftCamRect().rotation()) 
+  // << "Body pose of the left Camera: " << stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam() 
+  // << " and Body pose of the left Rectified Camera: " << stereo_camera_->getBodyPoseLeftCamRect() << " do not match.";
+
+  CHECK_EQ(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().translation(), stereo_camera_->getBodyPoseLeftCamRect().translation()) << pose_error.str();
+  CHECK(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().rotation().equals(stereo_camera_->getBodyPoseLeftCamRect().rotation())) << pose_error.str();
+  
 }
 
 RgbdVisionImuFrontend::~RgbdVisionImuFrontend() {

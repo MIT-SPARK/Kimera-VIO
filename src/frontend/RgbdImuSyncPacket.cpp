@@ -3,10 +3,12 @@
  * @brief  Class describing the minimum input for VIO to run
  * Contains a RGB Frame + a Depth Frame with Imu data synchronized from last
  * Keyframe timestamp to the current stereo frame timestamp.
- * @author Antoni Rosinol
+ * @author Sachin Guruswamy
  */
 
 #include "kimera-vio/frontend/RgbdImuSyncPacket.h"
+
+#include <utility>
 
 namespace VIO {
 

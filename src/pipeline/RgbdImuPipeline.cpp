@@ -13,7 +13,7 @@
  * @author Marcus Abate
  */
 
-#include "kimera-vio/pipeline/StereoImuPipeline.h"
+#include "kimera-vio/pipeline/RgbdImuPipeline.h"
 
 #include <string>
 
@@ -21,8 +21,9 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/backend/VioBackendFactory.h"
-#include "kimera-vio/dataprovider/StereoDataProviderModule.h"
+#include "kimera-vio/dataprovider/RgbdDataProviderModule.h"
 #include "kimera-vio/frontend/VisionImuFrontendFactory.h"
+#include "kimera-vio/frontend/RgbdVisionImuFrontend-definitions.h"
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -37,17 +38,17 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
                                Visualizer3D::UniquePtr&& visualizer,
                                DisplayBase::UniquePtr&& displayer)
     : Pipeline(params),
-      camera_(nullptr) {
+      stereo_camera_(nullptr) {
     
-    camera_ = std::make_shared<Camera>(params.camera_params_.at(0));
+    stereo_camera_ = std::make_shared<StereoCamera>(
+      params.camera_params_.at(0),
+      params.camera_params_.at(1));
 
   //! Create DataProvider
   data_provider_module_ = VIO::make_unique<RgbdDataProviderModule>(
       &frontend_input_queue_,
       "Rgbd Data Provider",
-      parallel_run_,
-      // TODO(Toni): these params should not be sent...
-      params.frontend_params_.stereo_matching_params_);
+      parallel_run_);
 
   data_provider_module_->registerVioPipelineCallback(
       std::bind(&RgbdImuPipeline::spinOnce, this, std::placeholders::_1));
@@ -61,7 +62,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
           params.imu_params_,
           gtsam::imuBias::ConstantBias(),
           params.frontend_params_,
-          camera_,
+          stereo_camera_,
           FLAGS_visualize ? &display_input_queue_ : nullptr,
           FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
@@ -73,7 +74,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
     if (converted_output && converted_output->is_keyframe_) {
       //! Only push to Backend input queue if it is a keyframe!
       backend_input_queue.push(VIO::make_unique<BackendInput>(
-          converted_output->frame_lkf.timestamp_,
+          converted_output->rgbd_frame_lkf_.timestamp_,
           converted_output->status_rgbd_measurements_,
           converted_output->tracker_status_,
           converted_output->pim_,
@@ -107,7 +108,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
           backend_output_params,
           FLAGS_log_output));
   vio_backend_module_->registerOnFailureCallback(
-      std::bind(&StereoImuPipeline::signalBackendFailure, this));
+      std::bind(&RgbdImuPipeline::signalBackendFailure, this));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&VisionImuFrontendModule::updateImuBias,
                 // Send a cref: constant reference bcs updateImuBias is const
@@ -215,7 +216,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
                   : DisplayFactory::makeDisplay(
                         params.display_params_->display_type_,
                         params.display_params_,
-                        std::bind(&StereoImuPipeline::shutdown, this)));
+                        std::bind(&RgbdImuPipeline::shutdown, this)));
   }
 
   // All modules are ready, launch threads! If the parallel_run flag is set to

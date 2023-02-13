@@ -477,8 +477,8 @@ void StereoVisionImuFrontend::outlierRejectionStereo(
     const StereoFrame::Ptr& stereo_frame_lkf,
     const StereoFrame::Ptr& stereo_frame_k,
     TrackingStatusPose* status_pose_stereo) {
-  CHECK(left_frame_lkf);
-  CHECK(left_frame_k);
+  CHECK(stereo_frame_lkf);
+  CHECK(stereo_frame_k);
   CHECK(tracker_);
   CHECK_NOTNULL(status_pose_stereo);
 

@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "kimera-vio/dataprovider/StereoDataProviderModule.h"
-#include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/dataprovider/RgbdDataProviderModule.h"
+#include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/pipeline/Pipeline.h"
 
 namespace VIO {
@@ -85,7 +85,7 @@ class RgbdImuPipeline : public Pipeline {
 
  protected:
   //! Definition of sensor rig used
-  Camera::ConstPtr camera_;
+  StereoCamera::ConstPtr stereo_camera_;
 };
 
 }  // namespace VIO

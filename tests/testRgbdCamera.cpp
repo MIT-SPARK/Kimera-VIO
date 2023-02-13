@@ -24,7 +24,7 @@
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/frontend/rgbd/RgbdCamera.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"

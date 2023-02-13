@@ -24,7 +24,7 @@
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
-#include "kimera-vio/frontend/rgbd/RgbdFrame.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {

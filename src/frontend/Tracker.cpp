@@ -388,7 +388,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovarianceRgbd(
   double fx_b = stereoCam.calibration().fx() * stereoCam.baseline();
   Vector3 point3_i = rgbdFrame.keypoints_3d_.at(pointId);
 
-  double right_x = uL - fx_b / point3_i(2);
+  double right_x = left_x - fx_b / point3_i(2);
   gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(left_x, right_x, left_y);  // uL_, uR_, v_;
 
   Matrix3 Jac_point3_sp2;  // jacobian of the back projection

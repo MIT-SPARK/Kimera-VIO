@@ -55,7 +55,7 @@ struct RgbdFrontendOutput : public FrontendOutputPacketBase {
                                  pim,
                                  imu_acc_gyrs,
                                  debug_tracker_info),
-        status_rgbd_measurements(status_rgbd_measurements),
+        status_rgbd_measurements_(status_rgbd_measurements),
         tracker_status_(tracker_status),
         relative_pose_body_rgbd_(relative_pose_body_rgbd),
         b_Pose_cam_rect_(b_Pose_cam_rect),
@@ -65,7 +65,7 @@ struct RgbdFrontendOutput : public FrontendOutputPacketBase {
   virtual ~RgbdFrontendOutput() = default;
 
  public:
-  const StatusRgbdMeasurementsPtr status_rgbd_measurements;
+  const StatusRgbdMeasurementsPtr status_rgbd_measurements_;
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_rgbd_;
   const gtsam::Pose3 b_Pose_cam_rect_;

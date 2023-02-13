@@ -20,10 +20,11 @@ class RgbdImuSyncPacket : public FrontendInputPacketBase {
   KIMERA_POINTER_TYPEDEFS(RgbdImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(RgbdImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  RgbdImuSyncPacket() = delete;
   RgbdImuSyncPacket(const RgbdFrame& rgbd_frame,
                     const ImuStampS& imu_stamps,
                     const ImuAccGyrS& imu_accgyr);
-  virtual ~RgbdImuSyncPacket() = default;
+  ~RgbdImuSyncPacket() = default;
 
   // Careful, returning references to members can lead to dangling refs.
   inline const RgbdFrame& getRgbdFrame() const { return rgbd_frame_; }

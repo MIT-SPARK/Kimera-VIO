@@ -29,6 +29,7 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/optical-flow/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/utils/Macros.h"
@@ -180,7 +181,7 @@ std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
                         const gtsam::StereoCamera& stereoCam,
                         const size_t pointId,
                         const Matrix3& stereoPtCov,
-                        boost::optional<gtsam::Matrix3> Rmat);
+                        boost::optional<gtsam::Matrix3> Rmat = boost::none);
  public:
   //! Debug info (its public to allow stereo frames to populate it).
   DebugTrackerInfo debug_info_;

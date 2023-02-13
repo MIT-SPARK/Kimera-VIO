@@ -24,11 +24,15 @@
 #include <depthai/depthai.hpp>
 
 #include "kimera-vio/dataprovider/OAKDataProvider.h"
+#include "kimera-vio/dataprovider/OAKStereoDataProvider.h"
+#include "kimera-vio/dataprovider/OAK3DFeatureDataProvider.h"
+
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
 #include "kimera-vio/pipeline/MonoImuPipeline.h"
 #include "kimera-vio/pipeline/StereoImuPipeline.h"
+#include "kimera-vio/pipeline/RgbdImuPipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -85,7 +89,7 @@ dai::Pipeline createPipeline(){
       stereo->setLeftRightCheck(true);
       stereo->setExtendedDisparity(false);
       stereo->setSubpixel(true);
-      stereo->setDepthAlign(dai::CameraBoardSocket::LEFT)
+      stereo->setDepthAlign(dai::CameraBoardSocket::LEFT);
 
       //  Linking
       auto xoutDepth = pipeline.create<dai::node::XLinkOut>();
@@ -106,12 +110,12 @@ dai::Pipeline createPipeline(){
       featureTrackerRight->setHardwareResources(numShaves, numMemorySlices);
 
       // COnfig Optical FLow  
-      auto featureTrackerConfig = dai::FeatureTrackerConfig();
-      featureTrackerConfig.setOpticalFlow();
-      // TODO(Saching): Use FULL control of Corner Detector in future for experimentation
-      featureTrackerConfig.setCornerDetector(dai::FeatureTrackerConfig::CornerDetector::HARRIS);
-      featureTrackerConfig.setFeatureMaintainer(true);
-      featureTrackerRight->initialConfig = featureTrackerConfig;
+      // auto featureTrackerConfig = dai::FeatureTrackerConfig();
+      // featureTrackerConfig.setOpticalFlow();
+      // // TODO(Saching): Use FULL control of Corner Detector in future for experimentation
+      // featureTrackerConfig.setCornerDetector(dai::RawFeatureTrackerConfig::CornerDetector::Type::HARRIS);
+      // featureTrackerConfig.setFeatureMaintainer(true);
+      // featureTrackerRight->initialConfig.set(featureTrackerConfig);
 
       auto xoutTrackedFeaturesR = pipeline.create<dai::node::XLinkOut>();
       xoutTrackedFeaturesR->setStreamName("trackers");
@@ -203,7 +207,7 @@ int main(int argc, char* argv[]) {
                   std::placeholders::_1));
   }
   else if (vio_params.frontend_type_ == VIO::FrontendType::kRgbdImu) {
-    VIO::StereoImuPipeline::Ptr rgbd_pipeline =
+    VIO::RgbdImuPipeline::Ptr rgbd_pipeline =
         VIO::safeCast<VIO::Pipeline, VIO::RgbdImuPipeline>(
             vio_pipeline);
 
@@ -211,10 +215,10 @@ int main(int argc, char* argv[]) {
         std::bind(&VIO::RgbdImuPipeline::fillDepthFrameQueue,
                   rgbd_pipeline,
                   std::placeholders::_1));
-    dataset_parser->registerFeatureTrackletsCallback(
-        std::bind(&VIO::RgbdImuPipeline::fillFeatureTrackletsQueue,
-                  rgbd_pipeline,
-                  std::placeholders::_1));
+    // dataset_parser->registerFeatureTrackletsCallback(
+    //     std::bind(&VIO::RgbdImuPipeline::fillFeatureTrackletsQueue,
+    //               rgbd_pipeline,
+    //               std::placeholders::_1));
 
   }
 
@@ -235,12 +239,12 @@ int main(int argc, char* argv[]) {
   if(enableStereoFeature){
     auto depthQueue = daiDevice->getOutputQueue("depth", 10, false);
     auto featureQueue = daiDevice->getOutputQueue("trackers", 10, false);
-    VIO::OAKDataProvider::Ptr oak_feature_data_parser =
+    VIO::OAK3DFeatureDataProvider::Ptr oak_feature_data_parser =
       VIO::safeCast<VIO::DataProviderInterface, VIO::OAK3DFeatureDataProvider>(dataset_parser);
     oak_feature_data_parser->setDepthFeatureQueues(depthQueue, featureQueue);
   }
   else{
-    VIO::OAKDataProvider::Ptr oak_feature_data_parser =
+    VIO::OAKStereoDataProvider::Ptr oak_feature_data_parser =
       VIO::safeCast<VIO::DataProviderInterface, VIO::OAKStereoDataProvider>(dataset_parser);
     
     auto rightQueue = daiDevice->getOutputQueue("right", 10, false);
