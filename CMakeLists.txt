@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.10.2)  # CMake version in Ubuntu 18.04 LTS
 project(kimera_vio VERSION 1.0 LANGUAGES CXX C)
+# add_compile_options(-g)
 
 # Make sure that custom modules like FindXXXX are found
 # Prefer to use system installation of gflags/glog
