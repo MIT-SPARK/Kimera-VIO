@@ -1,5 +1,7 @@
 %YAML:1.0
 
+use_on_device_tracking: 1
+
 #-------------------Feature detector Paramsr----------------
 # Detector Params
 # 0: FAST

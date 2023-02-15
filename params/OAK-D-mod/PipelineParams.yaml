@@ -2,7 +2,8 @@
 # Type of VIO Frontend to use
 # 0: MonoImu
 # 1: StereoImu
-frontend_type: 1
+# 2: RgbdImu
+frontend_type: 2
 
 # Type of vioBackend to use:
 # 0: VioBackend

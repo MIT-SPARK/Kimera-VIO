@@ -140,8 +140,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     CHECK(std::abs(timestamp - payload_timestamp) < 30000)  
         << "Syncing queue " << queue->queue_id_ << " in module " << name_id
         << " failed;\n Could not retrieve exact timestamp requested: \n"
-        << " - Requested timestamp:                 " << timestamp << '\n'
-        << " - Actual timestamp:                    " << payload_timestamp << '\n'
+        << " - looking for payloat at timestamp:                 " << timestamp << '\n'
+        << " - payloads actual  timestamp:                    " << payload_timestamp << '\n'
         << " - Requested vs Actual timestamp diff:  " << std::abs(timestamp - payload_timestamp) << " Nano Seconds \n"
         << (i >= max_iterations
                 ? "Reached max number of sync attempts: " +

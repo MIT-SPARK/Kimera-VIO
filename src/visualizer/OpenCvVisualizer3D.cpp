@@ -36,6 +36,7 @@
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 #include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/RgbdVisionImuFrontend-definitions.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -119,12 +120,40 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   output->visualization_type_ = visualization_type_;
 
   cv::Mat mesh_2d_img;  // Only for visualization.
-  const Frame& left_stereo_keyframe =
+const Frame& left_stereo_keyframe =
       input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
           ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
                 input.frontend_output_)->stereo_frame_lkf_.left_frame_
+          : input.frontend_output_->frontend_type_ == FrontendType::kRgbdImu 
+          ? *VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
+                input.frontend_output_)->rgbd_frame_lkf_.intensity_img_.get()
           : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput> (
                 input.frontend_output_)->frame_lkf_;
+  
+   /* switch (input.frontend_output_->frontend_type_){
+    case FrontendType::kStereoImu:{
+      left_stereo_keyframe = &VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)
+                ->stereo_frame_lkf_.left_frame_;
+    }
+    break;
+    case FrontendType::kRgbdImu:{
+      left_stereo_keyframe = VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
+                input.frontend_output_)
+                ->rgbd_frame_lkf_.intensity_img_.get();
+    }
+    case FrontendType::kMonoImu: {
+      left_stereo_keyframe = &VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                input.frontend_output_)
+                ->frame_lkf_;
+    }
+    break;
+     default: {
+        LOG(FATAL) << "Requested Frontend type is not supported in OpenCvVisualizer3D.\n"
+                   << static_cast<int>(input.frontend_output_->frontend_type_);
+      }
+  }
+ */
   switch (visualization_type_) {
     // Computes and visualizes 3D mesh from 2D triangulation.
     // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
@@ -366,14 +395,40 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
   // Visualize trajectory.
   // First, add current pose to trajectory
   VLOG(10) << "Starting trajectory visualization...";
-  const gtsam::Pose3& b_Pose_cam_Lrect =
-      input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
+  const gtsam::Pose3& b_Pose_cam_Lrect = input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
           ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+                input.frontend_output_)->b_Pose_camL_rect_
+          : input.frontend_output_->frontend_type_ == FrontendType::kRgbdImu 
+          ? VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
+                input.frontend_output_)->b_Pose_cam_rect_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput> (
+                input.frontend_output_)->b_Pose_cam_rect_;
+  
+  /* switch (input.frontend_output_->frontend_type_){
+    case FrontendType::kStereoImu:{
+      b_Pose_cam_Lrect = VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
                 input.frontend_output_)
-                ->b_Pose_camL_rect_
-          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                ->b_Pose_camL_rect_;
+    }
+    break;
+    case FrontendType::kRgbdImu:{
+      b_Pose_cam_Lrect = VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
                 input.frontend_output_)
                 ->b_Pose_cam_rect_;
+    }
+    break;
+    case FrontendType::kMonoImu: {
+      b_Pose_cam_Lrect = VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
+                input.frontend_output_)
+                ->b_Pose_cam_rect_;
+    }
+    break;
+     default: {
+        LOG(FATAL) << "Requested Frontend type is not supported in OpenCvVisualizer3D.\n"
+                   << static_cast<int>(input.frontend_output_->frontend_type_);
+      }
+  } */
+
   addPoseToTrajectory(UtilsOpenCV::gtsamPose3ToCvAffine3d(
       input.backend_output_->W_State_Blkf_.pose_.compose(b_Pose_cam_Lrect)));
   // Generate line through all poses
@@ -385,11 +440,12 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
       FLAGS_visualize_mesh_in_frustum ? mesh_2d_img
       : input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
           ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                input.frontend_output_)
-                ->feature_tracks_
-          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                input.frontend_output_)
-                ->feature_tracks_,
+                input.frontend_output_)->feature_tracks_
+          : input.frontend_output_->frontend_type_ == FrontendType::kRgbdImu 
+          ? VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
+                input.frontend_output_)->feature_tracks_
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput> (
+                input.frontend_output_)->feature_tracks_,
       trajectory_poses_3d_.back(),
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
@@ -401,11 +457,12 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
       b_Pose_cam_Lrect,
       input.frontend_output_->frontend_type_ == FrontendType::kStereoImu
           ? VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                input.frontend_output_)
-                ->b_Pose_camR_rect_
-          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                input.frontend_output_)
-                ->b_Pose_cam_rect_,  // TODO(marcus): should be null
+                input.frontend_output_)->b_Pose_camR_rect_
+          : input.frontend_output_->frontend_type_ == FrontendType::kRgbdImu 
+          ? VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
+                input.frontend_output_)->b_Pose_cam_rect_ // TODO(saching): Skipping mimic of stereo since it is visualization
+          : VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput> (
+                input.frontend_output_)->b_Pose_cam_rect_, // TODO(marcus): should be null
       &output->widgets_);
 
   // Add widgets to remove
@@ -1540,7 +1597,7 @@ void OpenCvVisualizer3D::visualizePoseWithImgInFrustum(
     cam_widget_ptr = VIO::make_unique<cv::viz::WCameraPosition>(
         K_, frustum_image, 1.0, cv::viz::Color::white());
   }
-  CHECK(cam_widget_ptr);
+  CHECK(cam_widget_ptr) << "Failed to create camera widget";
   cam_widget_ptr->setPose(frustum_pose);
   (*widgets_map)[widget_id] = std::move(cam_widget_ptr);
 }

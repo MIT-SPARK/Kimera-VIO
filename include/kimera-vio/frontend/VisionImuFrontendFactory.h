@@ -17,6 +17,7 @@
 #include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend.h"
+#include "kimera-vio/frontend/RgbdVisionImuFrontend.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 
 namespace VIO {
@@ -83,11 +84,21 @@ class VisionImuFrontendFactory {
                                                       display_queue,
                                                       log_output);
       }
+      case FrontendType::kRgbdImu: {
+        return VIO::make_unique<RgbdVisionImuFrontend>(imu_params,
+                                                      imu_initial_bias,
+                                                      frontend_params,
+                                                      stereo_camera,
+                                                      display_queue,
+                                                      log_output);
+      }
+
       default: {
-        LOG(FATAL) << "Requested frontend type is not supported.\n"
+        LOG(FATAL) << "Requested Invalid frontend type.\n"
                    << "Currently supported frontend types:\n"
                    << "0: Mono + IMU \n"
                    << "1: Stereo + IMU \n"
+                   << "2: RGBD/Sparse 3D features + IMU \n"
                    << " but requested frontend: "
                    << static_cast<int>(frontend_type);
       }

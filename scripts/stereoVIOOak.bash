@@ -13,8 +13,10 @@ LOG_OUTPUT=0
 # Other PATHS
 # All paths can be absolute or relative to this file location.
 
+USE_ONDEV=0
+
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../buildParallels"
+BUILD_PATH="../build"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params/OAK-D-mod"
@@ -38,9 +40,13 @@ else
       case "$1" in
 
       -lcd) USE_LCD=1
-           echo "Run VIO with LoopClosureDetector!" ;;
+            echo "Run VIO with LoopClosureDetector!" ;;
       -log) LOG_OUTPUT=1
-           echo "Logging output!";;
+            echo "Logging output!";;
+        -b) BUILD_PATH=$2 #{OPTARG}
+            echo "Changing Build path to -> ${BUILD_PATH}!";;
+        -eod) USE_ONDEV=1
+            echo "Using on device feature tracker!" ;;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -70,9 +76,11 @@ echo """ Launching:
 # Execute stereoVIOEuroc with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
+# valgrind --tool=memcheck --vgdb=yes --vgdb-error=0 $BUILD_PATH/stereoVIO_OAKD \
 $BUILD_PATH/stereoVIO_OAKD \
   --params_folder_path="$PARAMS_PATH" \
   --use_lcd="$USE_LCD" \
+  --enable_ondevice_stereo_feature="$USE_ONDEV" \
   --vocabulary_path="$VOCABULARY_PATH/ORBvoc.yml" \
   --flagfile="$PARAMS_PATH/flags/stereoVIO_OAK.flags" \
   --flagfile="$PARAMS_PATH/flags/Mesher.flags" \
@@ -82,7 +90,7 @@ $BUILD_PATH/stereoVIO_OAKD \
   --logtostderr=1 \
   --colorlogtostderr=1 \
   --log_prefix=1 \
-  --v=5 \
+  --v=4 \
   --log_output="$LOG_OUTPUT" \
   --save_frontend_images=0 \
   --visualize_frontend_images=0 \

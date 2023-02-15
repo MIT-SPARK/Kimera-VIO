@@ -235,7 +235,7 @@ void OAKDataProvider::FillImuDataLinearInterpolation(std::vector<dai::IMUPacket>
                                 }
                             } else {
                                 accelHist.pop_front();
-                                LOG(WARNING) << "IMU INTERPOLATION: Droppinh ACCEL with old timestamps which are below accel10";
+                                // LOG(WARNING) << "IMU INTERPOLATION: Droppinh ACCEL with old timestamps which are below accel10";
                             }
                         }
                         gyro0 = gyro1;
@@ -259,7 +259,7 @@ void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
     // the IMU usage by plugging in the IMU positions in both frountend and backed of VIO
     imu_accgyr << accel.y, -accel.z, -accel.x, gyro.y, -gyro.z, -gyro.x; // Order of accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z in the order interms of base.
     ImuStamp timestamp;
-    LOG(WARNING) << "IMUDta-> x m/s: " << accel.y << " y m/s: " << -accel.z << " z m/s: " << -accel.x << " r rad/s: " <<  gyro.y << " p rad/s: " << -gyro.z << " y rad/s: " << -gyro.x;
+    // LOG(WARNING) << "IMUDta-> x m/s: " << accel.y << " y m/s: " << -accel.z << " z m/s: " << -accel.x << " r rad/s: " <<  gyro.y << " p rad/s: " << -gyro.z << " y rad/s: " << -gyro.x;
 
     if(syncMode_ == ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL) {
         timestamp = timestampAtFrame(gyro.timestamp.get());

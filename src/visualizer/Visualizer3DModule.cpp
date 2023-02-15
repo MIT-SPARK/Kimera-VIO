@@ -86,8 +86,8 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   // a Backend payload without having a Frontend one first!
   VizFrontendInput frontend_payload = nullptr;
   PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
-  CHECK(frontend_payload);
-  CHECK(frontend_payload->is_keyframe_);
+  CHECK(frontend_payload) << "Frontend payload missing: " << timestamp;
+  CHECK(frontend_payload->is_keyframe_) << "Frontend payload is not a keyframe";
 
   VizMesherInput mesher_payload = nullptr;
   if (mesher_queue_) {

@@ -43,7 +43,7 @@ DEFINE_string(
     "Path to the folder containing the yaml files with the VIO parameters.");
 
 DEFINE_bool(enable_ondevice_stereo_feature,
-            true,
+            false,
             "Enable Stereo and Feature tracking from On-Device");
 
 bool enableStereoFeature = false;
@@ -149,6 +149,8 @@ int main(int argc, char* argv[]) {
                 "LcdParams.yaml",
                 "DisplayParams.yaml");
 
+  enableStereoFeature = FLAGS_enable_ondevice_stereo_feature;
+  std::cout << "Is on device feature enabled: " << std::boolalpha <<  enableStereoFeature << std::endl;
   // Build dataset parser.
   VIO::DataProviderInterface::Ptr dataset_parser;
   if(enableStereoFeature){
@@ -175,7 +177,7 @@ int main(int argc, char* argv[]) {
     default: {
       LOG(FATAL) << "Unrecognized Frontend type: "
                  << VIO::to_underlying(vio_params.frontend_type_)
-                 << ". 0: Mono, 1: Stereo.";
+                 << ". 0: Mono, 1: Stereo. 2: RGBD";
     } break;
   }
 

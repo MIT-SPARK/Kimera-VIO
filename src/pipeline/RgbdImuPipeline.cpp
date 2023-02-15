@@ -185,8 +185,8 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
     auto& visualizer_module = visualizer_module_;
     vio_frontend_module_->registerOutputCallback(
         [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
-          StereoFrontendOutput::Ptr converted_output =
-              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(output);
+          RgbdFrontendOutput::Ptr converted_output =
+              VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(output);
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
         });

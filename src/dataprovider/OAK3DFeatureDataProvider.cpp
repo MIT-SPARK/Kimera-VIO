@@ -57,7 +57,7 @@ void OAK3DFeatureDataProvider::setDepthFeatureQueues(std::shared_ptr<dai::DataOu
 /* -------------------------------------------------------------------------- */
 bool OAK3DFeatureDataProvider::spin() {
     // Spin.
-    CHECK_EQ(vio_params_.camera_params_.size(), 1u);
+    CHECK_EQ(vio_params_.camera_params_.size(), 2u); // As usual mimicing stereo
     LOG(INFO) << "Data OAK3DFeatureDataProvider Interface: <-------------- Spinning -------------->";
 
     while (!shutdown_) {
@@ -143,6 +143,7 @@ void OAK3DFeatureDataProvider::leftImageFeatureCallback(std::shared_ptr<dai::ADa
     left_frame->scores_.reserve(tracked_features.size());
     left_frame->keypoints_.reserve(tracked_features.size());
     left_frame->versors_.reserve(tracked_features.size());
+    VLOG(6) << "Total Tracked Points : " << tracked_features.size();
 
     for (auto& feature : tracked_features) {
         KeypointCV keypoint(feature.position.x, feature.position.y);
@@ -152,7 +153,7 @@ void OAK3DFeatureDataProvider::leftImageFeatureCallback(std::shared_ptr<dai::ADa
         left_frame->keypoints_.push_back(keypoint);
         left_frame->versors_.push_back(
         UndistorterRectifier::UndistortKeypointAndGetVersor(keypoint, left_frame->cam_param_));
-        VLOG(5) << "Printing KeypointCV: x -> " << keypoint.x << " y -> " << keypoint.y << " id -> " << feature.id;
+        // VLOG(12) << "Printing KeypointCV: x -> " << keypoint.x << " y -> " << keypoint.y << " id -> " << feature.id;
     } 
     left_frame_callback_(std::move(left_frame));
 }
