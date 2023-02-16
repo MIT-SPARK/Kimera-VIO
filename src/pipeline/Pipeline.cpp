@@ -200,21 +200,23 @@ bool Pipeline::hasFinished() const {
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
-  LOG(INFO) << "data_provider_module_->isWorking()  >-> "  << data_provider_module_->isWorking();
-  LOG(INFO) << "frontend_input_queue_->isShutdown() >-> "  << frontend_input_queue_.isShutdown();
-  LOG(INFO) << "frontend_input_queue_->empty()      >-> "  << frontend_input_queue_.empty();
-  LOG(INFO) << "vio_frontend_module_->isWorking()   >-> "  << vio_frontend_module_->isWorking();
-  LOG(INFO) << "backend_input_queue_->isShutdown()  >-> "  << backend_input_queue_.isShutdown();
-  LOG(INFO) << "backend_input_queue_->empty()       >-> "  << backend_input_queue_.empty();
-  LOG(INFO) << "vio_backend_module_->isWorking()    >-> "  << vio_backend_module_->isWorking();
+  LOG(INFO) << "data_provider_module_->isWorking()  >-> "  << std::boolalpha << data_provider_module_->isWorking();
+  LOG(INFO) << "frontend_input_queue_->isShutdown() >-> "  << std::boolalpha << frontend_input_queue_.isShutdown();
+  LOG(INFO) << "frontend_input_queue_->empty()      >-> "  << std::boolalpha << frontend_input_queue_.empty();
+  LOG(INFO) << "vio_frontend_module_->isWorking()   >-> "  << std::boolalpha << vio_frontend_module_->isWorking();
+  LOG(INFO) << "backend_input_queue_->isShutdown()  >-> "  << std::boolalpha << backend_input_queue_.isShutdown();
+  LOG(INFO) << "backend_input_queue_->empty()       >-> "  << std::boolalpha << backend_input_queue_.empty();
+  LOG(INFO) << "vio_backend_module_->isWorking()    >-> "  << std::boolalpha << vio_backend_module_->isWorking();
 
-  LOG(INFO) << "~mesher_module_->isWorking()        >-> "  << (mesher_module_ ? !mesher_module_->isWorking() : false);
-  LOG(INFO) << "~lcd_module_->isWorking()           >-> "  << (lcd_module_ ? !lcd_module_->isWorking() : false);
-  LOG(INFO) << "~visualizer_module_->isWorking()    >-> "  << (visualizer_module_ ? !visualizer_module_->isWorking() : false);
-  LOG(INFO) << "display_module_->isWorking()        >-> "  << (display_module_ ? !display_module_->isWorking() : false);
+  LOG(INFO) << "~mesher_module_->isWorking()        >-> " << std::boolalpha << (mesher_module_ ? mesher_module_->isWorking() : false);
+  LOG(INFO) << "~lcd_module_->isWorking()           >-> " << std::boolalpha << (lcd_module_ ? lcd_module_->isWorking() : false);
+  LOG(INFO) << "~visualizer_module_->isWorking()    >-> " << std::boolalpha << (visualizer_module_ ? visualizer_module_->isWorking() : false);
+  LOG(INFO) << "display_module_->isWorking()        >-> " << std::boolalpha << (display_module_ ? display_module_->isWorking() : false);
 
-  LOG(INFO) << "display_input_queue_->isShutdown()  >-> "  << display_input_queue_.isShutdown();
-  LOG(INFO) << "display_input_queue_->empty()       >-> "  << display_input_queue_.empty();
+  LOG(INFO) << "display_input_queue_->isShutdown()  >-> " << std::boolalpha << display_input_queue_.isShutdown();
+  LOG(INFO) << "display_input_queue_->empty()       >-> " << std::boolalpha << display_input_queue_.empty();
+  LOG(INFO) << "is_backend_ok_                      >-> " << std::boolalpha << is_backend_ok_;
+  LOG(INFO) << "shutdown_                           >-> " << std::boolalpha << shutdown_;
   
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we

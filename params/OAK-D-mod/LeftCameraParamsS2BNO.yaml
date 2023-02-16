@@ -17,6 +17,7 @@ rate_hz: 30
 resolution: [1280, 720]
 camera_model: pinhole
 intrinsics: [803.0302124, 808.99627686, 621.92236328, 383.08587646] #fu, fv, cu, cv
+ # default model in opencv. Brown-Conrady model or rational polynomial model
 distortion_model: radial-tangential
 distortion_coefficients: [-9.614694595336914, 93.05743408203125, 0.00044157583033666015, 0.000760012655518949, -63.35219955444336, -9.665799140930176, 92.62857055664062, -61.96283721923828, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 

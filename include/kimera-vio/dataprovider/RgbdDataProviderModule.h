@@ -85,7 +85,9 @@ class RgbdDataProviderModule : public MonoDataProviderModule {
 
   //! Checks if the module has work to do (should check input queues are empty)
   inline bool hasWork() const override {
-    return MonoDataProviderModule::hasWork() || !depth_frame_queue_.empty();
+    // return MonoDataProviderModule::hasWork() || !depth_frame_queue_.empty();
+    // Check StereoDataProviderModule.h   inline bool hasWork() const for why
+    return true;
   }
 
  private:

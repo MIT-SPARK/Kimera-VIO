@@ -27,6 +27,7 @@ UndistorterRectifier::UndistorterRectifier(const cv::Mat& P,
                                            const cv::Mat& R)
     : map_x_(), map_y_(), P_(P), R_(R), cam_params_(cam_params) {
   initUndistortRectifyMaps(cam_params, R, P, &map_x_, &map_y_);
+  VLOG(4) << "UndistorterRectifier initialized: contains distortion parameters of size ->" << cam_params_.distortion_coeff_mat_.size();
 }
 
 // TODO(marcus): add unit test w/ and w/o rectification

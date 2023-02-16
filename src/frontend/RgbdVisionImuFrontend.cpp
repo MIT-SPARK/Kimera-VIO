@@ -265,7 +265,7 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
   // TODO this copies the rgbd frame!!
   rgbd_frame_k_ = std::make_shared<RgbdFrame>(cur_frame);
   Frame* left_frame_k = rgbd_frame_k_->intensity_img_.get();
- VLOG(5) << "Features in the previous frame -> " << rgbd_frame_km1_->intensity_img_->keypoints_.size();
+  VLOG(5) << "Features in the previous frame -> " << rgbd_frame_km1_->intensity_img_->keypoints_.size();
 
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";

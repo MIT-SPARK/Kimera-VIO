@@ -294,7 +294,7 @@ StatusStereoMeasurementsPtr StereoVisionImuFrontend::processStereoFrame(
   // TODO this copies the stereo frame!!
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
   Frame* left_frame_k = &stereoFrame_k_->left_frame_;
-  LOG(WARNING) << "Features in the previous frame -> " << stereoFrame_km1_->left_frame_.keypoints_.size();
+  VLOG(5) << "Features in the previous frame -> " << stereoFrame_km1_->left_frame_.keypoints_.size();
 
   /////////////////////// MONO TRACKING ////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";

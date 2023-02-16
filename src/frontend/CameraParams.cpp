@@ -88,8 +88,8 @@ const DistortionModel CameraParams::stringToDistortion(
     } else if (lower_case_distortion_model == std::string("equidistant")) {
       return DistortionModel::EQUIDISTANT;
     } else {
-      LOG(FATAL)
-          << "Unrecognized distortion model for pinhole camera. Valid "
+      LOG(FATAL) << "Unknown distortion model: " << lower_case_distortion_model
+          << " for pinhole camera. Valid "
              "pinhole "
              "distortion model options are 'none', 'radtan', 'equidistant'.";
     }
