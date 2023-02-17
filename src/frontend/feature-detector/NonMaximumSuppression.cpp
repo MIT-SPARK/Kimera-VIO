@@ -130,7 +130,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
     const int& nr_horizontal_bins,
     const int& nr_vertical_bins,
     const Eigen::MatrixXd& binning_mask) {
-  if (numKptsToRetain > keyPoints.size()) {
+  if (static_cast<size_t>(numKptsToRetain) > keyPoints.size()) {
     return keyPoints;
   }
 
@@ -152,7 +152,7 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
   Eigen::MatrixXd nrKptsInBin = Eigen::MatrixXd::Zero(
       nr_vertical_bins,
       nr_horizontal_bins);  // store number of kpts for each bin
-  for (int i = 0; i < keyPoints.size(); i++) {
+  for (size_t i = 0; i < keyPoints.size(); i++) {
     const size_t binRowInd =
         static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
     const size_t binColInd =

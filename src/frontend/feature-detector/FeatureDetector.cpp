@@ -118,7 +118,7 @@ void FeatureDetector::featureDetection(Frame* cur_frame,
   ///////////////// FEATURE DETECTION //////////////////////
   // Actual feature detection: detects new keypoints where there are no
   // currently tracked ones
-  auto start_time_tic = utils::Timer::tic();
+  //auto start_time_tic = utils::Timer::tic();
   const KeypointsCV& corners = featureDetection(*cur_frame, nr_corners_needed);
   const size_t& n_corners = corners.size();
 

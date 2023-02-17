@@ -274,8 +274,7 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
   }
 
   if (!success) {
-    status_pose =
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
+    status_pose = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   } else {
     // TODO(Toni): it seems we are not removing outliers if we send an invalid
     // tracking status (above), but the backend calls addLandmarksToGraph even
@@ -284,7 +283,8 @@ TrackingStatusPose Tracker::geometricOutlierRejection2d2d(
     // TODO(Toni): check quality of tracking
     //! Check enough inliers.
     TrackingStatus status = TrackingStatus::VALID;
-    if (inliers->size() < tracker_params_.minNrMonoInliers_) {
+    if (inliers->size() <
+        static_cast<size_t>(tracker_params_.minNrMonoInliers_)) {
       CHECK(!inliers->empty());
       status = TrackingStatus::FEW_MATCHES;
     }
@@ -576,7 +576,8 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
-  if (inliers->size() < tracker_params_.minNrStereoInliers_) {
+  if (inliers->size() <
+      static_cast<size_t>(tracker_params_.minNrStereoInliers_)) {
     CHECK(!inliers->empty());
     status = TrackingStatus::FEW_MATCHES;
   }
@@ -706,12 +707,12 @@ TrackingStatusPose Tracker::geometricOutlierRejection3d3d(
 
   TrackingStatusPose status_pose;
   if (!success) {
-    status_pose =
-        std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
+    status_pose = std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   } else {
     //! Check enough inliers.
     TrackingStatus status = TrackingStatus::VALID;
-    if (inliers->size() < tracker_params_.minNrStereoInliers_) {
+    if (inliers->size() <
+        static_cast<size_t>(tracker_params_.minNrStereoInliers_)) {
       CHECK(!inliers->empty());
       status = TrackingStatus::FEW_MATCHES;
     }
@@ -1057,7 +1058,6 @@ bool Tracker::pnp(const StereoFrame& cur_stereo_frame,
                   std::vector<int>* inliers,
                   gtsam::Pose3* W_Pose_cam_prior) {
   CHECK_NOTNULL(W_Pose_cam_estimate);
-  const Frame& cur_frame = cur_stereo_frame.left_frame_;
 
   opengv::bearingVectors_t cam_bearing_vectors;
   opengv::points_t W_points;

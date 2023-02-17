@@ -183,8 +183,8 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
   std::vector<int> vector_mask;
   yaml_parser.getYamlParam("binning_mask", &vector_mask);
   // mask is either empty or should have the right size
-  if (vector_mask.size() > 0 &&
-      (vector_mask.size() != nr_horizontal_bins_ * nr_vertical_bins_)) {
+  const size_t total_bins = nr_horizontal_bins_ * nr_vertical_bins_;
+  if (vector_mask.size() > 0 && (vector_mask.size() != total_bins)) {
     LOG(FATAL) << "Binning mask size specified by the user is inconsistent and "
                   "should have"
                << nr_vertical_bins_ << " rows and " << nr_vertical_bins_

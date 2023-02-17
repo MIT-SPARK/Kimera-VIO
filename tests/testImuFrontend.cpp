@@ -63,7 +63,7 @@ TEST(ImuFrontend, UpdateBias) {
   imu_frontend.updateBias(updated_imu_bias);
   EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
   // Do some random composition with itself.
-  updated_imu_bias = imu_bias.compose(imu_bias);
+  updated_imu_bias = imu_bias + imu_bias;
   imu_frontend.updateBias(updated_imu_bias);
   EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
   // Check that the updated bias does not reset pim!
@@ -147,7 +147,7 @@ TEST(ImuFrontend, ResetPreintegration) {
 
   EXPECT_TRUE(reseted_pim->equals(*curr_pim, 1e-8));
   // If we update the biases, the new PIM should reflect that.
-  ImuBias updated_imu_bias = imu_bias.compose(imu_bias);  // Random composition.
+  ImuBias updated_imu_bias = imu_bias + imu_bias;  // Random composition.
   imu_frontend.updateBias(updated_imu_bias);
   imu_frontend.resetIntegrationWithCachedBias();
   reseted_pim = imu_frontend.preintegrateImuMeasurements(imu_timestamps,

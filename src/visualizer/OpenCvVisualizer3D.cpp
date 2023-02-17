@@ -173,7 +173,7 @@ VisualizerOutput::UniquePtr OpenCvVisualizer3D::spinOnce(
                           mesh_3d_viz_props_prev.texture_);
         } else {
           VLOG(10) << "Visualize mesh with colored clusters.";
-          LOG_IF(ERROR, mesh_3d_viz_props_prev.colors_.rows > 0u)
+          LOG_IF(ERROR, mesh_3d_viz_props_prev.colors_.rows > 0)
               << "The 3D mesh is being colored with semantic information, but"
                  " gflag visualize_semantic_mesh is set to false...";
           visualizeMesh3DWithColoredClusters(
@@ -485,7 +485,6 @@ void OpenCvVisualizer3D::visualizeFactorGraph(
   // Loop over the state
   static constexpr bool draw_imu_pose = true;
   static constexpr bool draw_left_cam = true;
-  static constexpr bool draw_right_cam = false;
   static constexpr bool draw_imu_to_left_cam_arrow = false;
   static constexpr bool draw_velocity = false;
   for (const gtsam::Values::ConstKeyValuePair& key_value : state) {
@@ -1498,7 +1497,7 @@ void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
   std::vector<float> z_s;
   for (const size_t& triangle_id : cluster.triangle_ids_) {
     const size_t& triangle_idx = std::round(triangle_id * 4);
-    LOG_IF(FATAL, triangle_idx + 3 >= polygons_mesh.rows)
+    LOG_IF(FATAL, triangle_idx + 3 >= static_cast<size_t>(polygons_mesh.rows))
         << "Visualizer3D: an id in triangle_ids_ is too large.";
     const int32_t& idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
     const int32_t& idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
@@ -1553,12 +1552,12 @@ void OpenCvVisualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
       // points.
       if (hull_3d.size() > 2) {
         cv::Mat polygon_hull = cv::Mat(4 * (hull_3d.size() - 2), 1, CV_32SC1);
-        size_t i = 1;
-        for (size_t k = 0; k + 3 < polygon_hull.rows; k += 4) {
+        int i = 1;
+        for (int k = 0; k + 3 < polygon_hull.rows; k += 4) {
           polygon_hull.row(k) = 3;
           polygon_hull.row(k + 1) = 0;
-          polygon_hull.row(k + 2) = static_cast<int>(i);
-          polygon_hull.row(k + 3) = static_cast<int>(i) + 1;
+          polygon_hull.row(k + 2) = i;
+          polygon_hull.row(k + 3) = i + 1;
           i++;
         }
         cv::viz::Color mesh_color;
@@ -1780,10 +1779,13 @@ void OpenCvVisualizer3D::removePlane(const PlaneId& plane_index,
 
 void OpenCvVisualizer3D::addPoseToTrajectory(const cv::Affine3d& pose) {
   trajectory_poses_3d_.push_back(pose);
-  if (FLAGS_displayed_trajectory_length > 0) {
-    while (trajectory_poses_3d_.size() > FLAGS_displayed_trajectory_length) {
-      trajectory_poses_3d_.pop_front();
-    }
+  if (FLAGS_displayed_trajectory_length <= 0) {
+    return;
+  }
+
+  while (trajectory_poses_3d_.size() >
+         static_cast<size_t>(FLAGS_displayed_trajectory_length)) {
+    trajectory_poses_3d_.pop_front();
   }
 }
 
@@ -1897,7 +1899,6 @@ void OpenCvVisualizer3D::logMesh(const cv::Mat& map_points_3d,
                                  bool log_accumulated_mesh) {
   /// Log the mesh in a ply file.
   static Timestamp last_timestamp = timestamp;
-  static const Timestamp first_timestamp = timestamp;
   if ((timestamp - last_timestamp) >
       6500000000) {  // Log every 6 seconds approx. (a little bit more than
                      // time-horizon)
@@ -1917,7 +1918,6 @@ void OpenCvVisualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
   *colors = cv::Mat(map_points_3d.rows, 1, CV_8UC3, cv::viz::Color::gray());
 
   // The code below assumes triangles as polygons.
-  static constexpr bool log_landmarks = false;
   for (const Plane& plane : planes) {
     const TriangleCluster& cluster = plane.triangle_cluster_;
     // Decide color for cluster.
