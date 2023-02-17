@@ -56,15 +56,15 @@ subpixelRefinementStereo: 0
 
 #--------------------- StereoMatchingParams END --------------------------------
 
-useSuccessProbabilities: 1
+useSuccessProbabilities: 1 # What the heck is this for ?
 
 #--------------------- FrontendParams --------------------------------
-#TRACKER PARAMETERS
+#TRACKER PARAMETERS # not in use when using ok-device tracking
 klt_win_size: 24
 klt_max_iter: 30
 klt_max_level: 4
 klt_eps: 0.1
-maxFeatureAge: 200
+maxFeatureAge: 200 # not in use when using ok-device tracking
 # Type of optical flow predictor to aid feature tracking:
 # 0: Static - assumes no optical flow between images (aka static camera).
 # 1: Rotational - use IMU gyro to estimate optical flow.
@@ -72,8 +72,8 @@ optical_flow_predictor_type: 1
 
 # RANSAC params
 useRANSAC: 1
-minNrMonoInliers: 10
-minNrStereoInliers: 5
+minNrMonoInliers: 15
+minNrStereoInliers: 10
 
 ransac_threshold_mono: 1e-06
 ransac_threshold_stereo: 1

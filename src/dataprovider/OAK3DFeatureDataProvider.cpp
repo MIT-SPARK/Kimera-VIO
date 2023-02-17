@@ -35,13 +35,14 @@
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/YamlParser.h"
-
+#include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 OAK3DFeatureDataProvider::OAK3DFeatureDataProvider(const VioParams& vio_params)
-    : OAKDataProvider(vio_params) {}
+    : OAKDataProvider(vio_params), depth_image_count_(0), 
+    feature_msg_count_(0), depth_image_fps_(0), feature_msg_fps_(0) {}
 
 
 /* -------------------------------------------------------------------------- */
@@ -59,34 +60,54 @@ bool OAK3DFeatureDataProvider::spin() {
     // Spin.
     CHECK_EQ(vio_params_.camera_params_.size(), 2u); // As usual mimicing stereo
     LOG(INFO) << "Data OAK3DFeatureDataProvider Interface: <-------------- Spinning -------------->";
-
+    auto data_grab_tic = VIO::utils::Timer::tic();
     while (!shutdown_) {
 
-        std::shared_ptr<dai::ADatatype> left_image       = left_queue_->get<dai::ADatatype>();
-        std::shared_ptr<dai::ADatatype> depth_image      = depth_queue_->get<dai::ADatatype>();
-        std::shared_ptr<dai::ADatatype> feature_map      = feature_queue_->get<dai::ADatatype>();
-        std::shared_ptr<dai::ADatatype> imu_measurements = imu_queue_->get<dai::ADatatype>();
+        std::shared_ptr<dai::ADatatype> left_image  = left_queue_->get<dai::ADatatype>();
+        std::shared_ptr<dai::ADatatype> depth_image = depth_queue_->get<dai::ADatatype>();
+        std::shared_ptr<dai::ADatatype> feature_map = feature_queue_->get<dai::ADatatype>();
+
+        std::vector<std::shared_ptr<dai::ADatatype>> imu_measurements_list = imu_queue_->getAll<dai::ADatatype>();
         
         std::string name = "";
-        imuCallback(name, imu_measurements);
-        syncImageFeaturegrab(left_image, depth_image, feature_map);
+        for(auto& imu_measurements : imu_measurements_list) {
+            imuCallback(name, imu_measurements);
+        }
+        syncImageFeatureGrab(left_image, depth_image, feature_map);
         while(!sync_msgs_.empty()){
             std::shared_ptr<dai::ADatatype> synced_left_image, synced_depth_image, synced_feature_map;
             std::tie(synced_left_image, synced_depth_image, synced_feature_map) = sync_msgs_.front();
             sync_msgs_.pop();
             leftImageFeatureCallback(synced_left_image, synced_feature_map);
             depthImageCallback("depth", synced_depth_image);
+            feature_msg_count_++;
+            depth_image_count_++;
+            left_image_count_++;
+            std::shared_ptr<dai::ImgFrame> image_msg  = std::dynamic_pointer_cast<dai::ImgFrame>(synced_left_image);
+            recent_left_image_timestamp_ = timestampAtFrame(image_msg->getTimestamp());
         }
         if (!vio_params_.parallel_run_) {
             return true;
         }
+        bool mod_count = !(left_image_count_ % 10);
+        if (mod_count) {
+            auto spin_duration = VIO::utils::Timer::toc(data_grab_tic);
+            auto spin_duration_double = std::chrono::duration<double, std::milli>(spin_duration);
+            VLOG(4) << "------------- spin_duration_double: " << spin_duration_double.count() << "  ~~~ Spin duration long: " << spin_duration.count()
+                    << "\n Left image count: " << left_image_count_
+                    << "\n Imu msg count:    " << imu_msg_count_
+                    << "\n Left FPS: " << (left_image_count_ / spin_duration_double.count()) * 0.001
+                    << "\n Imu hz:   " << (imu_msg_count_ / spin_duration_double.count()) * 0.001
+                    << "\n recent_left_image_timestamp_ ->: " << recent_left_image_timestamp_
+                    << "\n recent_imu_timestamp_        ->: " << recent_imu_timestamp_;
+        }
     //   std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-  LOG_IF(INFO, shutdown_) << "OAKD DataProvider shutdown requested.";
+  LOG_IF(INFO, shutdown_) << "OAK3DFeature DataProvider shutdown requested.";
   return false;
 }
 
-void OAK3DFeatureDataProvider::syncImageFeaturegrab(std::shared_ptr<dai::ADatatype> image, std::shared_ptr<dai::ADatatype> depth, std::shared_ptr<dai::ADatatype> feature_map){
+void OAK3DFeatureDataProvider::syncImageFeatureGrab(std::shared_ptr<dai::ADatatype> image, std::shared_ptr<dai::ADatatype> depth, std::shared_ptr<dai::ADatatype> feature_map){
     left_sync_queue_.push(image);
     depth_sync_queue_.push(depth);
     feature_sync_queue_.push(feature_map);

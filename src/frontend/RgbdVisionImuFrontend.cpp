@@ -53,7 +53,7 @@ RgbdVisionImuFrontend::RgbdVisionImuFrontend(
   // CHECK_EQ(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().rotation(), stereo_camera_->getBodyPoseLeftCamRect().rotation()) 
   // << "Body pose of the left Camera: " << stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam() 
   // << " and Body pose of the left Rectified Camera: " << stereo_camera_->getBodyPoseLeftCamRect() << " do not match.";
-
+  VLOG(4) << pose_error.str();
   CHECK_EQ(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().translation(), stereo_camera_->getBodyPoseLeftCamRect().translation()) << pose_error.str();
   CHECK(stereo_camera_->getOriginalLeftCamera()->getBodyPoseCam().rotation().equals(stereo_camera_->getBodyPoseLeftCamRect().rotation())) << pose_error.str();
   

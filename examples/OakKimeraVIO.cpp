@@ -48,7 +48,7 @@ DEFINE_bool(enable_ondevice_stereo_feature,
 
 bool enableStereoFeature = false;
 
-dai::Pipeline createPipeline(){
+dai::Pipeline createPipeline(VIO::VioParams params){
       dai::Pipeline pipeline;
       pipeline.setXLinkChunkSize(0);
       // Define sources and outputs
@@ -62,7 +62,7 @@ dai::Pipeline createPipeline(){
       imu->enableIMUSensor(dai::IMUSensor::GYROSCOPE_RAW, 400);
 
       // min number of imu msgs in batch of X, if the host is not blocked and USB bandwidth is available
-      imu->setBatchReportThreshold(15);
+      imu->setBatchReportThreshold(14);
       // maximum number of IMU packets in a batch, if it's reached device will block sending until host can receive it
       // if lower or equal to batchReportThreshold then the sending is always blocking on device
       // useful to reduce device's CPU load  and number of lost packets, if CPU load is high on device side due to multiple nodes
@@ -109,13 +109,14 @@ dai::Pipeline createPipeline(){
       auto numMemorySlices = 2;
       featureTrackerRight->setHardwareResources(numShaves, numMemorySlices);
 
-      // COnfig Optical FLow  
+      // Config Optical FLow  
       // auto featureTrackerConfig = dai::FeatureTrackerConfig();
       // featureTrackerConfig.setOpticalFlow();
       // // TODO(Saching): Use FULL control of Corner Detector in future for experimentation
       // featureTrackerConfig.setCornerDetector(dai::RawFeatureTrackerConfig::CornerDetector::Type::HARRIS);
       // featureTrackerConfig.setFeatureMaintainer(true);
-      // featureTrackerRight->initialConfig.set(featureTrackerConfig);
+      // featureTrackerRight->initialConfig.set(featureTrackerConfig.get());
+      featureTrackerRight->initialConfig.setNumTargetFeatures(params.frontend_params_.feature_detector_params_.max_features_per_frame_);
 
       auto xoutTrackedFeaturesR = pipeline.create<dai::node::XLinkOut>();
       xoutTrackedFeaturesR->setStreamName("trackers");
@@ -149,7 +150,7 @@ int main(int argc, char* argv[]) {
                 "LcdParams.yaml",
                 "DisplayParams.yaml");
 
-  enableStereoFeature = FLAGS_enable_ondevice_stereo_feature;
+  enableStereoFeature = vio_params.frontend_params_.use_on_device_tracking_;
   std::cout << "Is on device feature enabled: " << std::boolalpha <<  enableStereoFeature << std::endl;
   // Build dataset parser.
   VIO::DataProviderInterface::Ptr dataset_parser;
@@ -227,7 +228,7 @@ int main(int argc, char* argv[]) {
 
 
   // ------------------------ The OAK's Pipeline ------------------------ //
-  dai::Pipeline pipeline = createPipeline();
+  dai::Pipeline pipeline = createPipeline(vio_params);
   auto daiDevice = std::make_shared<dai::Device>(pipeline);
 
   auto leftQueue = daiDevice->getOutputQueue("left", 10, false);

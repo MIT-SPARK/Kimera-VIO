@@ -44,6 +44,10 @@ OAKDataProvider::OAKDataProvider(const VioParams& vio_params)
     : DataProviderInterface(),
       vio_params_(vio_params),
       imu_measurements_(),
+      left_image_count_(0), 
+      imu_msg_count_(0), 
+      left_image_fps_(0), 
+      imu_msg_hz_(0),
       left_cam_info_(vio_params_.camera_params_.at(0)){}
 
 /* -------------------------------------------------------------------------- */
@@ -269,7 +273,8 @@ void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
         timestamp = timestampAtFrame(accel.timestamp.get());
     }
     // LOG(INFO) << "Calling imu_single_callback_ with timestamp " << timestamp;
-
+    imu_msg_count_++;
+    recent_imu_timestamp_ = timestamp;
     imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
 }
 

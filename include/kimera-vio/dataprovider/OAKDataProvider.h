@@ -128,7 +128,8 @@ Timestamp timestampAtFrame(const std::chrono::time_point<std::chrono::steady_clo
   /// Images data.
   // This matches the names of the folders in the dataset
   CameraParams& left_cam_info_;
-
+  int left_image_count_, imu_msg_count_, left_image_fps_, imu_msg_hz_;
+  Timestamp recent_left_image_timestamp_, recent_imu_timestamp_;
   //! Pre-stored imu-measurements
   std::vector<ImuMeasurement> imu_measurements_;
   ImuSyncMethod syncMode_ = ImuSyncMethod::LINEAR_INTERPOLATE_ACCEL;
