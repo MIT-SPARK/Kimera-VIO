@@ -93,11 +93,10 @@ bool OAK3DFeatureDataProvider::spin() {
         if (mod_count) {
             auto spin_duration = VIO::utils::Timer::toc(data_grab_tic);
             auto spin_duration_double = std::chrono::duration<double, std::milli>(spin_duration);
-            VLOG(4) << "------------- spin_duration_double: " << spin_duration_double.count() << "  ~~~ Spin duration long: " << spin_duration.count()
-                    << "\n Left image count: " << left_image_count_
+            VLOG(4) << "\n Left image count: " << left_image_count_
                     << "\n Imu msg count:    " << imu_msg_count_
-                    << "\n Left FPS: " << (left_image_count_ / spin_duration_double.count()) * 0.001
-                    << "\n Imu hz:   " << (imu_msg_count_ / spin_duration_double.count()) * 0.001
+                    << "\n Left FPS: " << (left_image_count_ / spin_duration_double.count()) * 1000 // converting to secs
+                    << "\n Imu hz:   " << (imu_msg_count_ / spin_duration_double.count()) * 1000 // converting to secs
                     << "\n recent_left_image_timestamp_ ->: " << recent_left_image_timestamp_
                     << "\n recent_imu_timestamp_        ->: " << recent_imu_timestamp_;
         }
