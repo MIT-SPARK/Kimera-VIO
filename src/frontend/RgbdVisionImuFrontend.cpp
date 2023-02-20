@@ -129,8 +129,15 @@ RgbdFrontendOutput::UniquePtr RgbdVisionImuFrontend::nominalSpinRgbd(
       stereo_camera_->getBodyPoseLeftCamRect().rotation();
   const gtsam::Rot3 cam_R_body = body_R_cam.inverse();
   gtsam::Rot3 imuLKF_R_K_imu = pim->deltaRij();
+  gtsam::Vector3 imuLKF_T_K_imu = pim->deltaPij();
 
-  VLOG(5) <<" Relative rotation of Curr IMU frame w.r.t IMU at LKF -> " << imuLKF_R_K_imu << "it's rpy rotation is -> "<< imuLKF_R_K_imu.rpy();
+  double pi = 3.14159;
+  VLOG(4) << "Relative rotation of Curr IMU frame w.r.t IMU at LKF -> " << imuLKF_R_K_imu 
+          << "\n it's rpy rotation is -> "<< imuLKF_R_K_imu.rpy() 
+          << "\n roll in degrees -> " << imuLKF_R_K_imu.roll() * (180 / pi)
+          << "\n pitch in degrees -> " << imuLKF_R_K_imu.pitch() * (180 / pi)
+          << "\n yaw in degrees -> " << imuLKF_R_K_imu.yaw() * (180 / pi)
+          << "\n Relative translation of IMU w.r.t IMU at LKF -> " << imuLKF_T_K_imu;
   gtsam::Rot3 camLrectLkf_R_camLrectK_imu = 
       cam_R_body * imuLKF_R_K_imu * body_R_cam;
 
@@ -328,6 +335,7 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
       Frame* left_frame_lkf = rgbd_frame_lkf_->intensity_img_.get();
+      VLOG(4) << "Number of Valid keypoints before outlierRejectionMono -> " << left_frame_k->getNrValidKeypoints();
       outlierRejectionMono(keyframe_R_cur_frame,
                            left_frame_lkf,
                            left_frame_k,
@@ -336,6 +344,8 @@ StatusRgbdMeasurementsPtr RgbdVisionImuFrontend::processFrame(
       if (status_pose_mono.first == TrackingStatus::VALID) {
         tracker_status_summary_.lkf_T_k_mono_ = status_pose_mono.second;
       }
+      // outlierRejectionMono sets some of them as invalid
+      VLOG(4) << "Number of Valid keypoints after outlierRejectionMono -> " << left_frame_k->getNrValidKeypoints();
 
       // RGBD geometric outlier rejection
       // get 3D points via rgbd

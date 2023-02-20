@@ -76,7 +76,8 @@ echo """ Launching:
 # Execute stereoVIOEuroc with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
-# valgrind --tool=memcheck --vgdb=yes --vgdb-error=0 $BUILD_PATH/stereoVIO_OAKD \
+# $BUILD_PATH/stereoVIO_OAKD \
+# valgrind --tool=memcheck --vgdb=yes --vgdb-error=0 
 $BUILD_PATH/stereoVIO_OAKD \
   --params_folder_path="$PARAMS_PATH" \
   --use_lcd="$USE_LCD" \

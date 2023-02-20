@@ -106,12 +106,13 @@ bool OAK3DFeatureDataProvider::spin() {
   return false;
 }
 
+// TODO(saching): This sync function is leading to a lot of backlog images in queues
 void OAK3DFeatureDataProvider::syncImageFeatureGrab(std::shared_ptr<dai::ADatatype> image, std::shared_ptr<dai::ADatatype> depth, std::shared_ptr<dai::ADatatype> feature_map){
     left_sync_queue_.push(image);
     depth_sync_queue_.push(depth);
     feature_sync_queue_.push(feature_map);
     if (left_sync_queue_.size() > 8 || depth_sync_queue_.size() > 8 || feature_sync_queue_.size() > 8){
-        LOG(ERROR) << "Queue Sizes exceeded the max of "<< left_sync_queue_.size() << ", " << depth_sync_queue_.size() << " and " << feature_sync_queue_.size();
+        LOG(ERROR) << "Queue Sizes exceeded the max of 8 and has "<< left_sync_queue_.size() << ", " << depth_sync_queue_.size() << " and " << feature_sync_queue_.size();
     }
     while(!left_sync_queue_.empty() && !depth_sync_queue_.empty() && !feature_sync_queue_.empty()){
         std::shared_ptr<dai::ImgFrame> left_msg  = std::dynamic_pointer_cast<dai::ImgFrame>(left_sync_queue_.front());
