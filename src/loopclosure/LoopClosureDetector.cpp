@@ -124,6 +124,7 @@ LoopClosureDetector::LoopClosureDetector(
     CHECK(stereo_camera_);
     StereoMatchingParams lcd_stereo_params = stereo_matching_params.get();
     // In LCD we set min_dist and max_dist to not discard points
+    // TODO: Find better solution instead of hardcoding
     lcd_stereo_params.min_point_dist_ = 0.01;
     lcd_stereo_params.max_point_dist_ = 100.0;
     stereo_matcher_ =
