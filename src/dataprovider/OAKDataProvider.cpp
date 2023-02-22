@@ -262,6 +262,10 @@ void OAKDataProvider::sendImuMeasurement(dai::IMUReportAccelerometer accel, dai:
     // to match with Kimera-VIO convention. An alternative would be to modify 
     // the IMU usage by plugging in the IMU positions in both frountend and backed of VIO
     imu_accgyr << accel.y, -accel.z, -accel.x, gyro.y, -gyro.z, -gyro.x; // Order of accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z in the order interms of base.
+    // Below one didn't work
+    // imu_accgyr << accel.y, -accel.z, accel.x, gyro.x, -gyro.z, gyro.y; // Assuming it is in LHS, align it based on ChatGPT conversion list :p
+    // imu_accgyr << -accel.y, accel.z, accel.x, gyro.y, -gyro.z, -gyro.x;
+    
     ImuStamp timestamp;
     // LOG(WARNING) << "IMUDta-> x m/s: " << accel.y << " y m/s: " << -accel.z << " z m/s: " << -accel.x << " r rad/s: " <<  gyro.y << " p rad/s: " << -gyro.z << " y rad/s: " << -gyro.x;
 

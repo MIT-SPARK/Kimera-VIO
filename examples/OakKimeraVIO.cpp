@@ -42,19 +42,31 @@ DEFINE_string(
     "../params/OAK-D-mod",
     "Path to the folder containing the yaml files with the VIO parameters.");
 
-DEFINE_bool(enable_ondevice_stereo_feature,
+DEFINE_bool(use_rosbag_dataset,
             false,
-            "Enable Stereo and Feature tracking from On-Device");
+            "Enable using rosbag dataset instead of camera streams.");
+
+DEFINE_string(
+    calibration_file_name,
+    "calib.json",
+    "Name of the json file which contains calibration.");
 
 bool enableStereoFeature = false;
 
-dai::Pipeline createPipeline(VIO::VioParams params){
+dai::Pipeline createPipeline(VIO::VioParams params, std::string device_id){
       dai::Pipeline pipeline;
       pipeline.setXLinkChunkSize(0);
       // Define sources and outputs
+      // std::shared_
       auto monoLeft = pipeline.create<dai::node::MonoCamera>();
       auto monoRight = pipeline.create<dai::node::MonoCamera>();
       auto imu = pipeline.create<dai::node::IMU>();
+
+      // Properties
+      monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
+      monoLeft->setBoardSocket(dai::CameraBoardSocket::LEFT);
+      monoRight->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
+      monoRight->setBoardSocket(dai::CameraBoardSocket::RIGHT);
 
       // enable ACCELEROMETER_RAW at 500 hz rate
       imu->enableIMUSensor(dai::IMUSensor::ACCELEROMETER_RAW, 500);
@@ -74,12 +86,6 @@ dai::Pipeline createPipeline(VIO::VioParams params){
       // XLinkOut
       xoutImu->setStreamName("imu");
       xoutL->setStreamName("left");
-
-      // Properties
-      monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
-      monoLeft->setBoardSocket(dai::CameraBoardSocket::LEFT);
-      monoRight->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
-      monoRight->setBoardSocket(dai::CameraBoardSocket::RIGHT);
 
     if (enableStereoFeature){
       auto stereo = pipeline.create<dai::node::StereoDepth>();
@@ -228,7 +234,7 @@ int main(int argc, char* argv[]) {
 
 
   // ------------------------ The OAK's Pipeline ------------------------ //
-  dai::Pipeline pipeline = createPipeline(vio_params);
+  dai::Pipeline pipeline = createPipeline(vio_params, FLAGS_calibration_file_name);
   auto daiDevice = std::make_shared<dai::Device>(pipeline);
 
   auto leftQueue = daiDevice->getOutputQueue("left", 10, false);

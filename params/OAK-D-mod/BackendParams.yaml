@@ -42,14 +42,24 @@ outlierRejection: 8
 # ///< threshold to decide whether to re-triangulate
 retriangulationThreshold: 0.001
 
-## Noise models ##
+## Norm Type
+## 0 -> l-2 Norm
+## 1 -> Huber norm
+## 2 -> Turkey norm
+
+## Noise models for Mono ##
 smartNoiseSigma: 3.25
 monoNoiseSigma: 1.8
 monoNormType: 2
 monoNormParam: 4.6851
+
+## Noise models for Stereo ##
 stereoNoiseSigma: 0.03
 stereoNormType: 2
 stereoNormParam: 4.6851
+
+## Noise models for Regularity ##
+# point plane regularity noise
 regularityNoiseSigma: 0.03
 regularityNormType: 1
 regularityNormParam: 0.04
