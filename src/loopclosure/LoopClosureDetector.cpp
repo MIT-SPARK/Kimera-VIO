@@ -47,6 +47,10 @@ DEFINE_bool(lcd_no_detection,
             false,
             "disable detection of potential loop closures");
 
+DEFINE_bool(lcd_disable_stereo_match_depth_check,
+            false,
+            "disable thresholding of stereo landmark correspondences");
+
 /** Verbosity settings: (cumulative with every increase in level)
       0: Runtime errors and warnings, spin start and frequency are reported.
       1: Loop closure detections are reported as warnings.
@@ -125,8 +129,10 @@ LoopClosureDetector::LoopClosureDetector(
     StereoMatchingParams lcd_stereo_params = stereo_matching_params.get();
     // In LCD we set min_dist and max_dist to not discard points
     // TODO: Find better solution instead of hardcoding
-    lcd_stereo_params.min_point_dist_ = 0.01;
-    lcd_stereo_params.max_point_dist_ = 100.0;
+    if (FLAGS_lcd_disable_stereo_match_depth_check) {
+      lcd_stereo_params.min_point_dist_ = 0.01;
+      lcd_stereo_params.max_point_dist_ = 100.0;
+    }
     stereo_matcher_ =
         VIO::make_unique<StereoMatcher>(stereo_camera_, lcd_stereo_params);
   } else {
