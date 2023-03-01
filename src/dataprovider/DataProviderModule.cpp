@@ -30,6 +30,7 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
       do_coarse_imu_camera_temporal_sync_(false),
       imu_timestamp_correction_(0),
       imu_time_shift_ns_(0),
+      external_odometry_time_shift_ns_(0),
       external_odometry_buffer_(nullptr) {
   // TODO(nathan) replace with non-unlimited buffer size
   if (FLAGS_use_external_odometry)

@@ -15,5 +15,5 @@ rate_hz: 200
 odomPositionPrecision: 1000
 odomRotationPrecision: 1.0e-2
 odomVelPrecision: 0
-
+odomTimeShift: 0.0
 # Extra parameters

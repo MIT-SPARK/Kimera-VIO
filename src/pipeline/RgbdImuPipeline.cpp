@@ -59,6 +59,11 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
     data_provider_module_->setImuTimeShift(imu_params_.imu_time_shift_);
   }
 
+  if (params.odom_params_) {
+    data_provider_module_->setExternalOdometryTimeShift(
+        params.odom_params_.value().time_shift_s_);
+  }
+
   data_provider_module_->registerVioPipelineCallback(
       std::bind(&RgbdImuPipeline::spinOnce, this, std::placeholders::_1));
 

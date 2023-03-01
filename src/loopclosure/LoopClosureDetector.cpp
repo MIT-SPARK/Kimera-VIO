@@ -47,6 +47,10 @@ DEFINE_bool(lcd_no_detection,
             false,
             "disable detection of potential loop closures");
 
+DEFINE_bool(lcd_disable_stereo_match_depth_check,
+            false,
+            "disable thresholding of stereo landmark correspondences");
+
 /** Verbosity settings: (cumulative with every increase in level)
       0: Runtime errors and warnings, spin start and frequency are reported.
       1: Loop closure detections are reported as warnings.
@@ -122,8 +126,15 @@ LoopClosureDetector::LoopClosureDetector(
   if (stereo_camera) {
     VLOG(5) << "LoopClosureDetector initializing in stereo mode.";
     CHECK(stereo_camera_);
-    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
-        stereo_camera_, stereo_matching_params.get());
+    StereoMatchingParams lcd_stereo_params = stereo_matching_params.get();
+    // In LCD we set min_dist and max_dist to not discard points
+    // TODO: Find better solution instead of hardcoding
+    if (FLAGS_lcd_disable_stereo_match_depth_check) {
+      lcd_stereo_params.min_point_dist_ = 0.01;
+      lcd_stereo_params.max_point_dist_ = 100.0;
+    }
+    stereo_matcher_ =
+        VIO::make_unique<StereoMatcher>(stereo_camera_, lcd_stereo_params);
   } else {
     VLOG(5) << "LoopClosureDetector initializing in mono mode.";
   }
@@ -316,6 +327,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       w_Pose_map, map_Pose_odom, pgo_states, pgo_nfg);
 
   output_payload->setFrameInformation(db_frames_.back()->keypoints_3d_,
+                                      db_frames_.back()->bearing_vectors_,
                                       curr_bow_vec,
                                       db_frames_.back()->descriptors_mat_);
   output_payload->timestamp_map_ = timestamp_map_;

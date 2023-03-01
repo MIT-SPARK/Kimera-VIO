@@ -61,6 +61,9 @@ DEFINE_int32(max_number_of_cheirality_exceptions,
 DEFINE_bool(compute_state_covariance,
             false,
             "Flag to compute state covariance from optimization Backend");
+DEFINE_bool(no_incremental_pose,
+            false,
+            "Flag to disable incremental pose usage in backend");
 
 namespace VIO {
 
@@ -204,10 +207,12 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
 
     // Create Backend Output Payload.
     output_payload = VIO::make_unique<BackendOutput>(
-        VioNavStateTimestamped(input.timestamp_,
-                               W_Pose_B_lkf_from_increments_,
-                               W_Vel_B_lkf_,
-                               imu_bias_lkf_),
+        VioNavStateTimestamped(
+            input.timestamp_,
+            (FLAGS_no_incremental_pose ? W_Pose_B_lkf_from_state_
+                                       : W_Pose_B_lkf_from_increments_),
+            W_Vel_B_lkf_,
+            imu_bias_lkf_),
         // TODO(Toni): Make all below optional!!
         state_,
         smoother_->getFactors(),
