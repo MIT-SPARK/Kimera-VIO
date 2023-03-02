@@ -5,6 +5,7 @@ MAINTAINER Antoni Rosinol "arosinol@mit.edu"
 
 # To avoid tzdata asking for geographic location...
 ENV DEBIAN_frontend noninteractive
+ENV TZ Asia/Kolkata
 
 # Set the working directory to /root
 ENV DIRPATH /root
@@ -18,7 +19,7 @@ RUN apt-get update && apt-get install -y git cmake
 RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
-RUN apt-get update && apt-get install -y libboost-all-dev
+RUN apt-get update && apt-get install -y libboost-all-dev libmetis-dev
 ADD https://api.github.com/repos/borglab/gtsam/git/refs/heads/master version.json
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
