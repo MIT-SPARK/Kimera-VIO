@@ -82,7 +82,7 @@ use_3d3d_tracking: 1
 optimize_3d3d_pose_from_inliers: 0
 
 # 2D-3D pose estimation method
-use_pnp_tracking: false
+use_pnp_tracking: 0
 pnp_algorithm: 3 # EPNP
 min_pnp_inliers: 20
 ransac_threshold_pnp: 1.0 # pixels
