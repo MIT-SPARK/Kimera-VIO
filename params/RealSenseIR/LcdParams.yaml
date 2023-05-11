@@ -12,7 +12,10 @@ max_nrFrames_between_islands: 3
 max_nrFrames_between_queries: 2
 
 refine_pose: 1
-use_pnp_pose_recovery: 0
+# pose_recovery_type options:
+#   0: 3d3d (Arun)
+#   1: PnP (opengv)
+pose_recovery_type: 0
 
 lowe_ratio: 0.2
 matcher_type: 3

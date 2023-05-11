@@ -57,7 +57,10 @@ ransac_threshold_3d3d: 0.3
 ransac_threshold_2d3d: 1.0 # pixels
 ransac_use_1point_3d3d: 1  # if 1, use rotation. else arun method
 ransac_use_2point_2d2d: 0
-use_pnp_pose_recovery: 0
+# pose_recovery_type options:
+#   0: 3d3d (Arun)
+#   1: PnP (opengv)
+pose_recovery_type: 0
 ransac_max_iterations: 500
 ransac_probability: 0.995
 ransac_randomize: 0

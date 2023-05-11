@@ -40,22 +40,24 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("min_matches_per_island", &min_matches_per_island_);
   yaml_parser.getYamlParam("max_intraisland_gap", &max_intraisland_gap_);
   yaml_parser.getYamlParam("max_nrFrames_between_islands",
-                          &max_nrFrames_between_islands_);
+                           &max_nrFrames_between_islands_);
   yaml_parser.getYamlParam("max_nrFrames_between_queries",
-                          &max_nrFrames_between_queries_);
+                           &max_nrFrames_between_queries_);
   yaml_parser.getYamlParam("refine_pose", &refine_pose_);
-  yaml_parser.getYamlParam("use_pnp_pose_recovery", &use_pnp_pose_recovery_);
+  int pose_recovery_type;
+  yaml_parser.getYamlParam("pose_recovery_type", &pose_recovery_type);
+  pose_recovery_type_ = static_cast<PoseRecoveryType>(pose_recovery_type);
   yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
 
   int matcher_type_id;
   yaml_parser.getYamlParam("matcher_type", &matcher_type_id);
 #if CV_VERSION_MAJOR == 3
-    matcher_type_ = matcher_type_id;
+  matcher_type_ = matcher_type_id;
 #else
-    matcher_type_ = 
+  matcher_type_ =
       static_cast<cv::DescriptorMatcher::MatcherType>(matcher_type_id);
 #endif
-  
+
   yaml_parser.getYamlParam("nfeatures", &nfeatures_);
   yaml_parser.getYamlParam("scale_factor", &scale_factor_);
   yaml_parser.getYamlParam("nlevels", &nlevels_);
@@ -81,9 +83,9 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
   yaml_parser.getYamlParam("betweenRotationPrecision",
-                          &betweenRotationPrecision_);
+                           &betweenRotationPrecision_);
   yaml_parser.getYamlParam("betweenTranslationPrecision",
-                          &betweenTranslationPrecision_);
+                           &betweenTranslationPrecision_);
   yaml_parser.getYamlParam("odom_rot_threshold", &odom_rot_threshold_);
   yaml_parser.getYamlParam("odom_trans_threshold", &odom_trans_threshold_);
   yaml_parser.getYamlParam("pcm_rot_threshold", &pcm_rot_threshold_);
@@ -170,8 +172,8 @@ void LoopClosureDetectorParams::print() const {
 
                         "refine_pose_:",
                         refine_pose_,
-                        "use_pnp_pose_recovery",
-                        use_pnp_pose_recovery_,
+                        "pose_recovery_type_",
+                        static_cast<unsigned int>(pose_recovery_type_),
                         "lowe_ratio_: ",
                         lowe_ratio_,
                         "matcher_type_:",
@@ -216,7 +218,8 @@ void LoopClosureDetectorParams::print() const {
   LOG(INFO) << out.str();
 }
 
-bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2, double tol) const {
+bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2,
+                                       double tol) const {
   return tracker_params_.equals(lp2.tracker_params_, tol) &&
          (use_nss_ == lp2.use_nss_) && (fabs(alpha_ - lp2.alpha_) <= tol) &&
          (min_temporal_matches_ == lp2.min_temporal_matches_) &&
@@ -229,7 +232,7 @@ bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2, dou
          (max_nrFrames_between_queries_ == lp2.max_nrFrames_between_queries_) &&
 
          (refine_pose_ == lp2.refine_pose_) &&
-         (use_pnp_pose_recovery_ == lp2.use_pnp_pose_recovery_) &&
+         (pose_recovery_type_ == lp2.pose_recovery_type_) &&
          (fabs(lowe_ratio_ - lp2.lowe_ratio_) <= tol) &&
          (matcher_type_ == lp2.matcher_type_) &&
 
