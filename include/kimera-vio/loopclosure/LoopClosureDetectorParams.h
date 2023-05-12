@@ -27,6 +27,11 @@
 
 namespace VIO {
 
+enum class PoseRecoveryType {
+  k3d3d = 0,
+  kPnP = 1,
+};
+
 class LoopClosureDetectorParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorParams);
@@ -71,7 +76,7 @@ class LoopClosureDetectorParams : public PipelineParams {
 
   /////////////////////////// 3D Pose Recovery Params //////////////////////////
   bool refine_pose_ = true;
-  bool use_pnp_pose_recovery_ = false;
+  PoseRecoveryType pose_recovery_type_ = PoseRecoveryType::k3d3d;
   static constexpr double max_pose_recovery_translation_ = 1e3;
   //////////////////////////////////////////////////////////////////////////////
 

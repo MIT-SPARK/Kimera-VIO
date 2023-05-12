@@ -801,7 +801,7 @@ bool MonoEurocDataProvider::spin() {
     }
 
     // Spin.
-    CHECK_EQ(vio_params_.camera_params_.size(), 2u);
+    // CHECK_EQ(vio_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
     // We log only the first one, because we may be running in sequential mode.
     LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
