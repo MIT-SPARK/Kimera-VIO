@@ -60,7 +60,8 @@ ransac_use_2point_2d2d: 0
 # pose_recovery_type options:
 #   0: 3d3d (Arun)
 #   1: PnP (opengv)
-pose_recovery_type: 1
+#   2: k5ptRotOnly
+pose_recovery_type: 2
 ransac_max_iterations: 500
 ransac_probability: 0.995
 ransac_randomize: 0

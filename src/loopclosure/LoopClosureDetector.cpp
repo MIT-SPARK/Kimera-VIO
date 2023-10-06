@@ -295,7 +295,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
       // Zero out the translation part of the noise model to only use the 2d2d
       // pose for the loop closure factor.
-      // TODO(marcus): consider parametrizing the 1e-12.
+      // mat_info.block<3, 3>(3, 3) = gtsam::Matrix::Identity(3, 3) * 0.0;
       mat_info.block<3, 3>(3, 3) = gtsam::Matrix::Identity(3, 3) * 1e-12;
 
       // Instantiate a noise model from the rotation-only information matrix.
@@ -549,6 +549,10 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
 
       CHECK(!db_frames_.empty());
       return db_frames_.back()->id_;
+    } break;
+
+    case PoseRecoveryType::k3d3d: {
+      LOG(FATAL) << "Cannot use PoseRecoveryType::k3d3d for Monocular LCD!";
     } break;
 
     default: {
