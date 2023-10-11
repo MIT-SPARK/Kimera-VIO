@@ -30,6 +30,7 @@ namespace VIO {
 enum class PoseRecoveryType {
   k3d3d = 0,
   kPnP = 1,
+  k5ptRotOnly = 2,
 };
 
 class LoopClosureDetectorParams : public PipelineParams {

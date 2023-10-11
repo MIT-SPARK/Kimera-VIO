@@ -397,6 +397,16 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
 
 TEST_F(LCDFixture, processAndAddMonoFrame) {
   /* Test adding frame to database without BoW Loop CLosure Detection */
+  lcd_params_.pose_recovery_type_ = PoseRecoveryType::kPnP;
+  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+      lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_,
+      frontend_params_.stereo_matching_params_,
+      boost::none,
+      false);
+
   CHECK(lcd_detector_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
 
@@ -790,8 +800,8 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
-      stereo_camera_,
-      frontend_params_.stereo_matching_params_,
+      boost::none,
+      boost::none,
       boost::none,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
@@ -825,6 +835,54 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
       bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, true);
 
   EXPECT_LT(error.first, rot_tol_stereo);
+  EXPECT_LT(error.second, tran_tol_stereo);
+}
+
+TEST_F(LCDFixture, recoverPoseBody5ptMono) {
+  /* Test proper scaled pose recovery between ref and cur images */
+  CHECK(lcd_detector_);
+  lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
+  lcd_params_.tracker_params_.ransac_randomize_ = false;
+  lcd_params_.pose_recovery_type_ = PoseRecoveryType::k5ptRotOnly;
+  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+      lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      boost::none,
+      boost::none,
+      boost::none,
+      false);
+  gtsam::Pose3 empty_pose = gtsam::Pose3();
+  std::pair<double, double> error;
+
+  // Process mono frames
+  // TODO(marcus): remove pose from here entirely, not necessary anymore
+  lcd_detector_->processAndAddMonoFrame(
+      match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_bodyMatch1_);
+  lcd_detector_->processAndAddMonoFrame(
+      query1_stereo_frame_->left_frame_, W_query1_lmks3d_, world_T_bodyQuery1_);
+
+  // Find correspondences between keypoints.
+  KeypointMatches matches1;
+  lcd_detector_->computeDescriptorMatches(
+      lcd_detector_->getFrameDatabasePtr()->at(0)->descriptors_mat_,
+      lcd_detector_->getFrameDatabasePtr()->at(1)->descriptors_mat_,
+      &matches1,
+      true);
+
+  // All matches are inliers for this test
+  std::vector<int> inliers_1;
+  for (size_t i = 0; i < matches1.size(); i++) {
+    inliers_1.push_back(i);
+  }
+  gtsam::Pose3 bodyMatch1_T_bodyQuery1_stereo;
+  lcd_detector_->recoverPoseBody(
+      0, 1, empty_pose, matches1, &bodyMatch1_T_bodyQuery1_stereo, &inliers_1);
+
+  error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
+      bodyMatch1_T_bodyQuery1_gt_, bodyMatch1_T_bodyQuery1_stereo, true);
+
+  EXPECT_LT(error.first, rot_tol_stereo * 2.5);
   EXPECT_LT(error.second, tran_tol_stereo);
 }
 
@@ -1140,6 +1198,15 @@ TEST_F(LCDFixture, noRefinePosesInMono) {
   CHECK(lcd_detector_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 0);
   lcd_params_.refine_pose_ = true;
+  lcd_params_.pose_recovery_type_ = PoseRecoveryType::kPnP;
+  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+      lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_,
+      frontend_params_.stereo_matching_params_,
+      boost::none,
+      false);
 
   lcd_detector_->processAndAddMonoFrame(
       match1_stereo_frame_->left_frame_, W_match1_lmks3d_, world_T_bodyMatch1_);
