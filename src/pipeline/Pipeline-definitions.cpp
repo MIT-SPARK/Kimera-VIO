@@ -14,11 +14,11 @@
 
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
-#include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/visualizer/OpenCvDisplay.h"  // for ocv display params...
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
+#include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/visualizer/OpenCvDisplay.h"  // for ocv display params...
 
 DEFINE_bool(use_external_odometry, false, "Use an external odometry input.");
 
@@ -26,8 +26,10 @@ namespace VIO {
 
 decltype(VioParams::kPipelineFilename) constexpr VioParams::kPipelineFilename;
 decltype(VioParams::kImuFilename) constexpr VioParams::kImuFilename;
-decltype(VioParams::kLeftCameraFilename) constexpr VioParams::kLeftCameraFilename;
-decltype(VioParams::kRightCameraFilename) constexpr VioParams::kRightCameraFilename;
+decltype(
+    VioParams::kLeftCameraFilename) constexpr VioParams::kLeftCameraFilename;
+decltype(
+    VioParams::kRightCameraFilename) constexpr VioParams::kRightCameraFilename;
 decltype(VioParams::kFrontendFilename) constexpr VioParams::kFrontendFilename;
 decltype(VioParams::kBackendFilename) constexpr VioParams::kBackendFilename;
 decltype(VioParams::kLcdFilename) constexpr VioParams::kLcdFilename;
@@ -44,10 +46,25 @@ VioParams::VioParams(const std::string& params_folder_path)
                 params_folder_path + '/' + kLcdFilename,
                 params_folder_path + '/' + kDisplayFilename,
                 FLAGS_use_external_odometry
-                    ? boost::optional<std::string>(params_folder_path + '/' +
-                                                   kOdometryFilename)
-                    : boost::none,
+                    ? params_folder_path + '/' + kOdometryFilename
+                    : "",
                 !params_folder_path.empty()) {}
+
+VioParams::VioParams(const std::string& params_folder_path,
+                     const std::string& sensor_folder_path)
+    : VioParams(params_folder_path + '/' + kPipelineFilename,
+                sensor_folder_path + '/' + kImuFilename,
+                sensor_folder_path + '/' + kLeftCameraFilename,
+                sensor_folder_path + '/' + kRightCameraFilename,
+                params_folder_path + '/' + kFrontendFilename,
+                params_folder_path + '/' + kBackendFilename,
+                params_folder_path + '/' + kLcdFilename,
+                params_folder_path + '/' + kDisplayFilename,
+                FLAGS_use_external_odometry
+                    ? sensor_folder_path + '/' + kOdometryFilename
+                    : "",
+                !params_folder_path.empty()) {}
+
 
 VioParams::VioParams(const std::string& pipeline_params_filepath,
                      const std::string& imu_params_filepath,
@@ -57,7 +74,7 @@ VioParams::VioParams(const std::string& pipeline_params_filepath,
                      const std::string& backend_params_filepath,
                      const std::string& lcd_params_filepath,
                      const std::string& display_params_filepath,
-                     boost::optional<std::string> odom_params_filepath,
+                     const std::string& odom_params_filepath,
                      bool should_parse)
     : PipelineParams("VioParams"),
       // Actual VIO Parameters
@@ -158,9 +175,9 @@ bool VioParams::parseYAML(const std::string&) {
   parsePipelineParams(display_params_filepath_, display_params_.get());
   display_params_->display_type_ = display_type_;
 
-  if (odom_params_filepath_) {
+  if (!odom_params_filepath_.empty()) {
     OdometryParams odom_params;
-    parsePipelineParams(*odom_params_filepath_, &odom_params);
+    parsePipelineParams(odom_params_filepath_, &odom_params);
     odom_params_ = odom_params;
   }
 
