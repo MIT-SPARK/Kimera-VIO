@@ -14,18 +14,14 @@
 
 #include "kimera-vio/mesh/Mesher.h"
 
-#include <utility>  // for make_pair
-#include <vector>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <math.h>
+
 #include <algorithm>
 #include <opencv2/imgproc.hpp>
-
-// For serialization of meshes
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -191,7 +187,7 @@ Mesher::Mesher(const MesherParams& mesher_params, const bool& serialize_meshes)
       mesher_params_(mesher_params),
       mesher_logger_(nullptr),
       serialize_meshes_(serialize_meshes) {
-  mesher_logger_ = VIO::make_unique<MesherLogger>();
+  mesher_logger_ = std::make_unique<MesherLogger>();
 
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
@@ -222,7 +218,7 @@ Mesher::Mesher(const MesherParams& mesher_params, const bool& serialize_meshes)
 
 MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
   MesherOutput::UniquePtr mesher_output_payload =
-      VIO::make_unique<MesherOutput>(input.timestamp_);
+      std::make_unique<MesherOutput>(input.timestamp_);
   updateMesh3D(
       input,
       // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
@@ -321,8 +317,8 @@ double Mesher::getRatioBetweenSmallestAndLargestSide(
     const double& d12,
     const double& d23,
     const double& d31,
-    boost::optional<double&> minSide_out,
-    boost::optional<double&> maxSide_out) const {
+    double* minSide_out,
+    double* maxSide_out) const {
   // Measure sides.
   double minSide = std::min(d12, std::min(d23, d31));
   double maxSide = std::max(d12, std::max(d23, d31));
@@ -1242,9 +1238,8 @@ void Mesher::segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
                    << peak_it->pos_;
       peak_it = peaks.erase(peak_it);
       i--;
-    } else if (i > 0 &&
-               std::fabs(previous_plane_distance - plane_distance) <
-                   FLAGS_z_histogram_min_separation) {
+    } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
+                            FLAGS_z_histogram_min_separation) {
       // Not enough separation between planes, delete the one with less support.
       if (previous_peak_it->support_ < peak_it->support_) {
         // Delete previous_peak.
@@ -1408,8 +1403,9 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             }
           }
         } else {
-          VLOG(0) << "Plane " << gtsam::DefaultKeyFormatter(
-                                     plane_backend.getPlaneSymbol().key())
+          VLOG(0) << "Plane "
+                  << gtsam::DefaultKeyFormatter(
+                         plane_backend.getPlaneSymbol().key())
                   << " from Backend not associated to new segmented plane "
                   << gtsam::DefaultKeyFormatter(
                          segmented_plane.getPlaneSymbol())
@@ -1524,7 +1520,7 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz) {
   const StereoFrame& stereo_frame =
       mesher_payload.frontend_output_->stereo_frame_lkf_;
-  const StatusKeypointsCV& right_keypoints = 
+  const StatusKeypointsCV& right_keypoints =
       stereo_frame.right_keypoints_rectified_;
   std::vector<KeypointStatus> right_keypoint_status;
   right_keypoint_status.reserve(right_keypoints.size());

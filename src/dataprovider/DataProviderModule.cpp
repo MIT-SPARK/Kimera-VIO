@@ -34,7 +34,7 @@ DataProviderModule::DataProviderModule(OutputQueue* output_queue,
       external_odometry_buffer_(nullptr) {
   // TODO(nathan) replace with non-unlimited buffer size
   if (FLAGS_use_external_odometry)
-    external_odometry_buffer_ = VIO::make_unique<ThreadsafeOdometryBuffer>(-1);
+    external_odometry_buffer_ = std::make_unique<ThreadsafeOdometryBuffer>(-1);
 }
 
 void DataProviderModule::logQueryResult(

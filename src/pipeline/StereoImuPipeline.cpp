@@ -36,11 +36,10 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
-StereoImuPipeline::StereoImuPipeline(
-    const VioParams& params,
-    Visualizer3D::UniquePtr&& visualizer,
-    DisplayBase::UniquePtr&& displayer,
-    PreloadedVocab::Ptr&& preloaded_vocab)
+StereoImuPipeline::StereoImuPipeline(const VioParams& params,
+                                     Visualizer3D::UniquePtr&& visualizer,
+                                     DisplayBase::UniquePtr&& displayer,
+                                     PreloadedVocab::Ptr&& preloaded_vocab)
     : Pipeline(params), stereo_camera_(nullptr) {
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u)
@@ -49,7 +48,7 @@ StereoImuPipeline::StereoImuPipeline(
                                                   params.camera_params_.at(1));
 
   //! Create DataProvider
-  data_provider_module_ = VIO::make_unique<StereoDataProviderModule>(
+  data_provider_module_ = std::make_unique<StereoDataProviderModule>(
       &frontend_input_queue_,
       "Stereo Data Provider",
       parallel_run_,
@@ -76,7 +75,7 @@ StereoImuPipeline::StereoImuPipeline(
       std::bind(&StereoImuPipeline::spinOnce, this, std::placeholders::_1));
 
   //! Create Frontend
-  vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
+  vio_frontend_module_ = std::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,
       parallel_run_,
       VisionImuFrontendFactory::createFrontend(
@@ -95,13 +94,13 @@ StereoImuPipeline::StereoImuPipeline(
       });
   vio_frontend_module_->registerOutputCallback(
       [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
-        StereoFrontendOutput::Ptr converted_output =
-            VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                output);
+        auto converted_output =
+            std::dynamic_pointer_cast<StereoFrontendOutput>(output);
+        CHECK(converted_output);
 
         if (converted_output && converted_output->is_keyframe_) {
           //! Only push to Backend input queue if it is a keyframe!
-          backend_input_queue.push(VIO::make_unique<BackendInput>(
+          backend_input_queue.push(std::make_unique<BackendInput>(
               converted_output->stereo_frame_lkf_.timestamp_,
               converted_output->status_stereo_measurements_,
               converted_output->pim_,
@@ -124,7 +123,7 @@ StereoImuPipeline::StereoImuPipeline(
 
   //! Create Backend
   CHECK(backend_params_);
-  vio_backend_module_ = VIO::make_unique<VioBackendModule>(
+  vio_backend_module_ = std::make_unique<VioBackendModule>(
       &backend_input_queue_,
       parallel_run_,
       BackendFactory::createBackend(
@@ -151,7 +150,7 @@ StereoImuPipeline::StereoImuPipeline(
 
   if (static_cast<VisualizationType>(FLAGS_viz_type) ==
       VisualizationType::kMesh2dTo3dSparse) {
-    mesher_module_ = VIO::make_unique<MesherModule>(
+    mesher_module_ = std::make_unique<MesherModule>(
         parallel_run_,
         MesherFactory::createMesher(
             MesherType::PROJECTIVE,
@@ -166,16 +165,16 @@ StereoImuPipeline::StereoImuPipeline(
     auto& mesher_module = mesher_module_;
     vio_frontend_module_->registerOutputCallback(
         [&mesher_module](const FrontendOutputPacketBase::Ptr& output) {
-          StereoFrontendOutput::Ptr converted_output =
-              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                  output);
+          auto converted_output =
+              std::dynamic_pointer_cast<StereoFrontendOutput>(output);
+          CHECK(converted_output);
           CHECK_NOTNULL(mesher_module.get())
               ->fillFrontendQueue(converted_output);
         });
   }
 
   if (FLAGS_use_lcd) {
-    lcd_module_ = VIO::make_unique<LcdModule>(
+    lcd_module_ = std::make_unique<LcdModule>(
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
@@ -183,7 +182,7 @@ StereoImuPipeline::StereoImuPipeline(
                               stereo_camera_->getBodyPoseLeftCamRect(),
                               stereo_camera_,
                               params.frontend_params_.stereo_matching_params_,
-                              boost::none,
+                              std::nullopt,
                               FLAGS_log_output,
                               std::move(preloaded_vocab)));
     //! Register input callbacks
@@ -199,7 +198,7 @@ StereoImuPipeline::StereoImuPipeline(
   }
 
   if (FLAGS_visualize) {
-    visualizer_module_ = VIO::make_unique<VisualizerModule>(
+    visualizer_module_ = std::make_unique<VisualizerModule>(
         //! Send ouput of visualizer to the display_input_queue_
         &display_input_queue_,
         parallel_run_,
@@ -221,9 +220,9 @@ StereoImuPipeline::StereoImuPipeline(
     auto& visualizer_module = visualizer_module_;
     vio_frontend_module_->registerOutputCallback(
         [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
-          StereoFrontendOutput::Ptr converted_output =
-              VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
-                  output);
+          auto converted_output =
+              std::dynamic_pointer_cast<StereoFrontendOutput>(output);
+          CHECK(converted_output);
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
         });
@@ -237,7 +236,7 @@ StereoImuPipeline::StereoImuPipeline(
 
     //! Actual displaying of visual data is done in the main thread.
     CHECK(params.display_params_);
-    display_module_ = VIO::make_unique<DisplayModule>(
+    display_module_ = std::make_unique<DisplayModule>(
         &display_input_queue_,
         nullptr,
         parallel_run_,

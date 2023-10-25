@@ -328,25 +328,25 @@ void Pipeline::spinOnce(FrontendInputPacketBase::UniquePtr input) {
 
 void Pipeline::launchThreads() {
   if (parallel_run_) {
-    frontend_thread_ = VIO::make_unique<std::thread>(
+    frontend_thread_ = std::make_unique<std::thread>(
         &VisionImuFrontendModule::spin,
         CHECK_NOTNULL(vio_frontend_module_.get()));
 
-    backend_thread_ = VIO::make_unique<std::thread>(
+    backend_thread_ = std::make_unique<std::thread>(
         &VioBackendModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
     if (mesher_module_) {
-      mesher_thread_ = VIO::make_unique<std::thread>(
+      mesher_thread_ = std::make_unique<std::thread>(
           &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
     }
 
     if (lcd_module_) {
-      lcd_thread_ = VIO::make_unique<std::thread>(
+      lcd_thread_ = std::make_unique<std::thread>(
           &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
     }
 
     if (visualizer_module_) {
-      visualizer_thread_ = VIO::make_unique<std::thread>(
+      visualizer_thread_ = std::make_unique<std::thread>(
           &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
     }
     LOG(INFO) << "Pipeline Modules launched (parallel_run set to "

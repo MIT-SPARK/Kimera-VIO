@@ -12,27 +12,23 @@
  * @author Antoni Rosinol Vidal
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include <random>
-
-#include <gtsam/base/numericalDerivative.h>
-#include <boost/assign/std/vector.hpp>
-#include <boost/bind.hpp>
-
+#include <gflags/gflags.h>
+#include <gtest/gtest.h>
 #include <gtsam/geometry/OrientedPlane3.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/slam/PriorFactor.h>
 
-#include <gflags/gflags.h>
-#include <gtest/gtest.h>
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include "kimera-vio/factors/ParallelPlaneRegularFactor.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
+#include "kimera-vio/test/EvaluateFactor.h"
 
 using namespace std;
 using namespace gtsam;
@@ -53,8 +49,8 @@ TEST(testParallelPlaneRegularBasicFactor, ErrorIsZero) {
       noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// Parallelism constraint between Plane 1 and Plane 2.
-  ParallelPlaneRegularBasicFactor factor(plane_key_1, plane_key_2,
-                                         parallel_plane_noise);
+  ParallelPlaneRegularBasicFactor factor(
+      plane_key_1, plane_key_2, parallel_plane_noise);
 
   /// Planes.
   OrientedPlane3 plane_1(0.1, 0.1, 0.9, 0.9);
@@ -82,8 +78,8 @@ TEST(testParallelPlaneRegularBasicFactor, ErrorOtherThanZero) {
       noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// Parallelism constraint between Plane 1 and Plane 2.
-  ParallelPlaneRegularBasicFactor factor(plane_key_1, plane_key_2,
-                                         parallel_plane_noise);
+  ParallelPlaneRegularBasicFactor factor(
+      plane_key_1, plane_key_2, parallel_plane_noise);
 
   /// Planes.
   OrientedPlane3 plane_1(0.3, 0.2, 1.9, 0.9);
@@ -113,33 +109,13 @@ TEST(testParallelPlaneRegularFactor, Jacobians) {
       noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// Parallelism constraint between Plane 1 and Plane 2.
-  ParallelPlaneRegularBasicFactor factor(plane_key_1, plane_key_2,
-                                         parallel_plane_noise);
+  ParallelPlaneRegularBasicFactor factor(
+      plane_key_1, plane_key_2, parallel_plane_noise);
 
   /// Planes.
   OrientedPlane3 plane_1(0.3, 0.2, 1.9, 0.9);
   OrientedPlane3 plane_2(0.1, 0.1, 0.9, 0.1);
-
-  // Use the factor to calculate the Jacobians
-  gtsam::Matrix H1Actual, H2Actual;
-  factor.evaluateError(plane_1, plane_2, H1Actual, H2Actual);
-
-  // Calculate numerical derivatives
-  Matrix H1Expected =
-      numericalDerivative21<Vector, OrientedPlane3, OrientedPlane3>(
-          boost::bind(&ParallelPlaneRegularBasicFactor::evaluateError, &factor,
-                      _1, _2, boost::none, boost::none),
-          plane_1, plane_2, der_tol);
-
-  Matrix H2Expected =
-      numericalDerivative22<Vector, OrientedPlane3, OrientedPlane3>(
-          boost::bind(&ParallelPlaneRegularBasicFactor::evaluateError, &factor,
-                      _1, _2, boost::none, boost::none),
-          plane_1, plane_2, der_tol);
-
-  // Verify the Jacobians are correct
-  ASSERT_TRUE(assert_equal(H1Expected, H1Actual, tol));
-  ASSERT_TRUE(assert_equal(H2Expected, H2Actual, tol));
+  VIO::test::evaluateFactor(factor, plane_1, plane_2, tol, der_tol);
 }
 
 /* ************************************************************************* */
@@ -208,8 +184,8 @@ TEST(testParallelPlaneRegularBasicFactor, PlaneOptimization) {
       noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   Point3 priorMeanLandmark1(0.0, 0.0, 0.0);
-  graph.emplace_shared<PriorFactor<Point3> >(landmark_key, priorMeanLandmark1,
-                                             prior_noise);
+  graph.emplace_shared<PriorFactor<Point3> >(
+      landmark_key, priorMeanLandmark1, prior_noise);
 
   OrientedPlane3 priorMeanPlane1(0.0, 0.0, 1.0, 1.0);
   graph.emplace_shared<PriorFactor<OrientedPlane3> >(
@@ -220,8 +196,8 @@ TEST(testParallelPlaneRegularBasicFactor, PlaneOptimization) {
       noiseModel::Isotropic::Sigma(1, 0.5);
 
   /// Plane 2 to landmark.
-  graph.emplace_shared<PointPlaneFactor>(landmark_key, plane_key_2,
-                                         regularity_noise);
+  graph.emplace_shared<PointPlaneFactor>(
+      landmark_key, plane_key_2, regularity_noise);
 
   /// Noise model for cosntraint between the two planes.
   noiseModel::Diagonal::shared_ptr parallel_plane_noise =

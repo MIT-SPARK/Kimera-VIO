@@ -25,9 +25,6 @@
 
 namespace VIO {
 
-typedef boost::shared_ptr<gtsam::PreintegratedRotationParams>
-    RotOnlyPIMParamPtr;
-
 /**
  * @brief Class to estimate the time delay between the IMU and the camera via
  * cross-correlation between relative rotation angles from the camera and IMU.
@@ -114,7 +111,6 @@ class CrossCorrTimeAligner : public TimeAlignerBase {
                const bool& not_enough_variance,
                const double& result);
 
-  RotOnlyPIMParamPtr pim_params_;
   bool do_imu_rate_estimation_;
   double imu_period_s_;
   double imu_variance_threshold_;

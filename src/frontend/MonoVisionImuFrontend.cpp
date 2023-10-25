@@ -33,7 +33,7 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
     const Camera::ConstPtr& camera,
     DisplayQueue* display_queue,
     bool log_output,
-    boost::optional<OdometryParams> odom_params)
+    std::optional<OdometryParams> odom_params)
     : VisionImuFrontend(frontend_params,
                         imu_params,
                         imu_initial_bias,
@@ -48,10 +48,10 @@ MonoVisionImuFrontend::MonoVisionImuFrontend(
       mono_camera_(camera) {
   CHECK(mono_camera_);
 
-  tracker_ = VIO::make_unique<Tracker>(
+  tracker_ = std::make_unique<Tracker>(
       frontend_params_.tracker_params_, mono_camera_, display_queue);
 
-  feature_detector_ = VIO::make_unique<FeatureDetector>(
+  feature_detector_ = std::make_unique<FeatureDetector>(
       frontend_params_.feature_detector_params_);
 
   if (VLOG_IS_ON(1)) tracker_->tracker_params_.print();
@@ -75,7 +75,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
 
   if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
     // we assume that the first frame is hardcoded to be a keyframe.
-    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    // it's okay if world_NavState_odom_ is none (it gets cached later)
     cacheExternalOdometry(input.get());
   }
 
@@ -88,7 +88,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::bootstrapSpinMono(
   }
 
   // Create mostly invalid output
-  return VIO::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
+  return std::make_unique<MonoFrontendOutput>(mono_frame_lkf_->isKeyframe_,
                                               nullptr,
                                               mono_camera_->getBodyPoseCam(),
                                               *mono_frame_lkf_,
@@ -171,7 +171,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     // Return the output of the Frontend for the others.
     // We have a keyframe, so We fill frame_lkf_ with the newest keyframe
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
-    return VIO::make_unique<MonoFrontendOutput>(
+    return std::make_unique<MonoFrontendOutput>(
         frontend_state_ == FrontendState::Nominal,
         status_mono_measurements,
         mono_camera_->getBodyPoseCam(),
@@ -190,7 +190,7 @@ MonoFrontendOutput::UniquePtr MonoVisionImuFrontend::nominalSpinMono(
     // We don't have a keyframe, so instead we forward the newest frame in this
     // packet for use in the temporal calibration (if enabled)
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<MonoFrontendOutput>(false,
+    return std::make_unique<MonoFrontendOutput>(false,
                                                 status_mono_measurements,
                                                 mono_camera_->getBodyPoseCam(),
                                                 *mono_frame_km1_,

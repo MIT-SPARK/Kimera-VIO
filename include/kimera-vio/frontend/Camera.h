@@ -20,6 +20,7 @@
 
 #include <Eigen/Core>
 #include <opencv2/core.hpp>
+#include <optional>
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
@@ -100,7 +101,7 @@ class Camera {
                               LandmarkCV* lmk);
   static void UndistortKeypointsOmni(const KeypointsCV& keypoints,
                                      const CameraParams& cam_params,
-                                     boost::optional<cv::Mat> P,
+                                     std::optional<cv::Mat> P,
                                      KeypointsCV* status_keypoints);
 
  protected:

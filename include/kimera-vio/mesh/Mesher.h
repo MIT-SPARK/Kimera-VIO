@@ -14,13 +14,13 @@
 
 #pragma once
 
-#include <stdlib.h>
 #include <atomic>
-#include <limits>   // for numeric_limits<>
+#include <cstdlib>
+#include <limits>  // for numeric_limits<>
+#include <opencv2/opencv.hpp>
+#include <optional>
 #include <utility>  // for move
 #include <vector>
-
-#include <opencv2/opencv.hpp>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/logging/Logger.h"
@@ -127,8 +127,7 @@ class Mesher {
    * @param mesh_2d 2D mesh that is delaunay triangulation of the given
    * keypoints.
    */
-  static void createMesh2D(const KeypointsCV& keypoints,
-                           Mesh2D* mesh_2d) {
+  static void createMesh2D(const KeypointsCV& keypoints, Mesh2D* mesh_2d) {
     CHECK_NOTNULL(mesh_2d);
     CHECK_EQ(mesh_2d->getNumberOfPolygons(), 0u);
     CHECK_EQ(mesh_2d->getNumberOfUniqueVertices(), 0u);
@@ -155,10 +154,10 @@ class Mesher {
   }
 
   /*
-  * Triangulate support points for the requested image
-  * Usage of Triangle inspired From: LIBELAS
-  * http://www.cvlibs.net/software/libelas/
-  */
+   * Triangulate support points for the requested image
+   * Usage of Triangle inspired From: LIBELAS
+   * http://www.cvlibs.net/software/libelas/
+   */
   static std::vector<cv::Vec6f> computeDelaunayTriangulation(
       const KeypointsCV& keypoints,
       MeshIndices* vtx_indices = nullptr);
@@ -184,8 +183,8 @@ class Mesher {
       const double& d12,
       const double& d23,
       const double& d31,
-      boost::optional<double&> minSide_out = boost::none,
-      boost::optional<double&> maxSide_out = boost::none) const;
+      double* minSide_out = nullptr,
+      double* maxSide_out = nullptr) const;
 
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3

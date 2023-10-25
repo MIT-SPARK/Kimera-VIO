@@ -24,7 +24,6 @@ CrossCorrTimeAligner::CrossCorrTimeAligner(const ImuParams& params)
       imu_period_s_(params.nominal_sampling_time_s_),
       imu_variance_threshold_(std::pow(params.gyro_noise_density_, 2.0)),
       window_size_s_(params.time_alignment_window_size_s_) {
-  pim_params_.reset(new gtsam::PreintegratedRotationParams());
   imu_variance_threshold_ *= params.time_alignment_variance_threshold_scaling_;
 }
 
@@ -71,13 +70,26 @@ size_t CrossCorrTimeAligner::addNewImuDataImuRate(
   return num_added;
 }
 
+using ParamType = gtsam::PreintegratedRotation::Params;
+
+struct FakePreintegratedRotation : public gtsam::PreintegratedRotation {
+  using gtsam::PreintegratedRotation::p_;
+  using ParamPtr = decltype(p_);
+};
+
+gtsam::PreintegratedRotation makeNewRotPim() {
+  FakePreintegratedRotation::ParamPtr params;
+  params.reset(new ParamType());
+  return gtsam::PreintegratedRotation(params);
+}
+
 size_t CrossCorrTimeAligner::addNewImuDataFrameRate(
     const std::vector<Timestamp>& image_stamps,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_acc_gyrs) {
   CHECK_GE(image_stamps.size(), 2u);
   size_t image_stamp_idx = 1;
-  gtsam::PreintegratedRotation rot_pim(pim_params_);
+  auto rot_pim = makeNewRotPim();
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
     if (image_stamp_idx < image_stamps.size() - 1 &&
         image_stamps[image_stamp_idx] < imu_stamps(0, i)) {
@@ -86,7 +98,7 @@ size_t CrossCorrTimeAligner::addNewImuDataFrameRate(
       imu_buffer_->push(CrossCorrTimeAligner::Measurement(
           image_stamps[image_stamp_idx - 1],
           Rot3::Logmap(rot_pim.deltaRij()).norm()));
-      rot_pim = gtsam::PreintegratedRotation(pim_params_);
+      auto rot_pim = makeNewRotPim();
       image_stamp_idx++;
     }
 

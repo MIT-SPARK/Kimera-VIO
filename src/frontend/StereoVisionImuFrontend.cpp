@@ -33,7 +33,7 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
     const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output,
-    boost::optional<OdometryParams> odom_params)
+    std::optional<OdometryParams> odom_params)
     : VisionImuFrontend(frontend_params,
                         imu_params,
                         imu_initial_bias,
@@ -50,10 +50,10 @@ StereoVisionImuFrontend::StereoVisionImuFrontend(
       output_images_path_("./outputImages/") {
   CHECK(stereo_camera_);
 
-  feature_detector_ = VIO::make_unique<FeatureDetector>(
+  feature_detector_ = std::make_unique<FeatureDetector>(
       frontend_params.feature_detector_params_);
 
-  tracker_ = VIO::make_unique<Tracker>(frontend_params_.tracker_params_,
+  tracker_ = std::make_unique<Tracker>(frontend_params_.tracker_params_,
                                        stereo_camera_->getOriginalLeftCamera(),
                                        display_queue);
 
@@ -76,7 +76,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
 
   if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
     // we assume that the first frame is hardcoded to be a keyframe.
-    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    // it's okay if world_NavState_odom_ is none (it gets cached later)
     cacheExternalOdometry(input.get());
   }
 
@@ -87,7 +87,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::bootstrapSpinStereo(
     return nullptr;  // skip adding a frame to all downstream modules
   }
 
-  return VIO::make_unique<StereoFrontendOutput>(
+  return std::make_unique<StereoFrontendOutput>(
       stereoFrame_lkf_->isKeyframe(),
       nullptr,
       stereo_camera_->getBodyPoseLeftCamRect(),
@@ -206,7 +206,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     // Return the output of the Frontend for the others.
     // We have a keyframe, so We fill stereo_frame_lkf_ with the newest keyframe
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
-    return VIO::make_unique<StereoFrontendOutput>(
+    return std::make_unique<StereoFrontendOutput>(
         frontend_state_ == FrontendState::Nominal,
         status_stereo_measurements,
         stereo_camera_->getBodyPoseLeftCamRect(),
@@ -226,7 +226,7 @@ StereoFrontendOutput::UniquePtr StereoVisionImuFrontend::nominalSpinStereo(
     // We don't have a keyframe, so instead we forward the newest frame in this
     // packet for use in the temporal calibration (if enabled)
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<StereoFrontendOutput>(
+    return std::make_unique<StereoFrontendOutput>(
         false,
         status_stereo_measurements,
         stereo_camera_->getBodyPoseLeftCamRect(),

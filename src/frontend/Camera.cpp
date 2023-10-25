@@ -39,11 +39,11 @@ Camera::Camera(const CameraParams& cam_params)
   // see https://stackoverflow.com/questions/22027419/bad-results-when-undistorting-points-using-opencv-in-python
   cv::Mat P = cam_params.K_;
   cv::Mat R = cv::Mat::eye(3,3,CV_32FC1);
-  undistorter_ = VIO::make_unique<UndistorterRectifier>(P, cam_params_, R);
+  undistorter_ = std::make_unique<UndistorterRectifier>(P, cam_params_, R);
   CHECK(undistorter_);
 
   camera_impl_ =
-      VIO::make_unique<CameraImpl>(cam_params.body_Pose_cam_, calibration_);
+      std::make_unique<CameraImpl>(cam_params.body_Pose_cam_, calibration_);
   CHECK(camera_impl_);
 }
 
@@ -259,7 +259,7 @@ void Camera::BackProjectOmni(const KeypointCV& kp,
 
 void Camera::UndistortKeypointsOmni(const KeypointsCV& keypoints,
                                     const CameraParams& cam_params,
-                                    boost::optional<cv::Mat> P,
+                                    std::optional<cv::Mat> P,
                                     KeypointsCV* undistorted_keypoints) {
   CHECK_NOTNULL(undistorted_keypoints)->clear();
   Depths unit_depths;
@@ -272,10 +272,10 @@ void Camera::UndistortKeypointsOmni(const KeypointsCV& keypoints,
   CHECK_EQ(keypoints.size(), lmks.size());
   for (size_t i = 0; i < lmks.size(); i++) {
     KeypointCV kpt_undistorted;
-    if (P == boost::none) {
+    if (!P) {
       kpt_undistorted = KeypointCV(lmks.at(i).x, lmks.at(i).y);
     } else {
-      gtsam::Cal3_S2 cal = UtilsOpenCV::Cvmat2Cal3_S2(P.get());
+      gtsam::Cal3_S2 cal = UtilsOpenCV::Cvmat2Cal3_S2(P.value());
       gtsam::Point2 kpt_undistorted_gtsam =
           cal.uncalibrate(gtsam::Point2(lmks.at(i).x, lmks.at(i).y));
       kpt_undistorted = KeypointCV(kpt_undistorted_gtsam.x(),

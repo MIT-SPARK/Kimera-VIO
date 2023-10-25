@@ -55,7 +55,7 @@ inline void displayImage(const Timestamp& timestamp,
                          const cv::Mat& img,
                          DisplayQueue* display_queue) {
   DisplayInputBase::UniquePtr visualizer_output =
-      VIO::make_unique<DisplayInputBase>();
+      std::make_unique<DisplayInputBase>();
   visualizer_output->timestamp_ = timestamp;
   ImageToDisplay img_to_display(title, img);
   visualizer_output->images_to_display_.push_back(img_to_display);

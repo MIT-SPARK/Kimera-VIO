@@ -53,28 +53,29 @@ class RgbdCameraFixture : public ::testing::Test {
 
     // Create RGB-D camera
     rgbd_camera_ =
-        VIO::make_unique<RgbdCamera>(vio_params_.camera_params_.at(0));
+        std::make_unique<RgbdCamera>(vio_params_.camera_params_.at(0));
 
     // Create visualizer
     VisualizationType viz_type = VisualizationType::kPointcloud;
     BackendType backend_type = BackendType::kStereoImu;
     visualizer_3d_ =
-        VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
+        std::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
 
     // Create Displayer
     if (FLAGS_display) {
       CHECK(vio_params_.display_params_);
-      OpenCv3dDisplayParams modified_display_params =
-          VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
-              *vio_params_.display_params_);
-      modified_display_params.hold_3d_display_ = true;
-      DisplayParams::Ptr new_display_params =
-          std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
-      display_module_ = VIO::make_unique<DisplayModule>(
+      auto modified_display_params =
+          std::dynamic_pointer_cast<OpenCv3dDisplayParams>(
+              vio_params_.display_params_);
+      CHECK(modified_display_params);
+      modified_display_params->hold_3d_display_ = true;
+      auto new_display_params =
+          std::make_shared<OpenCv3dDisplayParams>(*modified_display_params);
+      display_module_ = std::make_unique<DisplayModule>(
           &display_input_queue_,
           nullptr,
           vio_params_.parallel_run_,
-          VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
+          std::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
     }
   }
   ~RgbdCameraFixture() override = default;
@@ -85,7 +86,7 @@ class RgbdCameraFixture : public ::testing::Test {
 
   void displayPcl(const cv::Mat& pcl) {
     CHECK(!pcl.empty());
-    VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+    VisualizerOutput::UniquePtr output = std::make_unique<VisualizerOutput>();
     output->visualization_type_ = VisualizationType::kPointcloud;
 
     // Depth image contains INFs. We have to remove them:
@@ -165,9 +166,9 @@ TEST_F(RgbdCameraFixture, convertToPoincloud) {
   VLOG(1) << "Reconstructing cloud.";
   cv::Mat intensity_img = cv::Mat(height, width, CV_8UC1, cv::Scalar(0u));
   Frame::UniquePtr frame =
-      VIO::make_unique<Frame>(0u, 0u, cam_params, intensity_img);
+      std::make_unique<Frame>(0u, 0u, cam_params, intensity_img);
   DepthFrame::UniquePtr depth_frame =
-      VIO::make_unique<DepthFrame>(0u, 0u, depth_map);
+      std::make_unique<DepthFrame>(0u, 0u, depth_map);
   RgbdFrame rgbd_frame(0u, 0u, *frame, *depth_frame);
   cv::Mat actual_cloud;
   cv::Mat colors;

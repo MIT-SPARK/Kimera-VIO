@@ -37,10 +37,10 @@ class BackendFactory {
       const ImuParams& imu_params,
       const BackendOutputParams& backend_output_params,
       bool log_output,
-      boost::optional<OdometryParams> odom_params) {
+      std::optional<OdometryParams> odom_params) {
     switch (backend_type) {
       case BackendType::kStereoImu: {
-        return VIO::make_unique<VioBackend>(B_Pose_leftCamRect,
+        return std::make_unique<VioBackend>(B_Pose_leftCamRect,
                                             stereo_calibration,
                                             backend_params,
                                             imu_params,
@@ -49,7 +49,7 @@ class BackendFactory {
                                             odom_params);
       }
       case BackendType::kStructuralRegularities: {
-        return VIO::make_unique<RegularVioBackend>(B_Pose_leftCamRect,
+        return std::make_unique<RegularVioBackend>(B_Pose_leftCamRect,
                                                    stereo_calibration,
                                                    backend_params,
                                                    imu_params,

@@ -14,18 +14,16 @@
 
 #pragma once
 
+#include <glog/logging.h>
 #include <math.h>
-#include <map>
-#include <vector>
 
+#include <map>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/viz/types.hpp>  // Just for color type.
-
-#include <glog/logging.h>
+#include <vector>
 
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/SerializationOpenCv.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -257,6 +255,10 @@ class Mesh {
   // Get a list of all lmk ids in the mesh.
   LandmarkIds getLandmarkIds() const;
 
+  void save(const std::string& filepath) const;
+
+  void load(const std::string& filepath);
+
  private:
   /// Functions
   // Updates internal structures to add a vertex.
@@ -274,24 +276,6 @@ class Mesh {
 
   // Sets all vertex normals to 0.
   inline void clearVertexNormals() { vertices_mesh_normal_.clear(); }
-
-  friend class boost::serialization::access;
-  // When the class Archive corresponds to an output archive, the
-  // & operator is defined similar to <<.  Likewise, when the class Archive
-  // is a type of input archive the & operator is defined similar to >>.
-  template <class Archive>
-  void serialize(Archive& ar, const unsigned int version) {
-    ar& vertex_to_lmk_id_map_;
-    ar& lmk_id_to_vertex_map_;
-    ar& vertices_mesh_;
-    ar& vertices_mesh_normal_;
-    ar& normals_computed_;
-    ar& vertices_mesh_color_;
-    ar& polygons_mesh_;
-    ar& adjacency_matrix_;
-    // ar& face_hashes_;
-    ar& const_cast<size_t&>(polygon_dimension_);
-  }
 
  private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.

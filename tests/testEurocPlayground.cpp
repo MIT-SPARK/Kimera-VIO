@@ -40,7 +40,7 @@ TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
                                    1000,
                                    300);
 
-  Camera::ConstPtr mono_camera = VIO::make_unique<Camera>(
+  Camera::ConstPtr mono_camera = std::make_unique<Camera>(
       euroc_playground.vio_params_.camera_params_.at(0));
 
   // Optimize mesh using MeshOpt
@@ -58,7 +58,7 @@ TEST(TestEurocPlayground, DISABLED_basicEurocPlayground) {
     FeatureDetector feature_detector(feature_detector_params);
 
     // Get pose with depth maps
-    VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+    VisualizerOutput::UniquePtr output = std::make_unique<VisualizerOutput>();
     size_t count = 0u;
     for (MeshPackets::const_iterator it =
              euroc_playground.mesh_packets_.begin();

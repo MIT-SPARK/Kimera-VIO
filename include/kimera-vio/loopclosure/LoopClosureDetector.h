@@ -92,12 +92,12 @@ class LoopClosureDetector {
       const LoopClosureDetectorParams& lcd_params,
       const CameraParams& tracker_cam_params,
       const gtsam::Pose3& B_Pose_Cam,
-      const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera =
-          boost::none,
-      const boost::optional<StereoMatchingParams>& stereo_matching_params =
-          boost::none,
-      const boost::optional<VIO::RgbdCamera::ConstPtr>& rgbd_camera =
-          boost::none,
+      const std::optional<VIO::StereoCamera::ConstPtr>& stereo_camera =
+          std::nullopt,
+      const std::optional<StereoMatchingParams>& stereo_matching_params =
+          std::nullopt,
+      const std::optional<VIO::RgbdCamera::ConstPtr>& rgbd_camera =
+          std::nullopt,
       bool log_output = false,
       PreloadedVocab::Ptr&& preloaded_vocab = nullptr);
 

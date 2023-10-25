@@ -49,7 +49,7 @@ class StereoCameraFixture : public ::testing::Test {
         vio_params_.camera_params_.at(0),
         vio_params_.camera_params_.at(1));
     CHECK(stereo_camera_);
-    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+    stereo_matcher_ = std::make_unique<StereoMatcher>(
         stereo_camera_,
         vio_params_.frontend_params_.stereo_matching_params_);
     CHECK(stereo_matcher_);
@@ -63,7 +63,7 @@ class StereoCameraFixture : public ::testing::Test {
   void parseEuroc() {
     // Create euroc data parser
     // Only parse one stereo frame... 0 - 1
-    euroc_data_provider_ = VIO::make_unique<EurocDataProvider>(
+    euroc_data_provider_ = std::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/MicroEurocDataset/", 10, 11, vio_params_);
 
     // Register Callbacks

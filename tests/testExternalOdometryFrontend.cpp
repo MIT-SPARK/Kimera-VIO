@@ -35,7 +35,7 @@ namespace VIO {
 class TestExternalOdometryProvider : public ::testing::Test {
  public:
   TestExternalOdometryProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
+    test_provider_ = std::make_unique<StereoDataProviderModule>(
         &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
@@ -56,10 +56,10 @@ class TestExternalOdometryProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     Frame::UniquePtr rframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillRightFrameQueue(std::move(rframe));
     last_id_++;
   }
@@ -92,7 +92,7 @@ class TestExternalOdometryProviderEnabled
   TestExternalOdometryProviderEnabled() : TestExternalOdometryProvider() {
     FLAGS_use_external_odometry = true;
     // remake provider now that odometry is enabled
-    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
+    test_provider_ = std::make_unique<StereoDataProviderModule>(
         &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
@@ -272,8 +272,7 @@ TEST(TestExternalOdometryFrontend, ExternalOdomVelCorrect) {
       ImuStampS::Zero(1),
       ImuAccGyrS::Zero(6, 1),
       gtsam::NavState(gtsam::Rot3(), Eigen::Vector3d::Zero(), expected_vel));
-  boost::optional<gtsam::Velocity3> result =
-      frontend.getExternalOdometryWorldVelocity(&valid_input);
+  auto result = frontend.getExternalOdometryWorldVelocity(&valid_input);
   ASSERT_TRUE(result);
   EXPECT_EQ(expected_vel(0), result.value()(0));
   EXPECT_EQ(expected_vel(1), result.value()(1));
@@ -299,8 +298,7 @@ TEST(TestExternalOdometryFrontend, ExternalOdomRelPoseIdentity) {
   EXPECT_FALSE(frontend.getExternalOdometryRelativeBodyPose(&valid_input));
 
   // add the same state to get the identity when they're internally composed
-  boost::optional<gtsam::Pose3> result =
-      frontend.getExternalOdometryRelativeBodyPose(&valid_input);
+  auto result = frontend.getExternalOdometryRelativeBodyPose(&valid_input);
   ASSERT_TRUE(result);
   // TODO(nathan) replace with actual tolerance constant if we write more tests
   EXPECT_NEAR(0.0, Pose3::Logmap(result.value()).norm(), 1.0e-9);

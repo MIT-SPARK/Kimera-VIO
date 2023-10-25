@@ -19,6 +19,8 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include <optional>
+
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 
@@ -86,7 +88,7 @@ class StereoImuSyncPacket : public FrontendInputPacketBase {
       const StereoFrame& stereo_frame,
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_accgyr,
-      boost::optional<gtsam::NavState> external_odometry = boost::none,
+      std::optional<gtsam::NavState> external_odometry = std::nullopt,
       const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 

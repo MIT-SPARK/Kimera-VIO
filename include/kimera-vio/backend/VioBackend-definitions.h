@@ -14,16 +14,13 @@
 
 #pragma once
 
-#include <vector>
-
-#include <boost/optional.hpp>
-
 #include <glog/logging.h>
-
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+
+#include <vector>
 
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
@@ -239,8 +236,9 @@ struct BackendInput : public PipelinePayload {
       const ImuFrontend::PimPtr& pim,
       //! Raw imu msgs for Backend init only
       const ImuAccGyrS& imu_acc_gyrs,
-      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
-      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf = boost::none)
+      std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = std::nullopt,
+      std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
+          std::nullopt)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         pim_(pim),
@@ -253,10 +251,10 @@ struct BackendInput : public PipelinePayload {
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
   // between pose from last keyframe to current according to external odometry
-  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
+  std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
   // velocity of the current keyframe body w.r.t. the world frame in the body
   // frame
-  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
+  std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
  public:
   void print() const {

@@ -37,7 +37,7 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
       const RgbdCamera::ConstPtr& camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,
-      boost::optional<OdometryParams> odom_params = boost::none);
+      std::optional<OdometryParams> odom_params = std::nullopt);
 
   virtual ~RgbdVisionImuFrontend();
 

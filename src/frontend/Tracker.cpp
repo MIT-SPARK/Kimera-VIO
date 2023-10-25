@@ -9,11 +9,10 @@
 
 #include <time.h>
 
-#include <algorithm>             // for sort
-#include <boost/shared_ptr.hpp>  // for opengv
-#include <functional>            // for less<>
-#include <map>                   // for map<>
-#include <memory>                // for shared_ptr<>
+#include <algorithm>   // for sort
+#include <functional>  // for less<>
+#include <map>         // for map<>
+#include <memory>      // for shared_ptr<>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opengv/absolute_pose/methods.hpp>
@@ -95,7 +94,7 @@ void Tracker::featureTracking(
     Frame* cur_frame,
     const gtsam::Rot3& ref_R_cur,
     const FeatureDetectorParams& feature_detector_params,
-    boost::optional<cv::Mat> R) {
+    std::optional<cv::Mat> R) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
   auto tic = utils::Timer::tic();
@@ -442,7 +441,7 @@ Tracker::geometricOutlierRejection3d3dGivenRotation(
                                         stereo_cam,
                                         kpt_match.first,
                                         stereo_pt_cov,
-                                        boost::none);
+                                        std::nullopt);
     // Get current vectors and covariance:
     std::tie(R_f_cur_i, cov_R_cur_i) =
         Tracker::getPoint3AndCovariance(cur_keypoints_status_left,
@@ -777,7 +776,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
     const gtsam::StereoCamera& stereo_cam,
     const size_t point_id,
     const gtsam::Matrix3& stereo_point_covariance,
-    boost::optional<gtsam::Matrix3> Rmat) {
+    std::optional<gtsam::Matrix3> Rmat) {
   // uL_, uR_, v_;
   gtsam::StereoPoint2 stereo_point = gtsam::StereoPoint2(
       static_cast<double>(keypoints_undistorted_left[point_id].second.x),
@@ -785,8 +784,14 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
       static_cast<double>(keypoints_undistorted_left[point_id].second.y));
 
   gtsam::Matrix3 Jac_point3_sp2;  // jacobian of the back projection
+  // TODO(nathan) think about just getting both jacobians
+#if GTSAM_VERSION_MAJOR <= 4 && GTSAM_VERSION_MINOR < 3
   Landmark point3_i_gtsam =
       stereo_cam.backproject2(stereo_point, boost::none, Jac_point3_sp2);
+#else
+  Landmark point3_i_gtsam =
+      stereo_cam.backproject2(stereo_point, nullptr, Jac_point3_sp2);
+#endif
   Landmark point3_i = keypoints_3d.at(point_id);
   // TODO(Toni): Adapt value of this threshold for different calibration
   // models! // (1e-1)
@@ -817,7 +822,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
     const gtsam::StereoCamera& stereo_cam,
     const size_t point_id,
     const gtsam::Matrix3& stereo_point_covariance,
-    boost::optional<gtsam::Matrix3> Rmat) {
+    std::optional<gtsam::Matrix3> Rmat) {
   return Tracker::getPoint3AndCovariance(
       stereo_frame.left_keypoints_rectified_,
       stereo_frame.right_keypoints_rectified_,
@@ -1254,6 +1259,7 @@ bool Tracker::pnp(const BearingVectors& cam_bearing_vectors,
         // TODO(TONI): needs fork of opengv, can we make a static check and use
         // this iff we are having MLPNP support?
         LOG(FATAL) << "MLPNP Not implemented...";
+        break;
       }
       default: {
         LOG(ERROR) << "Unknown PnP method selected: "

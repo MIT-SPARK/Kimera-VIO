@@ -23,7 +23,7 @@ FeatureDetector::FeatureDetector(
   // TODO(Toni): parametrize as well whether we use bucketing or anms...
   // Right now we assume we want anms not bucketing...
   if (feature_detector_params.enable_non_max_suppression_) {
-    non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
+    non_max_suppression_ = std::make_unique<AdaptiveNonMaximumSuppression>(
         feature_detector_params.non_max_suppression_type_);
   }
   // We always try to extract max_nr_keypoints_before_anms_ keypoints and then
@@ -92,7 +92,7 @@ FeatureDetector::FeatureDetector(
 // NOTE: for stereo cameras we pass R to ensure we rectify the versors
 // and 3D points of the features we detect.
 void FeatureDetector::featureDetection(Frame* cur_frame,
-                                       boost::optional<cv::Mat> R) {
+                                       std::optional<cv::Mat> R) {
   CHECK_NOTNULL(cur_frame);
 
   // Check how many new features we need: maxFeaturesPerFrame_ - n_existing

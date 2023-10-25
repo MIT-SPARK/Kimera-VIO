@@ -109,14 +109,14 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
 
   if (odometry_valid) {
     // return synchronized left frame, IMU data and external odometry
-    return VIO::make_unique<MonoImuSyncPacket>(std::move(left_frame_payload),
+    return std::make_unique<MonoImuSyncPacket>(std::move(left_frame_payload),
                                                imu_meas.timestamps_,
                                                imu_meas.acc_gyr_,
                                                external_odometry);
   }
 
   //! Send synchronized left frame and IMU data.
-  return VIO::make_unique<MonoImuSyncPacket>(
+  return std::make_unique<MonoImuSyncPacket>(
       std::move(left_frame_payload), imu_meas.timestamps_, imu_meas.acc_gyr_);
 }
 

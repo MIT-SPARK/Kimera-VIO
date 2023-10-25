@@ -32,7 +32,7 @@ namespace VIO {
 class TestStereoProvider : public ::testing::Test {
  public:
   TestStereoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = VIO::make_unique<StereoDataProviderModule>(
+    test_provider_ = std::make_unique<StereoDataProviderModule>(
         &output_queue_, "test_stereo_provider", false, StereoMatchingParams());
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
@@ -53,17 +53,17 @@ class TestStereoProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     Frame::UniquePtr rframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillRightFrameQueue(std::move(rframe));
     last_id_++;
   }
 
   void addLeftFrame(Timestamp timestamp, bool increment = false) {
     Frame::UniquePtr lframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     if (increment) {
       last_id_++;
@@ -72,7 +72,7 @@ class TestStereoProvider : public ::testing::Test {
 
   void addRightFrame(Timestamp timestamp, bool increment = false) {
     Frame::UniquePtr rframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillRightFrameQueue(std::move(rframe));
     if (increment) {
       last_id_++;
@@ -123,9 +123,7 @@ TEST_F(TestStereoProvider, basicSequentialCase) {
   expected_imu_times << 11, 12, 13, 14, 17;
   EXPECT_EQ(expected_imu_times, result_base->imu_stamps_);
 
-  StereoImuSyncPacket::UniquePtr result =
-      safeCast<FrontendInputPacketBase, StereoImuSyncPacket>(
-          std::move(result_base));
+  auto result = castUnique<StereoImuSyncPacket>(std::move(result_base));
   ASSERT_TRUE(result != nullptr);
   EXPECT_EQ(static_cast<FrameId>(1), result->getStereoFrame().id_);
 }

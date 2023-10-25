@@ -66,7 +66,7 @@ std::unique_ptr<OrbVocabulary> loadOrbVocabulary() {
                         << FLAGS_vocabulary_path;
   f_vocab.close();
 
-  auto vocab = VIO::make_unique<OrbVocabulary>();
+  auto vocab = std::make_unique<OrbVocabulary>();
   LOG(INFO) << "LoopClosureDetector:: Loading vocabulary from "
             << FLAGS_vocabulary_path;
   vocab->load(FLAGS_vocabulary_path);
@@ -87,9 +87,9 @@ LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
     const CameraParams& tracker_cam_params,
     const gtsam::Pose3& B_Pose_Cam,
-    const boost::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
-    const boost::optional<StereoMatchingParams>& stereo_matching_params,
-    const boost::optional<VIO::RgbdCamera::ConstPtr>& rgbd_camera,
+    const std::optional<VIO::StereoCamera::ConstPtr>& stereo_camera,
+    const std::optional<StereoMatchingParams>& stereo_matching_params,
+    const std::optional<VIO::RgbdCamera::ConstPtr>& rgbd_camera,
     bool log_output,
     PreloadedVocab::Ptr&& preloaded_vocab)
     : lcd_state_(LcdState::Bootstrap),
@@ -103,9 +103,9 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_tp_wrapper_(nullptr),
       latest_bowvec_(new DBoW2::BowVector()),
       B_Pose_Cam_(B_Pose_Cam),
-      stereo_camera_(stereo_camera ? stereo_camera.get() : nullptr),
+      stereo_camera_(stereo_camera ? stereo_camera.value() : nullptr),
       stereo_matcher_(nullptr),
-      rgbd_camera_(rgbd_camera ? rgbd_camera.get() : nullptr),
+      rgbd_camera_(rgbd_camera ? rgbd_camera.value() : nullptr),
       pgo_(nullptr),
       W_Pose_B_kf_vio_(),
       num_lc_unoptimized_(0),
@@ -117,7 +117,7 @@ LoopClosureDetector::LoopClosureDetector(
   shared_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   // Outlier rejection initialization (inside of tracker)
-  tracker_ = VIO::make_unique<Tracker>(
+  tracker_ = std::make_unique<Tracker>(
       lcd_params.tracker_params_,
       std::make_shared<VIO::Camera>(tracker_cam_params));
 
@@ -125,7 +125,7 @@ LoopClosureDetector::LoopClosureDetector(
   if (stereo_camera) {
     VLOG(5) << "LoopClosureDetector initializing in stereo mode.";
     CHECK(stereo_camera_);
-    StereoMatchingParams lcd_stereo_params = stereo_matching_params.get();
+    auto lcd_stereo_params = stereo_matching_params.value();
     // In LCD we set min_dist and max_dist to not discard points
     // TODO: Find better solution instead of hardcoding
     if (FLAGS_lcd_disable_stereo_match_depth_check) {
@@ -133,7 +133,7 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_stereo_params.max_point_dist_ = 100.0;
     }
     stereo_matcher_ =
-        VIO::make_unique<StereoMatcher>(stereo_camera_, lcd_stereo_params);
+        std::make_unique<StereoMatcher>(stereo_camera_, lcd_stereo_params);
   } else {
     VLOG(5) << "LoopClosureDetector initializing in mono mode.";
   }
@@ -163,10 +163,10 @@ LoopClosureDetector::LoopClosureDetector(
   }
 
   // Initialize the thirdparty wrapper:
-  lcd_tp_wrapper_ = VIO::make_unique<LcdThirdPartyWrapper>(lcd_params_);
+  lcd_tp_wrapper_ = std::make_unique<LcdThirdPartyWrapper>(lcd_params_);
 
   // Initialize db_BoW_:
-  db_BoW_ = VIO::make_unique<OrbDatabase>(*vocab);
+  db_BoW_ = std::make_unique<OrbDatabase>(*vocab);
 
   // Initialize pgo_:
   // TODO(marcus): parametrize the verbosity of PGO params
@@ -179,10 +179,10 @@ LoopClosureDetector::LoopClosureDetector(
   if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1) {
     pgo_params.setGncInlierCostThresholdsAtProbability(lcd_params_.gnc_alpha_);
   }
-  pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
+  pgo_ = std::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
 
   if (log_output) {
-    logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
+    logger_ = std::make_unique<LoopClosureDetectorLogger>();
   }
 
   if (VLOG_IS_ON(1)) {
@@ -226,9 +226,9 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   FrameId lcd_frame_id;
   switch (input.frontend_output_->frontend_type_) {
     case FrontendType::kMonoImu: {
-      MonoFrontendOutput::Ptr mono_frontend_output =
-          VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-              input.frontend_output_);
+      auto mono_frontend_output =
+          std::dynamic_pointer_cast<MonoFrontendOutput>(input.frontend_output_);
+      CHECK(mono_frontend_output);
       if (lcd_params_.pose_recovery_type_ == PoseRecoveryType::kPnP ||
           lcd_params_.pose_recovery_type_ == PoseRecoveryType::k5ptRotOnly) {
         lcd_frame_id = processAndAddMonoFrame(mono_frontend_output->frame_lkf_,
@@ -241,17 +241,18 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
       break;
     }
     case FrontendType::kStereoImu: {
-      StereoFrontendOutput::Ptr stereo_frontend_output =
-          VIO::safeCast<FrontendOutputPacketBase, StereoFrontendOutput>(
+      auto stereo_frontend_output =
+          std::dynamic_pointer_cast<StereoFrontendOutput>(
               input.frontend_output_);
+      CHECK(stereo_frontend_output);
       lcd_frame_id =
           processAndAddStereoFrame(stereo_frontend_output->stereo_frame_lkf_);
       break;
     }
     case FrontendType::kRgbdImu: {
-      RgbdFrontendOutput::Ptr rgbd_frontend_output =
-          VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
-              input.frontend_output_);
+      auto rgbd_frontend_output =
+          std::dynamic_pointer_cast<RgbdFrontendOutput>(input.frontend_output_);
+      CHECK(rgbd_frontend_output);
       lcd_frame_id =
           processAndAddRgbdFrame(rgbd_frontend_output->rgbd_frame_lkf_);
       break;
@@ -344,7 +345,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   LcdOutput::UniquePtr output_payload = nullptr;
   if (loop_result.isLoop()) {
     output_payload =
-        VIO::make_unique<LcdOutput>(true,
+        std::make_unique<LcdOutput>(true,
                                     input.timestamp_,
                                     timestamp_map_.at(loop_result.query_id_),
                                     timestamp_map_.at(loop_result.match_id_),
@@ -352,7 +353,7 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
                                     loop_result.query_id_,
                                     loop_result.relative_pose_);
   } else {
-    output_payload = VIO::make_unique<LcdOutput>(input.timestamp_);
+    output_payload = std::make_unique<LcdOutput>(input.timestamp_);
   }
 
   CHECK(output_payload) << "Missing LCD output payload.";
@@ -428,7 +429,7 @@ FrameId LoopClosureDetector::processAndAddMonoFrame(
       // Mono mode we cannot compute 3D points via stereo reconstruction.
 
       // TODO(marcus): check the backend param for generating the
-      // LandmarksWithIdMap should be a boost::optional so that if it's none we
+      // LandmarksWithIdMap so that if it's none we
       // can throw exception in lcd ctor
       size_t nr_kpts = frame.keypoints_.size();
       CHECK_EQ(frame.landmarks_.size(), nr_kpts);
@@ -1109,7 +1110,7 @@ const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
 
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::setDatabase(const OrbDatabase& db) {
-  db_BoW_ = VIO::make_unique<OrbDatabase>(db);
+  db_BoW_ = std::make_unique<OrbDatabase>(db);
 }
 
 /* ------------------------------------------------------------------------ */

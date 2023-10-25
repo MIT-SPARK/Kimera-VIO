@@ -33,7 +33,7 @@ VisualizerModule::VisualizerModule(OutputQueue* output_queue,
   if (visualizer_->visualization_type_ ==
       VisualizationType::kMesh2dTo3dSparse) {
     // Activate mesher queue if we are going to visualize the mesh.
-    mesher_queue_ = VIO::make_unique<ThreadsafeQueue<VizMesherInput>>(
+    mesher_queue_ = std::make_unique<ThreadsafeQueue<VizMesherInput>>(
         "visualizer_mesher_queue");
   }
 }
@@ -82,7 +82,8 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
     PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload);
   }
 
-  return VIO::make_unique<VisualizerInput>(
+  // Push the synced messages to the visualizer's input queue
+  return std::make_unique<VisualizerInput>(
       timestamp, mesher_payload, backend_payload, frontend_payload);
 }
 

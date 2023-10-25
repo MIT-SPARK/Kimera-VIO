@@ -288,7 +288,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   CHECK(mono_camera_);
 
   // For visualization
-  VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+  VisualizerOutput::UniquePtr output = std::make_unique<VisualizerOutput>();
   output->visualization_type_ = VisualizationType::kPointcloud;
 
   // Need to visualizeScene again because the image of the camera frustum
@@ -684,7 +684,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
     spinDisplay();
   }
   MeshOptimizationOutput::UniquePtr mesh_output =
-      VIO::make_unique<MeshOptimizationOutput>();
+      std::make_unique<MeshOptimizationOutput>();
   mesh_output->optimized_mesh_3d = reconstructed_mesh;
   mesh_count_++;
   return mesh_output;

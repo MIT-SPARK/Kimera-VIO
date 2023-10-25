@@ -19,13 +19,12 @@
 
 namespace VIO {
 
-VisionImuFrontend::VisionImuFrontend(
-    const FrontendParams& frontend_params,
-    const ImuParams& imu_params,
-    const ImuBias& imu_initial_bias,
-    DisplayQueue* display_queue,
-    bool log_output,
-    boost::optional<OdometryParams> odom_params)
+VisionImuFrontend::VisionImuFrontend(const FrontendParams& frontend_params,
+                                     const ImuParams& imu_params,
+                                     const ImuBias& imu_initial_bias,
+                                     DisplayQueue* display_queue,
+                                     bool log_output,
+                                     std::optional<OdometryParams> odom_params)
     : frontend_params_(frontend_params),
       frontend_state_(FrontendState::Bootstrap),
       frame_count_(0),
@@ -37,11 +36,11 @@ VisionImuFrontend::VisionImuFrontend(
       display_queue_(display_queue),
       logger_(nullptr),
       odom_params_(odom_params) {
-  imu_frontend_ = VIO::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
+  imu_frontend_ = std::make_unique<ImuFrontend>(imu_params, imu_initial_bias);
   if (log_output) {
-    logger_ = VIO::make_unique<FrontendLogger>();
+    logger_ = std::make_unique<FrontendLogger>();
   }
-  time_aligner_ = VIO::make_unique<CrossCorrTimeAligner>(imu_params);
+  time_aligner_ = std::make_unique<CrossCorrTimeAligner>(imu_params);
 }
 
 VisionImuFrontend::~VisionImuFrontend() {
@@ -249,11 +248,11 @@ void VisionImuFrontend::cacheExternalOdometry(FrontendInputPacketBase* input) {
 }
 
 // can't be const (needs to cache keyframe odom if possible)
-boost::optional<gtsam::Pose3>
+std::optional<gtsam::Pose3>
 VisionImuFrontend::getExternalOdometryRelativeBodyPose(
     FrontendInputPacketBase* input) {
   if (!odom_params_) {
-    return boost::none;
+    return std::nullopt;
   }
 
   // Past this point we are using external odometry
@@ -261,7 +260,7 @@ VisionImuFrontend::getExternalOdometryRelativeBodyPose(
   if (!input->world_NavState_ext_odom_) {
     LOG(WARNING)
         << "Input packet did not contain valid external odometry measurement";
-    return boost::none;
+    return std::nullopt;
   }
 
   // First time getting a odometry measurement
@@ -270,7 +269,7 @@ VisionImuFrontend::getExternalOdometryRelativeBodyPose(
   if (!world_OdomPose_body_lkf_) {
     world_OdomPose_body_lkf_ =
         (*input->world_NavState_ext_odom_).pose().compose(ext_odom_Pose_body);
-    return boost::none;
+    return std::nullopt;
   }
 
   gtsam::Pose3 world_Pose_body_kf =
@@ -283,17 +282,17 @@ VisionImuFrontend::getExternalOdometryRelativeBodyPose(
   return body_lkf_Pose_body_kf;
 }
 
-boost::optional<gtsam::Velocity3>
+std::optional<gtsam::Velocity3>
 VisionImuFrontend::getExternalOdometryWorldVelocity(
     FrontendInputPacketBase* input) const {
   if (!odom_params_) {
-    return boost::none;
+    return std::nullopt;
   }
 
   CHECK(input);
   if (!input->world_NavState_ext_odom_) {
     // we could log here too, but RelativePose handles it...
-    return boost::none;
+    return std::nullopt;
   }
 
   // Pass the sensor velocity in the world frame if available

@@ -13,17 +13,16 @@
  * @author Luca Carlone
  */
 
+#include <gflags/gflags.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
-#include <boost/algorithm/string.hpp>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <random>
 #include <string>
 #include <vector>
-
-#include <gflags/gflags.h>
-#include <gtest/gtest.h>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
@@ -48,16 +47,20 @@ void checkHeader(std::vector<std::string> actual,
 
 class CSVReader {
  public:
-  CSVReader(std::string sep = ",") : sep_(sep) {}
+  CSVReader(char sep = ',') : sep_(sep) {}
 
   CsvMat getData(std::string filename) {
     std::ifstream file(filename);
     CsvMat dataList;
     std::string line = "";
-
     while (std::getline(file, line)) {
+      std::string word;
+      std::stringstream ss(line);
       std::vector<std::string> vec;
-      boost::algorithm::split(vec, line, boost::is_any_of(sep_));
+      while (std::getline(ss, word, sep_)) {
+        vec.push_back(word);
+      }
+
       dataList.push_back(vec);
     }
 
@@ -66,7 +69,7 @@ class CSVReader {
   }
 
  private:
-  std::string sep_;
+  char sep_;
 };
 
 class LoggerFixture : public ::testing::Test {
@@ -88,7 +91,7 @@ class BackendLoggerFixture : public LoggerFixture {
  public:
   BackendLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "backend_output/";
-    logger_ = VIO::make_unique<BackendLogger>();
+    logger_ = std::make_unique<BackendLogger>();
 
     // Seed randomness.
     std::srand(0);
@@ -102,7 +105,7 @@ class FrontendLoggerFixture : public LoggerFixture {
  public:
   FrontendLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "frontend_output/";
-    logger_ = VIO::make_unique<FrontendLogger>();
+    logger_ = std::make_unique<FrontendLogger>();
 
     // Seed randomness.
     std::srand(0);
@@ -116,7 +119,7 @@ class LoopClosureDetectorLoggerFixture : public LoggerFixture {
  public:
   LoopClosureDetectorLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "loopclosure_output/";
-    logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
+    logger_ = std::make_unique<LoopClosureDetectorLogger>();
 
     // Seed randomness.
     std::srand(0);

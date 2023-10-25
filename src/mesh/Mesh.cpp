@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/persistence.hpp>
 
 #include "kimera-vio/utils/UtilsNumerical.h"
 
@@ -495,6 +496,57 @@ void Mesh<VertexPositionType>::clearMesh() {
   face_hashes_.clear();
   vertex_to_lmk_id_map_.clear();
   lmk_id_to_vertex_map_.clear();
+}
+
+template <typename VertexPositionType>
+void Mesh<VertexPositionType>::save(const std::string& filepath) const {
+  cv::FileStorage fs(filepath, cv::FileStorage::WRITE);
+  fs << "vertex_to_lmk_id_map"
+     << "[";
+  for (auto&& [vertex, lmk] : vertex_to_lmk_id_map_) {
+    fs << "{";
+    fs << "v" << static_cast<int>(vertex) << "l" << static_cast<int>(lmk);
+    fs << "}";
+  }
+  fs << "]";
+
+  fs << "lmk_id_to_vertex_map"
+     << "[";
+  for (auto&& [lmk, vertex] : lmk_id_to_vertex_map_) {
+    fs << "{";
+    fs << "l" << static_cast<int>(lmk) << "v" << static_cast<int>(vertex);
+    fs << "}";
+  }
+  fs << "]";
+
+  fs << "vertices_mesh" << vertices_mesh_;
+  fs << "vertices_mesh_normal" << vertices_mesh_normal_;
+  fs << "normals_computed" << normals_computed_;
+  fs << "vertices_mesh_color" << vertices_mesh_color_;
+  fs << "polygons_mesh" << polygons_mesh_;
+  fs << "adjacency_matrix" << adjacency_matrix_;
+  fs << "polygon_dimension" << static_cast<int>(polygon_dimension_);
+  fs << "}";
+}
+
+template <typename VertexPositionType>
+void Mesh<VertexPositionType>::load(const std::string& filepath) {
+  cv::FileStorage fs(filepath, cv::FileStorage::READ);
+  for (const auto& pair : fs["vertex_to_lmk_id_map"]) {
+    vertex_to_lmk_id_map_[static_cast<int>(pair["v"])] = static_cast<int>(pair["l"]);
+  }
+
+  for (const auto& pair : fs["lmk_id_to_vertex_map"]) {
+    lmk_id_to_vertex_map_[static_cast<int>(pair["l"])] = static_cast<int>(pair["v"]);
+  }
+
+  fs["vertices_mesh"] >> vertices_mesh_;
+  fs["vertices_mesh_normal"] >> vertices_mesh_normal_;
+  fs["normals_computed"] >> normals_computed_;
+  fs["vertices_mesh_color"] >> vertices_mesh_color_;
+  fs["polygons_mesh"] >> polygons_mesh_;
+  fs["adjacency_matrix"] >> adjacency_matrix_;
+  CHECK_EQ(polygon_dimension_, static_cast<int>(fs["polygon_dimension"]));
 }
 
 // explicit instantiations

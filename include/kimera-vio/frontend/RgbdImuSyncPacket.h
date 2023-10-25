@@ -13,6 +13,8 @@
 #include "kimera-vio/frontend/RgbdFrame.h"
 #include "kimera-vio/utils/Macros.h"
 
+#include <optional>
+
 namespace VIO {
 
 class RgbdImuSyncPacket : public FrontendInputPacketBase {
@@ -25,7 +27,7 @@ class RgbdImuSyncPacket : public FrontendInputPacketBase {
       RgbdFrame::UniquePtr rgbd_frame,
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_accgyr,
-      boost::optional<gtsam::NavState> external_odometry = boost::none);
+      std::optional<gtsam::NavState> external_odometry = std::nullopt);
   virtual ~RgbdImuSyncPacket() = default;
 
   void print() const;

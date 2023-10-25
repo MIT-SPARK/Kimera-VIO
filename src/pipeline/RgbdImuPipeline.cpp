@@ -44,7 +44,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
       << "Need at least one camera for RgbdImuPipeline.";
   camera_ = std::make_shared<RgbdCamera>(params.camera_params_.at(0));
 
-  data_provider_module_ = VIO::make_unique<RgbdDataProviderModule>(
+  data_provider_module_ = std::make_unique<RgbdDataProviderModule>(
       &frontend_input_queue_, "Rgbd Data Provider", parallel_run_);
 
   if (FLAGS_do_coarse_imu_camera_temporal_sync) {
@@ -69,10 +69,10 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
 
   LOG_IF(FATAL, !params.frontend_params_.use_stereo_tracking_)
       << "useStereoTracking is set to false, but is required for RGBD!";
-  vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
+  vio_frontend_module_ = std::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,
       parallel_run_,
-      VIO::make_unique<RgbdVisionImuFrontend>(
+      std::make_unique<RgbdVisionImuFrontend>(
           params.frontend_params_,
           params.imu_params_,
           gtsam::imuBias::ConstantBias(),
@@ -89,10 +89,11 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
   auto& backend_input_queue = backend_input_queue_;
   vio_frontend_module_->registerOutputCallback(
       [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
-        RgbdFrontendOutput::Ptr converted_output =
-            VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(output);
+        auto converted_output =
+            std::dynamic_pointer_cast<RgbdFrontendOutput>(output);
+        CHECK(converted_output);
         if (converted_output->is_keyframe_) {
-          backend_input_queue.push(VIO::make_unique<BackendInput>(
+          backend_input_queue.push(std::make_unique<BackendInput>(
               converted_output->frame_lkf_.timestamp_,
               converted_output->status_stereo_measurements_,
               converted_output->pim_,
@@ -113,7 +114,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
       FLAGS_visualize && FLAGS_visualize_lmk_type);
 
   CHECK(backend_params_);
-  vio_backend_module_ = VIO::make_unique<VioBackendModule>(
+  vio_backend_module_ = std::make_unique<VioBackendModule>(
       &backend_input_queue_,
       parallel_run_,
       BackendFactory::createBackend(
@@ -140,7 +141,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
 
   if (static_cast<VisualizationType>(FLAGS_viz_type) ==
       VisualizationType::kMesh2dTo3dSparse) {
-    mesher_module_ = VIO::make_unique<MesherModule>(
+    mesher_module_ = std::make_unique<MesherModule>(
         parallel_run_,
         MesherFactory::createMesher(
             MesherType::PROJECTIVE,
@@ -159,8 +160,8 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
               << "Frontend output packet found that isn't an RGBD packet!";
 
           RgbdFrontendOutput::Ptr output =
-              VIO::safeCast<FrontendOutputPacketBase, RgbdFrontendOutput>(
-                  base_output);
+              std::dynamic_pointer_cast<RgbdFrontendOutput>(base_output);
+          CHECK(output);
 
           // mesher only takes stereo frame as input from frontend, so we pick
           // a minimal set of fields to fill
@@ -180,14 +181,14 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
 
   // TODO(nathan) LCD
   if (FLAGS_use_lcd) {
-    lcd_module_ = VIO::make_unique<LcdModule>(
+    lcd_module_ = std::make_unique<LcdModule>(
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
                               camera_->getCamParams(),
                               camera_->getBodyPoseCam(),
-                              boost::none,
-                              boost::none,
+                              std::nullopt,
+                              std::nullopt,
                               camera_,
                               FLAGS_log_output,
                               std::move(preloaded_vocab)));
@@ -203,7 +204,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
   }
 
   if (FLAGS_visualize) {
-    visualizer_module_ = VIO::make_unique<VisualizerModule>(
+    visualizer_module_ = std::make_unique<VisualizerModule>(
         &display_input_queue_,
         parallel_run_,
         FLAGS_use_lcd,
@@ -235,7 +236,7 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
 
     //! Actual displaying of visual data is done in the main thread.
     CHECK(params.display_params_);
-    display_module_ = VIO::make_unique<DisplayModule>(
+    display_module_ = std::make_unique<DisplayModule>(
         &display_input_queue_,
         nullptr,
         parallel_run_,

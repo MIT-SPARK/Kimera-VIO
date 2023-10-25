@@ -31,7 +31,7 @@ namespace VIO {
 class TestMonoProvider : public ::testing::Test {
  public:
   TestMonoProvider() : last_id_(0), output_queue_("test_output") {
-    test_provider_ = VIO::make_unique<MonoDataProviderModule>(
+    test_provider_ = std::make_unique<MonoDataProviderModule>(
         &output_queue_, "test_mono_provider", false);
     test_provider_->registerVioPipelineCallback(
         [this](FrontendInputPacketBase::UniquePtr packet) {
@@ -52,7 +52,7 @@ class TestMonoProvider : public ::testing::Test {
 
   void addFrame(Timestamp timestamp) {
     Frame::UniquePtr lframe =
-        VIO::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
+        std::make_unique<Frame>(last_id_, timestamp, CameraParams(), cv::Mat());
     test_provider_->fillLeftFrameQueue(std::move(lframe));
     last_id_++;
   }
@@ -101,9 +101,7 @@ TEST_F(TestMonoProvider, basicSequentialCase) {
   expected_imu_times << 11, 12, 13, 14, 17;
   EXPECT_EQ(expected_imu_times, result_base->imu_stamps_);
 
-  MonoImuSyncPacket::UniquePtr result =
-      safeCast<FrontendInputPacketBase, MonoImuSyncPacket>(
-          std::move(result_base));
+  auto result = castUnique<MonoImuSyncPacket>(std::move(result_base));
   ASSERT_TRUE(result != nullptr);
   EXPECT_EQ(static_cast<FrameId>(1), result->getFrame().id_);
 }

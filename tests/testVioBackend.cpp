@@ -21,7 +21,6 @@
 #include <gtsam/navigation/ImuBias.h>
 
 #include <algorithm>
-#include <boost/smart_ptr/make_shared.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <random>
@@ -222,13 +221,12 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
         std::make_pair(tracker_status_valid, measurement_frame)));
   }
 
-  StereoCalibPtr stereo_calibration =
-      boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
-                                               cam_params.fy(),
-                                               cam_params.skew(),
-                                               cam_params.px(),
-                                               cam_params.py(),
-                                               baseline);
+  StereoCalibPtr stereo_calibration(new gtsam::Cal3_S2Stereo(cam_params.fx(),
+                                                             cam_params.fy(),
+                                                             cam_params.skew(),
+                                                             cam_params.px(),
+                                                             cam_params.py(),
+                                                             baseline));
   ImuFrontend imu_frontend(imu_params_, imu_bias_);
 
   // Create backend.
@@ -310,8 +308,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocity) {
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) {
         nr_factors_in_smoother++;
-        boost::shared_ptr<SmartStereoFactor> gsf =
-            boost::dynamic_pointer_cast<SmartStereoFactor>(f);
+        const auto gsf = dynamic_cast<const SmartStereoFactor*>(f.get());
         if (gsf) {
           EXPECT_EQ(gsf->keys().size(),
                     k);  // each landmark is seen in every frame
@@ -410,13 +407,12 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
         std::make_pair(tracker_status_valid, measurement_frame)));
   }
 
-  StereoCalibPtr stereo_calibration =
-      boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
-                                               cam_params.fy(),
-                                               cam_params.skew(),
-                                               cam_params.px(),
-                                               cam_params.py(),
-                                               baseline);
+  StereoCalibPtr stereo_calibration(new gtsam::Cal3_S2Stereo(cam_params.fx(),
+                                                             cam_params.fy(),
+                                                             cam_params.skew(),
+                                                             cam_params.px(),
+                                                             cam_params.py(),
+                                                             baseline));
   ImuFrontend imu_frontend(imu_params_, imu_bias_);
 
   // Create backend.
@@ -484,18 +480,19 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
     const auto& pim =
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
-    boost::optional<gtsam::Pose3> external_odometry_pose(
-        gtsam::Pose3(gtsam::Rot3(), gtsam::Point3(0, 0, k / 1000.0)));
+    gtsam::Pose3 external_odometry_pose(gtsam::Rot3(),
+                                        gtsam::Point3(0, 0, k / 1000.0));
 
     // process data with VIO
-    BackendOutput::Ptr backend_output = vio_backend->spinOnce(
-        BackendInput(timestamp_k,
-                     all_measurements[k],
-                     pim,
-                     imu_accgyr,
-                     // Only push odometry after first one
-                     k > 0u ? external_odometry_pose : boost::none,
-                     boost::none));
+    BackendOutput::Ptr backend_output = vio_backend->spinOnce(BackendInput(
+        timestamp_k,
+        all_measurements[k],
+        pim,
+        imu_accgyr,
+        // Only push odometry after first one
+        k > 0u ? std::optional<gtsam::Pose3>(external_odometry_pose)
+               : std::nullopt,
+        std::nullopt));
     CHECK(backend_output);
 
     // At this point the update imu bias callback should be triggered which
@@ -508,8 +505,7 @@ TEST_F(BackendFixture, robotMovingWithConstantVelocityWithExternalOdometry) {
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) {
         nr_factors_in_smoother++;
-        boost::shared_ptr<SmartStereoFactor> gsf =
-            boost::dynamic_pointer_cast<SmartStereoFactor>(f);
+        const auto gsf = dynamic_cast<const SmartStereoFactor*>(f.get());
         if (gsf) {
           EXPECT_EQ(gsf->keys().size(),
                     k);  // each landmark is seen in every frame

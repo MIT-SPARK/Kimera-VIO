@@ -32,14 +32,14 @@ class LcdFactory {
       const LoopClosureDetectorParams& lcd_params,
       const CameraParams& tracker_cam_params,
       const gtsam::Pose3& B_Pose_Cam,
-      const boost::optional<StereoCamera::ConstPtr>& stereo_camera,
-      const boost::optional<StereoMatchingParams>& stereo_matching_params,
-      const boost::optional<RgbdCamera::ConstPtr>& rgbd_camera,
+      const std::optional<StereoCamera::ConstPtr>& stereo_camera,
+      const std::optional<StereoMatchingParams>& stereo_matching_params,
+      const std::optional<RgbdCamera::ConstPtr>& rgbd_camera,
       bool log_output,
       PreloadedVocab::Ptr&& preloaded_vocab = nullptr) {
     switch (lcd_type) {
       case LoopClosureDetectorType::BoW: {
-        return VIO::make_unique<LoopClosureDetector>(lcd_params,
+        return std::make_unique<LoopClosureDetector>(lcd_params,
                                                      tracker_cam_params,
                                                      B_Pose_Cam,
                                                      stereo_camera,

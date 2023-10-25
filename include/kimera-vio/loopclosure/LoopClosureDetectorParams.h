@@ -47,7 +47,7 @@ class LoopClosureDetectorParams : public PipelineParams {
   bool equals(const LoopClosureDetectorParams& lp2, double tol = 1e-10) const;
 
  protected:
-  virtual bool equals(const PipelineParams& obj) const {
+  bool equals(const PipelineParams& obj) const override {
     const auto& rhs = static_cast<const LoopClosureDetectorParams&>(obj);
     return equals(rhs);
   }

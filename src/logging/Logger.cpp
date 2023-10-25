@@ -14,14 +14,12 @@
 
 #include "kimera-vio/logging/Logger.h"
 
+#include <gflags/gflags.h>
+
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
-
-#include <boost/filesystem.hpp>  // to create folders
-#include <boost/foreach.hpp>
-
-#include <gflags/gflags.h>
 
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
@@ -44,10 +42,12 @@ OfstreamWrapper::OfstreamWrapper(const std::string& filename,
 // destructed. So no need to explicitly call .close();
 OfstreamWrapper::~OfstreamWrapper() {
   LOG(INFO) << "Closing output file: " << filename_.c_str();
+  ofstream_.flush();
   ofstream_.close();
 }
 
 void OfstreamWrapper::closeAndOpenLogFile() {
+  ofstream_.flush();
   ofstream_.close();
   CHECK(!filename_.empty());
   OpenFile(output_path_ + '/' + filename_, &ofstream_, false);
@@ -411,21 +411,15 @@ FrontendLogger::FrontendLogger()
       output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
       output_frontend_temporal_cal_("output_frontend_temporal_cal.csv"),
       output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
-  // Create output directories for images.
-  boost::filesystem::create_directory(
-      boost::filesystem::path(output_frontend_img_path_.c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "monoFeatureTracksLeftImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "monoTrackingUnrectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "monoTrackingRectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "stereoMatchingUnrectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "stereoMatchingRectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "rgbdDepthFeaturesImg").c_str()));
+  namespace fs = std::filesystem;
+  const fs::path logger_dir(output_frontend_img_path_);
+  fs::create_directory(logger_dir);
+  fs::create_directory(logger_dir / "monoFeatureTracksLeftImg");
+  fs::create_directory(logger_dir / "monoTrackingUnrectifiedImg");
+  fs::create_directory(logger_dir / "monoTrackingRectifiedImg");
+  fs::create_directory(logger_dir / "stereoMatchingUnrectifiedImg");
+  fs::create_directory(logger_dir / "stereoMatchingRectifiedImg");
+  fs::create_directory(logger_dir / "rgbdDepthFeaturesImg");
 }
 
 void FrontendLogger::logFrontendStats(

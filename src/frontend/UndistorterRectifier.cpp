@@ -34,8 +34,8 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
     const KeypointsCV& keypoints,
     KeypointsCV* undistorted_keypoints,
     const CameraParams& cam_param,
-    boost::optional<cv::Mat> R,
-    boost::optional<cv::Mat> P) {
+    std::optional<cv::Mat> R,
+    std::optional<cv::Mat> P) {
   CHECK_NOTNULL(undistorted_keypoints)->clear();
   switch (cam_param.distortion_model_) {
     case DistortionModel::RADTAN: {
@@ -43,8 +43,8 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
                           *undistorted_keypoints,
                           cam_param.K_,
                           cam_param.distortion_coeff_mat_,
-                          R ? R.get() : cv::noArray(),
-                          P ? P.get() : cv::noArray());
+                          R.value_or(cv::Mat()),
+                          P.value_or(cv::Mat()));
     } break;
     case DistortionModel::EQUIDISTANT: {
       // TODO: Create unit test for fisheye / equidistant model
@@ -52,8 +52,8 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
                                    *undistorted_keypoints,
                                    cam_param.K_,
                                    cam_param.distortion_coeff_mat_,
-                                   R ? R.get() : cv::noArray(),
-                                   P ? P.get() : cv::noArray());
+                                   R.value_or(cv::Mat()),
+                                   P.value_or(cv::Mat()));
     } break;
     case DistortionModel::OMNI: {
       // TODO(marcus): when impl moves to gtsam::OmniCamera, use that here
@@ -73,7 +73,7 @@ void UndistorterRectifier::UndistortRectifyKeypoints(
 gtsam::Vector3 UndistorterRectifier::GetBearingVector(
     const KeypointCV& keypoint,
     const CameraParams& cam_param,
-    boost::optional<cv::Mat> R) {
+    std::optional<cv::Mat> R) {
   // Calibrate pixel.
   // matrix of px with a single entry, i.e., a single pixel
   KeypointsCV distorted_keypoint;
@@ -85,7 +85,7 @@ gtsam::Vector3 UndistorterRectifier::GetBearingVector(
       &undistorted_keypoint,
       cam_param,
       R,
-      boost::none);  // NOTE: not sending P because we want canonical frame
+      std::nullopt);  // NOTE: not sending P because we want canonical frame
 
   // Transform to unit vector.
   gtsam::Vector3 versor(
@@ -146,7 +146,7 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
 
   int invalid_count = 0;
   switch (cam_params_.camera_model_) {
-    case CameraModel::PINHOLE : {
+    case CameraModel::PINHOLE: {
       for (size_t i = 0u; i < undistorted_kps.size(); i++) {
         // cropToSize modifies keypoints, so we have to copy.
         KeypointCV distorted_kp = distorted_kps[i];
@@ -205,9 +205,9 @@ void UndistorterRectifier::checkUndistortedRectifiedLeftKeypoints(
     }
   }
 
-  VLOG_IF(5, invalid_count > 0) << "undistortRectifyPoints: unable to match "
-                                 << invalid_count << " keypoints of "
-                                 << undistorted_kps.size() << " total.";
+  VLOG_IF(5, invalid_count > 0)
+      << "undistortRectifyPoints: unable to match " << invalid_count
+      << " keypoints of " << undistorted_kps.size() << " total.";
 }
 
 void UndistorterRectifier::distortUnrectifyKeypoints(
@@ -271,9 +271,10 @@ void UndistorterRectifier::initUndistortRectifyMaps(
           map_y_float);
     } break;
     case DistortionModel::OMNI: {
-      LOG(WARNING) << "UndistorterRectifier: Attempting to initialize for OMNI "
-                   "camera, but undistortion is implemented at camera level. "
-                   "UndistorterRectifier will not work.";
+      LOG(WARNING)
+          << "UndistorterRectifier: Attempting to initialize for OMNI "
+             "camera, but undistortion is implemented at camera level. "
+             "UndistorterRectifier will not work.";
     } break;
     default: {
       LOG(FATAL) << "Unknown distortion model: "

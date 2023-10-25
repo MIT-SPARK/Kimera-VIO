@@ -149,7 +149,7 @@ struct VioParams : public PipelineParams {
   FrontendType frontend_type_;
   BackendType backend_type_;
   DisplayType display_type_;
-  boost::optional<OdometryParams> odom_params_;
+  std::optional<OdometryParams> odom_params_;
   bool parallel_run_;
 
  protected:

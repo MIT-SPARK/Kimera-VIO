@@ -23,16 +23,6 @@ endif()
 message(STATUS "==============================================================")
 message(STATUS "====================  Dependencies ===========================")
 
-### System Dependencies
-find_package(Boost REQUIRED COMPONENTS
-  filesystem serialization regex timer date_time thread)
-if(NOT TARGET Boost::boost)
-  add_library(Boost::boost INTERFACE IMPORTED)
-  set_target_properties(Boost::boost PROPERTIES
-  INTERFACE_LINK_LIBRARIES "${Boost_LIBRARIES}"
-  INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
-endif()
-
 find_package(Gflags REQUIRED)
 find_package(Glog 0.3.5 REQUIRED)
 find_package(GTSAM REQUIRED)
@@ -141,7 +131,6 @@ target_link_libraries(${PROJECT_NAME}
     KimeraRPGO
     triangle::triangle
   PUBLIC
-    Boost::boost
     ${OpenCV_LIBRARIES}
     ${GFLAGS_LIBRARIES}
     ${GLOG_LIBRARIES}
@@ -285,17 +274,12 @@ if(KIMERA_BUILD_TESTS)
     tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
-    )
+  )
+  target_include_directories(testKimeraVIO PUBLIC tests/include)
   target_link_libraries(testKimeraVIO gtest gmock kimera_vio::kimera_vio)
 
-  if(CMAKE_VERSION VERSION_LESS 3.10)
-    enable_testing()
-    include(FindGTest)
-    gtest_add_tests(testKimeraVIO "" AUTO)
-  else()
-    include(GoogleTest)
-    gtest_discover_tests(testKimeraVIO)
-  endif()
+  include(GoogleTest)
+  gtest_discover_tests(testKimeraVIO PRE_TEST)
 endif(KIMERA_BUILD_TESTS)
 
 ############################### INSTALL/EXPORT #################################
@@ -366,10 +350,10 @@ message(STATUS "CMAKE_CXX_COMPILER_ID type                : ${CMAKE_CXX_COMPILER
 message(STATUS "CMAKE_CXX_COMPILER_VERSION                : ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "Build flags                                               ")
 if(NOT MSVC AND NOT XCODE_VERSION)
-    message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
-    if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-      message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
-    endif()
-    message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+  message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
+  if (NOT (${CMAKE_BUILD_TYPE} STREQUAL "Release" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo"))
+    message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
+  endif()
+  message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+  message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()

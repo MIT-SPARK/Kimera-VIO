@@ -65,7 +65,7 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
       initial_k_(initial_k),
       final_k_(final_k),
       imu_measurements_(),
-      logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
+      logger_(FLAGS_log_euroc_gt_data ? std::make_unique<EurocGtLogger>()
                                       : nullptr) {
   CHECK(!dataset_path_.empty())
       << "Dataset path for EurocDataProvider is empty.";
@@ -171,7 +171,7 @@ bool EurocDataProvider::spinOnce() {
     // Both stereo images are available, send data to VIO
     CHECK(left_frame_callback_);
     left_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
+        std::make_unique<Frame>(current_k_,
                                 timestamp_frame_k,
                                 // TODO(Toni): this info should be passed to
                                 // the camera... not all the time here...
@@ -180,7 +180,7 @@ bool EurocDataProvider::spinOnce() {
                                     left_img_filename, equalize_image)));
     CHECK(right_frame_callback_);
     right_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
+        std::make_unique<Frame>(current_k_,
                                 timestamp_frame_k,
                                 // TODO(Toni): this info should be passed to
                                 // the camera... not all the time here...
@@ -845,7 +845,7 @@ bool MonoEurocDataProvider::spinOnce() {
     // Both stereo images are available, send data to VIO
     CHECK(left_frame_callback_);
     left_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
+        std::make_unique<Frame>(current_k_,
                                 timestamp_frame_k,
                                 // TODO(Toni): this info should be passed to
                                 // the camera... not all the time here...

@@ -28,14 +28,14 @@ DisplayModule::DisplayModule(DisplayQueue* input_queue,
 DisplayModule::OutputUniquePtr DisplayModule::spinOnce(InputUniquePtr input) {
   CHECK(input);
   if (display_) display_->spinOnce(std::move(input));
-  return VIO::make_unique<NullPipelinePayload>();
+  return std::make_unique<NullPipelinePayload>();
 }
 
 typename DisplayModule::MISO::InputUniquePtr DisplayModule::getInputPacket() {
   if (display_ && display_->display_type_ == DisplayType::kPangolin) {
     // If we are using pangolin just fake a constant input of messages
     // to not block the visualizer.
-    return VIO::make_unique<DisplayInputBase>();
+    return std::make_unique<DisplayInputBase>();
   }
 
   typename MISO::InputUniquePtr input = nullptr;

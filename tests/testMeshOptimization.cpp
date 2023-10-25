@@ -46,7 +46,7 @@ TEST_F(MeshOptimizationFixture, DISABLED_testCollectTriangleDataPointsFast) {
   // But make the image be a 2 by 2 one for simplicity
   camera_params.image_size_ = cv::Size(2, 2);
 
-  Camera::ConstPtr mono_camera = VIO::make_unique<Camera>(camera_params);
+  Camera::ConstPtr mono_camera = std::make_unique<Camera>(camera_params);
 
   // Optimize mesh using MeshOpt
   MeshOptimization mesh_opt(MeshOptimizerType::kGtsamMesh,
