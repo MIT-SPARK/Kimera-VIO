@@ -21,6 +21,7 @@
 #include <string>
 
 #include "kimera-vio/frontend/VisionImuTrackerParams.h"
+#include "kimera-vio/loopclosure/FrameCache.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/YamlParser.h"
@@ -119,6 +120,8 @@ class LoopClosureDetectorParams : public PipelineParams {
   //////////////////////////////////////////////////////////////////////////////
 
   int max_lc_cached_before_optimize_ = 10;
+
+  FrameCacheConfig frame_cache;
 };
 
 }  // namespace VIO

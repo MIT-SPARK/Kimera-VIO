@@ -233,6 +233,7 @@ if(KIMERA_BUILD_TESTS)
     tests/testCodesignIdeas.cpp
     tests/testExternalOdometryFrontend.cpp
     tests/testFrame.cpp # NEEDS UPDATE
+    tests/testFrameCache.cpp
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testImuFrontend.cpp

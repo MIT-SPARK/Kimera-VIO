@@ -51,6 +51,7 @@ enum class LCDStatus : int {
 struct LCDFrame {
   KIMERA_POINTER_TYPEDEFS(LCDFrame);
   LCDFrame() = default;
+
   LCDFrame(const Timestamp& timestamp,
            const FrameId& id,
            const FrameId& id_kf,
@@ -67,7 +68,12 @@ struct LCDFrame {
         descriptors_vec_(descriptors_vec),
         descriptors_mat_(descriptors_mat),
         bearing_vectors_(bearing_vectors) {}
+
   virtual ~LCDFrame() = default;
+
+  virtual void save(std::ostream& buffer) const;
+
+  static LCDFrame::Ptr load(std::istream& buffer);
 
   Timestamp timestamp_;
   FrameId id_;
@@ -77,11 +83,17 @@ struct LCDFrame {
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
   BearingVectors bearing_vectors_;
-};  // struct LCDFrame
+
+ protected:
+  virtual void saveBytes(std::ostream& buffer) const;
+
+  virtual void loadBytes(std::istream& buffer);
+};
 
 struct StereoLCDFrame : LCDFrame {
   KIMERA_POINTER_TYPEDEFS(StereoLCDFrame);
   StereoLCDFrame() = default;
+
   StereoLCDFrame(const Timestamp& timestamp,
                  const FrameId& id,
                  const FrameId& id_kf,
@@ -102,11 +114,19 @@ struct StereoLCDFrame : LCDFrame {
                  bearing_vectors),
         left_keypoints_rectified_(left_keypoints_rectified),
         right_keypoints_rectified_(right_keypoints_rectified) {}
+
   virtual ~StereoLCDFrame() = default;
+
+  void save(std::ostream& buffer) const override;
 
   StatusKeypointsCV left_keypoints_rectified_;
   StatusKeypointsCV right_keypoints_rectified_;
-};  // struct StereoLCDFrame
+
+ protected:
+  void saveBytes(std::ostream& buffer) const override;
+
+  void loadBytes(std::istream& buffer) override;
+};
 
 struct MatchIsland {
   MatchIsland()
