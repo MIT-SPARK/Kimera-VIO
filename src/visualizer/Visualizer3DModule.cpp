@@ -59,52 +59,50 @@ void VisualizerModule::fillLcdQueue(const VizLcdInput& lcd_payload) {
 }
 
 VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
-  bool queue_state = false;
-  VizBackendInput backend_payload = nullptr;
-  if (PIO::parallel_run_) {
-    // TODO(Toni): if the mesher_ is not running (it is optional) then there is
-    // no module filling this queue, and the visualizer gets stuck at this
-    // pop blocking :(
-    queue_state = backend_queue_.popBlocking(backend_payload);
-  } else {
-    queue_state = backend_queue_.pop(backend_payload);
-  }
+  VizBackendInput backend_payload;
+  const auto queue_state = backend_queue_.pop(backend_payload);
 
-  if (!queue_state) {
-    std::string msg = "Module: " + name_id_ + " - " + backend_queue_.queue_id_ +
-                      " queue is down";
-    LOG_IF(WARNING, PIO::parallel_run_) << msg;
-    VLOG_IF(1, !PIO::parallel_run_) << msg;
+  if (!queue_state && !PIO::parallel_run_) {
+    VLOG(1) << "Module: " << name_id_ << " - " << backend_queue_.queue_id_
+            << " queue is down";
     return nullptr;
   }
 
-  CHECK(backend_payload);
-  const Timestamp& timestamp = backend_payload->timestamp_;
+  VizFrontendInput frontend_payload;
+  VizMesherInput mesher_payload;
+  if (backend_payload) {
+    const Timestamp& timestamp = backend_payload->timestamp_;
 
-  // Look for the synchronized packet in Frontend payload queue
-  // This should always work, because it should not be possible to have
-  // a Backend payload without having a Frontend one first!
-  VizFrontendInput frontend_payload = nullptr;
-  PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
-  CHECK(frontend_payload);
-  CHECK(frontend_payload->is_keyframe_);
+    // Look for the synchronized packet in Frontend payload queue
+    // This should always work, because it should not be possible to have
+    // a Backend payload without having a Frontend one first!
+    PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
+    CHECK(frontend_payload);
+    CHECK(frontend_payload->is_keyframe_);
 
-  VizMesherInput mesher_payload = nullptr;
-  if (mesher_queue_) {
-    // Mesher output is optional, only sync if callback registered.
-    // Sync may fail is someone shuts down the pipeline, so no checks at this
-    // level.
-    PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload);
+    if (mesher_queue_) {
+      // Mesher output is optional, only sync if callback registered.
+      PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload);
+    }
   }
 
-  VizLcdInput lcd_payload = nullptr;
+  VizLcdInput lcd_payload;
   if (lcd_queue_) {
-    // CHECK(PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload, 10, 10000000u));
-    // CHECK(lcd_payload);
-    PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload, 10, 1000000u);
+    auto packet = lcd_queue_->pop();
+    if (packet) {
+      lcd_payload = *packet;
+    }
   }
 
-  // Push the synced messages to the visualizer's input queue
+  Timestamp timestamp;
+  if (backend_payload) {
+    timestamp = backend_payload->timestamp_;
+  } else if (lcd_payload) {
+    timestamp = lcd_payload->timestamp_;
+  } else {
+    return nullptr;
+  }
+
   return VIO::make_unique<VisualizerInput>(timestamp,
                                            mesher_payload,
                                            backend_payload,
@@ -122,8 +120,13 @@ void VisualizerModule::shutdownQueues() {
   LOG(INFO) << "Shutting down queues for: " << name_id_;
   frontend_queue_.shutdown();
   backend_queue_.shutdown();
-  if (mesher_queue_) mesher_queue_->shutdown();
-  if (lcd_queue_) lcd_queue_->shutdown();
+  if (mesher_queue_) {
+    mesher_queue_->shutdown();
+  }
+
+  if (lcd_queue_) {
+    lcd_queue_->shutdown();
+  }
   // This shutdowns the output queue as well.
   MISO::shutdownQueues();
 }

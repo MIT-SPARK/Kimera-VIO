@@ -46,10 +46,14 @@ class VisualizerModule
                    Visualizer3D::UniquePtr visualizer);
   virtual ~VisualizerModule() = default;
 
-  //! Callbacks to fill queues: they should be all lighting fast.
   inline void fillFrontendQueue(const VizFrontendInput& frontend_payload) {
+    if (!frontend_payload || !frontend_payload->is_keyframe_) {
+      return;
+    }
+
     frontend_queue_.push(frontend_payload);
   }
+
   inline void fillBackendQueue(const VizBackendInput& backend_payload) {
     backend_queue_.push(backend_payload);
   }
