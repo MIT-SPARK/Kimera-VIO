@@ -253,51 +253,70 @@ std::string Statistics::SecondsToTimeString(double seconds) {
   return buffer;
 }
 
-void Statistics::Print(std::ostream& out) {  // NOLINT
-  const map_t& tag_map = Instance().tag_map_;
-
+void Statistics::Print(std::ostream& out) {
+  const auto& tag_map = Instance().tag_map_;
   if (tag_map.empty()) {
+    return;
+  }
+
+  bool have_samples = false;
+  for (const auto& t : tag_map) {
+    if (GetNumSamples(t.second) > 0) {
+      have_samples = true;
+      break;
+    }
+  }
+
+  if (!have_samples) {
     return;
   }
 
   out << "Statistics\n";
 
-  out.width((std::streamsize)Instance().max_tag_length_);
+  out.width((std::streamsize)Instance().max_tag_length_ + 3);
   out.setf(std::ios::left, std::ios::adjustfield);
-  out << "-----------";
-  out.width(7);
+  out << "-----------\t";
+  out.width(10);
   out.setf(std::ios::right, std::ios::adjustfield);
   out << "#\t";
-  out << "Log Hz\t";
-  out << "{avg     +- std    }\t";
-  out << "[min,max]\n";
+  out << "log hz\t";
+  out << "{avg +- std}\t";
+  out << "[min, max]\t";
+  out << "last\n";
 
-  for (const typename map_t::value_type& t : tag_map) {
+  const auto prec = out.precision();
+  out << std::setprecision(1) << std::fixed;
+  for (const auto& t : tag_map) {
     size_t i = t.second;
-    out.width((std::streamsize)Instance().max_tag_length_);
+    if (GetNumSamples(i) == 0) {
+      continue;
+    }
+
+    out.width((std::streamsize)Instance().max_tag_length_ + 3);
     out.setf(std::ios::left, std::ios::adjustfield);
     // Print Name of tag
     out << t.first << "\t";
 
     out.setf(std::ios::right, std::ios::adjustfield);
     // Print #
-    out << std::setw(5) << GetNumSamples(i) << "\t";
-    if (GetNumSamples(i) > 0) {
-      out << std::showpoint << GetHz(i) << "\t";
-      double mean = GetMean(i);
-      double stddev = sqrt(GetVariance(i));
-      out << "{" << std::showpoint << mean;
-      out << " +- ";
-      out << std::showpoint << stddev << "}\t";
+    out << std::setw(10) << GetNumSamples(i) << "\t";
+    out << std::showpoint << GetHz(i) << "\t";
+    double mean = GetMean(i);
+    double stddev = sqrt(GetVariance(i));
+    out << "{" << std::showpoint << mean;
+    out << " +- ";
+    out << std::showpoint << stddev << "}\t";
 
-      double min_value = GetMin(i);
-      double max_value = GetMax(i);
+    double min_value = GetMin(i);
+    double max_value = GetMax(i);
 
-      //out.width(5);
-      out << std::noshowpoint << "[" << min_value << "," << max_value << "]";
-    }
+    // out.width(5);
+    out << std::noshowpoint << "[" << min_value << ", " << max_value << "]\t";
+    out << GetLastValue(i);
     out << std::endl;
   }
+
+  out << std::setprecision(prec) << std::defaultfloat;
 }
 
 void Statistics::WriteAllSamplesToCsvFile(const std::string& path) {
