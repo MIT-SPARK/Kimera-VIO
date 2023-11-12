@@ -13,15 +13,15 @@
  * @author Marcus Abate
  */
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <random>
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
@@ -127,9 +127,8 @@ TEST_F(VisualizerFixture, spinOnce) {
           ImuAccGyrS(),
           cv::Mat(),
           DebugTrackerInfo());
-  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp);
   VisualizerInput visualizer_input(
-      timestamp, mesher_output, backend_output, frontend_output, lcd_output);
+      timestamp, mesher_output, backend_output, frontend_output);
   // Visualize mesh.
   EXPECT_NO_THROW(visualizer_->spinOnce(visualizer_input));
 }

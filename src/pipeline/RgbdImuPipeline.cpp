@@ -233,15 +233,6 @@ RgbdImuPipeline::RgbdImuPipeline(const VioParams& params,
       visualizer_module->disableMesherQueue();
     }
 
-    if (lcd_module_) {
-      lcd_module_->registerOutputCallback(
-          std::bind(&VisualizerModule::fillLcdQueue,
-                    std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-                    std::placeholders::_1));
-    } else {
-      visualizer_module->disableLcdQueue();
-    }
-
     //! Actual displaying of visual data is done in the main thread.
     CHECK(params.display_params_);
     display_module_ = VIO::make_unique<DisplayModule>(
