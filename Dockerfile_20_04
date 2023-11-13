@@ -80,5 +80,5 @@ RUN cd Kimera-RPGO && \
 
 # Install Kimera-VIO-Evaluation
 RUN python3 -m pip install --upgrade pip
-ADD https://api.github.com/repos/marcusabate/Kimera-VIO-Evaluation/git/refs/heads/fix/python3 version.json
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-VIO-Evaluation/git/refs/heads/fix/python3 version.json
 RUN python3 -m pip install git+https://github.com/MIT-SPARK/Kimera-VIO-Evaluation.git@fix/python3

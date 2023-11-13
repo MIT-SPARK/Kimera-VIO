@@ -67,15 +67,15 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
                   // 1. Configure evo plotting: all plots in plots.pdf
                   sh 'evo_config set plot_export_format pdf'
                   sh 'evo_config set plot_split false'
 
                   // 2. Run evaluation
-                  sh 'python3 $evaluator/evaluation/main_evaluation.py -r -a -v \
-                    --save_plots --save_boxplots --save_results --write_website \
-                    $evaluator/experiments/jenkins_euroc.yaml'
+                  sh 'kimera_eval run -n jenkins_euroc'
+                  sh 'kimera_eval evaluate -n jenkins_euroc'
+                  sh 'kimera_eval website'
+                  sh 'kimera_eval summary'
 
                   // 3. Compile summary results.
                   sh 'python3 $evaluator/evaluation/tools/performance_summary.py \
