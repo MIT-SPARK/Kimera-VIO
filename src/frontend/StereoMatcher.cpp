@@ -261,24 +261,21 @@ void StereoMatcher::getRightKeypointsRectified(
   }
 
   if (verbosity > 0) {
-    cv::Mat left_img_with_keypoints =
-        UtilsOpenCV::DrawCircles(left_img_rectified, left_keypoints_rectified);
-    cv::Mat right_img_with_keypoints = UtilsOpenCV::DrawCircles(
-        right_img_rectified, *right_keypoints_rectified);
-
-    cv::Mat total = UtilsOpenCV::concatenateTwoImages(left_img_with_keypoints, right_img_with_keypoints);
-    cv::Point2f offset(left_img_with_keypoints.cols, 0);
+    std::vector<cv::DMatch> matches;
     for (size_t i = 0; i < left_keypoints_rectified.size(); ++i) {
-      const auto& lpt = left_keypoints_rectified[i];
-      const auto& rpt = right_keypoints_rectified->at(i);
-      if (lpt.first != KeypointStatus::VALID || rpt.first != KeypointStatus::VALID) {
-        continue;
+      if (left_keypoints_rectified[i].first == KeypointStatus::VALID &&
+          right_keypoints_rectified->at(i).first == KeypointStatus::VALID) {
+        matches.push_back(cv::DMatch(i, i, 0.0));
       }
-
-      cv::line(total, lpt.second, rpt.second + offset, cv::Scalar(255, 0, 0));
     }
 
-    cv::imshow("stereo matches", total);
+    const auto match_img =
+        UtilsOpenCV::DrawCornersMatches(left_img_rectified,
+                                        left_keypoints_rectified,
+                                        right_img_rectified,
+                                        *right_keypoints_rectified,
+                                        matches);
+    cv::imshow("stereo matches", match_img);
     cv::waitKey(0);
   }
 }
@@ -393,7 +390,6 @@ void StereoMatcher::searchRightKeypointEpipolar(
 
   // Localizing the best match with minMaxLoc
   cv::minMaxLoc(result, &min_val, &max_val, &min_loc, &max_loc, cv::Mat());
-
 
   // Position within the result matrix
   cv::Point matchLoc = min_loc;

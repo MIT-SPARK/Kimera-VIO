@@ -841,8 +841,7 @@ bool LoopClosureDetector::geometricVerificationCam2d2d(
                                       db_frames_[ref_id]->timestamp_,
                                       *camMatch_T_camQuery_2d);
 
-  if (result.first == TrackingStatus::VALID) return true;
-  return false;
+  return result.first == TrackingStatus::VALID;
 }
 
 /* ------------------------------------------------------------------------ */
