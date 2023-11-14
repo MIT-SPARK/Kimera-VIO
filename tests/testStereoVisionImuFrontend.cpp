@@ -487,6 +487,9 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   p.stereo_matching_params_.nominal_baseline_ = baseline(0);
   p.stereo_matching_params_.max_point_dist_ = 500;
   p.stereo_matching_params_.templ_cols_ = 9;
+  // TODO(nathan) this is required for depth to be correct; not sure if it's
+  // loss of precision from the rhs integer feature positions or something else
+  p.stereo_matching_params_.subpixel_refinement_ = true;
 
   StereoFrame first_stereo_frame(
       0,

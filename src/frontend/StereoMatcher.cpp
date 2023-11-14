@@ -203,7 +203,7 @@ void StereoMatcher::getRightKeypointsRectified(
   CHECK_NOTNULL(right_keypoints_rectified)->clear();
   right_keypoints_rectified->reserve(left_keypoints_rectified.size());
 
-  int verbosity = 0;  // Change back to 0
+  int verbosity = 0;
 
   // The stripe has to be placed in the right image, on the left-hand-side wrt
   // x of the left feature, since: disparity = left_px.x - right_px.x, hence
@@ -265,11 +265,21 @@ void StereoMatcher::getRightKeypointsRectified(
         UtilsOpenCV::DrawCircles(left_img_rectified, left_keypoints_rectified);
     cv::Mat right_img_with_keypoints = UtilsOpenCV::DrawCircles(
         right_img_rectified, *right_keypoints_rectified);
-    UtilsOpenCV::showImagesSideBySide(left_img_with_keypoints,
-                                      right_img_with_keypoints,
-                                      "result_getRightKeypointsRectified",
-                                      verbosity == 1,
-                                      verbosity == 2);
+
+    cv::Mat total = UtilsOpenCV::concatenateTwoImages(left_img_with_keypoints, right_img_with_keypoints);
+    cv::Point2f offset(left_img_with_keypoints.cols, 0);
+    for (size_t i = 0; i < left_keypoints_rectified.size(); ++i) {
+      const auto& lpt = left_keypoints_rectified[i];
+      const auto& rpt = right_keypoints_rectified->at(i);
+      if (lpt.first != KeypointStatus::VALID || rpt.first != KeypointStatus::VALID) {
+        continue;
+      }
+
+      cv::line(total, lpt.second, rpt.second + offset, cv::Scalar(255, 0, 0));
+    }
+
+    cv::imshow("stereo matches", total);
+    cv::waitKey(0);
   }
 }
 
@@ -378,13 +388,12 @@ void StereoMatcher::searchRightKeypointEpipolar(
   cv::Point min_loc;
   cv::Point max_loc;
 
-  cv::matchTemplate(stripe, templ, result, CV_TM_SQDIFF_NORMED);
+  cv::matchTemplate(stripe, templ, result, CV_TM_SQDIFF);
+  normalize(result, result, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+
   // Localizing the best match with minMaxLoc
   cv::minMaxLoc(result, &min_val, &max_val, &min_loc, &max_loc, cv::Mat());
 
-  // normalize( result, result, 0, 1, cv::NORM_MINMAX, -1, cv::Mat() ); //
-  // TODO:
-  // do we need to normalize??
 
   // Position within the result matrix
   cv::Point matchLoc = min_loc;
