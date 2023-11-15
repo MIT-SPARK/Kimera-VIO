@@ -28,9 +28,6 @@ pipeline {
                 args '-e WORKSPACE=$WORKSPACE'
             }
           }
-          environment {
-            evaluator="/root/Kimera-VIO-Evaluation"
-          }
           stages {
             stage('Build Release') {
               steps {
@@ -72,15 +69,11 @@ pipeline {
                   sh 'evo_config set plot_split false'
 
                   // 2. Run evaluation
-                  sh 'kimera_eval run -n jenkins_euroc'
-                  sh 'kimera_eval evaluate -n jenkins_euroc'
-                  sh 'kimera_eval website'
-                  sh 'kimera_eval summary'
-
-                  // 3. Compile summary results.
-                  sh 'python3 $evaluator/evaluation/tools/performance_summary.py \
-                    $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
-                    $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
+                  sh 'python3 -m kimera_eval -l DEBUG run -n jenkins_euroc --minloglevel 0 $WORKSPACE/website/data && \
+                     python3 -m kimera_eval evaluate -n jenkins_euroc $WORKSPACE/website/data && \
+                     python3 -m kimera_eval website $WORKSPACE/website/data $WORKSPACE/website/data && \
+                     python3 -m kimera_eval summary $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.pickle \
+                                                    -o $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }
               }
               post {
@@ -118,12 +111,6 @@ pipeline {
                         artifacts: 'params/**/*.*',
                         fingerprint: true
                     )
-                }
-                failure {
-                  node(null) {
-                    echo 'Fail!'
-                    slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
-                  }
                 }
               }
             }
