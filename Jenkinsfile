@@ -71,7 +71,7 @@ pipeline {
                   // 2. Run evaluation
                   sh 'python3 -m kimera_eval -l DEBUG run -n jenkins_euroc --minloglevel 0 $WORKSPACE/website/data && \
                      python3 -m kimera_eval evaluate -n jenkins_euroc $WORKSPACE/website/data && \
-                     python3 -m kimera_eval website $WORKSPACE/website/data $WORKSPACE/website/data && \
+                     python3 -m kimera_eval website $WORKSPACE/website $WORKSPACE/website/data && \
                      python3 -m kimera_eval summary $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.pickle \
                                                     -o $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }
