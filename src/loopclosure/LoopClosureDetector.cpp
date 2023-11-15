@@ -185,6 +185,10 @@ LoopClosureDetector::LoopClosureDetector(
   if (log_output) {
     logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
   }
+
+  if (VLOG_IS_ON(1)) {
+    print();
+  }
 }
 
 LoopClosureDetector::~LoopClosureDetector() {
@@ -1132,6 +1136,7 @@ void LoopClosureDetector::setVocabulary(const OrbVocabulary& voc) {
 
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::print() const {
+  lcd_params_.print();
   // TODO(marcus): implement
 }
 
