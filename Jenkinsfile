@@ -34,8 +34,7 @@ pipeline {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
                 cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                           cmakeArgs:
-                             -DCMAKE_CXX_FLAGS="\
+                           cmakeArgs: '-DCMAKE_CXX_FLAGS="\
                              -Wno-comment \
                              -Wno-maybe-uninitialized \
                              -Wno-parentheses \
