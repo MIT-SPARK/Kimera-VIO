@@ -1345,7 +1345,7 @@ void OpenCvVisualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   cv_mesh.cloud = map_points_3d.t();
   cv_mesh.polygons = polygons_mesh;
   cv_mesh.colors = color_mesh ? colors.t() : cv::Mat();
-  cv_mesh.tcoords = tcoords.t();
+  cv_mesh.tcoords = !tcoords.empty() ? tcoords.t() : cv::Mat();
   cv_mesh.texture = texture;
 
   // Plot mesh.
