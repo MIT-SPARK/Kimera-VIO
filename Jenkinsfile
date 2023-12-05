@@ -21,47 +21,40 @@ pipeline {
   stages {
     stage('Build and Test on Ubuntu') {
       parallel {
-        stage('Ubuntu 18.04') {
+        stage('Ubuntu 20.04') {
           agent {
               dockerfile {
-                filename 'Dockerfile_18_04'
-                  args '-e WORKSPACE=$WORKSPACE'
-              }
-          }
-          environment {
-            evaluator="/root/Kimera-VIO-Evaluation"
+                filename 'Dockerfile_20_04'
+                args '-e WORKSPACE=$WORKSPACE'
+            }
           }
           stages {
             stage('Build Release') {
               steps {
-               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
-                            -DCMAKE_CXX_FLAGS="\
-                            -Wno-comment \
-                            -Wno-maybe-uninitialized \
-                            -Wno-parentheses \
-                            -Wno-pragma-once-outside-header \
-                            -Wno-reorder \
-                            -Wno-return-type \
-                            -Wno-sign-compare \
-                            -Wno-unused-but-set-variable \
-                            -Wno-unused-function \
-                            -Wno-unused-parameter \
-                            -Wno-unused-value \
-                            -Wno-unused-variable"',
-                          generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 4']]
+                slackSend color: 'good',
+                          message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
+                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+                           cmakeArgs: '-DCMAKE_CXX_FLAGS="\
+                             -Wno-comment \
+                             -Wno-maybe-uninitialized \
+                             -Wno-parentheses \
+                             -Wno-reorder \
+                             -Wno-return-type \
+                             -Wno-sign-compare \
+                             -Wno-unused-but-set-variable \
+                             -Wno-unused-function \
+                             -Wno-unused-parameter \
+                             -Wno-unused-value \
+                             -Wno-unused-variable"',
+                           generator: 'Unix Makefiles', installation: 'InSearchPath',
+                           sourceDir: '.', steps: [[args: '-j 4']]
               }
             }
             stage('Test') {
               steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                  wrap([$class: 'Xvfb']) {
-                    sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
-
-                    // Process the CTest xml output
-                    junit 'build/testresults.xml'
-                  }
+                wrap([$class: 'Xvfb']) {
+                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
+                  junit 'build/testresults.xml'
                 }
               }
             }
@@ -69,20 +62,16 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
                   // 1. Configure evo plotting: all plots in plots.pdf
                   sh 'evo_config set plot_export_format pdf'
                   sh 'evo_config set plot_split false'
 
                   // 2. Run evaluation
-                  sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
-                    --save_plots --save_boxplots --save_results --write_website \
-                    $evaluator/experiments/jenkins_euroc.yaml'
-
-                  // 3. Compile summary results.
-                  sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
-                    $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
-                    $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
+                  sh 'python3 -m kimera_eval -l DEBUG run -n jenkins_euroc --minloglevel 0 $WORKSPACE/website/data && \
+                     python3 -m kimera_eval evaluate -n jenkins_euroc $WORKSPACE/website/data && \
+                     python3 -m kimera_eval website $WORKSPACE/website $WORKSPACE/website/data && \
+                     python3 -m kimera_eval summary $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.pickle \
+                                                    -o $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }
               }
               post {
@@ -121,101 +110,6 @@ pipeline {
                         fingerprint: true
                     )
                 }
-                failure {
-                  node(null) {
-                    echo 'Fail!'
-                    slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
-                  }
-                }
-              }
-            }
-          }
-        }
-        stage('Ubuntu 16.04') {
-          agent {
-              dockerfile {
-                filename 'Dockerfile_16_04'
-                  args '-e WORKSPACE=$WORKSPACE'
-            }
-          }
-          stages {
-            stage('Build Release') {
-              steps {
-                slackSend color: 'good',
-                          message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
-                            -DCMAKE_CXX_FLAGS="\
-                            -Wno-comment \
-                            -Wno-maybe-uninitialized \
-                            -Wno-parentheses \
-                            -Wno-pragma-once-outside-header \
-                            -Wno-reorder \
-                            -Wno-return-type \
-                            -Wno-sign-compare \
-                            -Wno-unused-but-set-variable \
-                            -Wno-unused-function \
-                            -Wno-unused-parameter \
-                            -Wno-unused-value \
-                            -Wno-unused-variable"',
-                          generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 4']]
-              }
-            }
-            stage('Test') {
-              steps {
-                wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
-
-                  // Process the CTest xml output
-                  junit 'build/testresults.xml'
-                }
-              }
-            }
-          }
-        }
-        stage('Ubuntu 20.04') {
-          agent {
-              dockerfile {
-                filename 'Dockerfile_20_04'
-                  args '-e WORKSPACE=$WORKSPACE'
-            }
-          }
-          environment {
-            evaluator="/root/Kimera-VIO-Evaluation"
-          }
-          stages {
-            stage('Build Release') {
-              steps {
-                slackSend color: 'good',
-                          message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR="/usr/local/include/gtsam/3rdparty/Eigen"\
-                            -DCMAKE_CXX_FLAGS="\
-                            -Wno-comment \
-                            -Wno-maybe-uninitialized \
-                            -Wno-parentheses \
-                            -Wno-pragma-once-outside-header \
-                            -Wno-reorder \
-                            -Wno-return-type \
-                            -Wno-sign-compare \
-                            -Wno-unused-but-set-variable \
-                            -Wno-unused-function \
-                            -Wno-unused-parameter \
-                            -Wno-unused-value \
-                            -Wno-unused-variable"',
-                          generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 4']]
-              }
-            }
-            stage('Test') {
-              steps {
-                wrap([$class: 'Xvfb']) {
-                  sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml" --minloglevel=0 -v=1'
-
-                  // Process the CTest xml output
-                  junit 'build/testresults.xml'
-                }
               }
             }
           }
@@ -227,8 +121,6 @@ pipeline {
     always {
       node(null) {
         echo 'Jenkins Finished'
-
-
         // Clear the source and build dirs before the next run
         // deleteDir()
       }

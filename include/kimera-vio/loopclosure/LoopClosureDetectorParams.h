@@ -86,7 +86,8 @@ class LoopClosureDetectorParams : public PipelineParams {
 #if CV_VERSION_MAJOR == 3
   int matcher_type_ = 3;
 #else
-  cv::DescriptorMatcher::MatcherType matcher_type_;
+  cv::DescriptorMatcher::MatcherType matcher_type_ =
+      cv::DescriptorMatcher::MatcherType::BRUTEFORCE_L1;
 #endif
   //////////////////////////////////////////////////////////////////////////////
 

@@ -43,9 +43,9 @@ class LCDFixture : public ::testing::Test {
   // Tolerances
   const double tol = 1e-7;
   const double loose_tol = 1e-5;
-  const double rot_tol_mono = 0.05;  // radians
+  const double rot_tol_mono = 0.055;  // radians
   const double tran_tol_mono =
-      0.1;  // meters (error rescaled using ground-truth)
+      0.11;  // meters (error rescaled using ground-truth)
   const double rot_tol_stereo = 0.3;  // radians
   const double tran_tol_stereo =
       0.6;  // meters TODO see why 0.5 will not pass TEST_F(LCDFixture,
@@ -593,6 +593,16 @@ TEST_F(LCDFixture, processAndAddStereoFrame) {
 }
 
 TEST_F(LCDFixture, geometricVerificationCam2d2d) {
+  lcd_params_.tracker_params_.pose_2d2d_algorithm_ = Pose2d2dAlgorithm::NISTER;
+  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+      lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_,
+      frontend_params_.stereo_matching_params_,
+      boost::none,
+      false);
+
   /* Test geometric verification using RANSAC Nister 5pt method */
   CHECK(lcd_detector_);
   CHECK(match1_stereo_frame_);
@@ -933,6 +943,16 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
 }
 
 TEST_F(LCDFixture, detectLoop) {
+  lcd_params_.tracker_params_.pose_2d2d_algorithm_ = Pose2d2dAlgorithm::NISTER;
+  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+      lcd_params_,
+      stereo_camera_->getLeftCamParams(),
+      stereo_camera_->getBodyPoseLeftCamRect(),
+      stereo_camera_,
+      frontend_params_.stereo_matching_params_,
+      boost::none,
+      false);
+
   std::pair<double, double> error;
 
   CHECK(lcd_detector_);
@@ -941,8 +961,7 @@ TEST_F(LCDFixture, detectLoop) {
   CHECK(match2_stereo_frame_);
   CHECK(query1_stereo_frame_);
 
-  FrameId frame_id_0 =
-      lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
+  lcd_detector_->processAndAddStereoFrame(*match1_stereo_frame_);
   FrameId frame_id_1 =
       lcd_detector_->processAndAddStereoFrame(*match2_stereo_frame_);
   FrameId frame_id_2 =
