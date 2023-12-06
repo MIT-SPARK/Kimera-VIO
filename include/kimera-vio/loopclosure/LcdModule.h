@@ -31,10 +31,14 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
   LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd);
   virtual ~LcdModule() = default;
 
-  //! Callbacks to fill queues: they should be all lighting fast.
   inline void fillFrontendQueue(const LcdFrontendInput& frontend_payload) {
+    if (!frontend_payload || !frontend_payload->is_keyframe_) {
+      return;
+    }
+
     frontend_queue_.push(frontend_payload);
   }
+
   inline void fillBackendQueue(const LcdBackendInput& backend_payload) {
     backend_queue_.push(backend_payload);
   }

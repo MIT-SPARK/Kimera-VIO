@@ -31,6 +31,7 @@
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/loopclosure/FrameCache.h"
 #include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
@@ -194,8 +195,8 @@ class LoopClosureDetector {
    * @param[out] inliers The IDs of inliers in the keypoint matches.
    * @return True if the verification check passes, false otherwise.
    */
-  bool geometricVerificationCam2d2d(const FrameId& ref_id,
-                                    const FrameId& cur_id,
+  bool geometricVerificationCam2d2d(const LCDFrame& ref_frame,
+                                    const LCDFrame& cur_frame,
                                     const KeypointMatches& matches_query_match,
                                     gtsam::Pose3* camMatch_T_camQuery_2d,
                                     std::vector<int>* inliers);
@@ -214,8 +215,8 @@ class LoopClosureDetector {
    * determined at the geometricVerificationCam2d2d stage.
    * @return True if the pose is recovered successfully, false otherwise.
    */
-  bool recoverPoseBody(const FrameId& ref_id,
-                       const FrameId& cur_id,
+  bool recoverPoseBody(const LCDFrame& ref_frame,
+                       const LCDFrame& cur_frame,
                        const gtsam::Pose3& camMatch_T_camQuery_2d,
                        const KeypointMatches& matches_query_match,
                        gtsam::Pose3* bodyMatch_T_bodyQuery_3d,
@@ -239,16 +240,11 @@ class LoopClosureDetector {
    */
   inline const OrbDatabase* getBoWDatabase() const { return db_BoW_.get(); }
 
-  /* ------------------------------------------------------------------------ */
-  /** @brief Returns a pointer to the database of LCDFrames.
-   * @return A pointer to the LCDFrame database.
-   *
-   * WARNING: This is a potentially dangerous method to use because it requires
-   *  a manual deletion of the pointer before it goes out of scope.
+  /**
+   * @brief Get cache of LCD keyframes.
+   * @return The FrameCache containing keyframe information.
    */
-  inline const std::vector<LCDFrame::Ptr>* getFrameDatabasePtr() const {
-    return &db_frames_;
-  }
+  const FrameCache& getFrameCache() const { return cache_; }
 
   /* ------------------------------------------------------------------------ */
   /** @brief Returns the pose between the inertial world-reference frame and the
@@ -305,27 +301,6 @@ class LoopClosureDetector {
   // TODO(marcus): utils and reorder (or just static)
   void rewriteStereoFrameFeatures(const std::vector<cv::KeyPoint>& keypoints,
                                   StereoFrame* stereo_frame) const;
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Creates an image with matched ORB features between two frames.
-   *  This is a utility for debugging the ORB feature matcher and isn't used
-   *  in the main pipeline.
-   * @param[in] query_img The image of the query frame in the database.
-   * @param[in] match_img The image of the match frame in the database.
-   * @param[in] query_id The frame ID of the query frame in the database.
-   * @param[in] match_id The frame ID of the match frame in the database.
-   * @param[in] cut_matches Determines if the Lowe Ratio Test is used to
-   *  pare down matches that are bad.
-   * @return A cv::Mat representing the matches between the two images.
-   */
-  // TODO(marcus): it would be nice if this could be a util
-  // TODO(marcus): can this be static even though it requires id? Maybe feed it
-  // descriptors instead
-  cv::Mat computeAndDrawMatchesBetweenFrames(const cv::Mat& query_img,
-                                             const cv::Mat& match_img,
-                                             const FrameId& query_id,
-                                             const FrameId& match_id,
-                                             bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
   /** @brief Gives the transform between two frames in the body frame given
@@ -423,8 +398,8 @@ class LoopClosureDetector {
    * @param[in] inlier correspondences (from ransac) in the match frame
    * @return refined relative pose
    */
-  gtsam::Pose3 refinePoses(const FrameId ref_id,
-                           const FrameId cur_id,
+  gtsam::Pose3 refinePoses(const StereoLCDFrame& ref_frame,
+                           const StereoLCDFrame& cur_frame,
                            const gtsam::Pose3& camMatch_T_camQuery_3d,
                            const KeypointMatches& matches_query_match);
 
@@ -448,9 +423,9 @@ class LoopClosureDetector {
   // Tracker for outlier rejection
   Tracker::UniquePtr tracker_;
 
-  // BoW and Loop Detection database and members
+  // BoW database
   std::unique_ptr<OrbDatabase> db_BoW_;
-  std::vector<LCDFrame::Ptr> db_frames_;
+  FrameCache cache_;
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring

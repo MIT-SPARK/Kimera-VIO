@@ -139,6 +139,31 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("optimize_3d3d_pose_from_inliers",
                            &tracker_params_.optimize_3d3d_pose_from_inliers_);
 
+  if (yaml_parser.hasParam("frame_cache_max_frames")) {
+    int max_frames;
+    yaml_parser.getYamlParam("frame_cache_max_frames", &max_frames);
+    frame_cache.max_frames = max_frames;
+  }
+
+  if (yaml_parser.hasParam("frame_cache_path")) {
+    yaml_parser.getYamlParam("frame_cache_path", &frame_cache.cache_path);
+  }
+
+  if (yaml_parser.hasParam("frame_cache_name")) {
+    yaml_parser.getYamlParam("frame_cache_name", &frame_cache.cache_name);
+  }
+
+  if (yaml_parser.hasParam("frame_cache_line_size")) {
+    int num_frames_per_file;
+    yaml_parser.getYamlParam("frame_cache_line_size", &num_frames_per_file);
+    frame_cache.num_frames_per_file = num_frames_per_file;
+  }
+
+  if (yaml_parser.hasParam("frame_cache_remove_on_exit")) {
+    yaml_parser.getYamlParam("frame_cache_remove_on_exit",
+                             &frame_cache.remove_cache_on_exit);
+  }
+
   return true;
 }
 
@@ -214,7 +239,18 @@ void LoopClosureDetectorParams::print() const {
                         "gnc_alpha_",
                         gnc_alpha_,
                         "max_lc_cached_before_optimize_",
-                        max_lc_cached_before_optimize_);
+                        max_lc_cached_before_optimize_,
+
+                        "frame_cache.max_frames",
+                        frame_cache.max_frames,
+                        "frame_cache.cache_path",
+                        frame_cache.cache_path,
+                        "frame_cache.cache_name",
+                        frame_cache.cache_name,
+                        "frame_cache.num_frames_per_file",
+                        frame_cache.num_frames_per_file,
+                        "frame_cahce.remove_cache_on_exit",
+                        frame_cache.remove_cache_on_exit);
   LOG(INFO) << out.str();
 }
 
@@ -254,7 +290,16 @@ bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2,
          (fabs(pcm_rot_threshold_ - lp2.pcm_rot_threshold_) <= tol) &&
          (fabs(pcm_trans_threshold_ - lp2.pcm_trans_threshold_) <= tol) &&
          (fabs(gnc_alpha_ - lp2.gnc_alpha_) <= tol) &&
-         (max_lc_cached_before_optimize_ == lp2.max_lc_cached_before_optimize_);
+         (max_lc_cached_before_optimize_ ==
+          lp2.max_lc_cached_before_optimize_) &&
+
+         (frame_cache.max_frames == lp2.frame_cache.max_frames) &&
+         (frame_cache.cache_path == lp2.frame_cache.cache_path) &&
+         (frame_cache.cache_name == lp2.frame_cache.cache_name) &&
+         (frame_cache.num_frames_per_file ==
+          lp2.frame_cache.num_frames_per_file) &&
+         (frame_cache.remove_cache_on_exit ==
+          lp2.frame_cache.remove_cache_on_exit);
 }
 
 }  // namespace VIO
