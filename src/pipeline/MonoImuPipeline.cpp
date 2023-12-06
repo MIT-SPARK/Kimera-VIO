@@ -35,17 +35,16 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 
 namespace VIO {
 
-MonoImuPipeline::MonoImuPipeline(
-    const VioParams& params,
-    Visualizer3D::UniquePtr&& visualizer,
-    DisplayBase::UniquePtr&& displayer,
-    PreloadedVocab::Ptr&& preloaded_vocab)
+MonoImuPipeline::MonoImuPipeline(const VioParams& params,
+                                 Visualizer3D::UniquePtr&& visualizer,
+                                 DisplayBase::UniquePtr&& displayer,
+                                 PreloadedVocab::Ptr&& preloaded_vocab)
     : Pipeline(params), camera_(nullptr) {
   // CHECK_EQ(params.camera_params_.size(), 1u) << "Need one camera for
   // MonoImuPipeline.";
   camera_ = std::make_shared<Camera>(params.camera_params_.at(0));
 
-  data_provider_module_ = VIO::make_unique<MonoDataProviderModule>(
+  data_provider_module_ = std::make_unique<MonoDataProviderModule>(
       &frontend_input_queue_, "Mono Data Provider", parallel_run_);
   if (FLAGS_do_coarse_imu_camera_temporal_sync) {
     data_provider_module_->doCoarseImuCameraTemporalSync();
@@ -69,7 +68,7 @@ MonoImuPipeline::MonoImuPipeline(
 
   LOG_IF(FATAL, params.frontend_params_.use_stereo_tracking_)
       << "useStereoTracking is set to true, but this is a mono pipeline!";
-  vio_frontend_module_ = VIO::make_unique<VisionImuFrontendModule>(
+  vio_frontend_module_ = std::make_unique<VisionImuFrontendModule>(
       &frontend_input_queue_,
       parallel_run_,
       VisionImuFrontendFactory::createFrontend(
@@ -89,11 +88,12 @@ MonoImuPipeline::MonoImuPipeline(
   auto& backend_input_queue = backend_input_queue_;
   vio_frontend_module_->registerOutputCallback(
       [&backend_input_queue](const FrontendOutputPacketBase::Ptr& output) {
-        MonoFrontendOutput::Ptr converted_output =
-            VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(output);
+        auto converted_output =
+            std::dynamic_pointer_cast<MonoFrontendOutput>(output);
+        CHECK(converted_output);
         if (converted_output->is_keyframe_) {
           //! Only push to Backend input queue if it is a keyframe!
-          backend_input_queue.push(VIO::make_unique<BackendInput>(
+          backend_input_queue.push(std::make_unique<BackendInput>(
               converted_output->frame_lkf_.timestamp_,
               converted_output->status_mono_measurements_,
               converted_output->pim_,
@@ -118,16 +118,12 @@ MonoImuPipeline::MonoImuPipeline(
   // TODO(marcus): get rid of fake stereocam
   LOG_IF(FATAL, params.backend_params_->addBetweenStereoFactors_)
       << "addBetweenStereoFactors is set to true, but this is a mono pipeline!";
-  const gtsam::Cal3_S2& calib = camera_->getCalibration();
-  StereoCalibPtr stereo_calib = boost::make_shared<gtsam::Cal3_S2Stereo>(
-      calib.fx(),
-      calib.fy(),
-      calib.skew(),
-      calib.px(),
-      calib.py(),
-      0.1);  // TODO(marcus): hardcoded baseline!
+  const auto& calib = camera_->getCalibration();
+  // TODO(marcus): hardcoded baseline!
+  StereoCalibPtr stereo_calib(new gtsam::Cal3_S2Stereo(
+      calib.fx(), calib.fy(), calib.skew(), calib.px(), calib.py(), 0.1));
   CHECK(backend_params_);
-  vio_backend_module_ = VIO::make_unique<VioBackendModule>(
+  vio_backend_module_ = std::make_unique<VioBackendModule>(
       &backend_input_queue_,
       parallel_run_,
       BackendFactory::createBackend(
@@ -158,7 +154,7 @@ MonoImuPipeline::MonoImuPipeline(
   // TOOD(marcus): enable use of mesher for mono pipeline
   // if (static_cast<VisualizationType>(FLAGS_viz_type) ==
   //     VisualizationType::kMesh2dTo3dSparse) {
-  //   mesher_module_ = VIO::make_unique<MesherModule>(
+  //   mesher_module_ = std::make_unique<MesherModule>(
   //       parallel_run_,
   //       MesherFactory::createMesher(
   //           MesherType::PROJECTIVE,
@@ -178,15 +174,15 @@ MonoImuPipeline::MonoImuPipeline(
   // }
 
   if (FLAGS_use_lcd) {
-    lcd_module_ = VIO::make_unique<LcdModule>(
+    lcd_module_ = std::make_unique<LcdModule>(
         parallel_run_,
         LcdFactory::createLcd(LoopClosureDetectorType::BoW,
                               params.lcd_params_,
                               camera_->getCamParams(),
                               camera_->getBodyPoseCam(),
-                              boost::none,
-                              boost::none,
-                              boost::none,
+                              std::nullopt,
+                              std::nullopt,
+                              std::nullopt,
                               FLAGS_log_output,
                               std::move(preloaded_vocab)));
     //! Register input callbacks
@@ -201,7 +197,7 @@ MonoImuPipeline::MonoImuPipeline(
   }
 
   if (FLAGS_visualize) {
-    visualizer_module_ = VIO::make_unique<VisualizerModule>(
+    visualizer_module_ = std::make_unique<VisualizerModule>(
         //! Send ouput of visualizer to the display_input_queue_
         &display_input_queue_,
         parallel_run_,
@@ -227,9 +223,9 @@ MonoImuPipeline::MonoImuPipeline(
     auto& visualizer_module = visualizer_module_;
     vio_frontend_module_->registerOutputCallback(
         [&visualizer_module](const FrontendOutputPacketBase::Ptr& output) {
-          MonoFrontendOutput::Ptr converted_output =
-              VIO::safeCast<FrontendOutputPacketBase, MonoFrontendOutput>(
-                  output);
+          auto converted_output =
+              std::dynamic_pointer_cast<MonoFrontendOutput>(output);
+          CHECK(converted_output);
           CHECK_NOTNULL(visualizer_module.get())
               ->fillFrontendQueue(converted_output);
         });
@@ -243,7 +239,7 @@ MonoImuPipeline::MonoImuPipeline(
 
     //! Actual displaying of visual data is done in the main thread.
     CHECK(params.display_params_);
-    display_module_ = VIO::make_unique<DisplayModule>(
+    display_module_ = std::make_unique<DisplayModule>(
         &display_input_queue_,
         nullptr,
         parallel_run_,

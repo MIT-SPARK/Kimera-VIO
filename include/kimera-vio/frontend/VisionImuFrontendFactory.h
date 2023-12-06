@@ -37,10 +37,10 @@ class VisionImuFrontendFactory {
       const Camera::ConstPtr& camera,
       DisplayQueue* display_queue,
       bool log_output,
-      boost::optional<OdometryParams> odom_params) {
+      std::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
-        return VIO::make_unique<MonoVisionImuFrontend>(frontend_params,
+        return std::make_unique<MonoVisionImuFrontend>(frontend_params,
                                                        imu_params,
                                                        imu_initial_bias,
                                                        camera,
@@ -72,14 +72,14 @@ class VisionImuFrontendFactory {
       const StereoCamera::ConstPtr& stereo_camera,
       DisplayQueue* display_queue,
       bool log_output,
-      boost::optional<OdometryParams> odom_params) {
+      std::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
         LOG(FATAL) << "Tried to create a MonoVisionFrontEnd"
                    << "with a StereoCamera!";
       }
       case FrontendType::kStereoImu: {
-        return VIO::make_unique<StereoVisionImuFrontend>(frontend_params,
+        return std::make_unique<StereoVisionImuFrontend>(frontend_params,
                                                          imu_params,
                                                          imu_initial_bias,
                                                          stereo_camera,

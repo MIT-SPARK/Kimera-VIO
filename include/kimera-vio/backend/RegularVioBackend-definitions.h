@@ -16,8 +16,6 @@
 
 #include <vector>
 
-#include <boost/optional.hpp>
-
 #include <glog/logging.h>
 
 #include <gtsam/geometry/Cal3_S2.h>

@@ -39,7 +39,7 @@ class CameraFixture : public ::testing::Test {
     // Parse data
     parseEuroc();
     // Create Mono Camera
-    mono_camera_ = VIO::make_unique<Camera>(vio_params_.camera_params_.at(0));
+    mono_camera_ = std::make_unique<Camera>(vio_params_.camera_params_.at(0));
     CHECK(mono_camera_);
   }
   ~CameraFixture() override = default;
@@ -51,7 +51,7 @@ class CameraFixture : public ::testing::Test {
   void parseEuroc() {
     // Create euroc data parser
     // Only parse one mono frame... 0 - 1
-    euroc_data_provider_ = VIO::make_unique<EurocDataProvider>(
+    euroc_data_provider_ = std::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/MicroEurocDataset/", 10, 11, vio_params_);
 
     // Register Callbacks
@@ -177,7 +177,7 @@ TEST_F(CameraFixture, project) {
   expected_kpts.push_back(KeypointCV(3.0, 1.0 / 2.0 + 2.0));
   expected_kpts.push_back(KeypointCV(1.0 / 2.0 + 3.0, 2.0));
 
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   KeypointsCV actual_kpts;
   EXPECT_NO_THROW(mono_camera_->project(lmks, &actual_kpts));
@@ -189,7 +189,7 @@ TEST_F(CameraFixture, projectCheirality) {
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   // Make it easy first, use identity pose and simple intrinsics
   camera_params.body_Pose_cam_ = gtsam::Pose3();
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   LandmarkCV lmk_behind_cam = LandmarkCV(0.0, 0.0, -2.0);
 
@@ -203,7 +203,7 @@ TEST_F(CameraFixture, backProjectSingleSimple) {
   // a given depth.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   camera_params.body_Pose_cam_ = gtsam::Pose3();
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(camera_params.intrinsics_.at(2),
                  camera_params.intrinsics_.at(3));
@@ -222,7 +222,7 @@ TEST_F(CameraFixture, backProjectSingleSimple) {
 //   CameraParams camera_params;
 //   camera_params.parseYAML(FLAGS_test_data_path +
 //                           "/ForOmniCamera/OmniCamParams.yaml");
-//   mono_camera_ = VIO::make_unique<Camera>(camera_params);
+//   mono_camera_ = std::make_unique<Camera>(camera_params);
 
 //   LandmarkCV point_3d(0.2,0.3,3.0);
 //   KeypointCV actual_kpt;
@@ -237,7 +237,7 @@ TEST_F(CameraFixture, backProjectSingleOmni) {
   CameraParams camera_params;
   camera_params.parseYAML(FLAGS_test_data_path +
                           "/ForOmniCamera/OmniCamParams.yaml");
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(490.397735595703, 423.252136230469);  // From MATLAB
   LandmarkCV actual_lmk;
@@ -255,7 +255,7 @@ TEST_F(CameraFixture, undistortKeypointsOmni) {
   CameraParams camera_params;
   camera_params.parseYAML(FLAGS_test_data_path +
                           "/ForOmniCamera/OmniCamParams.yaml");
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   KeypointsCV distorted_kpts;
   distorted_kpts.push_back(
@@ -275,7 +275,7 @@ TEST_F(CameraFixture, backProjectMultipleSimple) {
   // different depths.
   CameraParams& camera_params = vio_params_.camera_params_.at(0);
   camera_params.body_Pose_cam_ = gtsam::Pose3();
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   KeypointCV kpt(camera_params.intrinsics_.at(2),
                  camera_params.intrinsics_.at(3));
@@ -302,7 +302,7 @@ TEST_F(CameraFixture, backProjectSingleTopLeft) {
   double py = 240.0;
   camera_params.intrinsics_ = {fx, fy, px, py};
   camera_params.body_Pose_cam_ = gtsam::Pose3();
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   LandmarkCV actual_lmk;
   double depth = 2.0;
@@ -324,7 +324,7 @@ TEST_F(CameraFixture, backProjectSingleRandom) {
   double py = 142.2;
   camera_params.intrinsics_ = {fx, fy, px, py};
   camera_params.body_Pose_cam_ = gtsam::Pose3();
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   LandmarkCV actual_lmk;
   double depth = 1.3;
@@ -348,7 +348,7 @@ TEST_F(CameraFixture, backProjectMultipleComplex) {
   double py = 142.2;
   camera_params.intrinsics_ = {fx, fy, px, py};
   camera_params.body_Pose_cam_ = gtsam::Pose3();
-  mono_camera_ = VIO::make_unique<Camera>(camera_params);
+  mono_camera_ = std::make_unique<Camera>(camera_params);
 
   KeypointsCV kpts;
   std::vector<double> depths;

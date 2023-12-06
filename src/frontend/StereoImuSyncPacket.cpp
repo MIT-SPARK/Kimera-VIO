@@ -20,7 +20,7 @@
 
 namespace VIO {
 
-using OptOdom = boost::optional<gtsam::NavState>;
+using OptOdom = std::optional<gtsam::NavState>;
 
 StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,

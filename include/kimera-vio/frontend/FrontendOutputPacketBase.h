@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
@@ -37,9 +39,9 @@ class FrontendOutputPacketBase : public PipelinePayload {
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS& imu_acc_gyrs,
       const DebugTrackerInfo& debug_tracker_info,
-      boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = boost::none,
-      boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
-          boost::none)
+      std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = std::nullopt,
+      std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
+          std::nullopt)
       : PipelinePayload(timestamp),
         is_keyframe_(is_keyframe),
         frontend_type_(frontend_type),
@@ -59,7 +61,9 @@ class FrontendOutputPacketBase : public PipelinePayload {
 
   virtual const gtsam::Pose3* getBodyPoseCamRight() const { return nullptr; }
 
-  virtual const TrackerStatusSummary* getTrackerStatus() const { return nullptr; }
+  virtual const TrackerStatusSummary* getTrackerStatus() const {
+    return nullptr;
+  }
 
  public:
   const bool is_keyframe_;
@@ -69,10 +73,10 @@ class FrontendOutputPacketBase : public PipelinePayload {
   const DebugTrackerInfo debug_tracker_info_;
   // between pose of the body from the current to the last keyframe as estimated
   // by an external odometry source
-  boost::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
+  std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
   // velocity of the current body frame w.r.t. world frame in the current body
   // frame from odometry
-  boost::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
+  std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
   inline DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };

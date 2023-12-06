@@ -14,29 +14,25 @@
 
 #pragma once
 
+#include <opencv2/highgui/highgui_c.h>
+
 #include <atomic>
 #include <memory>
-
-#include <boost/shared_ptr.hpp>  // used for opengv
-
-#include <opencv2/highgui/highgui_c.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-
-#include "kimera-vio/frontend/VisionImuFrontend.h"
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/VisionImuFrontend.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
-
-#include "kimera-vio/pipeline/PipelineModule.h"
 
 namespace VIO {
 
@@ -56,7 +52,7 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
       const StereoCamera::ConstPtr& stereo_camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,
-      boost::optional<OdometryParams> odom_params = boost::none);
+      std::optional<OdometryParams> odom_params = std::nullopt);
 
   virtual ~StereoVisionImuFrontend();
 
@@ -93,8 +89,7 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
     CHECK(frontend_state_ == FrontendState::Bootstrap);
     CHECK(input);
     return bootstrapSpinStereo(
-        VIO::safeCast<FrontendInputPacketBase, StereoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<StereoFrontendInputPayload>(std::move(input)));
   }
 
   /**
@@ -109,8 +104,7 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
           frontend_state_ == FrontendState::InitialTimeAlignment);
     CHECK(input);
     return nominalSpinStereo(
-        VIO::safeCast<FrontendInputPacketBase, StereoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<StereoFrontendInputPayload>(std::move(input)));
   }
 
   /* ------------------------------------------------------------------------ */

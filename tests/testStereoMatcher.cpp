@@ -44,7 +44,7 @@ class StereoMatcherFixture : public ::testing::Test {
     VIO::FrontendParams tp;
     stereo_camera =std::make_shared<VIO::StereoCamera>(
         cam_params_left, cam_params_right);
-    stereo_matcher = VIO::make_unique<StereoMatcher>(
+    stereo_matcher = std::make_unique<StereoMatcher>(
         stereo_camera, tp.stereo_matching_params_);
 
     initializeDataStereo();

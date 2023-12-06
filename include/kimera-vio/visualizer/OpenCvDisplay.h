@@ -105,15 +105,6 @@ class OpenCv3dDisplay : public DisplayBase {
   //! Useful for when testing on servers without display screen.
   void setOffScreenRendering();
 
-  /**
-   * @brief safeCast Try to cast display input base to the derived visualizer
-   * output, if unsuccessful, it will return a nullptr.
-   * @param display_input_base
-   * @return
-   */
-  VisualizerOutput::UniquePtr safeDisplayInputCast(
-      DisplayInputBase::UniquePtr display_input_base);
-
  private:
   //! Data to visualize (in 3D)
   WindowData window_data_;

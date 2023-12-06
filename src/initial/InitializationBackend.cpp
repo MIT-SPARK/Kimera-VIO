@@ -61,7 +61,7 @@ bool InitializationBackend::bundleAdjustmentAndGravityAlignment(
     // Create input for Backend
     const InitializationInputPayload& init_input_payload =
         *(*output_frontend.front());
-    inputs_backend.push_back(VIO::make_unique<BackendInput>(
+    inputs_backend.push_back(std::make_unique<BackendInput>(
         init_input_payload.stereo_frame_lkf_.timestamp_,
         init_input_payload.status_stereo_measurements_,
         init_input_payload.pim_,

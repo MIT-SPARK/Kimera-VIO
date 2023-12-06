@@ -25,13 +25,6 @@
 
 #pragma once
 
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <unordered_map>
-
-#include <boost/foreach.hpp>
-
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoCamera.h>
@@ -44,14 +37,23 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
+#if GTSAM_VERSION_MAJOR <= 4 && GTSAM_VERSION_MINOR < 3
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
+#else
+#include <gtsam/nonlinear/BatchFixedLagSmoother.h>
+#endif
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <unordered_map>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
-#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/OdometryParams.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/initial/InitializationFromImu.h"
 #include "kimera-vio/logging/Logger.h"
@@ -87,7 +89,7 @@ class VioBackend {
              const ImuParams& imu_params,
              const BackendOutputParams& backend_output_params,
              bool log_output,
-             boost::optional<OdometryParams> odom_params = boost::none);
+             std::optional<OdometryParams> odom_params = std::nullopt);
   virtual ~VioBackend() { LOG(INFO) << "Backend destructor called."; }
 
  public:
@@ -149,7 +151,9 @@ class VioBackend {
         initializeFromIMU(input);
         break;
       }
-      default: { LOG(FATAL) << "Wrong initialization mode."; }
+      default: {
+        LOG(FATAL) << "Wrong initialization mode.";
+      }
     }
     // Signal that the Backend has been initialized.
     backend_state_ = BackendState::Nominal;
@@ -215,8 +219,8 @@ class VioBackend {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> odometry_body_pose = boost::none,
-      boost::optional<gtsam::Velocity3> odometry_vel = boost::none);
+      std::optional<gtsam::Pose3> odometry_body_pose = std::nullopt,
+      std::optional<gtsam::Velocity3> odometry_vel = std::nullopt);
 
   // Uses landmark table to add factors in graph.
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
@@ -232,7 +236,7 @@ class VioBackend {
    * @brief addStateValues Add values for the state: pose, velocity, and imu
    * bias.
    * @param cur_id Current Keyframe ID
-   * @param pose Pose of body wrt world 
+   * @param pose Pose of body wrt world
    * @param velocity Velocity of body expressed in world coordinates
    * @param imu_bias Updated biases for gyro and accel
    */
@@ -244,8 +248,8 @@ class VioBackend {
       const FrameId& frame_id,
       const TrackerStatusSummary& tracker_status,
       const gtsam::PreintegrationType& pim,
-      const boost::optional<gtsam::Pose3> odom_pose = boost::none,
-      boost::optional<gtsam::Vector3> odom_vel = boost::none);
+      const std::optional<gtsam::Pose3> odom_pose = std::nullopt,
+      std::optional<gtsam::Vector3> odom_vel = std::nullopt);
   void addStateValuesFromNavState(const FrameId& frame_id,
                                   const gtsam::NavState& nav_state);
 
@@ -389,26 +393,12 @@ class VioBackend {
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
-  void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
-
-  void printPointPlaneFactor(
-      boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const;
-
-  void printPlanePrior(
-      boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const;
-
-  void printPointPrior(
-      boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const;
-
-  void printLinearContainerFactor(
-      boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const;
-
   // Provide a nonlinear factor, which will be casted to any of the selected
   // factors, and then printed.
   // Slot argument, is just to print the slot of the factor if you know it.
   // If slot is -1, there is no slot number printed.
   void printSelectedFactors(
-      const boost::shared_ptr<gtsam::NonlinearFactor>& g,
+      const gtsam::NonlinearFactor* g,
       const size_t& slot = 0,
       const bool print_smart_factors = true,
       const bool print_point_plane_factors = true,
@@ -469,7 +459,7 @@ class VioBackend {
   const BackendParams backend_params_;
   const ImuParams imu_params_;
   const BackendOutputParams backend_output_params_;
-  boost::optional<OdometryParams> odom_params_;
+  std::optional<OdometryParams> odom_params_;
 
   // State estimates.
   // TODO(Toni): bundle these in a VioNavStateTimestamped.

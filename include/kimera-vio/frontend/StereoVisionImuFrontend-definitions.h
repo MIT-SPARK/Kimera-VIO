@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
@@ -36,8 +38,8 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
       const ImuAccGyrS& imu_acc_gyrs,
       const cv::Mat& feature_tracks,
       const DebugTrackerInfo& debug_tracker_info,
-      boost::optional<gtsam::Pose3> lkf_body_Pose_kf_body = boost::none,
-      boost::optional<gtsam::Velocity3> body_world_Vel_body = boost::none)
+      std::optional<gtsam::Pose3> lkf_body_Pose_kf_body = std::nullopt,
+      std::optional<gtsam::Velocity3> body_world_Vel_body = std::nullopt)
       : FrontendOutputPacketBase(stereo_frame_lkf.timestamp_,
                                  is_keyframe,
                                  FrontendType::kStereoImu,

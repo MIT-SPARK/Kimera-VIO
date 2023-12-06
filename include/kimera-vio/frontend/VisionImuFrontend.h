@@ -55,7 +55,7 @@ class VisionImuFrontend {
                     const ImuBias& imu_initial_bias,
                     DisplayQueue* display_queue,
                     bool log_output,
-                    boost::optional<OdometryParams> odom_params = boost::none);
+                    std::optional<OdometryParams> odom_params = std::nullopt);
 
   virtual ~VisionImuFrontend();
 
@@ -172,10 +172,10 @@ class VisionImuFrontend {
   void cacheExternalOdometry(FrontendInputPacketBase* input);
 
   // can't be const (needs to cache keyframe odom if possible)
-  boost::optional<gtsam::Pose3> getExternalOdometryRelativeBodyPose(
+  std::optional<gtsam::Pose3> getExternalOdometryRelativeBodyPose(
       FrontendInputPacketBase* input);
 
-  boost::optional<gtsam::Velocity3> getExternalOdometryWorldVelocity(
+  std::optional<gtsam::Velocity3> getExternalOdometryWorldVelocity(
       FrontendInputPacketBase* input) const;
 
  protected:
@@ -215,9 +215,9 @@ class VisionImuFrontend {
   TimeAlignerBase::UniquePtr time_aligner_;
 
   // External odometry
-  boost::optional<OdometryParams> odom_params_;
+  std::optional<OdometryParams> odom_params_;
   // world_Pose_body for the last keyframe
-  boost::optional<gtsam::Pose3> world_OdomPose_body_lkf_;
+  std::optional<gtsam::Pose3> world_OdomPose_body_lkf_;
 };
 
 }  // namespace VIO

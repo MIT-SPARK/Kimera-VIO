@@ -14,11 +14,10 @@
 
 #include "kimera-vio/visualizer/OpenCvDisplay.h"
 
-#include <string>
-
 #include <glog/logging.h>
 
 #include <opencv2/opencv.hpp>
+#include <string>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
@@ -33,8 +32,8 @@ OpenCv3dDisplay::OpenCv3dDisplay(
     : DisplayBase(display_params->display_type_),  // DANGEROUS
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb),
-      params_(VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
-          *display_params)) {
+      params_(*CHECK_NOTNULL(
+          std::dynamic_pointer_cast<OpenCv3dDisplayParams>(display_params))) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -60,12 +59,8 @@ OpenCv3dDisplay::OpenCv3dDisplay(
 
 void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
   CHECK(display_input);
-  // Display 2D images.
-  if (display_input) {
-    spin2dWindow(*display_input);
-  }
-  // Display 3D window.
-  spin3dWindow(safeDisplayInputCast(std::move(display_input)));
+  spin2dWindow(*display_input);
+  spin3dWindow(castUnique<VisualizerOutput>(std::move(display_input)));
 }
 
 // Adds 3D widgets to the window, and displays it.
@@ -168,7 +163,9 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
                                         cv::viz::SHADING_PHONG);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
 
   // Decide mesh representation style.
@@ -189,7 +186,9 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
                                         cv::viz::REPRESENTATION_WIREFRAME);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
   mesh_widget->setRenderingProperty(cv::viz::AMBIENT,
                                     window_data_.mesh_ambient_);
@@ -371,29 +370,6 @@ void OpenCv3dDisplay::recordVideo() {
 
 void OpenCv3dDisplay::setOffScreenRendering() {
   window_data_.window_.setOffScreenRendering();
-}
-
-VisualizerOutput::UniquePtr OpenCv3dDisplay::safeDisplayInputCast(
-    DisplayInputBase::UniquePtr display_input_base) {
-  if (!display_input_base) return nullptr;
-  VisualizerOutput::UniquePtr viz_output;
-  VisualizerOutput* tmp = nullptr;
-  try {
-    tmp = dynamic_cast<VisualizerOutput*>(display_input_base.get());
-  } catch (const std::bad_cast& e) {
-    LOG(ERROR) << "Seems that you are casting DisplayInputBase to "
-                  "VisualizerOutput, but this object is not "
-                  "a VisualizerOutput!\n"
-                  "Error: "
-               << e.what();
-    return nullptr;
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when casting to VisualizerOutput.";
-  }
-  if (!tmp) return nullptr;
-  display_input_base.release();
-  viz_output.reset(tmp);
-  return viz_output;
 }
 
 }  // namespace VIO

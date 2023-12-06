@@ -40,7 +40,7 @@ RgbdVisionImuFrontend::RgbdVisionImuFrontend(
     const RgbdCamera::ConstPtr& camera,
     DisplayQueue* display_queue,
     bool log_output,
-    boost::optional<OdometryParams> odom_params)
+    std::optional<OdometryParams> odom_params)
     : VisionImuFrontend(frontend_params,
                         imu_params,
                         imu_initial_bias,
@@ -50,10 +50,10 @@ RgbdVisionImuFrontend::RgbdVisionImuFrontend(
       camera_(camera) {
   CHECK(camera_);
 
-  feature_detector_ = VIO::make_unique<FeatureDetector>(
+  feature_detector_ = std::make_unique<FeatureDetector>(
       frontend_params.feature_detector_params_);
 
-  tracker_ = VIO::make_unique<Tracker>(
+  tracker_ = std::make_unique<Tracker>(
       frontend_params_.tracker_params_, camera_, display_queue);
 
   if (VLOG_IS_ON(1)) tracker_->tracker_params_.print();
@@ -66,8 +66,8 @@ RgbdVisionImuFrontend::~RgbdVisionImuFrontend() {
 RgbdOutputPtr RgbdVisionImuFrontend::bootstrapSpin(RgbdInputPtr&& base_input) {
   CHECK(frontend_state_ == FrontendState::Bootstrap);
   CHECK(base_input);
-  auto input = VIO::safeCast<FrontendInputPacketBase, RgbdImuSyncPacket>(
-      std::move(base_input));
+  auto input = castUnique<RgbdImuSyncPacket>(std::move(base_input));
+  CHECK(input) << "input was not RGBD packet";
 
   // Initialize members of the Frontend
   processFirstFrame(*input->rgbd_frame_);
@@ -77,7 +77,7 @@ RgbdOutputPtr RgbdVisionImuFrontend::bootstrapSpin(RgbdInputPtr&& base_input) {
 
   if (!FLAGS_do_fine_imu_camera_temporal_sync && odom_params_) {
     // we assume that the first frame is hardcoded to be a keyframe.
-    // it's okay if world_NavState_odom_ is boost::none (it gets cached later)
+    // it's okay if world_NavState_odom_ is none (it gets cached later)
     cacheExternalOdometry(input.get());
   }
 
@@ -86,7 +86,7 @@ RgbdOutputPtr RgbdVisionImuFrontend::bootstrapSpin(RgbdInputPtr&& base_input) {
   }
 
   CHECK(frame_lkf_);
-  return VIO::make_unique<RgbdFrontendOutput>(frame_lkf_->isKeyframe(),
+  return std::make_unique<RgbdFrontendOutput>(frame_lkf_->isKeyframe(),
                                               nullptr,
                                               camera_->getBodyPoseCam(),
                                               *frame_lkf_,
@@ -101,8 +101,8 @@ RgbdOutputPtr RgbdVisionImuFrontend::nominalSpin(RgbdInputPtr&& base_input) {
   CHECK(frontend_state_ == FrontendState::Nominal ||
         frontend_state_ == FrontendState::InitialTimeAlignment);
   CHECK(base_input);
-  auto input = VIO::safeCast<FrontendInputPacketBase, RgbdImuSyncPacket>(
-      std::move(base_input));
+  auto input = castUnique<RgbdImuSyncPacket>(std::move(base_input));
+  CHECK(input);
 
   utils::StatsCollector timing_stats_frame_rate("VioFrontend Frame Rate [ms]");
   utils::StatsCollector timing_stats_kf_rate("VioFrontend Keyframe Rate [ms]");
@@ -165,7 +165,7 @@ RgbdOutputPtr RgbdVisionImuFrontend::nominalSpin(RgbdInputPtr&& base_input) {
   }
 
   const bool is_keyframe = frame_km1_->isKeyframe();
-  return VIO::make_unique<RgbdFrontendOutput>(
+  return std::make_unique<RgbdFrontendOutput>(
       is_keyframe && frontend_state_ == FrontendState::Nominal,
       stereo_measurements,
       camera_->getBodyPoseCam(),
@@ -176,9 +176,9 @@ RgbdOutputPtr RgbdVisionImuFrontend::nominalSpin(RgbdInputPtr&& base_input) {
       feature_tracks,
       getTrackerInfo(),
       is_keyframe ? getExternalOdometryRelativeBodyPose(input.get())
-                  : boost::none,
+                  : std::nullopt,
       is_keyframe ? getExternalOdometryWorldVelocity(input.get())
-                  : boost::none);
+                  : std::nullopt);
 }
 
 void RgbdVisionImuFrontend::processFirstFrame(const RgbdFrame& rgbd_frame) {

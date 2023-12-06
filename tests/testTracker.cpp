@@ -60,7 +60,7 @@ class TestTracker : public ::testing::Test {
     InitializeData();
 
     if (FLAGS_display) {
-      window_ = VIO::make_unique<cv::viz::Viz3d>("Test Tracker");
+      window_ = std::make_unique<cv::viz::Viz3d>("Test Tracker");
       window_->setBackgroundColor(cv::viz::Color::black());
     }
   }
@@ -130,13 +130,13 @@ class TestTracker : public ::testing::Test {
 
     stereo_camera_ =
         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
-    stereo_matcher_ = VIO::make_unique<VIO::StereoMatcher>(
+    stereo_matcher_ = std::make_unique<VIO::StereoMatcher>(
         stereo_camera_, tp.stereo_matching_params_);
-    tracker_ = VIO::make_unique<Tracker>(
+    tracker_ = std::make_unique<Tracker>(
         tracker_params_, stereo_camera_->getOriginalLeftCamera());
 
     feature_detector_ =
-        VIO::make_unique<VIO::FeatureDetector>(tp.feature_detector_params_);
+        std::make_unique<VIO::FeatureDetector>(tp.feature_detector_params_);
     feature_detector_->featureDetection(&ref_stereo_frame->left_frame_);
     feature_detector_->featureDetection(&cur_stereo_frame->left_frame_);
 
@@ -1634,7 +1634,7 @@ TEST_F(TestTracker, PnPTracking) {
   tracker_params_.ransac_threshold_pnp_ = 0.5;
 
   //! Create pnp tracker
-  tracker_ = VIO::make_unique<Tracker>(tracker_params_,
+  tracker_ = std::make_unique<Tracker>(tracker_params_,
                                        stereo_camera_->getOriginalLeftCamera());
 
   //! Populate data

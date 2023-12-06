@@ -80,9 +80,9 @@ RgbdDataProviderModule::getInputPacket() {
 
   if (!shutdown_) {
     CHECK(vio_pipeline_callback_);
-    vio_pipeline_callback_(VIO::make_unique<RgbdImuSyncPacket>(
+    vio_pipeline_callback_(std::make_unique<RgbdImuSyncPacket>(
         timestamp,
-        VIO::make_unique<RgbdFrame>(left_frame_id,
+        std::make_unique<RgbdFrame>(left_frame_id,
                                     timestamp,
                                     *mono_imu_sync_packet->frame_,
                                     *depth_frame_payload),
@@ -95,7 +95,7 @@ RgbdDataProviderModule::getInputPacket() {
   // TODO(Toni): should be a return like that, so that we pass the info to the
   // queue... Right now we use a callback bcs otw I need to fix all
   // initialization which is a lot to be fixed.
-  // return VIO::make_unique<StereoImuSyncPacket>(
+  // return std::make_unique<StereoImuSyncPacket>(
   //    StereoFrame(
   //        left_frame_payload->id_,
   //        timestamp,

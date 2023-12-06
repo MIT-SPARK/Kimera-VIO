@@ -23,6 +23,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <optional>
+
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
@@ -69,7 +71,7 @@ class Tracker {
                        Frame* cur_frame,
                        const gtsam::Rot3& inter_frame_rotation,
                        const FeatureDetectorParams& feature_detector_params,
-                       boost::optional<cv::Mat> R = boost::none);
+                       std::optional<cv::Mat> R = std::nullopt);
 
   /**
    * @brief updateMap Updates the map of landmarks in the time horizon of
@@ -221,7 +223,7 @@ class Tracker {
       const gtsam::StereoCamera& stereoCam,
       const size_t pointId,
       const gtsam::Matrix3& stereoPtCov,
-      boost::optional<gtsam::Matrix3> Rmat = boost::none);
+      std::optional<gtsam::Matrix3> Rmat = std::nullopt);
 
   static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
       const StatusKeypointsCV& keypoints_undistorted_left,
@@ -230,7 +232,7 @@ class Tracker {
       const gtsam::StereoCamera& stereo_cam,
       const size_t point_id,
       const gtsam::Matrix3& stereo_point_covariance,
-      boost::optional<gtsam::Matrix3> Rmat);
+      std::optional<gtsam::Matrix3> Rmat);
 
  private:
   /**

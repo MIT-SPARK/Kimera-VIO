@@ -182,10 +182,7 @@ class MesherLogger {
    */
   template <typename T>
   void serializeMesh(Mesh<T>& mesh, const std::string& filename) {
-    std::ofstream mesh_file(output_path_ + '/' + filename);
-    boost::archive::text_oarchive ar(mesh_file);
-    ar << mesh;
-    boost::serialization::serialize(ar, mesh, 0);
+    mesh.save(output_path_ + '/' + filename);
   }
 
   /**
@@ -196,9 +193,7 @@ class MesherLogger {
   template <typename T>
   void deserializeMesh(const std::string& filename, Mesh<T>* mesh) const {
     CHECK_NOTNULL(mesh);
-    std::ifstream mesh_file(output_path_ + '/' + filename);
-    boost::archive::text_iarchive ar(mesh_file);
-    ar >> *mesh;
+    mesh->load(output_path_ + '/' + filename);
   }
 
  protected:

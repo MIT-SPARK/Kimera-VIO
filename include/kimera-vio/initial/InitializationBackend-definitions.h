@@ -23,6 +23,9 @@
 
 namespace VIO {
 
+using AHRSPim = std::remove_cv_t<std::remove_reference_t<decltype(
+    std::declval<gtsam::AHRSFactor>().preintegratedMeasurements())>>;
+
 enum InitializationModes { GT, IMU, ALIGNMENT };
 
 struct InitializationInputPayload : public StereoFrontendOutput {
@@ -40,8 +43,7 @@ struct InitializationInputPayload : public StereoFrontendOutput {
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS imu_acc_gyrs,
       const DebugTrackerInfo& debug_tracker_info,
-      const gtsam::AHRSFactor::PreintegratedMeasurements& ahrs_pim =
-          gtsam::AHRSFactor::PreintegratedMeasurements())
+      const AHRSPim& ahrs_pim = {})
       : StereoFrontendOutput(is_keyframe,
                              status_stereo_measurements,
                              b_Pose_camL_rect,
@@ -53,7 +55,7 @@ struct InitializationInputPayload : public StereoFrontendOutput {
                              debug_tracker_info),
         ahrs_pim_(ahrs_pim) {}
 
-  const gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim_;
+  const AHRSPim ahrs_pim_;
 };
 
 }  // namespace VIO

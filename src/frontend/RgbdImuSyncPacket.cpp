@@ -10,7 +10,7 @@
 
 namespace VIO {
 
-using OptOdom = boost::optional<gtsam::NavState>;
+using OptOdom = std::optional<gtsam::NavState>;
 
 RgbdImuSyncPacket::RgbdImuSyncPacket(const Timestamp& timestamp,
                                      RgbdFrame::UniquePtr rgbd_frame,

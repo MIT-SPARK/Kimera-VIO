@@ -23,7 +23,7 @@ namespace VIO {
 MonoImuSyncPacket::MonoImuSyncPacket(Frame::UniquePtr frame,
                                      const ImuStampS& imu_stamps,
                                      const ImuAccGyrS& imu_accgyrs,
-                                     boost::optional<gtsam::NavState> external_odometry)
+                                     std::optional<gtsam::NavState> external_odometry)
     : FrontendInputPacketBase(frame->timestamp_,
                               imu_stamps,
                               imu_accgyrs,

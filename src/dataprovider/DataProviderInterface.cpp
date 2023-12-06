@@ -49,9 +49,9 @@ bool DataProviderInterface::spin() {
   //  b) Call the callbacks in order to send the data.
   if (!shutdown_) {
     left_frame_callback_(
-        VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
+        std::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
     right_frame_callback_(
-        VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
+        std::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
     //! Usually you would use only one of these
     imu_single_callback_(ImuMeasurement());
     imu_multi_callback_(ImuMeasurements());

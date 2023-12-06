@@ -72,7 +72,7 @@ class StereoFrameFixture : public ::testing::Test {
 
     stereo_camera_ =
         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
-    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+    stereo_matcher_ = std::make_unique<StereoMatcher>(
         stereo_camera_, tp.stereo_matching_params_);
 
     // stereo_matcher_->sparseStereoReconstruction(sf.get());

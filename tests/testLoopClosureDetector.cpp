@@ -86,7 +86,7 @@ class LCDFixture : public ::testing::Test {
     stereo_camera_ =
         std::make_shared<StereoCamera>(cam_params_left_, cam_params_right_);
     CHECK(stereo_camera_);
-    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+    stereo_matcher_ = std::make_unique<StereoMatcher>(
         stereo_camera_, frontend_params_.stereo_matching_params_);
     CHECK(stereo_matcher_);
 
@@ -96,13 +96,13 @@ class LCDFixture : public ::testing::Test {
         FLAGS_test_data_path +
         std::string("/ForLoopClosureDetector/small_voc.yml.gz");
 
-    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+    lcd_detector_ = std::make_unique<LoopClosureDetector>(
         lcd_params_,
         stereo_camera_->getLeftCamParams(),
         stereo_camera_->getBodyPoseLeftCamRect(),
         stereo_camera_,
         frontend_params_.stereo_matching_params_,
-        boost::none,
+        std::nullopt,
         false);
 
     lcd_detector_->registerIsBackendQueueFilledCallback(
@@ -135,7 +135,7 @@ class LCDFixture : public ::testing::Test {
 
     // Initialize StereoFrame objects for reference and current frames
     feature_detector_ =
-        VIO::make_unique<FeatureDetector>(feature_detector_params_);
+        std::make_unique<FeatureDetector>(feature_detector_params_);
 
     initializeData();
   }
@@ -150,7 +150,7 @@ class LCDFixture : public ::testing::Test {
     CHECK(stereo_camera_);
     CHECK(stereo_matcher_);
 
-    StereoFrame::UniquePtr stereo_frame = VIO::make_unique<StereoFrame>(
+    StereoFrame::UniquePtr stereo_frame = std::make_unique<StereoFrame>(
         frame_id,
         timestamp,
         Frame(frame_id,
@@ -312,13 +312,13 @@ TEST_F(LCDFixture, defaultConstructor) {
 
 TEST_F(LCDFixture, monoConstructor) {
   /* Test default constructor when in mono mode. */
-  LoopClosureDetector::UniquePtr lcd = VIO::make_unique<LoopClosureDetector>(
+  LoopClosureDetector::UniquePtr lcd = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
-      boost::none,
-      boost::none,
-      boost::none,
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
       false);
   EXPECT_GT(lcd_detector_->getBoWDatabase()->getVocabulary()->size(), 0);
 }
@@ -398,13 +398,13 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
 TEST_F(LCDFixture, processAndAddMonoFrame) {
   /* Test adding frame to database without BoW Loop CLosure Detection */
   lcd_params_.pose_recovery_type_ = PoseRecoveryType::kPnP;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
 
   const auto& cache = lcd_detector_->getFrameCache();
@@ -484,13 +484,13 @@ TEST_F(LCDFixture, processAndAddStereoFrame) {
 
 TEST_F(LCDFixture, geometricVerificationCam2d2d) {
   lcd_params_.tracker_params_.pose_2d2d_algorithm_ = Pose2d2dAlgorithm::NISTER;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
 
   /* Test geometric verification using RANSAC Nister 5pt method */
@@ -540,13 +540,13 @@ TEST_F(LCDFixture, geometricVerificationCam2d2d) {
 TEST_F(LCDFixture, recoverPoseBodyArun) {
   CHECK(lcd_detector_);
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -626,13 +626,13 @@ TEST_F(LCDFixture, recoverPoseBodyArun) {
 TEST_F(LCDFixture, recoverPoseBodyGivenRot) {
   CHECK(lcd_detector_);
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = true;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
 
   const auto& cache = lcd_detector_->getFrameCache();
@@ -735,13 +735,13 @@ TEST_F(LCDFixture, recoverPoseBodyPnpMono) {
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
   lcd_params_.tracker_params_.ransac_randomize_ = false;
   lcd_params_.pose_recovery_type_ = PoseRecoveryType::kPnP;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
-      boost::none,
-      boost::none,
-      boost::none,
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -794,13 +794,13 @@ TEST_F(LCDFixture, recoverPoseBody5ptMono) {
   lcd_params_.tracker_params_.ransac_use_1point_stereo_ = false;
   lcd_params_.tracker_params_.ransac_randomize_ = false;
   lcd_params_.pose_recovery_type_ = PoseRecoveryType::k5ptRotOnly;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
-      boost::none,
-      boost::none,
-      boost::none,
+      std::nullopt,
+      std::nullopt,
+      std::nullopt,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -853,13 +853,13 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
   lcd_params_.pose_recovery_type_ = PoseRecoveryType::kPnP;
   lcd_params_.tracker_params_.pnp_algorithm_ = Pose3d2dAlgorithm::EPNP;
   lcd_params_.refine_pose_ = false;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
   gtsam::Pose3 empty_pose = gtsam::Pose3();
   std::pair<double, double> error;
@@ -906,13 +906,13 @@ TEST_F(LCDFixture, recoverPoseBodyPnpStereo) {
 
 TEST_F(LCDFixture, detectLoop) {
   lcd_params_.tracker_params_.pose_2d2d_algorithm_ = Pose2d2dAlgorithm::NISTER;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
 
   std::pair<double, double> error;
@@ -999,13 +999,13 @@ TEST_F(LCDFixture, addLoopClosureFactorNoOptimize) {
   params.pcm_trans_threshold_ = -1;
   params.gnc_alpha_ = 0;
   params.max_lc_cached_before_optimize_ = 1000;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       params,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
   lcd_detector_->registerIsBackendQueueFilledCallback(
       std::bind(&LCDFixture::lcdInputQueueCb, this));
@@ -1094,12 +1094,9 @@ TEST_F(LCDFixture, spinOnce) {
           ImuAccGyrS(),
           cv::Mat(),
           DebugTrackerInfo());
-  FrontendOutputPacketBase::Ptr frontend_output_match1 =
-      VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
-          stereo_frontend_output);
   LcdOutput::Ptr output_0 =
       lcd_detector_->spinOnce(LcdInput(timestamp_match1_,
-                                       frontend_output_match1,
+                                       stereo_frontend_output,
                                        FrameId(0),
                                        W_match1_lmks3d_,
                                        gtsam::Pose3()));
@@ -1115,12 +1112,9 @@ TEST_F(LCDFixture, spinOnce) {
       ImuAccGyrS(),
       cv::Mat(),
       DebugTrackerInfo());
-  FrontendOutputPacketBase::Ptr frontend_output_match2 =
-      VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
-          stereo_frontend_output);
   LcdOutput::Ptr output_1 =
       lcd_detector_->spinOnce(LcdInput(timestamp_match2_,
-                                       frontend_output_match2,
+                                       stereo_frontend_output,
                                        FrameId(1),
                                        W_match2_lmks3d_,
                                        gtsam::Pose3()));
@@ -1136,12 +1130,9 @@ TEST_F(LCDFixture, spinOnce) {
       ImuAccGyrS(),
       cv::Mat(),
       DebugTrackerInfo());
-  FrontendOutputPacketBase::Ptr frontend_output_query1 =
-      VIO::safeCast<StereoFrontendOutput, FrontendOutputPacketBase>(
-          stereo_frontend_output);
   LcdOutput::Ptr output_2 =
       lcd_detector_->spinOnce(LcdInput(timestamp_query1_,
-                                       frontend_output_query1,
+                                       stereo_frontend_output,
                                        FrameId(2),
                                        W_query1_lmks3d_,
                                        gtsam::Pose3()));
@@ -1179,13 +1170,13 @@ TEST_F(LCDFixture, noRefinePosesInMono) {
   CHECK(lcd_detector_);
   lcd_params_.refine_pose_ = true;
   lcd_params_.pose_recovery_type_ = PoseRecoveryType::kPnP;
-  lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+  lcd_detector_ = std::make_unique<LoopClosureDetector>(
       lcd_params_,
       stereo_camera_->getLeftCamParams(),
       stereo_camera_->getBodyPoseLeftCamRect(),
       stereo_camera_,
       frontend_params_.stereo_matching_params_,
-      boost::none,
+      std::nullopt,
       false);
 
   const auto& cache = lcd_detector_->getFrameCache();

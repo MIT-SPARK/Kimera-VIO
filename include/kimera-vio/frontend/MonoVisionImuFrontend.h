@@ -46,7 +46,7 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
       const Camera::ConstPtr& camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,
-      boost::optional<OdometryParams> odom_params = boost::none);
+      std::optional<OdometryParams> odom_params = std::nullopt);
 
   virtual ~MonoVisionImuFrontend();
 
@@ -58,8 +58,7 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
     CHECK(frontend_state_ == FrontendState::Bootstrap);
     CHECK(input);
     return bootstrapSpinMono(
-        VIO::safeCast<FrontendInputPacketBase, MonoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<MonoFrontendInputPayload>(std::move(input)));
   }
 
   inline FrontendOutputPacketBase::UniquePtr nominalSpin(
@@ -68,8 +67,7 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
           frontend_state_ == FrontendState::InitialTimeAlignment);
     CHECK(input);
     return nominalSpinMono(
-        VIO::safeCast<FrontendInputPacketBase, MonoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<MonoFrontendInputPayload>(std::move(input)));
   }
 
   MonoFrontendOutput::UniquePtr nominalSpinMono(

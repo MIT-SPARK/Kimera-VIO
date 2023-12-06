@@ -45,7 +45,7 @@ class UndistortRectifierFixture : public ::testing::Test {
     // Construct UndistortRectifier
     stereo_camera = std::make_shared<VIO::StereoCamera>(
         cam_params_left, cam_params_right);
-    undistorter_rectifier = VIO::make_unique<VIO::UndistorterRectifier>(
+    undistorter_rectifier = std::make_unique<VIO::UndistorterRectifier>(
         stereo_camera->getP1(), 
         cam_params_left,
         stereo_camera->getR1());

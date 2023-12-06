@@ -24,7 +24,7 @@ Mesher::UniquePtr MesherFactory::createMesher(
     const MesherParams& mesher_params) {
   switch (mesher_type) {
     case MesherType::PROJECTIVE: {
-      return VIO::make_unique<Mesher>(mesher_params, FLAGS_serialize_mesh_2d3d);
+      return std::make_unique<Mesher>(mesher_params, FLAGS_serialize_mesh_2d3d);
     }
     default: {
       LOG(FATAL) << "Requested mesher type is not supported.\n"

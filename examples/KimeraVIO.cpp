@@ -56,10 +56,10 @@ int main(int argc, char* argv[]) {
       switch (vio_params.frontend_type_) {
         case VIO::FrontendType::kMonoImu: {
           dataset_parser =
-              VIO::make_unique<VIO::MonoEurocDataProvider>(vio_params);
+              std::make_unique<VIO::MonoEurocDataProvider>(vio_params);
         } break;
         case VIO::FrontendType::kStereoImu: {
-          dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
+          dataset_parser = std::make_unique<VIO::EurocDataProvider>(vio_params);
         } break;
         default: {
           LOG(FATAL) << "Unrecognized Frontend type: "
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
       }
     } break;
     case 1: {
-      dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
+      dataset_parser = std::make_unique<VIO::KittiDataProvider>();
     } break;
     default: {
       LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
@@ -82,10 +82,10 @@ int main(int argc, char* argv[]) {
 
   switch (vio_params.frontend_type_) {
     case VIO::FrontendType::kMonoImu: {
-      vio_pipeline = VIO::make_unique<VIO::MonoImuPipeline>(vio_params);
+      vio_pipeline = std::make_unique<VIO::MonoImuPipeline>(vio_params);
     } break;
     case VIO::FrontendType::kStereoImu: {
-      vio_pipeline = VIO::make_unique<VIO::StereoImuPipeline>(vio_params);
+      vio_pipeline = std::make_unique<VIO::StereoImuPipeline>(vio_params);
     } break;
     default: {
       LOG(FATAL) << "Unrecognized Frontend type: "
@@ -108,8 +108,9 @@ int main(int argc, char* argv[]) {
       &VIO::Pipeline::fillLeftFrameQueue, vio_pipeline, std::placeholders::_1));
 
   if (vio_params.frontend_type_ == VIO::FrontendType::kStereoImu) {
-    VIO::StereoImuPipeline::Ptr stereo_pipeline =
-        VIO::safeCast<VIO::Pipeline, VIO::StereoImuPipeline>(vio_pipeline);
+    auto stereo_pipeline =
+        std::dynamic_pointer_cast<VIO::StereoImuPipeline>(vio_pipeline);
+    CHECK(stereo_pipeline);
 
     dataset_parser->registerRightFrameCallback(
         std::bind(&VIO::StereoImuPipeline::fillRightFrameQueue,

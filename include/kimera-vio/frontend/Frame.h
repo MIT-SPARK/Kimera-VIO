@@ -16,7 +16,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <boost/foreach.hpp>
 #include <cstdlib>
 #include <numeric>
 #include <string>

@@ -43,7 +43,7 @@ PangolinDisplay::PangolinDisplay(
   tree.Add(std::make_shared<pangolin::Axis>());
 
   // Create Interactive View in window
-  handler = VIO::make_unique<pangolin::SceneHandler>(tree, s_cam);
+  handler = std::make_unique<pangolin::SceneHandler>(tree, s_cam);
   d_cam = pangolin::CreateDisplay()
               .SetBounds(0.0, 1.0, 0.0, 1.0, -640.0f / 480.0f)
               .SetHandler(handler.get());

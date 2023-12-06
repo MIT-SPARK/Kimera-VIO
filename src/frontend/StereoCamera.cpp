@@ -14,19 +14,15 @@
 
 #include "kimera-vio/frontend/StereoCamera.h"
 
-#include <Eigen/Core>
-
-#include <opencv2/calib3d.hpp>
-#include <opencv2/core.hpp>
-
-#include <boost/utility.hpp>  // for tie
-
+#include <glog/logging.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Cal3_S2Stereo.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
-#include <glog/logging.h>
+#include <Eigen/Core>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/core.hpp>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
@@ -76,32 +72,30 @@ StereoCamera::StereoCamera(const CameraParams& left_cam_params,
   CHECK_GT(stereo_baseline_, 0.0);
 
   //! Create stereo camera calibration after rectification and undistortion.
-  const gtsam::Cal3_S2& left_undist_rect_cam_mat =
-      UtilsOpenCV::Cvmat2Cal3_S2(P1_);
-  stereo_calibration_ =
-      boost::make_shared<gtsam::Cal3_S2Stereo>(left_undist_rect_cam_mat.fx(),
-                                               left_undist_rect_cam_mat.fy(),
-                                               left_undist_rect_cam_mat.skew(),
-                                               left_undist_rect_cam_mat.px(),
-                                               left_undist_rect_cam_mat.py(),
-                                               stereo_baseline_);
+  const auto left_undist_rect_cam_mat = UtilsOpenCV::Cvmat2Cal3_S2(P1_);
+  stereo_calibration_.reset(
+      new gtsam::Cal3_S2Stereo(left_undist_rect_cam_mat.fx(),
+                               left_undist_rect_cam_mat.fy(),
+                               left_undist_rect_cam_mat.skew(),
+                               left_undist_rect_cam_mat.px(),
+                               left_undist_rect_cam_mat.py(),
+                               stereo_baseline_));
 
   //! Create undistort rectifiers: these should be called after
   //! computeRectificationParameters.
   left_cam_undistort_rectifier_ =
-      VIO::make_unique<UndistorterRectifier>(P1_, left_cam_params, R1_);
+      std::make_unique<UndistorterRectifier>(P1_, left_cam_params, R1_);
   right_cam_undistort_rectifier_ =
-      VIO::make_unique<UndistorterRectifier>(P2_, right_cam_params, R2_);
+      std::make_unique<UndistorterRectifier>(P2_, right_cam_params, R2_);
 
   //! Create stereo camera implementation
   undistorted_rectified_stereo_camera_impl_ =
       gtsam::StereoCamera(B_Pose_camLrect_, stereo_calibration_);
 }
 
-StereoCamera::StereoCamera(Camera::ConstPtr left_camera, Camera::ConstPtr right_camera)
-    : StereoCamera(
-          left_camera->getCamParams(),
-          right_camera->getCamParams()) {}
+StereoCamera::StereoCamera(Camera::ConstPtr left_camera,
+                           Camera::ConstPtr right_camera)
+    : StereoCamera(left_camera->getCamParams(), right_camera->getCamParams()) {}
 
 void StereoCamera::project(const LandmarksCV& lmks,
                            KeypointsCV* left_kpts,
@@ -272,7 +266,8 @@ void StereoCamera::distortUnrectifyRightKeypoints(
       status_keypoints_rectified, keypoints);
 }
 
-void StereoCamera::undistortRectifyStereoFrame(StereoFrame* stereo_frame) const {
+void StereoCamera::undistortRectifyStereoFrame(
+    StereoFrame* stereo_frame) const {
   CHECK_NOTNULL(stereo_frame);
   //! Warn if stupid behavior from user
   VLOG_IF(1, stereo_frame->isRectified())
@@ -320,7 +315,7 @@ void StereoCamera::computeRectificationParameters(
   // NOTE: openCV pose convention is the opposite, that's why we have to
   // invert
   cv::Mat camL_Rot_camR, camL_Tran_camR;
-  boost::tie(camL_Rot_camR, camL_Tran_camR) =
+  std::tie(camL_Rot_camR, camL_Tran_camR) =
       UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse());
 
   // kAlpha is -1 by default, but that introduces invalid keypoints!
@@ -372,10 +367,9 @@ void StereoCamera::computeRectificationParameters(
           cv::CALIB_ZERO_DISPARITY);
     } break;
     case DistortionModel::OMNI: {
-      LOG(FATAL)
-          << "UndistorterRectifier: Attempting to initialize for OMNI "
-             "camera, but undistortion is implemented at camera level. "
-             "Use a mono camera instead.";
+      LOG(FATAL) << "UndistorterRectifier: Attempting to initialize for OMNI "
+                    "camera, but undistortion is implemented at camera level. "
+                    "Use a mono camera instead.";
     } break;
     default: {
       LOG(FATAL) << "Unknown DistortionModel: "

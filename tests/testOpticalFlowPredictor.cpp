@@ -199,7 +199,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
   void visualizeScene(const std::string& test_name,
                       const KeypointsCV& predicted_kpts) {
     if (FLAGS_display) {
-      window_ = VIO::make_unique<cv::viz::Viz3d>(test_name);
+      window_ = std::make_unique<cv::viz::Viz3d>(test_name);
       window_->setBackgroundColor(cv::viz::Color::white());
 
       cv::Matx33d K = UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K());
