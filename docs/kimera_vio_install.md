@@ -51,7 +51,7 @@ brew install vtk
 sudo apt-get install -y \
       build-essential unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
-      libvt76-dev \
+      libvtk7-dev \
       libgtk-3-dev \
       libparmetis-dev \
       libatlas-base-dev gfortran
