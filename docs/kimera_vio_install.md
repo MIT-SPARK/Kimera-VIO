@@ -1,6 +1,6 @@
 # Kimera-VIO Installation
 
-Tested on Mac, Ubuntu 14.04, 16.04 & 18.04.
+Tested on Ubuntu 20.04.
 
 If you want to avoid building all these dependencies yourself, we provide two options:
 
@@ -15,8 +15,8 @@ Alternatively, you may install the dependencies and Kimera from \"source\" as de
 
 - Third-party dependencies:
 
-  - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-  - [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
+  - [GTSAM](https://github.com/borglab/gtsam) >= 4.1
+  - [OpenCV](https://github.com/opencv/opencv) >= 3.4
   - [OpenGV](https://github.com/laurentkneip/opengv)
   - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
   - [DBoW2](https://github.com/dorian3d/DBoW2)
@@ -45,13 +45,13 @@ sudo apt-get install -y libboost-all-dev
 brew install vtk
 ```
 
-  - On Ubuntu 18.04
+  - On Ubuntu 20.04
 ```bash
 # (libvtk5-dev, libgtk2.0-dev in ubuntu 16.04)
 sudo apt-get install -y \
       build-essential unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
-      libvtk6-dev \
+      libvtk7-dev \
       libgtk-3-dev \
       libparmetis-dev \
       libatlas-base-dev gfortran
@@ -67,16 +67,16 @@ Install [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblock
 
 Clone GTSAM: `git clone git@github.com:borglab/gtsam.git`
 
-> (last tested with commit `ee069286b447ff58b809423cc77c777a02abdfe5`)
-> Previously tested commits: `0c3e05f375c03c5ff5218e708db416b38f4113c8`
+> (last tested with release `4.2`)
 
 Make build dir, and run `cmake`:
 
 ```bash
 cd gtsam
+git checkout 4.2
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF ..
 ```
 
 Ensure that:
@@ -109,11 +109,13 @@ sudo make -j $(nproc) install
 
 #### OpenCV Source Install
 
+Note that you can use `apt-get install libopencv-dev libopencv-contrib-dev` on 20.04 instead of building from source.
+
 Download OpenCV and run cmake:
 ```bash
 git clone https://github.com/opencv/opencv.git
 cd opencv
-git checkout tags/3.3.1
+git checkout tags/4.2  # 3.4 or higher should be fine
 mkdir build
 cd build
 cmake -DWITH_VTK=On .. # Use -DWITH_TBB=On if you have TBB
@@ -264,4 +266,9 @@ Once done, you can run the `kimera_vio_docker.bash`:
 ```bash
 # Run an example dataset
 ./scripts/docker/kimera_vio_docker.bash
+```
+
+Make sure to give the docker container access to datasets to run on Kimera by adding a volume. For example, add the following line to the script:
+```bash
+--volume="/data/datasets/Euroc:/data/datasets/Euroc" \
 ```

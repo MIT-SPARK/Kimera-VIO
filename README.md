@@ -71,12 +71,12 @@ Alternatively, the `Regular VIO` Backend, using structural regularities, is desc
 
 # 1. Installation
 
-Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
+Tested on Ubuntu 20.04.
 
 ## Prerequisites
 
-- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-- [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
+- [GTSAM](https://github.com/borglab/gtsam) >= 4.1
+- [OpenCV](https://github.com/opencv/opencv) >= 3.4
 - [OpenGV](https://github.com/laurentkneip/opengv)
 - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/)
 - [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
