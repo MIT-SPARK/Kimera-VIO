@@ -6,7 +6,7 @@ DEFINE_string(test_data_path, "../tests/data", "Path to data for unit tests.");
 
 DEFINE_bool(display, false, "Display test results.");
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   // Initialize Google's testing library.
   ::testing::InitGoogleTest(&argc, argv);
   // Initialize Google's flags library.

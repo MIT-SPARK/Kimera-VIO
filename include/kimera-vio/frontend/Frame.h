@@ -16,7 +16,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <boost/foreach.hpp>
 #include <cstdlib>
 #include <numeric>
 #include <string>
@@ -86,7 +85,7 @@ class Frame : public PipelinePayload {
 
  public:
   /* ------------------------------------------------------------------------ */
-  void checkFrame() const { 
+  void checkFrame() const {
     const size_t nr_kpts = keypoints_.size();
     CHECK_EQ(keypoints_undistorted_.size(), nr_kpts);
     CHECK_EQ(scores_.size(), nr_kpts);
@@ -119,11 +118,10 @@ class Frame : public PipelinePayload {
   }
 
   /* ------------------------------------------------------------------------ */
-  static LandmarkId findLmkIdFromPixel(
-      const KeypointCV& px,
-      const KeypointsCV& keypoints,
-      const LandmarkIds& landmarks,
-      size_t* idx_in_keypoints = nullptr) {
+  static LandmarkId findLmkIdFromPixel(const KeypointCV& px,
+                                       const KeypointsCV& keypoints,
+                                       const LandmarkIds& landmarks,
+                                       size_t* idx_in_keypoints = nullptr) {
     // Iterate over all current keypoints_.
     for (size_t i = 0; i < keypoints.size(); i++) {
       // If we have found the pixel px in the set of keypoints, return the
@@ -152,6 +150,12 @@ class Frame : public PipelinePayload {
     cam_param_.print();
   }
 
+  // get a much smaller (and faster) copy of a frame for frame-to-frame RANSAC
+  Frame::UniquePtr getRansacFrame() const {
+    return Frame::UniquePtr(new Frame(
+        id_, timestamp_, cam_param_, keypoints_, landmarks_, versors_));
+  }
+
  public:
   const FrameId id_;
 
@@ -178,6 +182,22 @@ class Frame : public PipelinePayload {
   BearingVectors versors_;
   //! Not currently used
   cv::Mat descriptors_;
+  //! Optional mask for feature detection. Note that can change when the frame is const
+  mutable cv::Mat detection_mask_;
+
+ protected:
+  Frame(const FrameId& id,
+        const Timestamp& timestamp,
+        const CameraParams& params,
+        const KeypointsCV& keypoints,
+        const LandmarkIds& landmarks,
+        const BearingVectors& versors)
+      : PipelinePayload(timestamp),
+        id_(id),
+        cam_param_(params),
+        keypoints_(keypoints),
+        landmarks_(landmarks),
+        versors_(versors) {}
 };
 
 }  // namespace VIO

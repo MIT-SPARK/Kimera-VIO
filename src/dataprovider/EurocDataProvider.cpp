@@ -59,13 +59,13 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
                                      const int& final_k,
                                      const VioParams& vio_params)
     : DataProviderInterface(),
+      vio_params_(vio_params),
       dataset_path_(dataset_path),
       current_k_(std::numeric_limits<FrameId>::max()),
       initial_k_(initial_k),
       final_k_(final_k),
-      vio_params_(vio_params),
       imu_measurements_(),
-      logger_(FLAGS_log_euroc_gt_data ? VIO::make_unique<EurocGtLogger>()
+      logger_(FLAGS_log_euroc_gt_data ? std::make_unique<EurocGtLogger>()
                                       : nullptr) {
   CHECK(!dataset_path_.empty())
       << "Dataset path for EurocDataProvider is empty.";
@@ -138,6 +138,10 @@ bool EurocDataProvider::spin() {
   return false;
 }
 
+bool EurocDataProvider::hasData() const {
+  return current_k_ < final_k_;
+}
+
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spinOnce() {
   CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
@@ -167,7 +171,7 @@ bool EurocDataProvider::spinOnce() {
     // Both stereo images are available, send data to VIO
     CHECK(left_frame_callback_);
     left_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
+        std::make_unique<Frame>(current_k_,
                                 timestamp_frame_k,
                                 // TODO(Toni): this info should be passed to
                                 // the camera... not all the time here...
@@ -176,7 +180,7 @@ bool EurocDataProvider::spinOnce() {
                                     left_img_filename, equalize_image)));
     CHECK(right_frame_callback_);
     right_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
+        std::make_unique<Frame>(current_k_,
                                 timestamp_frame_k,
                                 // TODO(Toni): this info should be passed to
                                 // the camera... not all the time here...
@@ -247,7 +251,7 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
     gtsam::Vector6 gyr_acc_data;
-    for (size_t i = 0u; i < gyr_acc_data.size() + 1u; i++) {
+    for (int i = 0u; i < gyr_acc_data.size() + 1u; i++) {
       int idx = line.find_first_of(',');
       if (i == 0) {
         timestamp = std::stoll(line.substr(0, idx));
@@ -325,7 +329,7 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame: aka body_Pose_prism_ == body_Pose_cam_
-  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3::identity()))
+  CHECK(gt_data_.body_Pose_prism_.equals(gtsam::Pose3()))
       << "parseGTdata: we expected identity body_Pose_prism_: is everything "
          "ok?";
 
@@ -380,22 +384,22 @@ bool EurocDataProvider::parseGtData(const std::string& input_dataset_path,
         gt_data_raw[3], gt_data_raw[4], gt_data_raw[5], gt_data_raw[6]);
 
     // Sanity check.
-    gtsam::Vector q = rot.quaternion();
+    gtsam::Quaternion q = rot.toQuaternion();
     // Figure out sign for quaternion.
-    if (std::fabs(q(0) + gt_data_raw[3]) < std::fabs(q(0) - gt_data_raw[3])) {
-      q = -q;
+    if (std::fabs(q.w() + gt_data_raw[3]) < std::fabs(q.w() - gt_data_raw[3])) {
+      q.coeffs() = -1.0 * q.coeffs();
     }
 
     LOG_IF(FATAL,
-           (fabs(q(0) - gt_data_raw[3]) > 1e-3) ||
-               (fabs(q(1) - gt_data_raw[4]) > 1e-3) ||
-               (fabs(q(2) - gt_data_raw[5]) > 1e-3) ||
-               (fabs(q(3) - gt_data_raw[6]) > 1e-3))
+           (fabs(q.w() - gt_data_raw[3]) > 1e-3) ||
+               (fabs(q.x() - gt_data_raw[4]) > 1e-3) ||
+               (fabs(q.y() - gt_data_raw[5]) > 1e-3) ||
+               (fabs(q.z() - gt_data_raw[6]) > 1e-3))
         << "parseGTdata: wrong quaternion conversion"
-        << "(" << q(0) << "," << gt_data_raw[3] << ") "
-        << "(" << q(1) << "," << gt_data_raw[4] << ") "
-        << "(" << q(2) << "," << gt_data_raw[5] << ") "
-        << "(" << q(3) << "," << gt_data_raw[6] << ").";
+        << "(" << q.w() << "," << gt_data_raw[3] << ") "
+        << "(" << q.x() << "," << gt_data_raw[4] << ") "
+        << "(" << q.y() << "," << gt_data_raw[5] << ") "
+        << "(" << q.z() << "," << gt_data_raw[6] << ").";
 
     gt_curr.pose_ = gtsam::Pose3(rot, position);
     gt_curr.velocity_ =
@@ -629,7 +633,7 @@ const InitializationPerformance EurocDataProvider::getInitializationPerformance(
   // Assumes gravity vector is downwards
 
   // Loop through bundle adjustment poses and get GT
-  for (int i = 1; i < timestamps.size(); i++) {
+  for (size_t i = 1; i < timestamps.size(); i++) {
     double relativeRotError = -1;
     double relativeTranError = -1;
     // Fill relative poses from GT
@@ -797,7 +801,7 @@ bool MonoEurocDataProvider::spin() {
     }
 
     // Spin.
-    CHECK_EQ(vio_params_.camera_params_.size(), 2u);
+    // CHECK_EQ(vio_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
     // We log only the first one, because we may be running in sequential mode.
     LOG_FIRST_N(INFO, 1) << "Running dataset between frame " << initial_k_
@@ -841,7 +845,7 @@ bool MonoEurocDataProvider::spinOnce() {
     // Both stereo images are available, send data to VIO
     CHECK(left_frame_callback_);
     left_frame_callback_(
-        VIO::make_unique<Frame>(current_k_,
+        std::make_unique<Frame>(current_k_,
                                 timestamp_frame_k,
                                 // TODO(Toni): this info should be passed to
                                 // the camera... not all the time here...

@@ -1,6 +1,6 @@
 # Kimera-VIO Installation
 
-Tested on Mac, Ubuntu 14.04, 16.04 & 18.04.
+Tested on Ubuntu 20.04.
 
 If you want to avoid building all these dependencies yourself, we provide two options:
 
@@ -15,8 +15,8 @@ Alternatively, you may install the dependencies and Kimera from \"source\" as de
 
 - Third-party dependencies:
 
-  - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-  - [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
+  - [GTSAM](https://github.com/borglab/gtsam) >= 4.1
+  - [OpenCV](https://github.com/opencv/opencv) >= 3.4
   - [OpenGV](https://github.com/laurentkneip/opengv)
   - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
   - [DBoW2](https://github.com/dorian3d/DBoW2)
@@ -42,15 +42,16 @@ sudo apt-get install -y libboost-all-dev
 - OpenCV dependencies:
   - on Mac:
 ```bash
-homebrew install vtk # (to check)
+brew install vtk
 ```
-  - On Ubuntu 18.04
+
+  - On Ubuntu 20.04
 ```bash
 # (libvtk5-dev, libgtk2.0-dev in ubuntu 16.04)
 sudo apt-get install -y \
       build-essential unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
-      libvtk6-dev \
+      libvtk7-dev \
       libgtk-3-dev \
       libparmetis-dev \
       libatlas-base-dev gfortran
@@ -66,16 +67,16 @@ Install [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblock
 
 Clone GTSAM: `git clone git@github.com:borglab/gtsam.git`
 
-> (last tested with commit `ee069286b447ff58b809423cc77c777a02abdfe5`)
-> Previously tested commits: `0c3e05f375c03c5ff5218e708db416b38f4113c8`
+> (last tested with release `4.2`)
 
 Make build dir, and run `cmake`:
 
 ```bash
 cd gtsam
+git checkout 4.2
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON -DGTSAM_TANGENT_PREINTEGRATION=OFF ..
 ```
 
 Ensure that:
@@ -102,17 +103,19 @@ sudo make -j $(nproc) install
 
 > Note: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to 'false' (cmake flag)
 
-> Note: also enable the `GTSAM_BUILD_WITH_MARCH_NATIVE` compile option for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `MARCH_NATIVE` might cause problems that culminates in the form of segfaults when you run the unittests. If you do wish to use this flag, simply add `-DGTSAM_BUILD_WITH_MARCH_NATIVE=On ` to the flags on the `cmake` command. Note that sometimes, the flag it is enabled by default.
+> Note: `GTSAM_BUILD_WITH_MARCH_NATIVE` is on by default which means that Kimera-VIO inherits `-march=native` as a build option. If you build with the option `GTSAM_BUILD_WITH_MARCH_NATIVE=OFF`, you will also have to build opengv without `-march=native` to avoid alignment issues between Kimera-VIO and opengv.
 
 ## Install OpenCV
 
 #### OpenCV Source Install
 
+Note that you can use `apt-get install libopencv-dev libopencv-contrib-dev` on 20.04 instead of building from source.
+
 Download OpenCV and run cmake:
 ```bash
 git clone https://github.com/opencv/opencv.git
 cd opencv
-git checkout tags/3.3.1
+git checkout tags/4.2  # 3.4 or higher should be fine
 mkdir build
 cd build
 cmake -DWITH_VTK=On .. # Use -DWITH_TBB=On if you have TBB
@@ -124,6 +127,32 @@ sudo make -j $(nproc) install
 ```
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
+
+#### Known issues on Mac
+Sometimes VTK is not correctly detected when running OpenCV cmake: if you see `-- VTK is not found` in the cmake trace (a somewhat common [issue on mac](https://github.com/opencv/opencv/issues/17401)), 
+consider going back and reinstalling VTK from source as follows.
+Clone VTK from `https://gitlab.kitware.com/vtk/vtk` and check-out tag 7.1.0. In the VTK folder execute:
+
+```bash
+brew uninstall vtk # uninstall other vtk versions
+mkdir build
+cd build
+sudo make -j $(nproc) install
+```	
+
+Finally, go to the OpenCV build folder and build and install OpenCV:
+```bash
+cmake -DWITH_VTK=On .. # now VTK should be correctly detected, Use -DWITH_TBB=On if you have TBB
+sudo make -j $(nproc) install
+```
+
+Another common issue on mac is that OpenCV may not compile from source due to `ffmpeg` version issues. In that case, a potential solution is this (borrowed from [this stackoverflow page](https://stackoverflow.com/questions/46884682/error-in-building-opencv-with-ffmpeg)): copy-paste the following 3 lines at the top of `opencv-3.3.0/modules/videoio/src/cap_ffmpeg_impl.hpp`:
+```bash
+#define AV_CODEC_FLAG_GLOBAL_HEADER (1 << 22)
+#define CODEC_FLAG_GLOBAL_HEADER AV_CODEC_FLAG_GLOBAL_HEADER
+#define AVFMT_RAWPICTURE 0x0020
+```
+after which OpenCV should compile.
 
 ## Install OpenGV
 Clone the repo:
@@ -237,4 +266,9 @@ Once done, you can run the `kimera_vio_docker.bash`:
 ```bash
 # Run an example dataset
 ./scripts/docker/kimera_vio_docker.bash
+```
+
+Make sure to give the docker container access to datasets to run on Kimera by adding a volume. For example, add the following line to the script:
+```bash
+--volume="/data/datasets/Euroc:/data/datasets/Euroc" \
 ```

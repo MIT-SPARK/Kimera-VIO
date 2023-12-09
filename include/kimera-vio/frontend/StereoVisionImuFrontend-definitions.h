@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
@@ -28,8 +30,6 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
   StereoFrontendOutput(
       const bool is_keyframe,
       const StatusStereoMeasurementsPtr& status_stereo_measurements,
-      const TrackingStatus& tracker_status,
-      const gtsam::Pose3& relative_pose_body_stereo,
       const gtsam::Pose3& b_Pose_camL_rect,
       const gtsam::Pose3& b_Pose_camR_rect,
       const StereoFrame& stereo_frame_lkf,
@@ -37,16 +37,18 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
       const ImuFrontend::PimPtr& pim,
       const ImuAccGyrS& imu_acc_gyrs,
       const cv::Mat& feature_tracks,
-      const DebugTrackerInfo& debug_tracker_info)
+      const DebugTrackerInfo& debug_tracker_info,
+      std::optional<gtsam::Pose3> lkf_body_Pose_kf_body = std::nullopt,
+      std::optional<gtsam::Velocity3> body_world_Vel_body = std::nullopt)
       : FrontendOutputPacketBase(stereo_frame_lkf.timestamp_,
                                  is_keyframe,
                                  FrontendType::kStereoImu,
                                  pim,
                                  imu_acc_gyrs,
-                                 debug_tracker_info),
+                                 debug_tracker_info,
+                                 lkf_body_Pose_kf_body,
+                                 body_world_Vel_body),
         status_stereo_measurements_(status_stereo_measurements),
-        tracker_status_(tracker_status),
-        relative_pose_body_stereo_(relative_pose_body_stereo),
         b_Pose_camL_rect_(b_Pose_camL_rect),
         b_Pose_camR_rect_(b_Pose_camR_rect),
         stereo_frame_lkf_(stereo_frame_lkf),
@@ -54,12 +56,37 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
 
   virtual ~StereoFrontendOutput() = default;
 
+  virtual const Frame* getTrackingFrame() const override {
+    return &stereo_frame_lkf_.left_frame_;
+  }
+
+  virtual const cv::Mat* getTrackingImage() const override {
+    return &feature_tracks_;
+  }
+
+  virtual const gtsam::Pose3* getBodyPoseCam() const override {
+    return &b_Pose_camL_rect_;
+  }
+
+  virtual const gtsam::Pose3* getBodyPoseCamRight() const override {
+    return &b_Pose_camR_rect_;
+  }
+
+  virtual const TrackerStatusSummary* getTrackerStatus() const override {
+    return status_stereo_measurements_ ? &(status_stereo_measurements_->first)
+                                       : nullptr;
+  }
+
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_;
-  const TrackingStatus tracker_status_;
-  const gtsam::Pose3 relative_pose_body_stereo_;
   const gtsam::Pose3 b_Pose_camL_rect_;
   const gtsam::Pose3 b_Pose_camR_rect_;
+  // TODO(nathan) make this name consistent
+  /**
+   * This member is not necessarily a key-frame and can be one of two things:
+   * - The last frame processed (is_keyframe_ = false)
+   * - The newest keyframe (is_keyframe_ = true)
+   */
   const StereoFrame stereo_frame_lkf_;
   const cv::Mat feature_tracks_;
 };

@@ -34,8 +34,9 @@ class StereoImuPipeline : public Pipeline {
      * @param displayer Optional displayer for visualizing 2D results
      */
   StereoImuPipeline(const VioParams& params,
-                 Visualizer3D::UniquePtr&& visualizer = nullptr,
-                 DisplayBase::UniquePtr&& displayer = nullptr);
+                    Visualizer3D::UniquePtr&& visualizer = nullptr,
+                    DisplayBase::UniquePtr&& displayer = nullptr,
+                    PreloadedVocab::Ptr&& preloaded_vocab = nullptr);
 
   ~StereoImuPipeline() = default;
 
@@ -43,41 +44,17 @@ class StereoImuPipeline : public Pipeline {
   inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
     CHECK(data_provider_module_);
     CHECK(right_frame);
-    // StereoDataProviderModule::UniquePtr stereo_dataprovider =
-    //     VIO::safeCast<MonoDataProviderModule, StereoDataProviderModule>(
-    //         std::move(data_provider_module_));
-    // stereo_dataprovider->fillRightFrameQueue(std::move(right_frame));
-    // data_provider_module_ =
-    //     VIO::safeCast<StereoDataProviderModule, MonoDataProviderModule>(
-    //         std::move(stereo_dataprovider));
 
-    // TODO(marcus): this is not a good solution. The problem is the above code
-    // doesn't work in online/parallel because other threads are accessing 
-    // data_provider_module_ when it's been temporarily released to the stereo
-    // version. Checks fail for that reason.
-    // This fix is really bad because it totally bypasses the rules of 
-    // unique_ptr
+    // TODO(nathan) this is ugly
     dynamic_cast<StereoDataProviderModule*>(data_provider_module_.get())
         ->fillRightFrameQueue(std::move(right_frame));
   }
+
   inline void fillRightFrameQueueBlockingIfFull(Frame::UniquePtr right_frame) {
     CHECK(data_provider_module_);
     CHECK(right_frame);
-    // StereoDataProviderModule::UniquePtr stereo_dataprovider =
-    //     VIO::safeCast<MonoDataProviderModule, StereoDataProviderModule>(
-    //         std::move(data_provider_module_));
-    // stereo_dataprovider->fillRightFrameQueueBlockingIfFull(
-    //     std::move(right_frame));
-    // data_provider_module_ =
-    //     VIO::safeCast<StereoDataProviderModule, MonoDataProviderModule>(
-    //         std::move(stereo_dataprovider));
 
-    // TODO(marcus): this is not a good solution. The problem is the above code
-    // doesn't work in online/parallel because other threads are accessing
-    // data_provider_module_ when it's been temporarily released to the stereo
-    // version. Checks fail for that reason.
-    // This fix is really bad because it totally bypasses the rules of
-    // unique_ptr
+    // TODO(nathan) this is ugly
     dynamic_cast<StereoDataProviderModule*>(data_provider_module_.get())
         ->fillRightFrameQueueBlockingIfFull(std::move(right_frame));
   }

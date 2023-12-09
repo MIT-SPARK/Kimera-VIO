@@ -35,8 +35,12 @@ maxPointDist: 10
 bidirectionalMatching: 0
 
 # Non-maximum suppression params
+max_nr_keypoints_before_anms: 2000
 enable_non_max_suppression: 1
-non_max_suppression_type: 4
+non_max_suppression_type: 6
+nr_horizontal_bins: 7
+nr_vertical_bins: 5
+binning_mask: []
 
 # Subpixel corner refinement for the monocular case
 enable_subpixel_corner_finder: 1
@@ -57,7 +61,9 @@ ransac_use_2point_mono: 1
 ransac_max_iterations: 100
 ransac_probability: 0.995
 ransac_randomize: 0
-intra_keyframe_time: 0.2
+min_intra_keyframe_time: 0.2
+max_intra_keyframe_time: 10.0
+max_disparity_since_lkf: 200
 minNumberFeatures: 0
 useStereoTracking: 1
 disparityThreshold: 0.5
@@ -65,3 +71,19 @@ disparityThreshold: 0.5
 # 0: Static - assumes no optical flow between images (aka static camera).
 # 1: Rotational - use IMU gyro to estimate optical flow.
 optical_flow_predictor_type: 1
+
+# 2D-2D pose estimation method
+use_2d2d_tracking: 1
+2d2d_algorithm: 1 # Nister
+optimize_2d2d_pose_from_inliers: 0
+
+# 3D-3D pose estimation
+use_3d3d_tracking: 1
+optimize_3d3d_pose_from_inliers: 0
+
+# 2D-3D pose estimation method
+use_pnp_tracking: 0
+pnp_algorithm: 3 # EPNP
+min_pnp_inliers: 20
+ransac_threshold_pnp: 1.0 # pixels
+optimize_2d3d_pose_from_inliers: 0

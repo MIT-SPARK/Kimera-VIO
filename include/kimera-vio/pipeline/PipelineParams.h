@@ -13,6 +13,7 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/frontend/FrontendType.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {

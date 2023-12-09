@@ -1,0 +1,93 @@
+%YAML:1.0
+#TRACKER PARAMETERS
+klt_win_size: 24
+klt_max_iter: 30
+klt_max_level: 4
+klt_eps: 0.1
+maxFeatureAge: 30
+
+# Detector Params
+# 0: FAST
+# 1: ORB
+# 2: AGAST
+# 3: GFTT, aka Good Features To Track
+feature_detector_type: 3
+maxFeaturesPerFrame: 600
+
+# Good Features To Track specific parameters
+quality_level: 0.001
+min_distance: 10
+block_size: 3
+use_harris_detector: 0
+k: 0.04
+
+# FAST detector specific parameters [10, 20]
+fast_thresh: 10
+vision_sensor_type: 1  # RGBD
+min_depth_factor: 0.1
+map_depth_factor: 1.0
+
+equalizeImage: 1
+nominalBaseline: 0.10
+toleranceTemplateMatching: 0.15
+templ_cols: 101 #must be odd
+templ_rows: 11
+stripe_extra_rows: 0
+minPointDist: 0.3
+maxPointDist: 8
+bidirectionalMatching: 0
+
+# Non-maximum suppression params
+max_nr_keypoints_before_anms: 2000
+enable_non_max_suppression: 1  # TODO(nathan) check
+non_max_suppression_type: 6
+nr_horizontal_bins: 7
+nr_vertical_bins: 5
+binning_mask: []
+
+
+# Subpixel corner refinement for the monocular case
+enable_subpixel_corner_finder: 1
+max_iters: 40
+epsilon_error: 0.001
+window_size: 10
+zero_zone: -1
+
+subpixelRefinementStereo: 0
+useSuccessProbabilities: 1
+useRANSAC: 1
+minNrMonoInliers: 10
+minNrStereoInliers: 5
+ransac_threshold_mono: 1e-06
+ransac_threshold_stereo: 1e-01
+ransac_use_1point_stereo: 0  # TODO(nathan) check
+ransac_use_2point_mono: 1 # TODO(nathan) check
+ransac_max_iterations: 100
+ransac_probability: 0.990
+ransac_randomize: 0
+min_intra_keyframe_time: 0.20
+max_intra_keyframe_time: 10.0
+max_disparity_since_lkf: 200
+minNumberFeatures: 0
+useStereoTracking: 1
+disparityThreshold: 0.5
+# Type of optical flow predictor to aid feature tracking:
+# 0: Static - assumes no optical flow between images (aka static camera).
+# 1: Rotational - use IMU gyro to estimate optical flow.
+optical_flow_predictor_type: 1
+
+# 2D-2D pose estimation method
+use_2d2d_tracking: 1
+2d2d_algorithm: 1 # Nister
+optimize_2d2d_pose_from_inliers: 0
+
+# 3D-3D pose estimation
+use_3d3d_tracking: 1
+optimize_3d3d_pose_from_inliers: 0
+
+# 2D-3D pose estimation method
+use_pnp_tracking: 1
+pnp_algorithm: 1 # UPNP
+min_pnp_inliers: 20
+ransac_threshold_pnp: 1.0 # pixels
+optimize_2d3d_pose_from_inliers: 0

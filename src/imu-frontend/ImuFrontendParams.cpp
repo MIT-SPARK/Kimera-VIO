@@ -47,7 +47,7 @@ bool ImuParams::parseYAML(const std::string& filepath) {
       UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
   // Sanity check: IMU is usually chosen as the body frame.
-  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3::identity()))
+  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3()))
       << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
   double rate_hz = 0.0;
@@ -56,12 +56,20 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   nominal_sampling_time_s_ = 1.0 / rate_hz;
 
   // IMU PARAMS
+  yaml_parser.getYamlParam("imu_bias_init_sigma", &init_bias_sigma_);
   yaml_parser.getYamlParam("gyroscope_noise_density", &gyro_noise_density_);
   yaml_parser.getYamlParam("accelerometer_noise_density", &acc_noise_density_);
   yaml_parser.getYamlParam("gyroscope_random_walk", &gyro_random_walk_);
   yaml_parser.getYamlParam("accelerometer_random_walk", &acc_random_walk_);
   yaml_parser.getYamlParam("imu_integration_sigma", &imu_integration_sigma_);
   yaml_parser.getYamlParam("imu_time_shift", &imu_time_shift_);
+  yaml_parser.getYamlParam("do_imu_rate_time_alignment",
+                           &do_imu_rate_time_alignment_);
+  yaml_parser.getYamlParam("time_alignment_window_size_s",
+                           &time_alignment_window_size_s_);
+  yaml_parser.getYamlParam("time_alignment_variance_threshold_scaling",
+                           &time_alignment_variance_threshold_scaling_);
+
   std::vector<double> n_gravity;
   yaml_parser.getYamlParam("n_gravity", &n_gravity);
   CHECK_EQ(n_gravity.size(), 3);
@@ -73,6 +81,8 @@ bool ImuParams::parseYAML(const std::string& filepath) {
 void ImuParams::print() const {
   std::stringstream out;
   PipelineParams::print(out,
+                        "imu_bias_init_sigma: ",
+                        init_bias_sigma_,
                         "gyroscope_noise_density: ",
                         gyro_noise_density_,
                         "gyroscope_random_walk: ",
@@ -94,11 +104,15 @@ bool ImuParams::equals(const PipelineParams& obj) const {
   const auto& rhs = static_cast<const ImuParams&>(obj);
   // clang-format off
   return imu_preintegration_type_ == rhs.imu_preintegration_type_ &&
+      init_bias_sigma_ == rhs.init_bias_sigma_ &&
       gyro_noise_density_ == rhs.gyro_noise_density_ &&
       gyro_random_walk_ == rhs.gyro_random_walk_ &&
       acc_noise_density_ == rhs.acc_noise_density_ &&
       acc_random_walk_ == rhs.acc_random_walk_ &&
       imu_time_shift_ == rhs.imu_time_shift_ &&
+      do_imu_rate_time_alignment_ == rhs.do_imu_rate_time_alignment_ &&
+      time_alignment_window_size_s_ == rhs.time_alignment_window_size_s_ &&
+      time_alignment_variance_threshold_scaling_ == rhs.time_alignment_variance_threshold_scaling_ &&
       nominal_sampling_time_s_ == rhs.nominal_sampling_time_s_ &&
       imu_integration_sigma_ == rhs.imu_integration_sigma_ &&
       n_gravity_ == rhs.n_gravity_;

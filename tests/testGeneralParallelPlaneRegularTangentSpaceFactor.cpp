@@ -12,27 +12,23 @@
  * @author Antoni Rosinol
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include <random>
-
-#include <gtsam/base/numericalDerivative.h>
-#include <boost/assign/std/vector.hpp>
-#include <boost/bind.hpp>
-
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 #include <gtsam/geometry/OrientedPlane3.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/slam/PriorFactor.h>
 
-#include <glog/logging.h>
-#include <gtest/gtest.h>
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include "kimera-vio/factors/ParallelPlaneRegularFactor.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
+#include "kimera-vio/test/EvaluateFactor.h"
 
 using namespace std;
 using namespace gtsam;
@@ -57,7 +53,9 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, ErrorIsZero) {
 
   /// GeneralParallelism constraint between Plane 1 and Plane 2.
   GeneralParallelPlaneRegularTangentSpaceFactor factor(
-      plane_key_1, plane_key_2, parallel_plane_noise,
+      plane_key_1,
+      plane_key_2,
+      parallel_plane_noise,
       measured_distance_from_plane2_to_plane1);
 
   /// Planes.
@@ -90,7 +88,9 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, ErrorOtherThanZero) {
 
   /// GeneralParallelism constraint between Plane 1 and Plane 2.
   GeneralParallelPlaneRegularTangentSpaceFactor factor(
-      plane_key_1, plane_key_2, parallel_plane_noise,
+      plane_key_1,
+      plane_key_2,
+      parallel_plane_noise,
       measured_distance_from_plane2_to_plane1);
 
   /// Planes.
@@ -121,35 +121,13 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, Jacobians) {
       noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// GeneralParallelism constraint between Plane 1 and Plane 2.
-  GeneralParallelPlaneRegularTangentSpaceFactor factor(plane_key_1, plane_key_2,
-                                                       parallel_plane_noise);
+  GeneralParallelPlaneRegularTangentSpaceFactor factor(
+      plane_key_1, plane_key_2, parallel_plane_noise);
 
   /// Planes.
   OrientedPlane3 plane_1(0.3, 0.2, 1.9, 0.9);
   OrientedPlane3 plane_2(0.1, 0.1, 0.9, 0.1);
-
-  /// Use the factor to calculate the Jacobians.
-  gtsam::Matrix H1Actual, H2Actual;
-  factor.evaluateError(plane_1, plane_2, H1Actual, H2Actual);
-
-  /// Calculate numerical derivatives.
-  Matrix H1Expected =
-      numericalDerivative21<Vector, OrientedPlane3, OrientedPlane3>(
-          boost::bind(
-              &GeneralParallelPlaneRegularTangentSpaceFactor::evaluateError,
-              &factor, _1, _2, boost::none, boost::none),
-          plane_1, plane_2, der_tol);
-
-  Matrix H2Expected =
-      numericalDerivative22<Vector, OrientedPlane3, OrientedPlane3>(
-          boost::bind(
-              &GeneralParallelPlaneRegularTangentSpaceFactor::evaluateError,
-              &factor, _1, _2, boost::none, boost::none),
-          plane_1, plane_2, der_tol);
-
-  /// Verify the Jacobians are correct.
-  ASSERT_TRUE(assert_equal(H1Expected, H1Actual, tol));
-  ASSERT_TRUE(assert_equal(H2Expected, H2Actual, tol));
+  VIO::test::evaluateFactor(factor, plane_1, plane_2, tol, der_tol);
 }
 
 /**
@@ -178,8 +156,8 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
 
   /// Prior mean for plane 1.
   OrientedPlane3 priorMean1(0.0, 0.0, 1.0, 0.0);
-  graph.emplace_shared<PriorFactor<OrientedPlane3> >(planeKey1, priorMean1,
-                                                     priorNoise);
+  graph.emplace_shared<PriorFactor<OrientedPlane3> >(
+      planeKey1, priorMean1, priorNoise);
 
   /// Shared noise for constraints between planes.
   noiseModel::Diagonal::shared_ptr regularityNoise =
@@ -188,7 +166,9 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
   /// Factor between planes for co-planarity.
   const double measured_distance_from_plane2_to_plane1(-2.0);
   graph.emplace_shared<GeneralParallelPlaneRegularTangentSpaceFactor>(
-      planeKey1, planeKey2, regularityNoise,
+      planeKey1,
+      planeKey2,
+      regularityNoise,
       measured_distance_from_plane2_to_plane1);
 
   Values initial;

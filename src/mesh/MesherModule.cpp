@@ -51,7 +51,7 @@ MesherModule::InputUniquePtr MesherModule::getInputPacket() {
   CHECK(frontend_payload);
   CHECK(frontend_payload->is_keyframe_);
 
-  return VIO::make_unique<MesherInput>(
+  return std::make_unique<MesherInput>(
       timestamp, frontend_payload, backend_payload);
 }
 

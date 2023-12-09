@@ -69,16 +69,15 @@ class InitializationBackend : public VioBackend {
   virtual void addInitialVisualState(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
       const int verbosity);
 
   /* ------------------------------------------------------------------------ */
   // TODO(Toni): do not return vectors...
   std::vector<gtsam::Pose3> optimizeInitialVisualStates(
-      const Timestamp &timestamp_kf_nsec,
-      const FrameId &cur_id,
-      const size_t &max_extra_iterations,
-      const std::vector<size_t> &extra_factor_slots_to_delete =
+      const Timestamp& timestamp_kf_nsec,
+      const FrameId& cur_id,
+      const size_t& max_extra_iterations,
+      const std::vector<size_t>& extra_factor_slots_to_delete =
           std::vector<size_t>(),
       const int verbosity = 0);
 };

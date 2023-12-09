@@ -12,7 +12,7 @@ Kimera-VIO comes with several tools for debugging issues in the VIO and loop-clo
 
 ## Notebooks
 
-Kimera-VIO comes with three notebooks for debugging and evaluating different parts of the module. You can find [plot_frontend](/scripts/plotting/jupyter/plot_frontend.ipynb), [plot_backend](/scripts/plotting/jupyter/plot_backend.ipynb), and [plot_lcd](/scripts/plotting/jupyter/plot_lcd.ipynb) for these purposes. Each notebook is self contained and operates on the log files generated when the executable is run.
+Kimera-VIO comes with three notebooks for debugging and evaluating different parts of the module. You can find [plot_frontend](https://github.com/MIT-SPARK/Kimera-VIO-Evaluation/tree/master/notebooks/plot_frontend.py), [plot_backend](https://github.com/MIT-SPARK/Kimera-VIO-Evaluation/tree/master/notebooks/plot_backend.py), and [plot_lcd](https://github.com/MIT-SPARK/Kimera-VIO-Evaluation/tree/master/notebooks/plot_lcd.py) for these purposes. Each notebook is self contained and operates on the log files generated when the executable is run.
 
 ### Dependencies
 
@@ -22,10 +22,10 @@ To use the notebooks you will need Jupyter:
 pip install jupyter
 ```
 
-You will need [`evo-1`](https://github.com/ToniRV/evo-1). It is currently best to build from source (consider using a virtual environment):
+You will need [`evo-1`](https://github.com/MIT-SPARK/evo-1). It is currently best to build from source (consider using a virtual environment):
 
 ```bash
-git clone https://github.com/ToniRV/evo-1.git
+git clone https://github.com/MIT-SPARK/evo-1.git
 cd evo-1
 pip install . --upgrade --no-binary evo
 ```

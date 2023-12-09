@@ -29,18 +29,19 @@
 
 #include "kimera-vio/backend/VioBackend.h"
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include <limits>  // for numeric_limits<>
 #include <map>
 #include <string>
 #include <utility>  // for make_pair
 #include <vector>
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-
 #include "kimera-vio/common/VioNavState.h"
-#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"  // for safeCast
+#include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/utils/GtsamPrinting.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
@@ -61,32 +62,38 @@ DEFINE_int32(max_number_of_cheirality_exceptions,
 DEFINE_bool(compute_state_covariance,
             false,
             "Flag to compute state covariance from optimization Backend");
+DEFINE_bool(no_incremental_pose,
+            false,
+            "Flag to disable incremental pose usage in backend");
 
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
+VioBackend::VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
                        const StereoCalibPtr& stereo_calibration,
                        const BackendParams& backend_params,
                        const ImuParams& imu_params,
                        const BackendOutputParams& backend_output_params,
-                       bool log_output)
-    : backend_params_(backend_params),
+                       bool log_output,
+                       std::optional<OdometryParams> odom_params)
+    : backend_state_(BackendState::Bootstrap),
+      backend_params_(backend_params),
       imu_params_(imu_params),
       backend_output_params_(backend_output_params),
-      backend_state_(BackendState::Bootstrap),
+      odom_params_(odom_params),
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
       W_Vel_B_lkf_(gtsam::Vector3::Zero()),
-      W_Pose_B_lkf_(gtsam::Pose3::identity()),
+      W_Pose_B_lkf_from_increments_(gtsam::Pose3()),
+      W_Pose_B_lkf_from_state_(gtsam::Pose3()),
       imu_bias_prev_kf_(ImuBias()),
-      B_Pose_leftCam_(B_Pose_leftCam),
+      B_Pose_leftCamRect_(B_Pose_leftCamRect),
       stereo_cal_(stereo_calibration),
       last_kf_id_(-1),
       curr_kf_id_(0),
       landmark_count_(0),
       log_output_(log_output),
-      logger_(log_output ? VIO::make_unique<BackendLogger>() : nullptr) {
+      logger_(log_output ? std::make_unique<BackendLogger>() : nullptr) {
 // TODO the parsing of the params should be done inside here out from the
 // path to the params file, otherwise other derived VIO Backends will be
 // stuck with the parameters used by vanilla VIO, as there is no polymorphic
@@ -104,13 +111,13 @@ VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
   gtsam::ISAM2Params isam_param;
   BackendParams::setIsam2Params(backend_params, &isam_param);
 
-  smoother_ = VIO::make_unique<Smoother>(backend_params.horizon_, isam_param);
+  smoother_ = std::make_unique<Smoother>(backend_params.nr_states_, isam_param);
 #else  // BATCH SMOOTHER
   gtsam::LevenbergMarquardtParams lmParams;
   lmParams.setlambdaInitial(0.0);     // same as GN
   lmParams.setlambdaLowerBound(0.0);  // same as GN
   lmParams.setlambdaUpperBound(0.0);  // same as GN)
-  smoother_ = VIO::make_unique<Smoother>(vioParams.horizon_, lmParams);
+  smoother_ = std::make_unique<Smoother>(backend_params.nr_states_, lmParams);
 #endif
 
   // Set parameters for all factors.
@@ -130,10 +137,17 @@ VioBackend::VioBackend(const Pose3& B_Pose_leftCam,
 
 /* -------------------------------------------------------------------------- */
 BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
-  if (VLOG_IS_ON(10)) input.print();
+  if (VLOG_IS_ON(10)) {
+    input.print();
+  }
+
+  if (logger_) {
+    logger_->logBackendExtOdom(input);
+  }
 
   bool backend_status = false;
-  switch (backend_state_) {
+  const BackendState backend_state = backend_state_;
+  switch (backend_state) {
     case BackendState::Bootstrap: {
       initializeBackend(input);
       backend_status = true;
@@ -183,10 +197,23 @@ BackendOutput::UniquePtr VioBackend::spinOnce(const BackendInput& input) {
               kMinLmkObs);
     }
 
+    if (map_update_callback_) {
+      map_update_callback_(lmk_ids_to_3d_points_in_time_horizon);
+    } else {
+      LOG(FATAL) << "Did you forget to register the Map "
+                    "Update callback for at least the "
+                    "Frontend? Do so by using "
+                    "registerMapUpdateCallback function.";
+    }
+
     // Create Backend Output Payload.
-    output_payload = VIO::make_unique<BackendOutput>(
+    output_payload = std::make_unique<BackendOutput>(
         VioNavStateTimestamped(
-            input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
+            input.timestamp_,
+            (FLAGS_no_incremental_pose ? W_Pose_B_lkf_from_state_
+                                       : W_Pose_B_lkf_from_increments_),
+            W_Vel_B_lkf_,
+            imu_bias_lkf_),
         // TODO(Toni): Make all below optional!!
         state_,
         smoother_->getFactors(),
@@ -220,6 +247,11 @@ void VioBackend::registerImuBiasUpdateCallback(
   }
 }
 
+void VioBackend::registerMapUpdateCallback(
+    const MapCallback& map_update_callback) {
+  map_update_callback_ = map_update_callback;
+}
+
 /* -------------------------------------------------------------------------- */
 bool VioBackend::initStateAndSetPriors(
     const VioNavStateTimestamped& vio_nav_state_initial_seed) {
@@ -228,28 +260,28 @@ bool VioBackend::initStateAndSetPriors(
 
   // Update member variables.
   timestamp_lkf_ = vio_nav_state_initial_seed.timestamp_;
-  W_Pose_B_lkf_ = vio_nav_state_initial_seed.pose_;
+
+  // These two are identical in the beginning, but _from_state_ is used in
+  // the optimizer and _from_increments_ is used as a smooth output
+  W_Pose_B_lkf_from_state_ = vio_nav_state_initial_seed.pose_;
+  W_Pose_B_lkf_from_increments_ = vio_nav_state_initial_seed.pose_;
+
   W_Vel_B_lkf_ = vio_nav_state_initial_seed.velocity_;
   imu_bias_lkf_ = vio_nav_state_initial_seed.imu_bias_;
   imu_bias_prev_kf_ = vio_nav_state_initial_seed.imu_bias_;
 
   VLOG(2) << "Initial state seed: \n"
           << " - Initial timestamp: " << timestamp_lkf_ << '\n'
-          << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
+          << " - Initial pose: " << W_Pose_B_lkf_from_state_ << '\n'
           << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
           << " - Initial IMU bias: " << imu_bias_lkf_;
 
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
 
-  // TODO encapsulate this in a function, code duplicated in addImuValues.
   // Add initial state seed
-  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, curr_kf_id_),
-                     W_Pose_B_lkf_);
-  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, curr_kf_id_),
-                     W_Vel_B_lkf_);
-  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, curr_kf_id_),
-                     imu_bias_lkf_);
+  addStateValues(
+      curr_kf_id_, W_Pose_B_lkf_from_state_, W_Vel_B_lkf_, imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
   return optimize(vio_nav_state_initial_seed.timestamp_,
@@ -261,12 +293,12 @@ bool VioBackend::initStateAndSetPriors(
 // Workhorse that stores data and optimizes at each keyframe.
 // [in] timestamp_kf_nsec, keyframe timestamp.
 // [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
 bool VioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
+    std::optional<gtsam::Pose3> odometry_body_pose,
+    std::optional<gtsam::Velocity3> odometry_vel) {
   debug_info_.resetAddedFactorsStatistics();
 
   // Features and IMU line up --> do iSAM update
@@ -277,20 +309,30 @@ bool VioBackend::addVisualInertialStateAndOptimize(
           << " at timestamp:" << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec).";
 
-  /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
-  // Predict next step, add initial guess
-  addImuValues(curr_kf_id_, pim);
+  // Add initial guess.
+  addStateValues(curr_kf_id_,
+                 status_smart_stereo_measurements_kf.first,
+                 pim,
+                 odometry_body_pose,
+                 odometry_vel);
 
+  /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Add imu factors between consecutive keyframe states
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
-  // Add between factor from RANSAC
-  if (stereo_ransac_body_pose) {
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "VIO: adding between ";
-      stereo_ransac_body_pose->print();
-    }
-    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
+  // Add between factor from RANSAC: first PnP, then Stereo, then Mono
+  if (backend_params_.addBetweenStereoFactors_ &&
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID) {
+    addBetweenFactor(
+        last_kf_id_,
+        curr_kf_id_,
+        // I think this should be B_Pose_leftCamRect_...
+        B_Pose_leftCamRect_ *
+            status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+            B_Pose_leftCamRect_.inverse(),
+        backend_params_.betweenRotationPrecision_,
+        backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
@@ -323,8 +365,19 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     case TrackingStatus::LOW_DISPARITY: {
       LOG(WARNING)
           << "Low disparity: adding zero velocity and no motion factors.";
-      addZeroVelocityPrior(curr_kf_id_);
-      addNoMotionFactor(last_kf_id_, curr_kf_id_);
+      if (backend_params_.zero_velocity_precision_ > 0.0) {
+        addZeroVelocityPrior(curr_kf_id_);
+      } else {
+        LOG(ERROR) << "Low disparity: not adding addZeroVelocityPrior because "
+                      "precision is zero.";
+      }
+      if (backend_params_.no_motion_position_precision_ > 0.0 ||
+          backend_params_.no_motion_rotation_precision_ > 0.0) {
+        addNoMotionFactor(last_kf_id_, curr_kf_id_);
+      } else {
+        LOG(ERROR) << "Low disparity: not adding addNoMotionFactor because "
+                      "precision is zero.";
+      }
       break;
     }
 
@@ -333,7 +386,9 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     //  trust features
     //    if (verbosity_ >= 7) {printf("Add constant velocity factor
     //    (monoRansac is INVALID)\n");}
-    //    addConstantVelocityFactor(last_id_, cur_id_); break;
+    //    if (backend_params_.constant_vel_precision_ > 0.0) {
+    //      addConstantVelocityFactor(last_id_, cur_id_); break;
+    //    }
 
     // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
     // we add features in VIO
@@ -341,6 +396,27 @@ bool VioBackend::addVisualInertialStateAndOptimize(
       addLandmarksToGraph(landmarks_kf);
       break;
     }
+  }
+
+  // Add odometry factors if they're available and have non-zero precision
+  if (odometry_body_pose && odom_params_ &&
+      (odom_params_->betweenRotationPrecision_ > 0.0 ||
+       odom_params_->betweenTranslationPrecision_ > 0.0)) {
+    VLOG(1) << "Added external factor between " << last_kf_id_ << " and "
+            << curr_kf_id_;
+    addBetweenFactor(last_kf_id_,
+                     curr_kf_id_,
+                     *odometry_body_pose,
+                     odom_params_->betweenRotationPrecision_,
+                     odom_params_->betweenTranslationPrecision_);
+  }
+  if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
+    LOG_FIRST_N(ERROR, 1)
+        << "Using velocity priors from external odometry: "
+        << "This only works if you have velocity estimates in the world frame! "
+        << "(not provided by typical odometry sensors)";
+    addVelocityPrior(
+        curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
   }
 
   // Why do we do this??
@@ -352,30 +428,22 @@ bool VioBackend::addVisualInertialStateAndOptimize(
 }
 
 bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
-  bool use_stereo_btw_factor =
-      backend_params_.addBetweenStereoFactors_ &&
-      input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
-  VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
-  LOG_IF(WARNING, use_stereo_btw_factor && 
-                  input.stereo_ransac_body_pose_ == boost::none)
-      << "User set useStereoBetweenFactor = true, but stereo_ransac_body_pose_ not available!"; 
   CHECK(input.status_stereo_measurements_kf_);
   CHECK(input.pim_);
   bool is_smoother_ok = addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
-      use_stereo_btw_factor
-          ? input.stereo_ransac_body_pose_
-          : boost::none);  // optional: pose estimate from stereo ransac
+      input.body_lkf_OdomPose_body_kf_,
+      input.body_kf_world_OdomVel_body_kf_);
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;
 }
 
 // TODO(Toni): no need to pass landmarks_kf, can iterate directly over feature
-// tracks...
+// tracks..
 // Uses landmark table to add factors in graph.
 void VioBackend::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   // Add selected landmarks to graph:
@@ -399,7 +467,7 @@ void VioBackend::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
     } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
-      LOG_IF(FATAL, obs_kf.first != curr_kf_id_)
+      LOG_IF(FATAL, obs_kf.first != static_cast<FrameId>(curr_kf_id_))
           << "addLandmarksToGraph: last obs is not from the current "
              "keyframe!\n";
 
@@ -418,24 +486,24 @@ void VioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
                                     const FeatureTrack& ft) {
   // We use a unit pinhole projection camera for the smart factors to be
   // more efficient.
-  SmartStereoFactor::shared_ptr new_factor =
-      boost::make_shared<SmartStereoFactor>(
-          smart_noise_, smart_factors_params_, B_Pose_leftCam_);
+  SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(
+      smart_noise_, smart_factors_params_, B_Pose_leftCamRect_));
 
   VLOG(10) << "Adding landmark with: " << ft.obs_.size()
            << " landmarks to graph, with keys: ";
 
   // Add observations to smart factor
   if (VLOG_IS_ON(10)) new_factor->print();
+  std::stringstream ss;
   for (const std::pair<FrameId, StereoPoint2>& obs : ft.obs_) {
     const FrameId& frame_id = obs.first;
     const gtsam::Symbol& pose_symbol = gtsam::Symbol(kPoseSymbolChar, frame_id);
     const StereoPoint2& measurement = obs.second;
     new_factor->add(measurement, pose_symbol, stereo_cal_);
 
-    if (VLOG_IS_ON(10)) std::cout << " " << obs.first;
+    if (VLOG_IS_ON(10)) ss << " " << obs.first;
   }
-  if (VLOG_IS_ON(10)) std::cout << std::endl;
+  VLOG(10) << ss.str() << std::endl;
 
   // add new factor to suitable structures:
   new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
@@ -453,11 +521,9 @@ void VioBackend::updateLandmarkInGraph(
   CHECK(old_smart_factors_it != old_smart_factors_.end())
       << "Landmark not found in old_smart_factors_ with id: " << lmk_id;
 
-  const SmartStereoFactor::shared_ptr& old_factor =
-      old_smart_factors_it->second.first;
+  const auto& old_factor = old_smart_factors_it->second.first;
   // Clone old factor to keep all previous measurements, now append one.
-  SmartStereoFactor::shared_ptr new_factor =
-      boost::make_shared<SmartStereoFactor>(*old_factor);
+  SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(*old_factor));
 
   const gtsam::Symbol pose_symbol(kPoseSymbolChar, new_measurement.first);
   const StereoPoint2& measurement = new_measurement.second;
@@ -566,17 +632,14 @@ PointsWithIdMap VioBackend::getMapLmkIdsTo3dPointsInTimeHorizon(
     // such as the triangulated point, whether it is valid or not
     // and the number of observations...
     // Is graph more up to date?
-    boost::shared_ptr<SmartStereoFactor> gsf =
-        boost::dynamic_pointer_cast<SmartStereoFactor>(graph.at(slot_id));
+    const auto graph_factor = graph.at(slot_id);
+    const auto gsf = dynamic_cast<const SmartStereoFactor*>(graph_factor.get());
     CHECK(gsf) << "Cannot cast factor in graph to a smart stereo factor.";
 
     // Get triangulation result from smart factor.
     const gtsam::TriangulationResult& result = gsf->point();
-    // Check that the boost::optional result is initialized.
-    // Otherwise we will be dereferencing a nullptr and we will head
-    // directly to undefined behaviour wonderland.
     if (result.valid()) {
-      CHECK(result.is_initialized());
+      CHECK(result);
       if (gsf->measured().size() >= min_age) {
         // Triangulation result from smart factor is valid and
         // we have observed the lmk at least min_age times.
@@ -596,10 +659,9 @@ PointsWithIdMap VioBackend::getMapLmkIdsTo3dPointsInTimeHorizon(
                  << ", vs min_age of " << min_age << ".";
       }  // gsf->measured().size() >= min_age ?
     } else {
-      // THIS IS FOR THE boost::optional! Not for valid vs invalid lmk... :/
       VLOG(20) << "Triangulation result for smart factor of lmk with id "
                << lmk_id << " is not initialized...";
-    }  // result.is_initialized()?
+    }
 
     // Next iteration.
     old_smart_factor_it++;
@@ -608,10 +670,13 @@ PointsWithIdMap VioBackend::getMapLmkIdsTo3dPointsInTimeHorizon(
   // Step 2:
   ////////////// Add landmarks that now are in projection factors. /////////////
   size_t nr_proj_lmks = 0;
-  for (const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair&
-           key_value : state_.filter(gtsam::Symbol::ChrTest('l'))) {
-    DCHECK_EQ(gtsam::Symbol(key_value.key).chr(), 'l');
-    const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
+  for (const auto& key_value : state_) {
+    const gtsam::Symbol key(key_value.key);
+    if (key.chr() != 'l') {
+      continue;
+    }
+
+    const auto lmk_id = key.index();
     DCHECK(points_with_id.find(lmk_id) == points_with_id.end());
     points_with_id[lmk_id] = key_value.value.cast<gtsam::Point3>();
     if (lmk_id_to_lmk_type_map) {
@@ -729,18 +794,115 @@ void VioBackend::addStereoMeasurementsToFeatureTracks(
 
 /// Value adders.
 /* -------------------------------------------------------------------------- */
-void VioBackend::addImuValues(const FrameId& cur_id,
-                              const gtsam::PreintegrationType& pim) {
-  gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
-  gtsam::NavState navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
-
+void VioBackend::addStateValues(const FrameId& frame_id,
+                                const TrackerStatusSummary& tracker_status,
+                                const gtsam::PreintegrationType& pim,
+                                std::optional<gtsam::Pose3> odom_pose,
+                                std::optional<gtsam::Vector3> odom_vel) {
+  // NOTE: we use the latest state instead of W_Pose_B_lkf_from_increments_
+  // because that one is generated by chaining relative poses from the
+  // optimization, and might be far from the state estimate of the VIO.
+  // Initializing the smoother_ optimization with W_Pose_B_lkf_from_increments_
+  // would cause crashes because it's different from the latest state in
+  // smoother_.
+  gtsam::NavState navstate_lkf(W_Pose_B_lkf_from_state_, W_Vel_B_lkf_);
+  const gtsam::NavState& navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
   debug_info_.navstate_k_ = navstate_k;
 
-  // Update state with initial guess
-  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), navstate_k.pose());
-  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id),
-                     navstate_k.velocity());
-  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias_lkf_);
+  switch (backend_params_.pose_guess_source_) {
+    case PoseGuessSource::IMU: {
+      addStateValuesFromNavState(frame_id, navstate_k);
+      break;
+    }
+    case PoseGuessSource::MONO: {
+      if (tracker_status.kfTrackingStatus_mono_ == TrackingStatus::VALID) {
+        gtsam::Pose3 W_Pose_B_k_mono =
+            W_Pose_B_lkf_from_state_ * B_Pose_leftCamRect_ *
+            tracker_status.lkf_T_k_mono_ * B_Pose_leftCamRect_.inverse();
+        gtsam::Point3 W_ScaledTranslation_B_k_mono =
+            W_Pose_B_k_mono.translation() *
+            backend_params_.mono_translation_scale_factor_;
+        addStateValues(frame_id,
+                       gtsam::Pose3(W_Pose_B_k_mono.rotation(),
+                                    W_ScaledTranslation_B_k_mono),
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "Mono tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::STEREO: {
+      if (tracker_status.kfTrackingStatus_stereo_ == TrackingStatus::VALID) {
+        addStateValues(frame_id,
+                       W_Pose_B_lkf_from_state_ * B_Pose_leftCamRect_ *
+                           tracker_status.lkf_T_k_stereo_ *
+                           B_Pose_leftCamRect_.inverse(),
+                       navstate_k.velocity(),
+                       imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "Stereo tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::PNP: {
+      if (tracker_status.kfTracking_status_pnp_ == TrackingStatus::VALID) {
+        addStateValues(
+            frame_id,
+            tracker_status.W_T_k_pnp_ * B_Pose_leftCamRect_.inverse(),
+            navstate_k.velocity(),
+            imu_bias_lkf_);
+      } else {
+        LOG(WARNING) << "PnP tracking failure... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    case PoseGuessSource::EXTERNAL_ODOM: {
+      if (odom_pose) {
+        // odom_pose is relative (body_lkf_odomPose_body_kf)
+        gtsam::Pose3 W_Pose_B_odom =
+            W_Pose_B_lkf_from_state_ * odom_pose.value();
+        if (odom_vel && odom_params_->velocityPrecision_ > 0.0) {
+          LOG(ERROR) << "Using external odometry velocity is not "
+                        "recommended! Set odomVelPrecision = 0. Ignore this "
+                        "only after serious consideration.";
+          addStateValues(
+              frame_id, W_Pose_B_odom, odom_vel.value(), imu_bias_lkf_);
+        } else {
+          addStateValues(
+              frame_id, W_Pose_B_odom, navstate_k.velocity(), imu_bias_lkf_);
+        }
+      } else {
+        LOG(WARNING) << "External odometry tracking failure (no odom pose "
+                        "provided)... Using IMU for pose guess.";
+        addStateValuesFromNavState(frame_id, navstate_k);
+      }
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unrecognized Initial Pose Guess source: "
+                 << VIO::to_underlying(backend_params_.pose_guess_source_);
+      break;
+    }
+  }
+}
+
+void VioBackend::addStateValuesFromNavState(const FrameId& frame_id,
+                                            const gtsam::NavState& nav_state) {
+  addStateValues(
+      frame_id, nav_state.pose(), nav_state.velocity(), imu_bias_lkf_);
+}
+
+void VioBackend::addStateValues(const FrameId& cur_id,
+                                const gtsam::Pose3& pose,
+                                const gtsam::Velocity3& velocity,
+                                const ImuBias& imu_bias) {
+  new_values_.insert(gtsam::Symbol(kPoseSymbolChar, cur_id), pose);
+  new_values_.insert(gtsam::Symbol(kVelocitySymbolChar, cur_id), velocity);
+  new_values_.insert(gtsam::Symbol(kImuBiasSymbolChar, cur_id), imu_bias);
 }
 
 /// Factor adders.
@@ -750,26 +912,24 @@ void VioBackend::addImuFactor(const FrameId& from_id,
                               const gtsam::PreintegrationType& pim) {
   switch (imu_params_.imu_preintegration_type_) {
     case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
-      new_imu_prior_and_other_factors_.push_back(
-          boost::make_shared<gtsam::CombinedImuFactor>(
-              gtsam::Symbol(kPoseSymbolChar, from_id),
-              gtsam::Symbol(kVelocitySymbolChar, from_id),
-              gtsam::Symbol(kPoseSymbolChar, to_id),
-              gtsam::Symbol(kVelocitySymbolChar, to_id),
-              gtsam::Symbol(kImuBiasSymbolChar, from_id),
-              gtsam::Symbol(kImuBiasSymbolChar, to_id),
-              safeCastToPreintegratedCombinedImuMeasurements(pim)));
+      new_imu_prior_and_other_factors_.emplace_shared<gtsam::CombinedImuFactor>(
+          gtsam::Symbol(kPoseSymbolChar, from_id),
+          gtsam::Symbol(kVelocitySymbolChar, from_id),
+          gtsam::Symbol(kPoseSymbolChar, to_id),
+          gtsam::Symbol(kVelocitySymbolChar, to_id),
+          gtsam::Symbol(kImuBiasSymbolChar, from_id),
+          gtsam::Symbol(kImuBiasSymbolChar, to_id),
+          safeCastToPreintegratedCombinedImuMeasurements(pim));
       break;
     }
     case ImuPreintegrationType::kPreintegratedImuMeasurements: {
-      new_imu_prior_and_other_factors_.push_back(
-          boost::make_shared<gtsam::ImuFactor>(
-              gtsam::Symbol(kPoseSymbolChar, from_id),
-              gtsam::Symbol(kVelocitySymbolChar, from_id),
-              gtsam::Symbol(kPoseSymbolChar, to_id),
-              gtsam::Symbol(kVelocitySymbolChar, to_id),
-              gtsam::Symbol(kImuBiasSymbolChar, from_id),
-              safeCastToPreintegratedImuMeasurements(pim)));
+      new_imu_prior_and_other_factors_.emplace_shared<gtsam::ImuFactor>(
+          gtsam::Symbol(kPoseSymbolChar, from_id),
+          gtsam::Symbol(kVelocitySymbolChar, from_id),
+          gtsam::Symbol(kPoseSymbolChar, to_id),
+          gtsam::Symbol(kVelocitySymbolChar, to_id),
+          gtsam::Symbol(kImuBiasSymbolChar, from_id),
+          safeCastToPreintegratedImuMeasurements(pim));
 
       static const gtsam::imuBias::ConstantBias zero_bias(
           gtsam::Vector3(0.0, 0.0, 0.0), gtsam::Vector3(0.0, 0.0, 0.0));
@@ -789,13 +949,12 @@ void VioBackend::addImuFactor(const FrameId& from_id,
       const gtsam::SharedNoiseModel& bias_noise_model =
           gtsam::noiseModel::Diagonal::Sigmas(bias_sigmas);
 
-      new_imu_prior_and_other_factors_.push_back(
-          boost::make_shared<
-              gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
+      new_imu_prior_and_other_factors_
+          .emplace_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
               gtsam::Symbol(kImuBiasSymbolChar, from_id),
               gtsam::Symbol(kImuBiasSymbolChar, to_id),
               zero_bias,
-              bias_noise_model));
+              bias_noise_model);
       break;
     }
     default: {
@@ -811,21 +970,22 @@ void VioBackend::addImuFactor(const FrameId& from_id,
 /* -------------------------------------------------------------------------- */
 void VioBackend::addBetweenFactor(const FrameId& from_id,
                                   const FrameId& to_id,
-                                  const gtsam::Pose3& from_id_POSE_to_id) {
+                                  const gtsam::Pose3& from_id_POSE_to_id,
+                                  const double& between_rotation_precision,
+                                  const double& between_translation_precision) {
   // TODO(Toni): make noise models const members of Backend...
   Vector6 precisions;
-  precisions.head<3>().setConstant(backend_params_.betweenRotationPrecision_);
-  precisions.tail<3>().setConstant(
-      backend_params_.betweenTranslationPrecision_);
+  precisions.head<3>().setConstant(between_rotation_precision);
+  precisions.tail<3>().setConstant(between_translation_precision);
   const gtsam::SharedNoiseModel& betweenNoise_ =
       gtsam::noiseModel::Diagonal::Precisions(precisions);
 
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol(kPoseSymbolChar, from_id),
           gtsam::Symbol(kPoseSymbolChar, to_id),
           from_id_POSE_to_id,
-          betweenNoise_));
+          betweenNoise_);
 
   debug_info_.numAddedBetweenStereoF_++;
 }
@@ -833,29 +993,39 @@ void VioBackend::addBetweenFactor(const FrameId& from_id,
 /* -------------------------------------------------------------------------- */
 void VioBackend::addNoMotionFactor(const FrameId& from_id,
                                    const FrameId& to_id) {
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol(kPoseSymbolChar, from_id),
           gtsam::Symbol(kPoseSymbolChar, to_id),
-          gtsam::Pose3::identity(),
-          no_motion_prior_noise_));
+          gtsam::Pose3(),
+          no_motion_prior_noise_);
 
   debug_info_.numAddedNoMotionF_++;
 
-  if (VLOG_IS_ON(10)) {
-    std::cout << "No motion detected, adding no relative motion prior"
-              << std::endl;
-  }
+  VLOG(10) << "No motion detected, adding no relative motion prior";
 }
 
 /* -------------------------------------------------------------------------- */
 void VioBackend::addZeroVelocityPrior(const FrameId& frame_id) {
   VLOG(10) << "No motion detected, adding zero velocity prior.";
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
           gtsam::Symbol(kVelocitySymbolChar, frame_id),
           gtsam::Vector3::Zero(),
-          zero_velocity_prior_noise_));
+          zero_velocity_prior_noise_);
+}
+
+void VioBackend::addVelocityPrior(const FrameId& frame_id,
+                                  const gtsam::Velocity3& vel,
+                                  const double& precision) {
+  VLOG(10) << "Adding odometry pose velocity prior factor.";
+  gtsam::Vector3 precisions;
+  precisions.head<3>().setConstant(precision);
+  const gtsam::SharedNoiseModel& noise_model =
+      gtsam::noiseModel::Diagonal::Precisions(precisions);
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+          gtsam::Symbol(kVelocitySymbolChar, frame_id), vel, noise_model);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -927,6 +1097,7 @@ bool VioBackend::optimize(
         // (longer than factor graph's time horizon), than the factor has been
         // removed from the optimization.
         // Erase this factor and feature track, as it has gone past the horizon.
+        // TODO(marcus): check with toni if this needs a warning
         old_smart_factors_.erase(old_smart_factor_it);
         CHECK(deleteLmkFromFeatureTracks(lmk_id));
         // TODO(Toni): we should as well remove it from new_smart_factors_!!
@@ -959,8 +1130,7 @@ bool VioBackend::optimize(
   if (VLOG_IS_ON(10)) {
     // Get state before optimization to compute error.
     debug_info_.stateBeforeOpt = gtsam::Values(state_);
-    BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                   new_values_) {
+    for (const auto& key_value : new_values_) {
       debug_info_.stateBeforeOpt.insert(key_value.key, key_value.value);
     }
   }
@@ -987,17 +1157,13 @@ bool VioBackend::optimize(
 
   // Use current timestamp for each new value. This timestamp will be used
   // to determine if the variable should be marginalized.
-  // Needs to use DOUBLE because gtsam works with that, but we are working
-  // with int64_t (nsecs).
-  std::map<Key, double> timestamps;
-  // Also needs to convert to seconds...
-  double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                 new_values_) {
-    timestamps[key_value.key] =
-        timestamp_kf;  // for the latest pose, velocity, and bias
+  // Needs to use DOUBLE because gtsam works with that, but we
+  // are actually counting the number of states in the smoother.
+  std::map<Key, double> key_frame_count;
+  for (const auto& key_value : new_values_) {
+    key_frame_count[key_value.key] = cur_id;
   }
-  DCHECK_EQ(timestamps.size(), new_values_.size());
+  DCHECK_EQ(key_frame_count.size(), new_values_.size());
 
   // Store time before iSAM update.
   if (VLOG_IS_ON(10) || log_output_) {
@@ -1013,7 +1179,7 @@ bool VioBackend::optimize(
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
   bool is_smoother_ok = updateSmoother(
-      &result, new_factors_tmp, new_values_, timestamps, delete_slots);
+      &result, new_factors_tmp, new_values_, key_frame_count, delete_slots);
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.
@@ -1088,7 +1254,7 @@ bool VioBackend::optimize(
 void VioBackend::addInitialPriorFactors(const FrameId& frame_id) {
   // Set initial covariance for inertial factors
   // W_Pose_Blkf_ set by motion capture to start with
-  Matrix3 B_Rot_W = W_Pose_B_lkf_.rotation().matrix().transpose();
+  Matrix3 B_Rot_W = W_Pose_B_lkf_from_state_.rotation().matrix().transpose();
 
   // Set initial pose uncertainty: constrain mainly position and global yaw.
   // roll and pitch is observable, therefore low variance.
@@ -1115,22 +1281,22 @@ void VioBackend::addInitialPriorFactors(const FrameId& frame_id) {
   // TODO(Toni): Make this noise model a member constant.
   gtsam::SharedNoiseModel noise_init_pose =
       gtsam::noiseModel::Gaussian::Covariance(pose_prior_covariance);
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
           gtsam::Symbol(kPoseSymbolChar, frame_id),
-          W_Pose_B_lkf_,
-          noise_init_pose));
+          W_Pose_B_lkf_from_state_,
+          noise_init_pose);
 
   // Add initial velocity priors.
   // TODO(Toni): Make this noise model a member constant.
   gtsam::SharedNoiseModel noise_init_vel_prior =
       gtsam::noiseModel::Isotropic::Sigma(
           3, backend_params_.initialVelocitySigma_);
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
           gtsam::Symbol(kVelocitySymbolChar, frame_id),
           W_Vel_B_lkf_,
-          noise_init_vel_prior));
+          noise_init_vel_prior);
 
   // Add initial bias priors:
   Vector6 prior_biasSigmas;
@@ -1143,11 +1309,11 @@ void VioBackend::addInitialPriorFactors(const FrameId& frame_id) {
     LOG(INFO) << "Imu bias for Backend prior:";
     imu_bias_lkf_.print();
   }
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
           gtsam::Symbol(kImuBiasSymbolChar, frame_id),
           imu_bias_lkf_,
-          imu_bias_prior_noise));
+          imu_bias_prior_noise);
 
   VLOG(2) << "Added initial priors for frame " << frame_id;
 }
@@ -1156,12 +1322,12 @@ void VioBackend::addInitialPriorFactors(const FrameId& frame_id) {
 void VioBackend::addConstantVelocityFactor(const FrameId& from_id,
                                            const FrameId& to_id) {
   VLOG(10) << "Adding constant velocity factor.";
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
+  new_imu_prior_and_other_factors_
+      .emplace_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
           gtsam::Symbol(kVelocitySymbolChar, from_id),
           gtsam::Symbol(kVelocitySymbolChar, to_id),
           gtsam::Vector3::Zero(),
-          constant_velocity_prior_noise_));
+          constant_velocity_prior_noise_);
 
   // Log number of added constant velocity factors.
   debug_info_.numAddedConstantVelF_++;
@@ -1179,10 +1345,32 @@ void VioBackend::updateStates(const FrameId& cur_id) {
   DCHECK(state_.find(gtsam::Symbol(kImuBiasSymbolChar, cur_id)) !=
          state_.end());
 
-  W_Pose_B_lkf_ = state_.at<Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id));
+  gtsam::Pose3 W_Pose_B_kf =
+      state_.at<gtsam::Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id));
+  gtsam::Pose3 W_Pose_B_lkf = gtsam::Pose3();
+  gtsam::Pose3 B_lkf_Pose_kf = gtsam::Pose3();
+
+  // If we have an available pose at cur_id - 1 we use it, otw identity
+  // gives us W_Pose_B_lkf as our current pose estimate.
+  if (cur_id > 0) {
+    DCHECK(state_.find(gtsam::Symbol(kPoseSymbolChar, cur_id - 1)) !=
+           state_.end());
+    W_Pose_B_lkf =
+        state_.at<gtsam::Pose3>(gtsam::Symbol(kPoseSymbolChar, cur_id - 1));
+
+    // Compute relative pose as odometry to append to pose estimate trajectory
+    B_lkf_Pose_kf = W_Pose_B_lkf.between(W_Pose_B_kf);
+  }
+
+  // Update latest state estimate
+  W_Pose_B_lkf_from_state_ = W_Pose_B_kf;
   W_Vel_B_lkf_ = state_.at<Vector3>(gtsam::Symbol(kVelocitySymbolChar, cur_id));
   imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(
       gtsam::Symbol(kImuBiasSymbolChar, cur_id));
+
+  // Update output estimate by chaining relative motion estimates
+  W_Pose_B_lkf_from_increments_ =
+      W_Pose_B_lkf_from_increments_.compose(B_lkf_Pose_kf);
 
   VLOG(1) << "Backend: Update IMU Bias.";
   CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
@@ -1218,19 +1406,95 @@ bool VioBackend::updateSmoother(Smoother::Result* result,
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     LOG(ERROR) << e.what();
-
     const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb(var);
-
     LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
                << "and index " << symb.index() << std::endl;
 
-    smoother_->getFactors().print("Smoother's factors:\n[\n\t");
-    LOG(INFO) << " ]";
-    state_.print("State values\n[\n\t");
-    LOG(INFO) << " ]";
-    printSmootherInfo(new_factors, delete_slots);
-    return false;
+    if (VLOG_IS_ON(1)) {
+      smoother_->getFactors().print("Smoother's factors:\n[\n\t");
+      LOG(INFO) << " ]";
+      state_.print("State values\n[\n\t");
+      LOG(INFO) << " ]";
+      printSmootherInfo(new_factors, delete_slots);
+    }
+
+    // Add priors on all variables to fix indeterminant linear system
+    gtsam::Values values = smoother_->calculateEstimate();
+
+    // Add priors on keys with these prefixes (pose, imu bias, velocity)
+    std::vector<unsigned char> key_prefixes_to_prior = {'x', 'b', 'v'};
+    gtsam::Symbol first_key = values.keys().at(0);
+    gtsam::KeyVector prior_keys;
+    for (const auto& prefix : key_prefixes_to_prior) {
+      prior_keys.push_back(gtsam::Symbol(prefix, symb.index()));
+      prior_keys.push_back(gtsam::Symbol(prefix, first_key.index()));
+    }
+    CHECK_EQ(prior_keys.size(), 6u);
+    gtsam::NonlinearFactorGraph nfg;
+
+    // Only add priors on first state and the state nearest the failure
+    for (const gtsam::Symbol& key : prior_keys) {
+      CHECK(values.exists(key));
+      LOG(ERROR) << "Adding prior on key: " << key.chr() << key.index();
+      switch (key.chr()) {
+        case 'x': {
+          gtsam::Pose3 pose = values.at<gtsam::Pose3>(key);
+          gtsam::Vector6 sigmas;
+          sigmas.head<3>().setConstant(0.01);  // rotation
+          sigmas.tail<3>().setConstant(0.1);   // translation
+          gtsam::SharedNoiseModel noise =
+              gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+          nfg.emplace_shared<gtsam::PriorFactor<gtsam::Pose3>>(
+              key, pose, noise);
+          break;
+        }
+        case 'b': {
+          gtsam::imuBias::ConstantBias bias =
+              values.at<gtsam::imuBias::ConstantBias>(key);
+          gtsam::Vector6 sigmas;
+          sigmas.head<3>().setConstant(backend_params_.initialAccBiasSigma_);
+          sigmas.tail<3>().setConstant(backend_params_.initialGyroBiasSigma_);
+          gtsam::SharedNoiseModel noise =
+              gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+          nfg.emplace_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
+              key, bias, noise);
+          break;
+        }
+        case 'v': {
+          gtsam::Vector3 vel = values.at<gtsam::Vector3>(key);
+          gtsam::Vector3 sigmas;
+          sigmas.setConstant(0.1);
+          gtsam::SharedNoiseModel noise =
+              gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+          nfg.emplace_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+              key, vel, noise);
+          break;
+        }
+        default: {
+          LOG(FATAL)
+              << "Key not recognized in indeterminant exception handling.";
+        }
+      }
+    }
+    gtsam::NonlinearFactorGraph new_factors_mutable;
+    new_factors_mutable.push_back(new_factors.begin(), new_factors.end());
+    new_factors_mutable.push_back(nfg.begin(), nfg.end());
+
+    // Update with graph and GN optimized values
+    try {
+      // Update smoother
+      LOG(ERROR) << "Attempting to update smoother with added prior factors";
+      *smoother_ = smoother_backup;  // reset isam to backup
+      *result = smoother_->update(
+          new_factors_mutable, new_values, timestamps, delete_slots);
+    } catch (...) {
+      // Catch the rest of exceptions.
+      LOG(ERROR) << "Smoother recovery failed. Most likely, the additional "
+                    "prior factors were insufficient to keep the system from "
+                    "becoming indeterminant.";
+      return false;
+    }
   } catch (const gtsam::InvalidNoiseModel& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors, delete_slots);
@@ -1481,13 +1745,12 @@ void VioBackend::updateNewSmartFactorsSlots(
         << "Trying to access unavailable factor.";
     // CHECK that the factor in the graph at slot position is a smart
     // factor.
-    DCHECK(boost::dynamic_pointer_cast<SmartStereoFactor>(
-        smoother_->getFactors().at(slot)));
+    const auto sptr = dynamic_cast<const SmartStereoFactor*>(
+        smoother_->getFactors().at(slot).get());
+    DCHECK(sptr);
     // CHECK that shared ptrs point to the same smart factor.
     // make sure no one is cloning SmartSteroFactors.
-    DCHECK_EQ(it->second.first,
-              boost::dynamic_pointer_cast<SmartStereoFactor>(
-                  smoother_->getFactors().at(slot)))
+    DCHECK_EQ(it->second.first.get(), sptr)
         << "Non-matching addresses for same factors for lmk with id: "
         << lmk_ids_of_new_smart_factors.at(i) << " in old_smart_factors_ "
         << "VS factor in graph at slot: " << slot
@@ -1517,17 +1780,21 @@ void VioBackend::setFactorsParams(
                               vio_params.outlierRejection_,
                               smart_factors_params);
 
-  setNoMotionFactorsParams(vio_params.noMotionPositionSigma_,
-                           vio_params.noMotionRotationSigma_,
+  setNoMotionFactorsParams(vio_params.no_motion_position_precision_,
+                           vio_params.no_motion_rotation_precision_,
                            no_motion_prior_noise);
 
   // Zero velocity factors settings
+  gtsam::Vector3 zero_velocity_precisions;
+  zero_velocity_precisions.setConstant(vio_params.zero_velocity_precision_);
   *zero_velocity_prior_noise =
-      gtsam::noiseModel::Isotropic::Sigma(3u, vio_params.zeroVelocitySigma_);
+      gtsam::noiseModel::Diagonal::Precisions(zero_velocity_precisions);
 
   // Constant velocity factors settings
+  gtsam::Vector3 constant_velocity_precisions;
+  constant_velocity_precisions.setConstant(vio_params.constant_vel_precision_);
   *constant_velocity_prior_noise =
-      gtsam::noiseModel::Isotropic::Sigma(3u, vio_params.constantVelSigma_);
+      gtsam::noiseModel::Diagonal::Precisions(constant_velocity_precisions);
 }
 
 void VioBackend::setSmartStereoFactorsNoiseModel(
@@ -1563,14 +1830,14 @@ void VioBackend::setSmartStereoFactorsParams(
 }
 
 void VioBackend::setNoMotionFactorsParams(
-    const double& position_sigma,
-    const double& rotation_sigma,
+    const double& position_precision,
+    const double& rotation_precision,
     gtsam::SharedNoiseModel* no_motion_prior_noise) {
   CHECK_NOTNULL(no_motion_prior_noise);
-  gtsam::Vector6 sigmas;
-  sigmas.head<3>().setConstant(rotation_sigma);
-  sigmas.tail<3>().setConstant(position_sigma);
-  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+  gtsam::Vector6 precisions;
+  precisions.head<3>().setConstant(rotation_precision);
+  precisions.tail<3>().setConstant(position_precision);
+  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Precisions(precisions);
 }
 
 /* --------------------------- PRINTERS ------------------------------------- */
@@ -1587,8 +1854,10 @@ void VioBackend::print() const {
   }
 
   LOG(INFO) << "** Backend Initial Members: \n"
-            << "B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
-            << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
+            << "B_Pose_leftCam_: " << B_Pose_leftCamRect_ << '\n'
+            << "W_Pose_B_lkf_from_state_: " << W_Pose_B_lkf_from_state_ << '\n'
+            << "W_Pose_B_lkf_from_increments_: "
+            << W_Pose_B_lkf_from_increments_ << '\n'
             << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
             << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'
             << "imu_bias_prev_kf_" << imu_bias_prev_kf_ << '\n'
@@ -1598,9 +1867,9 @@ void VioBackend::print() const {
 }
 
 void VioBackend::printFeatureTracks() const {
-  std::cout << "---- Feature tracks: --------- " << std::endl;
-  BOOST_FOREACH (auto keyTrack_j, feature_tracks_) {
-    std::cout << "Landmark " << keyTrack_j.first << " having ";
+  LOG(INFO) << "---- Feature tracks: --------- ";
+  for (const auto& keyTrack_j : feature_tracks_) {
+    LOG(INFO) << "Landmark " << keyTrack_j.first << " having ";
     keyTrack_j.second.print();
   }
 }
@@ -1664,6 +1933,7 @@ void VioBackend::printSmootherInfo(
   LOG(INFO) << "Nr deleted slots: " << delete_slots.size()
             << ", with slots:" << std::endl;
   LOG(INFO) << "[\n\t";
+  std::stringstream ss;
   if (debug_info_.graphToBeDeleted.size() != 0) {
     // If we are storing the graph to be deleted, then print extended info
     // besides the slot to be deleted.
@@ -1671,7 +1941,7 @@ void VioBackend::printSmootherInfo(
     for (size_t i = 0u; i < delete_slots.size(); ++i) {
       CHECK(debug_info_.graphToBeDeleted.at(i));
       if (print_point_plane_factors) {
-        printSelectedFactors(debug_info_.graphToBeDeleted.at(i),
+        printSelectedFactors(debug_info_.graphToBeDeleted.at(i).get(),
                              delete_slots.at(i),
                              false,
                              print_point_plane_factors,
@@ -1679,37 +1949,38 @@ void VioBackend::printSmootherInfo(
                              false,
                              false);
       } else {
-        std::cout << "\tSlot # " << delete_slots.at(i) << ":";
-        std::cout << "\t";
+        ss << "\tSlot # " << delete_slots.at(i) << ":";
+        ss << "\t";
         debug_info_.graphToBeDeleted.at(i)->printKeys();
       }
     }
   } else {
     for (size_t i = 0; i < delete_slots.size(); ++i) {
-      std::cout << delete_slots.at(i) << " ";
+      ss << delete_slots.at(i) << " ";
     }
   }
-  std::cout << std::endl;
+  LOG(INFO) << ss.str();
   LOG(INFO) << " ]" << std::endl;
 
   //////////////////////// Print all values in state. ////////////////////////
   LOG(INFO) << "Nr of values in state_ : " << state_.size() << ", with keys:";
-  std::cout << "[\n\t";
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value, state_) {
-    std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+  std::stringstream state_ss;
+  state_ss << "[\n\t";
+  for (const auto& key_value : state_) {
+    state_ss << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << state_ss.str();
   LOG(INFO) << " ]";
 
   // Print only new values.
   LOG(INFO) << "Nr values in new_values_ : " << new_values_.size()
             << ", with keys:";
-  std::cout << "[\n\t";
-  BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair& key_value,
-                 new_values_) {
-    std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+  std::stringstream new_values_ss;
+  new_values_ss << "[\n\t";
+  for (const auto& key_value : new_values_) {
+    new_values_ss << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << new_values_ss.str();
   LOG(INFO) << " ]";
 
   if (showDetails) {
@@ -1724,95 +1995,45 @@ void VioBackend::printSmootherInfo(
   LOG(INFO) << " =============== END: " << message << " =============== ";
 }
 
-void VioBackend::printSmartFactor(
-    boost::shared_ptr<SmartStereoFactor> gsf) const {
-  CHECK(gsf);
-  std::cout << "Smart Factor (valid: " << (gsf->isValid() ? "yes" : "NO!")
-            << ", deg: " << (gsf->isDegenerate() ? "YES!" : "no")
-            << " isCheir: " << (gsf->isPointBehindCamera() ? "YES!" : "no")
-            << "): \t";
-  gsf->printKeys();
-}
-
-void VioBackend::printPointPlaneFactor(
-    boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const {
-  CHECK(ppf);
-  std::cout << "Point Plane Factor: plane key "
-            << gtsam::DefaultKeyFormatter(ppf->getPlaneKey()) << ", point key "
-            << gtsam::DefaultKeyFormatter(ppf->getPointKey()) << "\n";
-}
-
-void VioBackend::printPlanePrior(
-    boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const {
-  CHECK(ppp);
-  std::cout << "Plane Prior: plane key \t";
-  ppp->printKeys();
-}
-
-void VioBackend::printPointPrior(
-    boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const {
-  CHECK(ppp);
-  std::cout << "Point Prior: point key \t";
-  ppp->printKeys();
-}
-
-void VioBackend::printLinearContainerFactor(
-    boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const {
-  CHECK(lcf);
-  std::cout << "Linear Container Factor: \t";
-  lcf->printKeys();
+template <typename T>
+void printFactorIfValid(const gtsam::NonlinearFactor* factor, size_t slot) {
+  const auto derived = dynamic_cast<const T*>(factor);
+  if (derived) {
+    std::cout << "\tSlot # " << slot << ": "
+              << FactorFormatter::format(*derived) << "\n";
+  }
 }
 
 void VioBackend::printSelectedFactors(
-    const boost::shared_ptr<gtsam::NonlinearFactor>& g,
+    const gtsam::NonlinearFactor* factor,
     const size_t& slot,
     const bool print_smart_factors,
     const bool print_point_plane_factors,
     const bool print_plane_priors,
     const bool print_point_priors,
     const bool print_linear_container_factors) const {
+  if (!factor) {
+    return;
+  }
+
   if (print_smart_factors) {
-    const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-    if (gsf) {
-      std::cout << "\tSlot # " << slot << ": ";
-      printSmartFactor(gsf);
-    }
+    printFactorIfValid<SmartStereoFactor>(factor, slot);
   }
 
   if (print_point_plane_factors) {
-    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-    if (ppf) {
-      std::cout << "\tSlot # " << slot << ": ";
-      printPointPlaneFactor(ppf);
-    }
+    printFactorIfValid<gtsam::PointPlaneFactor>(factor, slot);
   }
 
   if (print_plane_priors) {
-    const auto& ppp =
-        boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
-            g);
-    if (ppp) {
-      std::cout << "\tSlot # " << slot << ": ";
-      printPlanePrior(ppp);
-    }
+    printFactorIfValid<gtsam::PriorFactor<gtsam::OrientedPlane3>>(factor, slot);
   }
 
   if (print_point_priors) {
-    const auto& ppp =
-        boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(g);
-    if (ppp) {
-      std::cout << "\tSlot # " << slot << ": ";
-      printPointPrior(ppp);
-    }
+    printFactorIfValid<gtsam::PriorFactor<gtsam::Point3>>(factor, slot);
   }
 
   if (print_linear_container_factors) {
-    const auto& lcf =
-        boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g);
-    if (lcf) {
-      std::cout << "\tSlot # " << slot << ": ";
-      printLinearContainerFactor(lcf);
-    }
+    printFactorIfValid<gtsam::LinearContainerFactor>(factor, slot);
   }
 }
 
@@ -1825,7 +2046,7 @@ void VioBackend::printSelectedGraph(
     const bool& print_linear_container_factors) const {
   size_t slot = 0;
   for (const auto& g : graph) {
-    printSelectedFactors(g,
+    printSelectedFactors(g.get(),
                          slot,
                          print_smart_factors,
                          print_point_plane_factors,
@@ -1844,7 +2065,7 @@ void VioBackend::computeSmartFactorStatistics() {
   gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
   for (const auto& g : graph) {
     if (g) {
-      const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+      const auto gsf = dynamic_cast<const SmartStereoFactor*>(g.get());
       if (gsf) {
         debug_info_.numSF_ += 1;
 
@@ -1872,10 +2093,6 @@ void VioBackend::computeSmartFactorStatistics() {
         // Check SF status
         const gtsam::TriangulationResult& result = gsf->point();
         if (result) {
-          if (result.degenerate()) debug_info_.numDegenerate_ += 1;
-          if (result.farPoint()) debug_info_.numFarPoints_ += 1;
-          if (result.outlier()) debug_info_.numOutliers_ += 1;
-          if (result.behindCamera()) debug_info_.numCheirality_ += 1;
           if (result.valid()) {
             debug_info_.numValid_ += 1;
             // Check track length
@@ -1887,6 +2104,10 @@ void VioBackend::computeSmartFactorStatistics() {
           }
         } else {
           VLOG(5) << "Triangulation result is not initialized...";
+          if (result.degenerate()) debug_info_.numDegenerate_ += 1;
+          if (result.farPoint()) debug_info_.numFarPoints_ += 1;
+          if (result.outlier()) debug_info_.numOutliers_ += 1;
+          if (result.behindCamera()) debug_info_.numCheirality_ += 1;
           debug_info_.numNonInitialized_ += 1;
         }
       }
@@ -2001,12 +2222,12 @@ void VioBackend::deleteAllFactorsWithKeyFromFactorGraph(
       if ((*it)->find(key) != (*it)->end()) {
         // We found our lmk in the list of keys of the factor.
         // Sanity check, this lmk has no priors right?
-        CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(
-            *it));
+        CHECK(
+            !dynamic_cast<const gtsam::PriorFactor<gtsam::Point3>*>(it->get()));
         // We are not deleting a smart factor right?
         // Otherwise we need to update structure:
         // lmk_ids_of_new_smart_factors...
-        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(*it));
+        CHECK(!dynamic_cast<const SmartStereoFactor*>(it->get()));
         // Whatever factor this is, it has our lmk...
         // Delete it.
         LOG(WARNING) << "Delete factor in new_factors at slot # "
@@ -2069,17 +2290,16 @@ void VioBackend::findSlotsOfFactorsWithKey(
   CHECK_NOTNULL(slots_of_factors_with_key);
   slots_of_factors_with_key->resize(0);
   size_t slot = 0;
-  for (const boost::shared_ptr<gtsam::NonlinearFactor>& g : graph) {
+  for (const auto& g : graph) {
     if (g) {
       // Found a valid factor.
       if (g->find(key) != g->end()) {
         // Whatever factor this is, it has our lmk...
         // Sanity check, this lmk has no priors right?
-        CHECK(!boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g));
-        CHECK(
-            !boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(g));
+        CHECK(!dynamic_cast<const gtsam::LinearContainerFactor*>(g.get()));
+        CHECK(!dynamic_cast<const gtsam::PriorFactor<gtsam::Point3>*>(g.get()));
         // Sanity check that we are not deleting a smart factor.
-        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(g));
+        CHECK(!dynamic_cast<const SmartStereoFactor*>(g.get()));
         // Delete it.
         LOG(WARNING) << "Delete factor in graph at slot # " << slot
                      << " corresponding to lmk with id: "

@@ -12,14 +12,14 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
@@ -27,11 +27,9 @@
 
 DECLARE_string(test_data_path);
 
-static const double tol = 1e-7;
-
 namespace VIO {
 
-TEST(testVisionImuFrontendParams, TrackerParamParseYAML) {
+TEST(testVisionImuFrontendParams, FrontendParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
@@ -39,38 +37,36 @@ TEST(testVisionImuFrontendParams, TrackerParamParseYAML) {
   tp.parseYAML(FLAGS_test_data_path + "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
-  EXPECT_EQ(tp.klt_win_size_, 24);
-  EXPECT_EQ(tp.klt_max_iter_, 30);
-  EXPECT_EQ(tp.klt_max_level_, 2);
-  EXPECT_EQ(tp.klt_eps_, 0.001);
-  EXPECT_EQ(tp.maxFeatureAge_, 10);
+  EXPECT_EQ(tp.tracker_params_.klt_win_size_, 24);
+  EXPECT_EQ(tp.tracker_params_.klt_max_iter_, 30);
+  EXPECT_EQ(tp.tracker_params_.klt_max_level_, 2);
+  EXPECT_EQ(tp.tracker_params_.klt_eps_, 0.001);
+  EXPECT_EQ(tp.tracker_params_.max_feature_track_age_, 10);
+  EXPECT_EQ(tp.tracker_params_.minNrMonoInliers_, 2000);
+  EXPECT_EQ(tp.tracker_params_.minNrStereoInliers_, 1000);
+  EXPECT_EQ(tp.tracker_params_.ransac_threshold_mono_, 1e-06);
+  EXPECT_EQ(tp.tracker_params_.ransac_threshold_stereo_, 0.3);
+  EXPECT_EQ(tp.tracker_params_.ransac_use_1point_stereo_, false);
+  EXPECT_EQ(tp.tracker_params_.ransac_use_2point_mono_, true);
+  EXPECT_EQ(tp.tracker_params_.ransac_max_iterations_, 100);
+  EXPECT_EQ(tp.tracker_params_.ransac_probability_, 0.995);
+  EXPECT_EQ(tp.tracker_params_.ransac_randomize_, false);
+  EXPECT_EQ(tp.tracker_params_.disparityThreshold_, 1);
 
   EXPECT_EQ(tp.stereo_matching_params_.equalize_image_, true);
-  EXPECT_EQ(tp.stereo_matching_params_.nominal_baseline_, 110);
   EXPECT_EQ(tp.stereo_matching_params_.tolerance_template_matching_, 0.17);
   EXPECT_EQ(tp.stereo_matching_params_.templ_cols_, 103);
   EXPECT_EQ(tp.stereo_matching_params_.templ_rows_, 5);
   EXPECT_EQ(tp.stereo_matching_params_.stripe_extra_rows_, 2);
-  EXPECT_EQ(tp.stereo_matching_params_.min_point_dist_, 0.1);
-  EXPECT_EQ(tp.stereo_matching_params_.max_point_dist_, 150);
   EXPECT_EQ(tp.stereo_matching_params_.bidirectional_matching_, true);
-  EXPECT_EQ(tp.stereo_matching_params_.subpixel_refinement_, true);
 
-  EXPECT_EQ(tp.useRANSAC_, false);
-  EXPECT_EQ(tp.minNrMonoInliers_, 2000);
-  EXPECT_EQ(tp.minNrStereoInliers_, 1000);
-  EXPECT_EQ(tp.ransac_threshold_mono_, 1e-06);
-  EXPECT_EQ(tp.ransac_threshold_stereo_, 0.3);
-  EXPECT_EQ(tp.ransac_use_1point_stereo_, false);
-  EXPECT_EQ(tp.ransac_use_2point_mono_, true);
-  EXPECT_EQ(tp.ransac_max_iterations_, 100);
-  EXPECT_EQ(tp.ransac_probability_, 0.995);
-  EXPECT_EQ(tp.ransac_randomize_, false);
-
-  EXPECT_EQ(tp.intra_keyframe_time_ns_, 0.5 * 1e9);
+  EXPECT_EQ(tp.min_intra_keyframe_time_ns_, 0.5 * 1e9);
   EXPECT_EQ(tp.min_number_features_, 100);
-  EXPECT_EQ(tp.useStereoTracking_, 1);
-  EXPECT_EQ(tp.disparityThreshold_, 1);
+  EXPECT_EQ(tp.use_stereo_tracking_, 1);
+  EXPECT_EQ(tp.useRANSAC_, false);
+  EXPECT_EQ(tp.use_2d2d_tracking_, true);
+  EXPECT_EQ(tp.use_3d3d_tracking_, true);
+  EXPECT_EQ(tp.use_pnp_tracking_, true);
 }
 
 TEST(testVisionImuFrontendParams, equals) {

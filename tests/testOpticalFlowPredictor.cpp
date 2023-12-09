@@ -66,7 +66,8 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
 
     // Create Left Camera
     // Move left camera negative x direction so it can see the whole scene.
-    cam_1_pose_ = gtsam::Pose3(gtsam::Rot3(), gtsam::Vector3(0.0, 0.0, -4.0));
+    cam_1_pose_ =
+        gtsam::Pose3(gtsam::Rot3(), gtsam::Vector3(0.0, 0.0, -4.0));
     cam_1_ = PinholeCamera(cam_1_pose_, simulated_calib_);
 
     // Project Scene landmarks to cam1
@@ -185,7 +186,7 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
           cv::viz::WText3D(id, lmk, text_thickness, true, color));
     }
     window_->showWidget("Ray " + id,
-                       cv::viz::WLine(cam_world_origin, lmk, color));
+                        cv::viz::WLine(cam_world_origin, lmk, color));
   }
 
   void visualizePointCloud(const std::string& id, const cv::Mat& pointcloud) {
@@ -198,12 +199,13 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
   void visualizeScene(const std::string& test_name,
                       const KeypointsCV& predicted_kpts) {
     if (FLAGS_display) {
-      window_ = VIO::make_unique<cv::viz::Viz3d>(test_name);
+      window_ = std::make_unique<cv::viz::Viz3d>(test_name);
       window_->setBackgroundColor(cv::viz::Color::white());
 
       cv::Matx33d K = UtilsOpenCV::gtsamMatrix3ToCvMat(simulated_calib_.K());
-      cv::Mat cam_1_img = cv::Mat(
-          camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 255u, 255u, 40u));
+      cv::Mat cam_1_img = cv::Mat(camera_params_.image_size_,
+                                  CV_8UC4,
+                                  cv::Scalar(255u, 255u, 255u, 40u));
       cv::Mat cam_2_img = cv::Mat(
           camera_params_.image_size_, CV_8UC4, cv::Scalar(255u, 0u, 0u, 125u));
 
@@ -212,9 +214,9 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
 
       // Visualize left/right cameras
       const auto& cam_1_cv_pose =
-        UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_1_pose_);
+          UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_1_pose_);
       const auto& cam_2_cv_pose =
-        UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_2_pose_);
+          UtilsOpenCV::gtsamPose3ToCvAffine3d(cam_2_pose_);
       // Camera Coordinate axes
       cv::viz::WCameraPosition cpw1(0.2);
       cv::viz::WCameraPosition cpw2(0.4);
@@ -224,31 +226,34 @@ class OpticalFlowPredictorFixture : public ::testing::Test {
       // Visualize landmarks
       cv::Mat pointcloud = cv::Mat(0, 3, CV_64FC1);
       cv::Point3f cam_1_position =
-        UtilsOpenCV::gtsamVector3ToCvPoint3(cam_1_pose_.translation());
+          UtilsOpenCV::gtsamVector3ToCvPoint3(cam_1_pose_.translation());
       cv::Point3f cam_2_position =
-        UtilsOpenCV::gtsamVector3ToCvPoint3(cam_2_pose_.translation());
+          UtilsOpenCV::gtsamVector3ToCvPoint3(cam_2_pose_.translation());
       for (size_t i = 0u; i < lmks_.size(); i++) {
         cv::Point3f lmk_cv = UtilsOpenCV::gtsamVector3ToCvPoint3(lmks_[i]);
         visualizeRay(lmk_cv, "lmk-cam1" + std::to_string(i), cam_1_position);
         visualizeRay(lmk_cv,
-            "lmk-cam2" + std::to_string(i),
-            cam_2_position,
-            0.2,
-            cv::viz::Color::red());
+                     "lmk-cam2" + std::to_string(i),
+                     cam_2_position,
+                     0.2,
+                     cv::viz::Color::red());
         pointcloud.push_back(cv::Mat(lmk_cv).reshape(1).t());
       }
       pointcloud = pointcloud.reshape(3, lmks_.size());
       visualizePointCloud("Scene Landmarks", pointcloud);
 
       // Color image 2 with pixel reprojections (the ground-truth)
-      drawPixelsOnImg(cam_2_kpts_, cam_2_img, cv::viz::Color::green(), 3u, 125u);
+      drawPixelsOnImg(
+          cam_2_kpts_, cam_2_img, cv::viz::Color::green(), 3u, 125u);
 
       // Color image 2 with pixel prediction if no prediction is done
       // Expected result if using NoPredictionOpticalFlow
-      drawPixelsOnImg(cam_1_kpts_, cam_2_img, cv::viz::Color::brown(), 6u, 125u);
+      drawPixelsOnImg(
+          cam_1_kpts_, cam_2_img, cv::viz::Color::brown(), 6u, 125u);
 
       // Show the estimated kpt positions in red and smaller
-      drawPixelsOnImg(predicted_kpts, cam_2_img, cv::viz::Color::red(), 1u, 125u);
+      drawPixelsOnImg(
+          predicted_kpts, cam_2_img, cv::viz::Color::red(), 1u, 125u);
 
       // Camera frustums
       // cv::viz::WCameraPosition cpw_1_frustum(K, cam_1_img, 2.0);
@@ -591,11 +596,11 @@ TEST_F(OpticalFlowPredictorFixture,
   ASSERT_EQ(8, actual_kpts.size());
   EXPECT_NEAR(376.00003051757812, actual_kpts[0].x, 1e-1);
   EXPECT_NEAR(239.99998474121094, actual_kpts[0].y, 1e-1);
-  EXPECT_NEAR(415.302001953125,   actual_kpts[1].x, 1e-1);
-  EXPECT_NEAR(347.7138671875,     actual_kpts[1].y, 1e-1);
+  EXPECT_NEAR(415.302001953125, actual_kpts[1].x, 1e-1);
+  EXPECT_NEAR(347.7138671875, actual_kpts[1].y, 1e-1);
   EXPECT_NEAR(483.71389770507812, actual_kpts[2].x, 1e-1);
   EXPECT_NEAR(200.69801330566406, actual_kpts[2].y, 1e-1);
-  EXPECT_NEAR(523.015869140625,   actual_kpts[3].x, 1e-1);
+  EXPECT_NEAR(523.015869140625, actual_kpts[3].x, 1e-1);
   EXPECT_NEAR(308.41189575195312, actual_kpts[3].y, 1e-1);
   EXPECT_NEAR(376.00003051757812, actual_kpts[4].x, 1e-1);
   EXPECT_NEAR(239.99998474121094, actual_kpts[4].y, 1e-1);
@@ -604,7 +609,7 @@ TEST_F(OpticalFlowPredictorFixture,
   EXPECT_NEAR(462.17111206054688, actual_kpts[6].x, 1e-1);
   EXPECT_NEAR(208.55841064453125, actual_kpts[6].y, 1e-1);
   EXPECT_NEAR(493.61270141601562, actual_kpts[7].x, 1e-1);
-  EXPECT_NEAR(294.7294921875,     actual_kpts[7].y, 1e-1);
+  EXPECT_NEAR(294.7294921875, actual_kpts[7].y, 1e-1);
 
   visualizeScene("RotationAndTranslation", actual_kpts);
 }

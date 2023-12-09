@@ -19,6 +19,8 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include <optional>
+
 #include "kimera-vio/frontend/FrontendInputPacketBase.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 
@@ -27,7 +29,7 @@ namespace VIO {
 struct ReinitPacket {
   ReinitPacket(const bool& reinit_flag_ext = false,
                const Timestamp& timestamp_ext = 0,
-               const gtsam::Pose3& W_Pose_Bext = gtsam::Pose3::identity(),
+               const gtsam::Pose3& W_Pose_Bext = gtsam::Pose3(),
                const gtsam::Vector3& W_Vel_Bext = gtsam::Vector3::Zero(3),
                const ImuBias& imu_bias_ext = gtsam::imuBias::ConstantBias())
       : reinit_flag_ext_(reinit_flag_ext),
@@ -82,10 +84,12 @@ class StereoImuSyncPacket : public FrontendInputPacketBase {
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   StereoImuSyncPacket() = delete;
-  StereoImuSyncPacket(const StereoFrame& stereo_frame,
-                      const ImuStampS& imu_stamps,
-                      const ImuAccGyrS& imu_accgyr,
-                      const ReinitPacket& reinit_packet = ReinitPacket());
+  StereoImuSyncPacket(
+      const StereoFrame& stereo_frame,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr,
+      std::optional<gtsam::NavState> external_odometry = std::nullopt,
+      const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 
   // Careful, returning references to members can lead to dangling refs.
@@ -93,9 +97,7 @@ class StereoImuSyncPacket : public FrontendInputPacketBase {
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
   inline const ImuAccGyrS& getImuAccGyrs() const { return imu_accgyrs_; }
   inline const ReinitPacket& getReinitPacket() const { return reinit_packet_; }
-  inline const bool getReinitFlag() const {
-    return reinit_packet_.getReinitFlag();
-  }
+  inline bool getReinitFlag() const { return reinit_packet_.getReinitFlag(); }
 
   void print() const;
 

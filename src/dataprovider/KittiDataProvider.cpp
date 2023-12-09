@@ -25,8 +25,9 @@ KittiDataProvider::KittiData::operator bool() const {
   bool empty_data = timestamps_.empty() || left_img_names_.empty() ||
                     right_img_names_.empty();
   LOG_IF(ERROR, empty_data) << "Kitti Data is empty!";
-  bool missing_data =
-      timestamps_.size() == left_img_names_.size() == right_img_names_.size();
+  const size_t num_stamps = timestamps_.size();
+  bool missing_data = (num_stamps != left_img_names_.size()) ||
+                      (num_stamps != right_img_names_.size());
   LOG_IF(ERROR, missing_data) << "Missing Kitti Data!";
   LOG_IF(ERROR, empty_data || missing_data)
       << "# of timestamps: " << timestamps_.size() << '\n'
@@ -52,6 +53,7 @@ cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
 
 bool KittiDataProvider::spin() {
   LOG(FATAL) << "Not implemented.";
+  return false;
 }
 
 bool Earlier_time(std::pair<Timestamp, std::string>& a,
@@ -152,10 +154,10 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   return true;
 }
 
-bool KittiDataProvider::parsePose(
-                const std::string& input_dataset_path,
-                const std::string& calibration_filename,
-                cv::Mat& R, cv::Mat& T) const {
+bool KittiDataProvider::parsePose(const std::string& input_dataset_path,
+                                  const std::string& calibration_filename,
+                                  cv::Mat& R,
+                                  cv::Mat& T) const {
   std::ifstream calib_file;
   std::string calibration_file_path = input_dataset_path + calibration_filename;
   calib_file.open(calibration_file_path.c_str());
@@ -209,7 +211,6 @@ bool KittiDataProvider::parseImuData(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-void KittiDataProvider::print() const {
-}
+void KittiDataProvider::print() const {}
 
 }  // namespace VIO

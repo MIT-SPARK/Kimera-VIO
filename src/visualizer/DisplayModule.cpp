@@ -25,25 +25,24 @@ DisplayModule::DisplayModule(DisplayQueue* input_queue,
     : SISO(input_queue, output_queue, "Display", parallel_run),
       display_(std::move(display)) {}
 
-DisplayModule::OutputUniquePtr DisplayModule::spinOnce(
-    InputUniquePtr input) {
+DisplayModule::OutputUniquePtr DisplayModule::spinOnce(InputUniquePtr input) {
   CHECK(input);
   if (display_) display_->spinOnce(std::move(input));
-  return VIO::make_unique<NullPipelinePayload>();
+  return std::make_unique<NullPipelinePayload>();
 }
 
 typename DisplayModule::MISO::InputUniquePtr DisplayModule::getInputPacket() {
   if (display_ && display_->display_type_ == DisplayType::kPangolin) {
     // If we are using pangolin just fake a constant input of messages
     // to not block the visualizer.
-    return VIO::make_unique<DisplayInputBase>();
+    return std::make_unique<DisplayInputBase>();
   }
 
   typename MISO::InputUniquePtr input = nullptr;
   bool queue_state = false;
 
   if (MISO::parallel_run_) {
-    queue_state = input_queue_->popBlocking(input);
+    queue_state = input_queue_->popBlockingWithTimeout(input, 5);
   } else {
     queue_state = input_queue_->pop(input);
   }
@@ -51,9 +50,9 @@ typename DisplayModule::MISO::InputUniquePtr DisplayModule::getInputPacket() {
   if (queue_state) {
     return input;
   } else {
-    LOG(WARNING) << "Module: " << MISO::name_id_ << " - "
-                 << "Input queue: " << input_queue_->queue_id_
-                 << " didn't return an output.";
+    VLOG(10) << "Module: " << MISO::name_id_ << " - "
+             << "Input queue: " << input_queue_->queue_id_
+             << " didn't return an output.";
     return nullptr;
   }
 }

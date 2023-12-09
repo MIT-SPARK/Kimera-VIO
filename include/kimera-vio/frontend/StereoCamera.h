@@ -15,13 +15,12 @@
 
 #pragma once
 
-#include <Eigen/Core>
-
-#include <opencv2/core.hpp>
-
 #include <gtsam/geometry/Cal3_S2Stereo.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/geometry/StereoCamera.h>
+
+#include <Eigen/Core>
+#include <opencv2/core.hpp>
 
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
@@ -51,15 +50,14 @@ class StereoCamera {
   StereoCamera(const CameraParams& left_cam_params,
                const CameraParams& right_cam_params);
 
-  StereoCamera(Camera::ConstPtr left_camera,
-               Camera::ConstPtr right_camera);
+  StereoCamera(Camera::ConstPtr left_camera, Camera::ConstPtr right_camera);
 
   virtual ~StereoCamera() = default;
 
  public:
   /** NOT TESTED
    * @brief project 3D Lmks into images as 2D pixels, doesn't do any check...
-   * @param lmks Given in World coordinates or rather in whatever frame of
+   * @param lmks Given in Body coordinates or rather in whatever frame of
    * reference the pose of the left camera is given (usually the body frame!)
    * @param left_kpts
    * @param right_kpts
@@ -172,6 +170,18 @@ class StereoCamera {
   }
 
   /**
+   * @brief get a GTSAM stereo camera
+   * @return stereo camera after undistortion and rectification
+   */
+  inline gtsam::StereoCamera getGtsamStereoCam() const {
+    // TODO(nathan) consider caching this
+    // Create stereo camera in the ref frame of the left camera.
+    // TODO(TONI): don't create stereo cameras all the time... and this
+    // stereo_camera should have the camLrect pose...
+    return gtsam::StereoCamera(gtsam::Pose3(), getStereoCalib());
+  }
+
+  /**
    * @brief getImageSize
    * @return image size of left/right frames
    */
@@ -209,8 +219,8 @@ class StereoCamera {
   void undistortRectifyStereoFrame(StereoFrame* stereo_frame) const;
 
   /**
-   * @brief undistortRectifyLeftKeypoints Undistorts and rectifies left keypoints
-   * using the left camera distortion and rectification parameters.
+   * @brief undistortRectifyLeftKeypoints Undistorts and rectifies left
+   * keypoints using the left camera distortion and rectification parameters.
    * Further provides a KeypointStatus on the keypoints so that out of image
    * and/or badly undistorted-rectified keypoints can be discarded.
    * @param keypoints
@@ -219,9 +229,8 @@ class StereoCamera {
   void undistortRectifyLeftKeypoints(const KeypointsCV& keypoints,
                                      StatusKeypointsCV* status_keypoints) const;
 
-  void distortUnrectifyRightKeypoints(
-      const StatusKeypointsCV& status_keypoints,
-      KeypointsCV* keypoints) const;
+  void distortUnrectifyRightKeypoints(const StatusKeypointsCV& status_keypoints,
+                                      KeypointsCV* keypoints) const;
 
   /**
    * @brief computeRectificationParameters

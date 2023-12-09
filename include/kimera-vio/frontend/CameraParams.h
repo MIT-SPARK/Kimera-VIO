@@ -14,13 +14,12 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
-#include <opencv2/core/core.hpp>
-
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
+
+#include <opencv2/core/core.hpp>
+#include <string>
+#include <vector>
 
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/Macros.h"
@@ -29,10 +28,16 @@
 
 namespace VIO {
 
+enum class CameraModel {
+  PINHOLE,
+  OMNI,
+};
+
 enum class DistortionModel {
   NONE,
   RADTAN,
   EQUIDISTANT,
+  OMNI,
 };
 
 /**
@@ -44,6 +49,10 @@ class CameraParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(CameraParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Fix the omni-camera inverse polynomial order for projecting points here.
+  // Not required until omni point projection is supported
+  // static constexpr int kInversePolynomialOrder = 12;
 
   using CameraId = std::string;
   // fu, fv, cu, cv
@@ -88,7 +97,7 @@ class CameraParams : public PipelineParams {
   CameraId camera_id_;
 
   //! Camera model: pinhole, etc
-  std::string camera_model_;
+  CameraModel camera_model_;
 
   //! fu, fv, cu, cv
   Intrinsics intrinsics_;
@@ -108,6 +117,43 @@ class CameraParams : public PipelineParams {
   std::vector<double> distortion_coeff_;
   cv::Mat distortion_coeff_mat_;
 
+  //! Omnicam only parameters
+  Eigen::Vector2d omni_distortion_center_;
+  Eigen::Matrix2d omni_affine_;      // matrix A in Scaramuzza's paper
+                                     // A = [c,d;e,1]
+  Eigen::Matrix2d omni_affine_inv_;  // inv of A
+
+  // Not required until omni point projection is supported
+  // Eigen::Matrix<double, kInversePolynomialOrder, 1>
+  //     omni_pol_inv_;             // polynomial for Ocamcalib projection
+
+  //! RGBD only parameters
+  struct DepthParams {
+    //! Whether or not the parameters were read
+    bool valid = false;
+
+    //! Virtual depth baseline: smaller means less disparity
+    float virtual_baseline_ = 1.0e-2f;
+
+    //! Conversion factor between raw depth measurements and meters
+    float depth_to_meters_ = 1.0f;
+
+    //! Minimum depth to convert
+    float min_depth_ = 0.0f;
+
+    //! Maximum depth to convert
+    float max_depth_ = 10.0f;
+
+    //! Whether or not the image is registered
+    bool is_registered_ = true;
+
+    //! Camera matrix for the depth image
+    cv::Mat K_;
+
+    //! Extrinsic transform between the depth and rgb cameras
+    cv::Mat T_color_depth_;
+  } depth;
+
  public:
   static void convertDistortionVectorToMatrix(
       const std::vector<double>& distortion_coeffs,
@@ -119,24 +165,31 @@ class CameraParams : public PipelineParams {
                                      gtsam::Cal3DS2* calibration);
 
   /** Taken from: https://github.com/ethz-asl/image_undistort
-   * @brief stringToDistortion
+   * @brief stringToDistortionModel
    * @param distortion_model
    * @param camera_model
    * @return actual distortion model enum class
    */
-  static const DistortionModel stringToDistortion(
+  static DistortionModel stringToDistortionModel(
       const std::string& distortion_model,
-      const std::string& camera_model);
+      const CameraModel& camera_model);
+
+  static CameraModel stringToCameraModel(const std::string& camera_model);
 
  private:
-  void parseDistortion(const YamlParser& yaml_parser);
   static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
   static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
   static void parseBodyPoseCam(const YamlParser& yaml_parser,
                                gtsam::Pose3* body_Pose_cam);
-  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                    Intrinsics* intrinsics_);
+
+  void parseDistortion(const YamlParser& yaml_parser);
+
+  void parseCameraIntrinsics(const YamlParser& yaml_parser,
+                             Intrinsics* _intrinsics);
+
+  void parseDepthParams(const YamlParser& yaml_parser);
 };
+
 // TODO(Toni): this should be a base class, so that stereo camera is a specific
 // type of a multi camera sensor rig, or something along these lines.
 typedef std::vector<CameraParams> MultiCameraParams;

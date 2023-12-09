@@ -15,8 +15,9 @@
 #pragma once
 
 #include <Eigen/Eigen>
-
 #include <opencv2/features2d.hpp>
+#include <vector>
+#include <optional>
 
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
@@ -36,7 +37,7 @@ class FeatureDetector {
 
  public:
   void featureDetection(Frame* cur_frame,
-                        boost::optional<cv::Mat> R = boost::none);
+                        std::optional<cv::Mat> R = std::nullopt);
 
   /**
    * @brief rawFeatureDetection Raw feature detection: in image, out keypoints

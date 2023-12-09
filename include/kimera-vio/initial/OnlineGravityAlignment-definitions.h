@@ -21,8 +21,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <boost/foreach.hpp>
-
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/NavState.h>

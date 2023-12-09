@@ -14,11 +14,10 @@
 
 #include "kimera-vio/visualizer/OpenCvDisplay.h"
 
-#include <string>
-
 #include <glog/logging.h>
 
 #include <opencv2/opencv.hpp>
+#include <string>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/FilesystemUtils.h"
@@ -30,11 +29,11 @@ namespace VIO {
 OpenCv3dDisplay::OpenCv3dDisplay(
     DisplayParams::Ptr display_params,
     const ShutdownPipelineCallback& shutdown_pipeline_cb)
-    : DisplayBase(display_params->display_type_), // DANGEROUS
+    : DisplayBase(display_params->display_type_),  // DANGEROUS
       window_data_(),
       shutdown_pipeline_cb_(shutdown_pipeline_cb),
-      params_(VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
-          *display_params)) {
+      params_(*CHECK_NOTNULL(
+          std::dynamic_pointer_cast<OpenCv3dDisplayParams>(display_params))) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -60,16 +59,17 @@ OpenCv3dDisplay::OpenCv3dDisplay(
 
 void OpenCv3dDisplay::spinOnce(DisplayInputBase::UniquePtr&& display_input) {
   CHECK(display_input);
-  // Display 2D images.
   spin2dWindow(*display_input);
-  // Display 3D window.
-  spin3dWindow(safeDisplayInputCast(std::move(display_input)));
+  spin3dWindow(castUnique<VisualizerOutput>(std::move(display_input)));
 }
 
 // Adds 3D widgets to the window, and displays it.
 void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
   // Only display if we have a valid pointer.
-  if (!viz_output) return;
+  if (!viz_output) {
+    window_data_.window_.spinOnce(1, false);  // spin to allow for user input
+    return;
+  }
 
   if (viz_output->visualization_type_ != VisualizationType::kNone) {
     if (window_data_.window_.wasStopped()) {
@@ -81,11 +81,9 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       // ```
       shutdown_pipeline_cb_();
     }
-    // viz_output.window_->spinOnce(1, true);
-    setMeshProperties(&viz_output->widgets_);
 
     // Remove requested widgets, do this first, to not remove new things.
-    for (const std::string& widget_id: viz_output->widget_ids_to_remove_) {
+    for (const std::string& widget_id : viz_output->widget_ids_to_remove_) {
       removeWidget(widget_id);
     }
 
@@ -99,6 +97,10 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
       window_data_.window_.showWidget(
           it->first, *(it->second), it->second->getPose());
     }
+
+    // Update mesh visualization properties
+    setMeshProperties(&viz_output->widgets_);
+
     if (params_.hold_3d_display_) {
       // Spin forever until user closes window
       LOG(WARNING) << "Holding OpenCV 3d window display";
@@ -161,7 +163,9 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
                                         cv::viz::SHADING_PHONG);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
 
   // Decide mesh representation style.
@@ -182,7 +186,9 @@ void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
                                         cv::viz::REPRESENTATION_WIREFRAME);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
   mesh_widget->setRenderingProperty(cv::viz::AMBIENT,
                                     window_data_.mesh_ambient_);
@@ -246,16 +252,19 @@ void OpenCv3dDisplay::setMeshRepresentation(const uchar& code,
                                             WindowData* window_data) {
   CHECK_NOTNULL(window_data);
   if (code == '0') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                           "a point cloud.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh representation to "
+                    "a point cloud.";
     window_data->mesh_representation_ = 0u;
   } else if (code == '1') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                           "a mesh.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh representation to "
+                    "a mesh.";
     window_data->mesh_representation_ = 1u;
   } else if (code == '2') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                           "a wireframe.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh representation to "
+                    "a wireframe.";
     window_data->mesh_representation_ = 2u;
   }
 }
@@ -265,16 +274,19 @@ void OpenCv3dDisplay::setMeshShadingCallback(const uchar& code,
                                              WindowData* window_data) {
   CHECK_NOTNULL(window_data);
   if (code == '4') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
-                                           "flat.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh shading to "
+                    "flat.";
     window_data->mesh_shading_ = 0u;
   } else if (code == '5') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
-                                           "Gouraud.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh shading to "
+                    "Gouraud.";
     window_data->mesh_shading_ = 1u;
   } else if (code == '6') {
-    LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
-                                           "Phong.";
+    LOG(WARNING) << "Pressing " << code
+                 << " sets mesh shading to "
+                    "Phong.";
     window_data->mesh_shading_ = 2u;
   }
 }
@@ -358,29 +370,6 @@ void OpenCv3dDisplay::recordVideo() {
 
 void OpenCv3dDisplay::setOffScreenRendering() {
   window_data_.window_.setOffScreenRendering();
-}
-
-VisualizerOutput::UniquePtr OpenCv3dDisplay::safeDisplayInputCast(
-    DisplayInputBase::UniquePtr display_input_base) {
-  if (!display_input_base) return nullptr;
-  VisualizerOutput::UniquePtr viz_output;
-  VisualizerOutput* tmp = nullptr;
-  try {
-    tmp = dynamic_cast<VisualizerOutput*>(display_input_base.get());
-  } catch (const std::bad_cast& e) {
-    LOG(ERROR) << "Seems that you are casting DisplayInputBase to "
-                  "VisualizerOutput, but this object is not "
-                  "a VisualizerOutput!\n"
-                  "Error: "
-               << e.what();
-    return nullptr;
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when casting to VisualizerOutput.";
-  }
-  if (!tmp) return nullptr;
-  display_input_base.release();
-  viz_output.reset(tmp);
-  return viz_output;
 }
 
 }  // namespace VIO

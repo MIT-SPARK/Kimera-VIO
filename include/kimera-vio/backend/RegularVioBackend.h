@@ -31,12 +31,13 @@ namespace VIO {
 
 class RegularVioBackend : public VioBackend {
  public:
-  RegularVioBackend(const Pose3& B_Pose_leftCam,
+  RegularVioBackend(const Pose3& B_Pose_leftCamRect,
                     const StereoCalibPtr& stereo_calibration,
                     const BackendParams& backend_params,
                     const ImuParams& imu_params,
                     const BackendOutputParams& backend_output_params,
-                    const bool& log_output);
+                    const bool& log_output,
+                    std::optional<OdometryParams> odom_params = std::nullopt);
 
   virtual ~RegularVioBackend() = default;
 
@@ -45,8 +46,8 @@ class RegularVioBackend : public VioBackend {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose =
-          boost::none) override;
+      std::optional<gtsam::Pose3> odometry_body_pose = std::nullopt,
+      std::optional<gtsam::Velocity3> odometry_vel = std::nullopt) override;
 
  private:
   typedef size_t Slot;
@@ -69,7 +70,7 @@ class RegularVioBackend : public VioBackend {
   // For Stereo and Projection factors.
   gtsam::SharedNoiseModel stereo_noise_;
   gtsam::SharedNoiseModel mono_noise_;
-  boost::shared_ptr<Cal3_S2> mono_cal_;
+  Cal3_S2::shared_ptr mono_cal_;
 
   // For regularity factors.
   gtsam::SharedNoiseModel point_plane_regularity_noise_;

@@ -14,14 +14,12 @@
 
 #include "kimera-vio/logging/Logger.h"
 
+#include <gflags/gflags.h>
+
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
-
-#include <boost/filesystem.hpp>  // to create folders
-#include <boost/foreach.hpp>
-
-#include <gflags/gflags.h>
 
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
@@ -44,10 +42,12 @@ OfstreamWrapper::OfstreamWrapper(const std::string& filename,
 // destructed. So no need to explicitly call .close();
 OfstreamWrapper::~OfstreamWrapper() {
   LOG(INFO) << "Closing output file: " << filename_.c_str();
+  ofstream_.flush();
   ofstream_.close();
 }
 
 void OfstreamWrapper::closeAndOpenLogFile() {
+  ofstream_.flush();
   ofstream_.close();
   CHECK(!filename_.empty());
   OpenFile(output_path_ + '/' + filename_, &ofstream_, false);
@@ -89,7 +89,9 @@ BackendLogger::BackendLogger()
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
-      output_backend_timing_csv_("output_backendTiming.csv") {}
+      output_backend_timing_csv_("output_backendTiming.csv"),
+      output_backend_external_odometry_(
+          "output_backend_external_odometry.csv") {}
 
 void BackendLogger::logBackendOutput(const BackendOutput& output) {
   logBackendResultsCSV(output);
@@ -150,7 +152,7 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   }
   const auto& cached_state = vio_output.W_State_Blkf_;
   const auto& w_pose_blkf_trans = cached_state.pose_.translation().transpose();
-  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().quaternion();
+  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().toQuaternion();
   const auto& w_vel_blkf = cached_state.velocity_.transpose();
   const auto& imu_bias_gyro = cached_state.imu_bias_.gyroscope().transpose();
   const auto& imu_bias_acc = cached_state.imu_bias_.accelerometer().transpose();
@@ -158,10 +160,10 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
                 << w_pose_blkf_trans.x() << ","    //
                 << w_pose_blkf_trans.y() << ","    //
                 << w_pose_blkf_trans.z() << ","    //
-                << w_pose_blkf_rot(0) << ","       // q_w
-                << w_pose_blkf_rot(1) << ","       // q_x
-                << w_pose_blkf_rot(2) << ","       // q_y
-                << w_pose_blkf_rot(3) << ","       // q_z
+                << w_pose_blkf_rot.w() << ","      //
+                << w_pose_blkf_rot.x() << ","      //
+                << w_pose_blkf_rot.y() << ","      //
+                << w_pose_blkf_rot.z() << ","      //
                 << w_vel_blkf(0) << ","            //
                 << w_vel_blkf(1) << ","            //
                 << w_vel_blkf(2) << ","            //
@@ -277,6 +279,39 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
                 << std::endl;
 }
 
+void BackendLogger::logBackendExtOdom(const BackendInput& input) {
+  if (!input.body_lkf_OdomPose_body_kf_) {
+    return;  // we're not using external odometry, don't log anything
+  }
+  if (!input.body_kf_world_OdomVel_body_kf_) {
+    return;  // we're not using external odometry, don't log anything
+  }
+
+  std::ofstream& output_stream = output_backend_external_odometry_.ofstream_;
+
+  if (!is_header_written_external_odometry_) {
+    // vx (kf), etc. is a little sloppy, but there's no better way to do this
+    // More specifically: the pose is relative between the current and last
+    // keyframe, but the velocity is absolute for the current keyframe
+    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx (kf),vy (kf),vz (kf)"
+                  << std::endl;
+    is_header_written_external_odometry_ = true;
+  }
+
+  // write the relative pose estimate between the last keyframe
+  // and the current one as well as the current body velocity estimate
+  const gtsam::Point3 tran = (*input.body_lkf_OdomPose_body_kf_).translation();
+  const gtsam::Quaternion quat =
+      (*input.body_lkf_OdomPose_body_kf_).rotation().toQuaternion();
+  output_stream << input.timestamp_ << ",";
+  output_stream << tran.x() << "," << tran.y() << "," << tran.z() << ",";
+  output_stream << quat.w() << "," << quat.x() << "," << quat.y() << ","
+                << quat.z() << ",";
+  output_stream << (*input.body_kf_world_OdomVel_body_kf_).x() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).y() << ","
+                << (*input.body_kf_world_OdomVel_body_kf_).z() << std::endl;
+}
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
 MesherLogger::MesherLogger() : output_path_(FLAGS_output_path) {}
@@ -374,20 +409,17 @@ FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
       output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
+      output_frontend_temporal_cal_("output_frontend_temporal_cal.csv"),
       output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
-  // Create output directories for images.
-  boost::filesystem::create_directory(
-      boost::filesystem::path(output_frontend_img_path_.c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "monoFeatureTracksLeftImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "monoTrackingUnrectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "monoTrackingRectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "stereoMatchingUnrectifiedImg").c_str()));
-  boost::filesystem::create_directory(boost::filesystem::path(
-      (output_frontend_img_path_ + "stereoMatchingRectifiedImg").c_str()));
+  namespace fs = std::filesystem;
+  const fs::path logger_dir(output_frontend_img_path_);
+  fs::create_directory(logger_dir);
+  fs::create_directory(logger_dir / "monoFeatureTracksLeftImg");
+  fs::create_directory(logger_dir / "monoTrackingUnrectifiedImg");
+  fs::create_directory(logger_dir / "monoTrackingRectifiedImg");
+  fs::create_directory(logger_dir / "stereoMatchingUnrectifiedImg");
+  fs::create_directory(logger_dir / "stereoMatchingRectifiedImg");
+  fs::create_directory(logger_dir / "rgbdDepthFeaturesImg");
 }
 
 void FrontendLogger::logFrontendStats(
@@ -514,6 +546,30 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
   }
 }
 
+void FrontendLogger::logFrontendTemporalCal(
+    const Timestamp& timestamp_vision,
+    const Timestamp& timestamp_imu,
+    const double& vision_relative_angle_norm,
+    const double& imu_relative_angle_norm,
+    bool not_enough_data,
+    bool not_enough_variance,
+    const double& result) {
+  std::ofstream& output_stream = output_frontend_temporal_cal_.ofstream_;
+
+  if (!is_header_written_temporal_cal_) {
+    output_stream << "#timestamp_vision,timestamp_imu,vision_relative_angle_"
+                     "norm,imu_relative_angle_norm,not_enough_data,not_"
+                     "enough_variance,t_imu_cam_s"
+                  << std::endl;
+    is_header_written_temporal_cal_ = true;
+  }
+
+  output_stream << timestamp_vision << "," << timestamp_imu << ","
+                << vision_relative_angle_norm << "," << imu_relative_angle_norm
+                << "," << not_enough_data << "," << not_enough_variance << ","
+                << result << "," << std::endl;
+}
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 PipelineLogger::PipelineLogger()
     : output_pipeline_timing_("output_timingOverall.csv") {}
@@ -534,6 +590,8 @@ LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.csv"),
       output_traj_("traj_pgo.csv"),
       output_status_("output_lcd_status.csv"),
+      output_geom_verif_("output_lcd_geom_verif.csv"),
+      output_pose_recovery_("output_lcd_pose_recovery.csv"),
       ts_map_() {}
 
 void LoopClosureDetectorLogger::logTimestampMap(
@@ -572,13 +630,61 @@ void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
                     << rel_quat.z() << std::endl;
 }
 
+void LoopClosureDetectorLogger::logGeometricVerification(
+    const Timestamp& timestamp_query,
+    const Timestamp& timestamp_match,
+    const gtsam::Pose3& camRef_Pose_camCur) {
+  // We log 2d2d ransac result pose in csv format.
+  std::ofstream& output_stream_lcd = output_geom_verif_.ofstream_;
+  bool& is_header_written = is_header_written_geom_verif_;
+
+  if (!is_header_written) {
+    output_stream_lcd << "#timestamp_match,timestamp_query,x,y,z,qw,qx,qy,qz"
+                      << std::endl;
+    is_header_written = true;
+  }
+
+  const gtsam::Point3& rel_trans = camRef_Pose_camCur.translation();
+  const gtsam::Quaternion& rel_quat =
+      camRef_Pose_camCur.rotation().toQuaternion();
+
+  output_stream_lcd << timestamp_query << "," << timestamp_match << ","
+                    << rel_trans.x() << "," << rel_trans.y() << ","
+                    << rel_trans.z() << "," << rel_quat.w() << ","
+                    << rel_quat.x() << "," << rel_quat.y() << ","
+                    << rel_quat.z() << std::endl;
+}
+
+void LoopClosureDetectorLogger::logPoseRecovery(
+    const Timestamp& timestamp_query,
+    const Timestamp& timestamp_match,
+    const gtsam::Pose3& camMatch_T_camQuery_3d) {
+  // We log 2d2d ransac result pose in csv format.
+  std::ofstream& output_stream_lcd = output_pose_recovery_.ofstream_;
+  bool& is_header_written = is_header_written_pose_recovery_;
+
+  if (!is_header_written) {
+    output_stream_lcd << "#timestamp_match,timestamp_query,x,y,z,qw,qx,qy,qz"
+                      << std::endl;
+    is_header_written = true;
+  }
+
+  const gtsam::Point3& rel_trans = camMatch_T_camQuery_3d.translation();
+  const gtsam::Quaternion& rel_quat =
+      camMatch_T_camQuery_3d.rotation().toQuaternion();
+
+  output_stream_lcd << timestamp_query << "," << timestamp_match << ","
+                    << rel_trans.x() << "," << rel_trans.y() << ","
+                    << rel_trans.z() << "," << rel_quat.w() << ","
+                    << rel_quat.x() << "," << rel_quat.y() << ","
+                    << rel_quat.z() << std::endl;
+}
+
 void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
   // We close and reopen log file to clear contents completely.
   output_traj_.closeAndOpenLogFile();
   // We log the full optimized trajectory in csv format.
   std::ofstream& output_stream_traj = output_traj_.ofstream_;
-
-  // TODO(marcus): set the append to false on this one and overwrite EVERY TIME
 
   bool is_header_written = false;
   if (!is_header_written) {

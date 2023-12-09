@@ -10,10 +10,12 @@
  * @file   FeatureDetectorParams.h
  * @brief  Parameters for feature detection.
  * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
@@ -49,7 +51,6 @@ struct SubPixelCornerFinderParams : public PipelineParams {
   cv::Size zero_zone_ = cv::Size(-1, -1);
 };
 
-
 struct FeatureDetectorParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(FeatureDetectorParams);
@@ -83,9 +84,18 @@ struct FeatureDetectorParams : public PipelineParams {
   //! Minimum distance between the already tracked features and the new
   //! features to be detected. This avoids detections near tracked features.
   int min_distance_btw_tracked_and_detected_features_ = 10;
+  //! upper bound on the nr. of keypoints before anms. We extract this number of
+  //! keypoints and then non-max suppression is responsible to select the best
+  //! maxFeaturesPerFrame as specified in the yaml file
+  int max_nr_keypoints_before_anms_ = 2000;
+  //! Number of horizontal bins for feature binning
+  int nr_horizontal_bins_ = 5;
+  //! Number of vertical bins for feature binning
+  int nr_vertical_bins_ = 5;
+  //! Binary mask by the user to control which bins to use
+  Eigen::MatrixXd binning_mask_;
 
   // GFTT specific parameters
-  // TODO(Toni): add comments on each parameter
   double quality_level_ = 0.001;
   int block_size_ = 3;
   bool use_harris_corner_detector_ = false;

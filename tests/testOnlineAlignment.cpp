@@ -22,6 +22,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DECLARE_string(test_data_path);
 
@@ -53,14 +54,15 @@ class OnlineAlignmentFixture : public ::testing::Test {
   virtual void SetUp() override {}
   virtual void TearDown() override {}
 
-  void initializeOnlineAlignmentData(int n_begin_data, int n_frames_data,
+  void initializeOnlineAlignmentData(int n_begin_data,
+                                     int n_frames_data,
                                      const std::string& dataset_path) {
     int initial_k = 0;
     int final_k = 0;
-    VioParams vio_params ("");
+    VioParams vio_params("");
     vio_params.parallel_run_ = true;
-    dataset_ = VIO::make_unique<EurocDataProvider>(
-                 dataset_path, initial_k, final_k, vio_params);
+    dataset_ = std::make_unique<EurocDataProvider>(
+        dataset_path, initial_k, final_k, vio_params);
 
     // Get GT poses and IMU pims.
     Timestamp timestamp_last_frame;
@@ -107,11 +109,10 @@ class OnlineAlignmentFixture : public ::testing::Test {
       double accNoiseVar = 0.01;
       const Matrix3 kMeasuredAccCovariance =
           accNoiseVar * gtsam::Matrix3::Identity();
-      gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(
-          biasHat, kMeasuredAccCovariance);
+      AHRSPim ahrs_pim(biasHat, kMeasuredAccCovariance);
       for (size_t i = 0; i < (imu_meas.acc_gyr_.cols() - 1); ++i) {
         double delta_t = UtilsNumerical::NsecToSec(imu_meas.timestamps_(i + 1) -
-                                                imu_meas.timestamps_(i));
+                                                   imu_meas.timestamps_(i));
         gtsam::Vector3 measured_omega = imu_meas.acc_gyr_.block(3, 6, i, i + 1);
         ahrs_pim.integrateMeasurement(measured_omega, delta_t);
       }
@@ -130,7 +131,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
       it++;
     }
     // Set initial pose to identity as we compute all relative to it
-    estimated_poses_[0] = gtsam::Pose3::identity();
+    estimated_poses_[0] = gtsam::Pose3();
   }
 
   void initializeImuParams(ImuParams* imu_params) const {
@@ -220,25 +221,23 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimationAHRS) {
 
 /* -------------------------------------------------------------------------- */
 TEST_F(OnlineAlignmentFixture, CreateTangentBasis) {
-  for (int i=0; i < 20; i++) {
+  for (int i = 0; i < 20; i++) {
     // Create random vector (this is not unit vector!)
     gtsam::Vector3 random_vector = UtilsOpenCV::RandomVectorGenerator(1.0);
 
     // Create tangent basis to random vector
     gtsam::Matrix tangent_basis =
-            OnlineGravityAlignment::createTangentBasis(random_vector);
+        OnlineGravityAlignment::createTangentBasis(random_vector);
 
     // Check size is corrrect
     CHECK_EQ(tangent_basis.cols(), 2);
     CHECK_EQ(tangent_basis.rows(), 3);
 
     // Check product of matrix columns with random vector
-    gtsam::Vector3 basis_vec_y(tangent_basis(0, 0),
-                              tangent_basis(1, 0),
-                              tangent_basis(2, 0));
-    gtsam::Vector3 basis_vec_z(tangent_basis(0, 1),
-                              tangent_basis(1, 1),
-                              tangent_basis(2, 1));
+    gtsam::Vector3 basis_vec_y(
+        tangent_basis(0, 0), tangent_basis(1, 0), tangent_basis(2, 0));
+    gtsam::Vector3 basis_vec_z(
+        tangent_basis(0, 1), tangent_basis(1, 1), tangent_basis(2, 1));
 
     // Check that vector product is zero (orthogonal)
     EXPECT_NEAR(0.0, gtsam::dot(basis_vec_y, basis_vec_z), tol_TB);
@@ -268,8 +267,8 @@ TEST_F(OnlineAlignmentFixture, DISABLED_OnlineGravityAlignment) {
       estimated_poses_, delta_t_poses_, pims_, n_gravity);
 
   // Compute online gravity alignment (without gyroscope bias estimation)
-  CHECK(initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter,
-                                                 &init_navstate, false));
+  CHECK(initial_alignment.alignVisualInertialEstimates(
+      &gyro_bias, &g_iter, &init_navstate, false));
 
   // Final test checks
   gtsam::Vector3 real_init_vel(init_navstate_.velocity_);
@@ -282,15 +281,11 @@ TEST_F(OnlineAlignmentFixture, DISABLED_OnlineGravityAlignment) {
   EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_OGA);
   EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_OGA);
   EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_OGA);
-  //EXPECT_TRUE(assert_equal(real_init_pose, init_navstate.pose(), tol_OGA));
-  EXPECT_NEAR(real_init_vel.norm(),
-            init_navstate.velocity().norm(), tol_OGA);
-  EXPECT_NEAR(real_init_vel.x(),
-            init_navstate.velocity().x(), tol_OGA);
-  EXPECT_NEAR(real_init_vel.y(),
-            init_navstate.velocity().y(), tol_OGA);
-  EXPECT_NEAR(real_init_vel.z(),
-            init_navstate.velocity().z(), tol_OGA);
+  // EXPECT_TRUE(assert_equal(real_init_pose, init_navstate.pose(), tol_OGA));
+  EXPECT_NEAR(real_init_vel.norm(), init_navstate.velocity().norm(), tol_OGA);
+  EXPECT_NEAR(real_init_vel.x(), init_navstate.velocity().x(), tol_OGA);
+  EXPECT_NEAR(real_init_vel.y(), init_navstate.velocity().y(), tol_OGA);
+  EXPECT_NEAR(real_init_vel.z(), init_navstate.velocity().z(), tol_OGA);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -314,8 +309,8 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GravityAlignmentRealData) {
         estimated_poses_, delta_t_poses_, pims_, n_gravity);
 
     // Compute Gyroscope Bias
-    CHECK(initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter,
-                                                         &init_navstate));
+    CHECK(initial_alignment.alignVisualInertialEstimates(
+        &gyro_bias, &g_iter, &init_navstate));
 
     // Final test checks
     gtsam::Vector3 real_init_vel(init_navstate_.velocity_);
@@ -330,11 +325,16 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GravityAlignmentRealData) {
     EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD_gv);
     EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_RD_gv);
 
-
     EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().pitch() -
-      init_navstate.pose().rotation().pitch(), 2*M_PI)), 0.0, tol_RD_an);
+                                   init_navstate.pose().rotation().pitch(),
+                               2 * M_PI)),
+                0.0,
+                tol_RD_an);
     EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().roll() -
-      init_navstate.pose().rotation().roll(), 2*M_PI)), 0.0, tol_RD_an);
+                                   init_navstate.pose().rotation().roll(),
+                               2 * M_PI)),
+                0.0,
+                tol_RD_an);
     // Yaw angle is irrelevant for starting pose
 
     // TODO(Sandro): Add velocity test in same frame

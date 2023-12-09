@@ -104,9 +104,10 @@ class PipelineModuleBase {
   bool syncQueue(const Timestamp& timestamp,
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
-                 int max_iterations = 10) {
+                 int max_iterations = 10,
+                 size_t timeout_ms = 10000u) {
     return SimpleQueueSynchronizer<T>::getInstance().syncQueue(
-        timestamp, queue, pipeline_payload, name_id_, max_iterations);
+        timestamp, queue, pipeline_payload, name_id_, max_iterations, timeout_ms);
   }
   /**
    * @brief shutdownQueues If the module stores Threadsafe queues, it must
@@ -214,8 +215,9 @@ class PipelineModule : public PipelineModuleBase {
         auto spin_duration = utils::Timer::toc(tic).count();
         timing_stats.AddSample(spin_duration);
       } else {
-        LOG_IF(WARNING, VLOG_IS_ON(1)) << "Module: " << name_id_
-                                       << " - No Input received.";
+        // TODO(nathan) switch to VLOG_IS_ON(1) when we fix how spinning works
+        LOG_IF_EVERY_N(WARNING, VLOG_IS_ON(10), 50)
+            << "Module: " << name_id_ << " - No Input received.";
       }
 
       // Break the while loop if we are in sequential mode.

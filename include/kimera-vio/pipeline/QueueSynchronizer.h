@@ -56,6 +56,7 @@ class QueueSynchronizerBase {
                          T* pipeline_payload,
                          std::string name_id,
                          int max_iterations = 10,
+                         size_t timeout_ms = 10000u,
                          std::function<void(const T&)>* callback = nullptr) = 0;
   virtual ~QueueSynchronizerBase() = default;
 };
@@ -101,6 +102,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                  T* pipeline_payload,
                  std::string name_id,
                  int max_iterations = 10,
+                 size_t timeout_ms = 10000u,
                  std::function<void(const T&)>* callback = nullptr) {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
@@ -109,43 +111,52 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                         typename std::pointer_traits<T>::element_type>::value,
         "T must be a pointer to a class that derives from PipelinePayload.");
     // Look for the synchronized packet in payload queue
-    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
     // Loop over payload timestamps until we reach the query timestamp
     // or we are past the asked timestamp (in which case, we failed).
-    int i = 0;
-    static constexpr size_t timeout_ms = 100000u;  // Wait 1500ms at most!
-    for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
-      // TODO(Toni): add a timer to avoid waiting forever...
-      if (!queue->popBlockingWithTimeout(*pipeline_payload, timeout_ms)) {
-        LOG(ERROR) << "Queu sync failed for module: " << name_id
+
+    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
+    
+    while (true) {
+      std::shared_ptr<T> curr_payload =
+          queue->peekBlockingWithTimeout(timeout_ms);
+      if (!curr_payload) {
+        LOG(ERROR) << "Queue sync failed for module: " << name_id
                    << " with queue: " << queue->queue_id_ << "\n Reason: \n"
                    << "Queue status: "
                    << (queue->isShutdown() ? "Shutdown..." : "Timeout...");
         return false;
-      } else {
-        VLOG(5) << "Popping from: " << queue->queue_id_;
       }
-      if (*pipeline_payload) {
-        payload_timestamp = (*pipeline_payload)->timestamp_;
-        // Call any user defined callback at this point (should be fast!!).
-        if (callback) (*callback)(*pipeline_payload);
-      } else {
+
+      if (!(*curr_payload)) {
         LOG(WARNING)
             << "Payload synchronization failed. Missing payload for Module: "
             << name_id;
+        continue;
+      }
+
+      // Call any user defined callback at this point (should be fast!!).
+      if (callback) {
+        (*callback)(*curr_payload);
+      }
+
+      payload_timestamp = (*curr_payload)->timestamp_;
+
+      if (payload_timestamp > timestamp) {
+        LOG(WARNING)
+            << "Syncing queue " << queue->queue_id_ << " in module " << name_id
+            << " failed;\n Could not retrieve exact timestamp requested: \n"
+            << " - Requested timestamp: " << timestamp << '\n'
+            << " - Actual timestamp:    " << payload_timestamp << '\n';
+        return false;
+      }
+
+      VLOG(5) << "Popping from: " << queue->queue_id_;
+      CHECK(queue->pop(*pipeline_payload))
+          << "queue somehow lost a measurement";
+      if (payload_timestamp == timestamp) {
+        return true;  // we found the payload we want
       }
     }
-    CHECK_EQ(timestamp, payload_timestamp)
-        << "Syncing queue " << queue->queue_id_ << " in module " << name_id
-        << " failed;\n Could not retrieve exact timestamp requested: \n"
-        << " - Requested timestamp: " << timestamp << '\n'
-        << " - Actual timestamp:    " << payload_timestamp << '\n'
-        << (i >= max_iterations
-                ? "Reached max number of sync attempts: " +
-                      std::to_string(max_iterations)
-                : "");
-    CHECK(*pipeline_payload);
-    return true;
   }
 
  private:

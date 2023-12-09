@@ -33,26 +33,46 @@
 #include <opengv/point_cloud/methods.hpp>
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
 
+#include <opengv/absolute_pose/CentralAbsoluteAdapter.hpp>
+#include <opengv/sac_problems/absolute_pose/AbsolutePoseSacProblem.hpp>
+
 #include "kimera-vio/common/vio_types.h"
 
 namespace VIO {
 
-// Mono
+// Mono (2d2d)
 // 5-point ransac
-using ProblemMono =
-opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+using Problem2d2d =
+    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
 
-// MonoTranslationOnly: TranslationOnlySacProblem
-// 2-point ransac
-using ProblemMonoGivenRot =
-opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
-using AdapterMonoGivenRot = opengv::relative_pose::CentralRelativeAdapter;
+// Mono (2d2d, with given rotation) MonoTranslationOnly:
+// TranslationOnlySacProblem 2-point ransac
+using Problem2d2dGivenRot =
+    opengv::sac_problems::relative_pose::TranslationOnlySacProblem;
+using Adapter2d2d = opengv::relative_pose::CentralRelativeAdapter;
 
-// Stereo
+// PnP (2d3d)
+using ProblemPnP = opengv::sac_problems::absolute_pose::AbsolutePoseSacProblem;
+using AdapterPnp = opengv::absolute_pose::CentralAbsoluteAdapter;
+
+// Stereo (3d3d)
 // Arun's problem (3-point ransac)
-using ProblemStereo = opengv::sac_problems::point_cloud::PointCloudSacProblem;
-using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+using Problem3d3d = opengv::sac_problems::point_cloud::PointCloudSacProblem;
+using Adapter3d3d = opengv::point_cloud::PointCloudAdapter;
+
+using Pose2d2dAlgorithm = opengv::sac_problems::relative_pose::
+    CentralRelativePoseSacProblem::Algorithm;
+
+enum class Pose3d2dAlgorithm {
+  KneipP2P = 0,
+  KneipP3P = 1,
+  GaoP3P = 2,
+  EPNP = 3,
+  UPNP = 4,
+  UP3P = 5,
+  NonlinearOptimization = 6,
+  MLPNP = 7  //! Requires OpenGV fork.
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugTrackerInfo {
@@ -113,34 +133,51 @@ typedef std::pair<TrackingStatus, gtsam::Pose3> TrackingStatusPose;
 ////////////////////////////////////////////////////////////////////////////////
 class TrackerStatusSummary {
 public:
-  TrackerStatusSummary() :
-    kfTrackingStatus_mono_(TrackingStatus::INVALID),
-    kfTrackingStatus_stereo_(TrackingStatus::INVALID),
-    lkf_T_k_mono_(gtsam::Pose3::identity()),
-    lkf_T_k_stereo_(gtsam::Pose3::identity()),
-    infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
+ TrackerStatusSummary()
+     : kfTrackingStatus_mono_(TrackingStatus::INVALID),
+       kfTrackingStatus_stereo_(TrackingStatus::INVALID),
+       kfTracking_status_pnp_(TrackingStatus::INVALID),
+       lkf_T_k_mono_(gtsam::Pose3()),
+       lkf_T_k_stereo_(gtsam::Pose3()),
+       W_T_k_pnp_(gtsam::Pose3()),
+       infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 
-
-  /* ------------------------------------------------------------------------ */
-  // Returns the tracking status as a string for debugging
-  static std::string asString(
-      const TrackingStatus& status) {
-    std::string status_str = "";
-    switch(status) {
-    case TrackingStatus::VALID: {status_str = "VALID"; break;}
-    case TrackingStatus::INVALID: {status_str = "INVALID"; break;}
-    case TrackingStatus::DISABLED: {status_str = "DISABLED"; break;}
-    case TrackingStatus::FEW_MATCHES: {status_str = "FEW_MATCHES"; break;}
-    case TrackingStatus::LOW_DISPARITY: {status_str = "LOW_DISPARITY"; break;}
-    }
-    return status_str;
+ /* ------------------------------------------------------------------------ */
+ // Returns the tracking status as a string for debugging
+ static std::string asString(const TrackingStatus& status) {
+   std::string status_str = "";
+   switch (status) {
+     case TrackingStatus::VALID: {
+       status_str = "VALID";
+       break;
+     }
+     case TrackingStatus::INVALID: {
+       status_str = "INVALID";
+       break;
+     }
+     case TrackingStatus::DISABLED: {
+       status_str = "DISABLED";
+       break;
+     }
+     case TrackingStatus::FEW_MATCHES: {
+       status_str = "FEW_MATCHES";
+       break;
+     }
+     case TrackingStatus::LOW_DISPARITY: {
+       status_str = "LOW_DISPARITY";
+       break;
+     }
+   }
+   return status_str;
   }
 
 public:
   TrackingStatus kfTrackingStatus_mono_;
   TrackingStatus kfTrackingStatus_stereo_;
+  TrackingStatus kfTracking_status_pnp_;
   gtsam::Pose3 lkf_T_k_mono_;
   gtsam::Pose3 lkf_T_k_stereo_;
+  gtsam::Pose3 W_T_k_pnp_;
   gtsam::Matrix3 infoMatStereoTranslation_;
 };
 

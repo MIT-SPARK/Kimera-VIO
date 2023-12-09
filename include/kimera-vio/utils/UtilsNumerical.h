@@ -17,24 +17,19 @@
 #include <algorithm>
 #include <iostream>
 
-#include <boost/functional/hash.hpp>
-
-#include <glog/logging.h>
-
 namespace VIO {
 
 namespace UtilsNumerical {
 
 //! A hash function used to hash a pair of any kind: ORDER MATTERS,
-//! so we don't ues XOR (aka ^), we take the boost::hash_combine instead.
 //! Hash(a, b) != Hash(b, a)
 //! Used for hashing pixel positions of vertices of the mesh 2d.
 template <class T1, class T2>
 size_t hashPair(const std::pair<T1, T2>& p) {
-  size_t seed = 0u;
-  boost::hash_combine(seed, p.first);
-  boost::hash_combine(seed, p.second);
-  return seed;
+  // note: used to use boost::hash_combine
+  const auto h1 = std::hash<T1>{}(p.first);
+  const auto h2 = std::hash<T2>{}(p.second);
+  return h1 ^ (h2 << 1);
 }
 
 //! A hash function used to hash a pair of any kind: ORDER DOESN'T MATTERS,
@@ -47,18 +42,6 @@ size_t hashTriplet(const T1& p1, const T2& p2, const T3& p3) {
   static constexpr size_t sl = 17191;
   static constexpr size_t sl2 = sl * sl;
   return static_cast<unsigned int>(p1 + p2 * sl + p3 * sl2);
-}
-
-//! A hash function used to hash a pair of any kind: ORDER MATTERS,
-//! If you want order invariance just sort your values before accessing/checking
-//! Used for hashing faces in a mesh.
-template <class T1, class T2, class T3>
-size_t hashTripletOrderAgnostic(const T1& p1, const T2& p2, const T3& p3) {
-  size_t seed = 0u;
-  boost::hash_combine(seed, p1);
-  boost::hash_combine(seed, p2);
-  boost::hash_combine(seed, p3);
-  return seed;
 }
 
 // Sort vector and remove duplicate elements

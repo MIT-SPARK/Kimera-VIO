@@ -67,6 +67,17 @@ class VioBackendModule
   void registerImuBiasUpdateCallback(
       const VioBackend::ImuBiasCallback& imu_bias_update_callback);
 
+  /**
+   * @brief registerMapUpdateCallback Register callback to be called
+   * whenever the Backend has a new estimate of landmarks in time-horizon.
+   * The Frontend needs to register this function for
+   * the PnP tracking to be done wrt to the latest landmark estimates.
+   * @param map_update_callback function that will be called on new
+   * optimized landmark positions.
+   */
+  void registerMapUpdateCallback(
+      const VioBackend::MapCallback& map_update_callback);
+
  protected:
   const VioBackend::UniquePtr vio_backend_;
 };

@@ -30,6 +30,8 @@
 #include <opencv2/viz/types.hpp>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
+#include "kimera-vio/frontend/MonoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Macros.h"
@@ -75,9 +77,6 @@ class OpenCvVisualizer3D : public Visualizer3D {
    */
   VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input) override;
 
-  // TODO(marcus): Is there any reason the following two methods must be
-  // private?
-
  public:
   // Visualization calls are public in case the user wants to manually visualize
   // things, instead of running spinOnce and do it automatically.
@@ -114,15 +113,15 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                        const size_t& n_last_frustums = 10u);
 
   /**
- * @brief visualizePoseWithImgInFrustum
- * Visualize a single camera pose with an image inside its frustum.
+   * @brief visualizePoseWithImgInFrustum
+   * Visualize a single camera pose with an image inside its frustum.
    * Adds an image to the frustum of the last pose if cv::Mat is not empty.
- * @param frustum_image
- * @param frustum_pose
- * @param widgets_map
- * @param widget_id Keep this id the same if you want to update the widget pose
- * and image, instead of adding a different instance.
- */
+   * @param frustum_image
+   * @param frustum_pose
+   * @param widgets_map
+   * @param widget_id Keep this id the same if you want to update the widget
+   * pose and image, instead of adding a different instance.
+   */
   void visualizePoseWithImgInFrustum(
       const cv::Mat& frustum_image,
       const cv::Affine3d& frustum_pose,
@@ -176,7 +175,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
                        WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat(),
-                       const std::string& mesh_id = "Mesh ID");
+                       //! This has to be the same than the id in OpenCvDisplay
+                       const std::string& mesh_id = "Mesh");
 
   //! Draw a line in opencv.
   void drawLine(const std::string& line_id,
@@ -272,10 +272,18 @@ class OpenCvVisualizer3D : public Visualizer3D {
                                  const gtsam::Point3& point,
                                  WidgetsMap* widgets);
 
+  /**
+   * @brief Visualize RANSAC estimates for frontend
+   */
+  void visualizeFrontendRansac(
+      const FrontendOutputPacketBase::Ptr& frontend_output,
+      const gtsam::Pose3& W_Pose_Bllkf,
+      WidgetsMap* widgets);
+
   void visualizeFactorGraph(const gtsam::Values& state,
                             const gtsam::NonlinearFactorGraph& factor_graph,
                             const gtsam::Pose3& body_pose_camLrect,
-                            const gtsam::Pose3& body_pose_camRrect,
+                            const gtsam::Pose3* body_pose_camRrect,
                             WidgetsMap* widgets);
 
   //! Remove line widgets from plane to lmks, for lines that are not pointing
@@ -386,6 +394,8 @@ class OpenCvVisualizer3D : public Visualizer3D {
   void drawImuFactor(const gtsam::ImuFactor& imu_factor,
                      const gtsam::Values& state,
                      const gtsam::Pose3& body_pose_camLrect,
+                     const bool& draw_only_last,
+                     const bool& draw_velocity,
                      WidgetsMap* widgets_map);
 
  private:
@@ -415,17 +425,29 @@ class OpenCvVisualizer3D : public Visualizer3D {
   //! Colors & Scales
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
 
+  cv::viz::Color trajectory_color_ = cv::viz::Color::red();
+  cv::viz::Color trajectory_frustums_color_ = cv::viz::Color::red();
+
   cv::viz::Color velocity_vector_color_ = cv::viz::Color::white();
   cv::viz::Color velocity_prior_color_ = cv::viz::Color::red();
   cv::viz::Color no_motion_prior_color_ = cv::viz::Color::cherry();
 
+  double imu_pose_scale_ = 0.05;
+
   cv::viz::Color imu_to_left_cam_vector_color_ = cv::viz::Color::green();
   double imu_to_left_cam_vector_scale_ = 0.01;
 
-  double left_cam_active_frustum_scale_ = 0.11;
-  double right_cam_active_frustum_scale_ = 0.11;
-  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::green();
-  cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::green();
+  double left_cam_active_frustum_scale_ = 0.02;
+  double right_cam_active_frustum_scale_ = 0.02;
+  cv::viz::Color left_cam_active_frustum_color_ = cv::viz::Color::lime();
+  cv::viz::Color right_cam_active_frustum_color_ = cv::viz::Color::lime();
+
+  double pnp_guess_frustum_scale_ = 0.05;
+  cv::viz::Color pnp_guess_frustum_color_ = cv::viz::Color::navy();
+  double stereo_guess_frustum_scale_ = 0.05;
+  cv::viz::Color stereo_guess_frustum_color_ = cv::viz::Color::gold();
+  double mono_guess_frustum_scale_ = 0.05;
+  cv::viz::Color mono_guess_frustum_color_ = cv::viz::Color::orange();
 
   double inactive_frustum_scale_ = 0.06;
 
@@ -435,19 +457,25 @@ class OpenCvVisualizer3D : public Visualizer3D {
   cv::viz::Color cam_with_pose_prior_frustum_color_ = cv::viz::Color::yellow();
 
   cv::viz::Color btw_factor_color_ = cv::viz::Color::celestial_blue();
-  double btw_factor_pose_guess_active_frustum_scale_ = 0.08;
+  double btw_factor_pose_guess_active_frustum_scale_ = 0.05;
   cv::viz::Color btw_factor_pose_guess_active_frustum_color_ =
-      cv::viz::Color::amethyst();
+      cv::viz::Color::celestial_blue();
   double btw_factor_to_guess_pose_vector_scale_ = 0.01;
   cv::viz::Color btw_factor_to_guess_pose_vector_color_ =
-      cv::viz::Color::amethyst();
+      cv::viz::Color::celestial_blue();
 
-  double imu_factor_to_guess_pose_scale_ = 0.08;
-  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::cherry();
-  cv::viz::Color imu_factor_guess_velocity_color_ = cv::viz::Color::cherry();
+  double imu_factor_to_guess_pose_scale_ = 0.05;
+  cv::viz::Color imu_factor_to_guess_pose_color_ = cv::viz::Color::amethyst();
+  cv::viz::Color imu_factor_guess_velocity_color_ = cv::viz::Color::amethyst();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
+
+  // TODO(Toni): maybe just use the trajectory_poses_3d_ as it has this info
+  //! Pose of the last last keyframe (Bllkf), ie previous to the current
+  //! keyframe (Blkf). This is for the frontendVisualizer to plot the
+  //! mono, stereo guesses correctly.
+  gtsam::Pose3 W_Pose_Bllkf_;
 };
 
 }  // namespace VIO
