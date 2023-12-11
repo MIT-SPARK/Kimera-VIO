@@ -126,7 +126,7 @@ add_subdirectory(src/visualizer)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
-    opengv
+    ${OPENGV_LIBS}
     DBoW2::DBoW2
     KimeraRPGO
     triangle::triangle
@@ -143,6 +143,8 @@ target_include_directories(${PROJECT_NAME}
     ${GFLAGS_INCLUDE_DIRS}
     ${GLOG_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
+    ${OPENGV_INCLUDE_DIR}
+    ${DBoW2_INCLUDE_DIRS}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
