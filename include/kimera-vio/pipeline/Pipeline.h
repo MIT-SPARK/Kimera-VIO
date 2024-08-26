@@ -175,6 +175,16 @@ class Pipeline {
     return utils::Statistics::Print();
   }
 
+  inline void registerLcdOutputCallback(
+      const LcdModule::OutputCallback& callback) {
+    if (lcd_module_) {
+      lcd_module_->registerOutputCallback(callback);
+    } else {
+      LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
+                 << "LoopClosureDetector member is active in pipeline.";
+    }
+  }
+
  protected:
   // Spin the pipeline only once.
   virtual void spinOnce(FrontendInputPacketBase::UniquePtr input);
@@ -221,16 +231,6 @@ class Pipeline {
     } else {
       LOG(ERROR) << "Attempt to register Mesher output callback, but no "
                  << "Mesher member is active in pipeline.";
-    }
-  }
-
-  inline void registerLcdOutputCallback(
-      const LcdModule::OutputCallback& callback) {
-    if (lcd_module_) {
-      lcd_module_->registerOutputCallback(callback);
-    } else {
-      LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
-                 << "LoopClosureDetector member is active in pipeline.";
     }
   }
 
