@@ -8,6 +8,7 @@ find_dependency(Glog REQUIRED)
 find_dependency(GTSAM REQUIRED)
 find_dependency(GTSAM_UNSTABLE REQUIRED)
 find_dependency(OpenCV REQUIRED)
+find_dependency(opengv REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 

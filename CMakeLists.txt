@@ -126,7 +126,6 @@ add_subdirectory(src/visualizer)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
-    opengv
     DBoW2::DBoW2
     KimeraRPGO
     triangle::triangle
@@ -136,6 +135,7 @@ target_link_libraries(${PROJECT_NAME}
     ${GLOG_LIBRARIES}
     gtsam
     gtsam_unstable
+    opengv
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
