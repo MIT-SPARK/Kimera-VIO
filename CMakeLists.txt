@@ -30,7 +30,7 @@ find_package(GTSAM_UNSTABLE REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(DBoW2 REQUIRED)
-find_package(KimeraRPGO REQUIRED)
+find_package(kimera_rpgo REQUIRED)
 # Pangolin is optional
 find_package(Pangolin QUIET)
 
@@ -120,7 +120,7 @@ add_subdirectory(src/visualizer)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
-    KimeraRPGO
+    kimera_rpgo::kimera_rpgo
     triangle::triangle
   PUBLIC
     ${OpenCV_LIBRARIES}

@@ -38,8 +38,8 @@
 
 /* ------------------------------------------------------------------------ */
 // Forward declare KimeraRPGO, a private dependency.
-namespace KimeraRPGO {
-class RobustSolver;
+namespace kimera_rpgo {
+class Rpgo;
 }
 
 namespace DBoW2 {
@@ -441,7 +441,7 @@ class LoopClosureDetector {
   RgbdCamera::ConstPtr rgbd_camera_;
 
   // Robust PGO members
-  std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
+  std::unique_ptr<kimera_rpgo::Rpgo> pgo_;
   std::pair<gtsam::Symbol, gtsam::Pose3> W_Pose_B_kf_vio_;
   gtsam::SharedNoiseModel shared_noise_model_;
 
