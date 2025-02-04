@@ -17,11 +17,11 @@
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 
 #include <DBoW2/DBoW2.h>
-#include <KimeraRPGO/RobustSolver.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <kimera_rpgo/rpgo.h>
 
 #include <algorithm>
 #include <string>
@@ -169,17 +169,29 @@ LoopClosureDetector::LoopClosureDetector(
   db_BoW_ = std::make_unique<OrbDatabase>(*vocab);
 
   // Initialize pgo_:
-  // TODO(marcus): parametrize the verbosity of PGO params
-  KimeraRPGO::RobustSolverParams pgo_params;
-  pgo_params.setPcmSimple3DParams(lcd_params_.odom_trans_threshold_,
-                                  lcd_params_.odom_rot_threshold_,
-                                  lcd_params_.pcm_trans_threshold_,
-                                  lcd_params_.pcm_rot_threshold_,
-                                  KimeraRPGO::Verbosity::QUIET);
-  if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1) {
-    pgo_params.setGncInlierCostThresholdsAtProbability(lcd_params_.gnc_alpha_);
+  kimera_rpgo::RpgoConfig pgo_config;
+  pgo_config.solver_config.setLeastSquaresParamsDefault();
+  if (lcd_params_.pcm_trans_threshold_ >= 0 &&
+      lcd_params_.pcm_rot_threshold_ >= 0) {
+    pgo_config.use_pcm = true;
+    if (lcd_params_.odom_trans_threshold_ >= 0 &&
+        lcd_params_.odom_trans_threshold_ >= 0) {
+      pgo_config.pcm_config.odom_check = true;
+      pgo_config.pcm_config.odom_trans_threshold =
+          lcd_params_.odom_trans_threshold_;
+      pgo_config.pcm_config.odom_rot_threshold =
+          lcd_params_.odom_rot_threshold_;
+    }
+    pgo_config.pcm_config.trans_threshold = lcd_params_.pcm_trans_threshold_;
+    pgo_config.pcm_config.rot_threshold = lcd_params_.pcm_rot_threshold_;
   }
-  pgo_ = std::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
+  if (lcd_params_.gnc_alpha_ > 0 && lcd_params_.gnc_alpha_ < 1) {
+    kimera_rpgo::GncParams gnc_params;
+    gnc_params.inlier_probability = lcd_params_.gnc_alpha_;
+    pgo_config.solver_config.setGncParams(gnc_params);
+  }
+
+  pgo_ = std::make_unique<kimera_rpgo::Rpgo>(pgo_config);
 
   if (log_output) {
     logger_ = std::make_unique<LoopClosureDetectorLogger>();
@@ -207,13 +219,13 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
 
   switch (lcd_state_) {
     case LcdState::Bootstrap: {
-      CHECK_EQ(pgo_->calculateEstimate().size(), 0);
+      CHECK_EQ(pgo_->getResult().size(), 0);
       initializePGO(odom_factor);
       break;
     }
     case LcdState::Nominal: {
       // TODO(marcus): need a better check than this:
-      CHECK_GT(pgo_->calculateEstimate().size(), 0);
+      CHECK_GT(pgo_->getResult().size(), 0);
       addOdometryFactorAndOptimize(odom_factor);
       break;
     }
@@ -339,8 +351,8 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   CHECK(pgo_);
   const gtsam::Pose3& w_Pose_map = getWPoseMap();
   const gtsam::Pose3& map_Pose_odom = getMapPoseOdom();
-  const gtsam::Values& pgo_states = pgo_->calculateEstimate();
-  const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactorsUnsafe();
+  const gtsam::Values& pgo_states = pgo_->getResult();
+  const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactors();
 
   LcdOutput::UniquePtr output_payload = nullptr;
   if (loop_result.isLoop()) {
@@ -370,9 +382,10 @@ LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   if (logger_) {
     debug_info_.timestamp_ = output_payload->timestamp_;
     debug_info_.loop_result_ = loop_result;
-    debug_info_.pgo_size_ = pgo_->size();
-    debug_info_.pgo_lc_count_ = pgo_->getNumLC();
-    debug_info_.pgo_lc_inliers_ = pgo_->getNumLCInliers();
+    // TODO(Yun) fix these
+    // debug_info_.pgo_size_ = pgo_->size();
+    // debug_info_.pgo_lc_count_ = pgo_->getNumLC();
+    // debug_info_.pgo_lc_inliers_ = pgo_->getNumLCInliers();
 
     debug_info_.mono_input_size_ = tracker_->debug_info_.nrMonoPutatives_;
     debug_info_.mono_inliers_ = tracker_->debug_info_.nrMonoInliers_;
@@ -1078,7 +1091,7 @@ const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
   const gtsam::Symbol& cur_id = W_Pose_B_kf_vio_.first;
   const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_B_kf_vio_.second;
   const gtsam::Pose3& w_Pose_Bkf_optimal =
-      pgo_->calculateEstimate().at<gtsam::Pose3>(cur_id);
+      pgo_->getResult().at<gtsam::Pose3>(cur_id);
 
   return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
 }
@@ -1089,7 +1102,7 @@ const gtsam::Pose3 LoopClosureDetector::getMapPoseOdom() const {
     CHECK(pgo_);
     const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_B_kf_vio_.second;
     const gtsam::Pose3& w_Pose_Bkf_optimal =
-        pgo_->calculateEstimate().at<gtsam::Pose3>(W_Pose_B_kf_vio_.first);
+        pgo_->getResult().at<gtsam::Pose3>(W_Pose_B_kf_vio_.first);
     return w_Pose_Bkf_optimal.compose(w_Pose_Bkf_estim.inverse());
   }
 
@@ -1099,13 +1112,13 @@ const gtsam::Pose3 LoopClosureDetector::getMapPoseOdom() const {
 /* ------------------------------------------------------------------------ */
 const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
   CHECK(pgo_);
-  return pgo_->calculateEstimate();
+  return pgo_->getResult();
 }
 
 /* ------------------------------------------------------------------------ */
 const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
   CHECK(pgo_);
-  return pgo_->getFactorsUnsafe();
+  return pgo_->getFactors();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1243,7 +1256,8 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
       gtsam::Symbol(factor.cur_key_), factor.W_Pose_Blkf_, factor.noise_));
 
   CHECK(pgo_);
-  pgo_->update(init_nfg, init_val);
+  pgo_->addFactors(init_nfg);
+  pgo_->addValues(init_val);
 
   // Update tracker for latest VIO estimate
   // NOTE: done here instead of in spinOnce() to make unit tests easier.
@@ -1266,7 +1280,7 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  const gtsam::Values& optimized_values = pgo_->calculateEstimate();
+  const gtsam::Values& optimized_values = pgo_->getResult();
   CHECK_EQ(factor.cur_key_, optimized_values.size());
   const gtsam::Pose3& estimated_last_pose =
       optimized_values.at<gtsam::Pose3>(factor.cur_key_ - 1);
@@ -1287,7 +1301,8 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
                                              factor.noise_));
 
   CHECK(pgo_);
-  pgo_->update(nfg, value);
+  pgo_->addFactors(nfg);
+  pgo_->addValues(value);
 
   // Update tracker for latest VIO estimate
   // NOTE: done here instead of in spinOnce() to make unit tests easier.
@@ -1320,7 +1335,10 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
   }
 
   CHECK(pgo_);
-  pgo_->update(nfg, gtsam::Values(), do_optimize && !FLAGS_lcd_no_optimize);
+  pgo_->addFactors(nfg);
+  if (do_optimize && !FLAGS_lcd_no_optimize) {
+    pgo_->run();
+  }
 }
 
 }  // namespace VIO

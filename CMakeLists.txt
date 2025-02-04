@@ -36,7 +36,7 @@ if(NOT TARGET DBoW2::DBoW2)
   INTERFACE_LINK_LIBRARIES "${DBoW2_LIBRARIES}"
   INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
 endif()
-find_package(KimeraRPGO REQUIRED)
+find_package(kimera_rpgo REQUIRED)
 # Pangolin is optional
 find_package(Pangolin QUIET)
 
@@ -128,7 +128,7 @@ target_link_libraries(${PROJECT_NAME}
   PRIVATE
     opengv
     DBoW2::DBoW2
-    KimeraRPGO
+    kimera_rpgo::kimera_rpgo
     triangle::triangle
   PUBLIC
     ${OpenCV_LIBRARIES}
