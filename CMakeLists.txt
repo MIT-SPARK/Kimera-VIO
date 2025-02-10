@@ -30,12 +30,6 @@ find_package(GTSAM_UNSTABLE REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(DBoW2 REQUIRED)
-if(NOT TARGET DBoW2::DBoW2)
-  add_library(DBoW2::DBoW2 INTERFACE IMPORTED)
-  set_target_properties(DBoW2::DBoW2 PROPERTIES
-  INTERFACE_LINK_LIBRARIES "${DBoW2_LIBRARIES}"
-  INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
-endif()
 find_package(KimeraRPGO REQUIRED)
 # Pangolin is optional
 find_package(Pangolin QUIET)
@@ -126,19 +120,20 @@ add_subdirectory(src/visualizer)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
-    DBoW2::DBoW2
     KimeraRPGO
     triangle::triangle
   PUBLIC
     ${OpenCV_LIBRARIES}
     ${GFLAGS_LIBRARIES}
     ${GLOG_LIBRARIES}
+    ${DBoW2_LIBRARIES}
     gtsam
     gtsam_unstable
     opengv
 )
 target_include_directories(${PROJECT_NAME}
   PUBLIC
+    ${DBoW2_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}
     ${GLOG_INCLUDE_DIRS}

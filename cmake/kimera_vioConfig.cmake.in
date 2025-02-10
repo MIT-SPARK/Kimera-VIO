@@ -3,6 +3,7 @@ include(CMakeFindDependencyMacro)
 
 list(APPEND CMAKE_MODULE_PATH ${KimeraVIO_CMAKE_DIR})
 
+find_dependency(DBoW2 REQUIRED)
 find_dependency(Gflags REQUIRED)
 find_dependency(Glog REQUIRED)
 find_dependency(GTSAM REQUIRED)
