@@ -18,7 +18,7 @@ initialGyroBiasSigma: 0.01
 #
 # How to linearize the factor:
 # 0: Hessian, 1: Implicit Schur, 2:Jacobian_Q, 3:Jacobian_SVD
-linearizationMode: 0
+linearizationMode: 1
 # How to manage degeneracy
 # 0: Ignore degeneracy, 1: Zero on degeneracy, 2: handle infinity
 degeneracyMode: 1
