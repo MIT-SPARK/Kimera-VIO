@@ -15,17 +15,15 @@
 
 #include "kimera-vio/mesh/MeshOptimization.h"
 
-#include <string>
-#include <vector>
-
-#include <Eigen/Core>
-
-#include <opencv2/opencv.hpp>
-
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/nonlinear/Marginals.h>
+
+#include <Eigen/Core>
+#include <opencv2/opencv.hpp>
+#include <string>
+#include <vector>
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/Camera.h"
@@ -40,16 +38,24 @@
 
 namespace VIO {
 
+// Linking in c++11 for building in Debug mode
+constexpr bool MeshOptimization::kUseSpringEnergies;
+constexpr float MeshOptimization::kSpringNoiseSigma;
+constexpr float MeshOptimization::kDepthMeasNoiseSigma;
+constexpr float MeshOptimization::kMissingZ;
+constexpr float MeshOptimization::kMinZ;
+constexpr float MeshOptimization::kMaxZ;
+
 MeshOptimization::MeshOptimization(const MeshOptimizerType& solver_type,
                                    const MeshColorType& mesh_color_type,
                                    Camera::ConstPtr camera,
                                    OpenCvVisualizer3D::Ptr visualizer)
-    : visualizer_(visualizer),
-      mesh_optimizer_type_(solver_type),
+    : mesh_optimizer_type_(solver_type),
       mono_camera_(camera),
       body_pose_cam_(camera->getBodyPoseCam()),
       window_("Mesh Optimization"),
-      mesh_color_type_(mesh_color_type) {
+      mesh_color_type_(mesh_color_type),
+      visualizer_(visualizer) {
   CHECK(camera);
   window_.setBackgroundColor(cv::viz::Color::white());
   window_.setFullScreen(true);
@@ -216,8 +222,8 @@ void MeshOptimization::collectTriangleDataPoints(
   *CHECK_NOTNULL(number_of_valid_datapoints) = 0u;
   CHECK(mono_camera_);
 
-  for (size_t u = 0u; u < noisy_point_cloud.cols; ++u) {
-    for (size_t v = 0u; v < noisy_point_cloud.rows; ++v) {
+  for (int u = 0; u < noisy_point_cloud.cols; ++u) {
+    for (int v = 0; v < noisy_point_cloud.rows; ++v) {
       // 1. Project pointcloud to image (color img with projections)
       // aka get pixel coordinates for all points in pointcloud.
       // TODO(Toni): the projection of all points could be greatly optimized
@@ -282,7 +288,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
   CHECK(mono_camera_);
 
   // For visualization
-  VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+  VisualizerOutput::UniquePtr output = std::make_unique<VisualizerOutput>();
   output->visualization_type_ = VisualizationType::kPointcloud;
 
   // Need to visualizeScene again because the image of the camera frustum
@@ -475,7 +481,9 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
           vertex_supports[i3] += 1;
         }
       } break;
-      default: { LOG(FATAL) << "Unknown mesh optimization type."; } break;
+      default: {
+        LOG(FATAL) << "Unknown mesh optimization type.";
+      } break;
     }
 
     // check that the non-zero entries correspond to the adjacency
@@ -508,9 +516,9 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
             gtsam::noiseModel::Diagonal::Sigmas(
                 gtsam::Vector1(kSpringNoiseSigma));
         // ASSUMEs that vtx ids are the indices of the adjacency matrix!
-        for (size_t v = 0u; v < adjacency_matrix.rows; v++) {
+        for (int v = 0; v < adjacency_matrix.rows; v++) {
           gtsam::Key i1(v);
-          for (size_t u = 0u; u < adjacency_matrix.cols; u++) {
+          for (int u = 0; u < adjacency_matrix.cols; u++) {
             if (u < v) {
               if (adjacency_matrix.at<uint8_t>(v, u) == 1u) {
                 // Vertices are connected!
@@ -529,8 +537,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
 
       // Solve linear factor graph Ax=b...
       // optimize the graph
-      gtsam::VectorValues actual =
-          factor_graph.optimize(boost::none, gtsam::EliminateQR);
+      gtsam::VectorValues actual = factor_graph.optimize(gtsam::EliminateQR);
       actual.print("Values after optimization");
 
       gtsam::VectorValues hessian = factor_graph.hessianDiagonal();
@@ -647,7 +654,9 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
                              0,
                              255);
             } break;
-            default: { LOG(FATAL) << "Unrecognized mesh color type."; }
+            default: {
+              LOG(FATAL) << "Unrecognized mesh color type.";
+            }
           }
           poly_3d.push_back(Mesh3D::VertexType(lmk_id, lmk, vtx_color));
         }
@@ -660,7 +669,9 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
 
       break;
     }
-    default: { LOG(FATAL) << "Unknown mesh optimization type."; } break;
+    default: {
+      LOG(FATAL) << "Unknown mesh optimization type.";
+    } break;
   }
 
   // Display reconstructed mesh.
@@ -673,7 +684,7 @@ MeshOptimizationOutput::UniquePtr MeshOptimization::solveOptimalMesh(
     spinDisplay();
   }
   MeshOptimizationOutput::UniquePtr mesh_output =
-      VIO::make_unique<MeshOptimizationOutput>();
+      std::make_unique<MeshOptimizationOutput>();
   mesh_output->optimized_mesh_3d = reconstructed_mesh;
   mesh_count_++;
   return mesh_output;

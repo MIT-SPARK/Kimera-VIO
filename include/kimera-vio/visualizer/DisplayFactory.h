@@ -41,14 +41,14 @@ class DisplayFactory {
     switch (display_type) {
       case DisplayType::kPangolin: {
 #ifdef Pangolin_FOUND
-        return VIO::make_unique<PangolinDisplay>(args...);
+        return std::make_unique<PangolinDisplay>(args...);
 #else
         // No pangolin library found...
         return nullptr;
 #endif
       }
       case DisplayType::kOpenCV: {
-        return VIO::make_unique<OpenCv3dDisplay>(args...);
+        return std::make_unique<OpenCv3dDisplay>(args...);
       }
       default: {
         LOG(FATAL) << "Requested display type is not supported.\n"
@@ -56,6 +56,7 @@ class DisplayFactory {
                    << "0: OpenCV 3D viz\n 1: Pangolin (not supported yet)\n"
                    << " but requested display: "
                    << VIO::to_underlying(display_type);
+        return nullptr;
       }
     }
   }

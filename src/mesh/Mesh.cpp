@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/persistence.hpp>
 
 #include "kimera-vio/utils/UtilsNumerical.h"
 
@@ -122,14 +123,11 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
   }
   CHECK_EQ(vtx_ids.size(), polygon_dimension_);
 
-
   // DO NOT sort vtx_ids, or the normals will flip!
   VertexIds sorted_vtx_ids = vtx_ids;
   std::sort(sorted_vtx_ids.begin(), sorted_vtx_ids.end());
-  const auto& face_hash =
-      UtilsNumerical::hashTriplet(sorted_vtx_ids[0],
-                                  sorted_vtx_ids[1],
-                                  sorted_vtx_ids[2]);
+  const auto& face_hash = UtilsNumerical::hashTriplet(
+      sorted_vtx_ids[0], sorted_vtx_ids[1], sorted_vtx_ids[2]);
   const auto& it = face_hashes_.find(face_hash);
 
   // Check the triangle is not already in the mesh
@@ -142,9 +140,15 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       // Triangle already exists!
       triangle_in_mesh = true;
       CHECK(it->second);
-      CHECK_EQ(adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[0], sorted_vtx_ids[1]), 1u);
-      CHECK_EQ(adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[1], sorted_vtx_ids[2]), 1u);
-      CHECK_EQ(adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[2], sorted_vtx_ids[0]), 1u);
+      CHECK_EQ(
+          adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[0], sorted_vtx_ids[1]),
+          1u);
+      CHECK_EQ(
+          adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[1], sorted_vtx_ids[2]),
+          1u);
+      CHECK_EQ(
+          adjacency_matrix_.at<uint8_t>(sorted_vtx_ids[2], sorted_vtx_ids[0]),
+          1u);
     } else {
       triangle_in_mesh = false;
     }
@@ -163,7 +167,6 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       polygons_mesh_.push_back(static_cast<int>(vtx_id));
     }
 
-
     // Update adjacency matrix
     if (!triangle_maybe_already_in_mesh) {
       // There are new vertices!
@@ -173,7 +176,7 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
       VertexIds sorted_vtx_ids = vtx_ids;
       std::sort(sorted_vtx_ids.begin(), sorted_vtx_ids.end());
       for (const auto& sorted_vtx_id : sorted_vtx_ids) {
-        if (sorted_vtx_id >= adjacency_matrix_.rows) {
+        if (sorted_vtx_id >= static_cast<size_t>(adjacency_matrix_.rows)) {
           // Non-existing vertex! Add row/col. Careful! vtx_ids ordering
           // matters! First order them!
           CHECK(adjacency_matrix_.rows != 0 && adjacency_matrix_.cols != 0);
@@ -270,7 +273,8 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
     return false;
   };
 
-  bool has_normals = vertices_mesh_.rows == vertices_mesh_normal_.size();
+  bool has_normals =
+      static_cast<size_t>(vertices_mesh_.rows) == vertices_mesh_normal_.size();
   CHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
   size_t idx_in_polygon_mesh = polygon_idx * (polygon_dimension_ + 1);
   polygon->resize(polygon_dimension_);
@@ -278,13 +282,13 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
     const int32_t& row_id_pt_j =
         polygons_mesh_.at<int32_t>(idx_in_polygon_mesh + j + 1);
     CHECK(vertex_to_lmk_id_map_.find(row_id_pt_j) !=
-           vertex_to_lmk_id_map_.end());
+          vertex_to_lmk_id_map_.end());
     CHECK_LT(row_id_pt_j, vertices_mesh_.rows);
     polygon->at(j) = Vertex<VertexPositionType>(
         vertex_to_lmk_id_map_.at(row_id_pt_j),
         vertices_mesh_.at<VertexPositionType>(row_id_pt_j),
         vertices_mesh_color_.at<VertexColorRGB>(row_id_pt_j),
-        has_normals? vertices_mesh_normal_.at(row_id_pt_j) : VertexNormal());
+        has_normals ? vertices_mesh_normal_.at(row_id_pt_j) : VertexNormal());
   }
   return true;
 }
@@ -379,11 +383,11 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
         (counts.at(p1_idx) * vertices_mesh_normal_.at(p1_idx) + normal) /
         (counts.at(p1_idx) + 1.0);
     vertices_mesh_normal_.at(p2_idx) =
-        counts.at(p2_idx) * vertices_mesh_normal_.at(p2_idx) + normal /
-        (counts.at(p2_idx) + 1.0);
+        counts.at(p2_idx) * vertices_mesh_normal_.at(p2_idx) +
+        normal / (counts.at(p2_idx) + 1.0);
     vertices_mesh_normal_.at(p3_idx) =
-        counts.at(p3_idx) * vertices_mesh_normal_.at(p3_idx) + normal /
-        (counts.at(p3_idx) + 1.0);
+        counts.at(p3_idx) * vertices_mesh_normal_.at(p3_idx) +
+        normal / (counts.at(p3_idx) + 1.0);
     // assumes non-zero normals...
     vertices_mesh_normal_.at(p1_idx) /=
         cv::norm(vertices_mesh_normal_.at(p1_idx));
@@ -471,9 +475,8 @@ void Mesh<VertexPositionType>::getPolygonsMeshToMat(
 }
 
 template <typename VertexPositionType>
-cv::Mat Mesh<VertexPositionType>::getColorsMesh(
-    const bool& safe) const {
-  return safe? vertices_mesh_color_.clone() : vertices_mesh_color_;
+cv::Mat Mesh<VertexPositionType>::getColorsMesh(const bool& safe) const {
+  return safe ? vertices_mesh_color_.clone() : vertices_mesh_color_;
 }
 
 template <typename VertexPositionType>
@@ -493,6 +496,57 @@ void Mesh<VertexPositionType>::clearMesh() {
   face_hashes_.clear();
   vertex_to_lmk_id_map_.clear();
   lmk_id_to_vertex_map_.clear();
+}
+
+template <typename VertexPositionType>
+void Mesh<VertexPositionType>::save(const std::string& filepath) const {
+  cv::FileStorage fs(filepath, cv::FileStorage::WRITE);
+  fs << "vertex_to_lmk_id_map"
+     << "[";
+  for (auto&& [vertex, lmk] : vertex_to_lmk_id_map_) {
+    fs << "{";
+    fs << "v" << static_cast<int>(vertex) << "l" << static_cast<int>(lmk);
+    fs << "}";
+  }
+  fs << "]";
+
+  fs << "lmk_id_to_vertex_map"
+     << "[";
+  for (auto&& [lmk, vertex] : lmk_id_to_vertex_map_) {
+    fs << "{";
+    fs << "l" << static_cast<int>(lmk) << "v" << static_cast<int>(vertex);
+    fs << "}";
+  }
+  fs << "]";
+
+  fs << "vertices_mesh" << vertices_mesh_;
+  fs << "vertices_mesh_normal" << vertices_mesh_normal_;
+  fs << "normals_computed" << normals_computed_;
+  fs << "vertices_mesh_color" << vertices_mesh_color_;
+  fs << "polygons_mesh" << polygons_mesh_;
+  fs << "adjacency_matrix" << adjacency_matrix_;
+  fs << "polygon_dimension" << static_cast<int>(polygon_dimension_);
+  fs << "}";
+}
+
+template <typename VertexPositionType>
+void Mesh<VertexPositionType>::load(const std::string& filepath) {
+  cv::FileStorage fs(filepath, cv::FileStorage::READ);
+  for (const auto& pair : fs["vertex_to_lmk_id_map"]) {
+    vertex_to_lmk_id_map_[static_cast<int>(pair["v"])] = static_cast<int>(pair["l"]);
+  }
+
+  for (const auto& pair : fs["lmk_id_to_vertex_map"]) {
+    lmk_id_to_vertex_map_[static_cast<int>(pair["l"])] = static_cast<int>(pair["v"]);
+  }
+
+  fs["vertices_mesh"] >> vertices_mesh_;
+  fs["vertices_mesh_normal"] >> vertices_mesh_normal_;
+  fs["normals_computed"] >> normals_computed_;
+  fs["vertices_mesh_color"] >> vertices_mesh_color_;
+  fs["polygons_mesh"] >> polygons_mesh_;
+  fs["adjacency_matrix"] >> adjacency_matrix_;
+  CHECK_EQ(polygon_dimension_, static_cast<int>(fs["polygon_dimension"]));
 }
 
 // explicit instantiations

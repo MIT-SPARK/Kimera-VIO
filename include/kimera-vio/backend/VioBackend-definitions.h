@@ -14,16 +14,13 @@
 
 #pragma once
 
-#include <vector>
-
-#include <boost/optional.hpp>
-
 #include <glog/logging.h>
-
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+
+#include <vector>
 
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
@@ -69,10 +66,10 @@ using Slot = long int;
 using SmartFactorMap =
     gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
-using Landmark = gtsam::Point3;
-using Landmarks = std::vector<Landmark>;
 using PointWithId = std::pair<LandmarkId, Landmark>;
 using PointsWithId = std::vector<PointWithId>;
+// TODO(Toni):  there is the same in vio_types.cpp, replace by that one, since
+// now the frontend also has such concept.
 using PointsWithIdMap = std::unordered_map<LandmarkId, Landmark>;
 using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
@@ -236,25 +233,28 @@ struct BackendInput : public PipelinePayload {
   BackendInput(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
-      const TrackingStatus& stereo_tracking_status,
       const ImuFrontend::PimPtr& pim,
       //! Raw imu msgs for Backend init only
       const ImuAccGyrS& imu_acc_gyrs,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+      std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = std::nullopt,
+      std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
+          std::nullopt)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
-        stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
-        stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+        body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
-  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-  const TrackingStatus stereo_tracking_status_;
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
-  boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
+  // between pose from last keyframe to current according to external odometry
+  std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
+  // velocity of the current keyframe body w.r.t. the world frame in the body
+  // frame
+  std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
 
  public:
   void print() const {
@@ -277,13 +277,8 @@ struct BackendInput : public PipelinePayload {
                            .kfTrackingStatus_stereo_);
       status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
           "\n\t Tracker Pose (stereo): ");
-
-      LOG(INFO) << "Stereo Tracking Status: "
-                << TrackerStatusSummary::asString(stereo_tracking_status_);
     }
     if (pim_) pim_->print("PIM : ");
-    LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: "
-                                           << *stereo_ransac_body_pose_;
   }
 };
 

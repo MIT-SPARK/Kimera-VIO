@@ -22,6 +22,7 @@
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/loopclosure/LcdOutputPacket.h"
 #include "kimera-vio/mesh/Mesh.h"
 
 namespace VIO {
@@ -98,6 +99,8 @@ class BackendLogger {
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
 
+  void logBackendExtOdom(const BackendInput& input);
+
  private:
   void logBackendResultsCSV(const BackendOutput& output);
   void logSmartFactorsStats(const BackendOutput& output);
@@ -112,6 +115,7 @@ class BackendLogger {
   OfstreamWrapper output_pim_navstates_csv_;
   OfstreamWrapper output_backend_factors_stats_csv_;
   OfstreamWrapper output_backend_timing_csv_;
+  OfstreamWrapper output_backend_external_odometry_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
   double timing_loggerbackend_;
@@ -120,6 +124,7 @@ class BackendLogger {
   bool is_header_written_pim_navstates_ = false;
   bool is_header_written_backend_factors_stats_ = false;
   bool is_header_written_backend_timing_ = false;
+  bool is_header_written_external_odometry_ = false;
 };
 
 class FrontendLogger {
@@ -142,16 +147,25 @@ class FrontendLogger {
                       const std::string& dir_name,
                       bool disp_img,
                       bool save_img);
+  void logFrontendTemporalCal(const Timestamp& timestamp_vision,
+                              const Timestamp& timestamp_imu,
+                              const double& vision_relative_angle_norm,
+                              const double& image_relative_angle_norm,
+                              bool not_enough_data,
+                              bool not_enough_variance,
+                              const double& result);
 
  private:
   // StreamWrappers with filenames to which output is saved.
   OfstreamWrapper output_frontend_stats_;
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
+  OfstreamWrapper output_frontend_temporal_cal_;
   std::string output_frontend_img_path_;
   bool is_header_written_frontend_stats_ = false;
   bool is_header_written_ransac_mono_ = false;
   bool is_header_written_ransac_stereo_ = false;
+  bool is_header_written_temporal_cal_ = false;
 };
 
 class MesherLogger {
@@ -168,10 +182,7 @@ class MesherLogger {
    */
   template <typename T>
   void serializeMesh(Mesh<T>& mesh, const std::string& filename) {
-    std::ofstream mesh_file(output_path_ + '/' + filename);
-    boost::archive::text_oarchive ar(mesh_file);
-    ar << mesh;
-    boost::serialization::serialize(ar, mesh, 0);
+    mesh.save(output_path_ + '/' + filename);
   }
 
   /**
@@ -182,9 +193,7 @@ class MesherLogger {
   template <typename T>
   void deserializeMesh(const std::string& filename, Mesh<T>* mesh) const {
     CHECK_NOTNULL(mesh);
-    std::ifstream mesh_file(output_path_ + '/' + filename);
-    boost::archive::text_iarchive ar(mesh_file);
-    ar >> *mesh;
+    mesh->load(output_path_ + '/' + filename);
   }
 
  protected:
@@ -247,6 +256,12 @@ class LoopClosureDetectorLogger {
       const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
   void logLCDResult(const LcdOutput& lcd_output);
   void logLoopClosure(const LcdOutput& lcd_output);
+  void logGeometricVerification(const Timestamp& timestamp_query,
+                                const Timestamp& timestamp_match,
+                                const gtsam::Pose3& camRef_Pose_camCur);
+  void logPoseRecovery(const Timestamp& timestamp_query,
+                       const Timestamp& timestamp_match,
+                       const gtsam::Pose3& bodyRef_Pose_bodyCur);
   void logOptimizedTraj(const LcdOutput& lcd_output);
   void logDebugInfo(const LcdDebugInfo& debug_info);
 
@@ -255,9 +270,13 @@ class LoopClosureDetectorLogger {
   OfstreamWrapper output_lcd_;
   OfstreamWrapper output_traj_;
   OfstreamWrapper output_status_;
+  OfstreamWrapper output_geom_verif_;
+  OfstreamWrapper output_pose_recovery_;
   FrameIDTimestampMap ts_map_;
   bool is_header_written_lcd_ = false;
   bool is_header_written_status_ = false;
+  bool is_header_written_geom_verif_ = false;
+  bool is_header_written_pose_recovery_ = false;
 };
 
 }  // namespace VIO

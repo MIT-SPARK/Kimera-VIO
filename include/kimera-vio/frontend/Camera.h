@@ -14,13 +14,13 @@
 
 #pragma once
 
-#include <Eigen/Core>
-
-#include <opencv2/core.hpp>
-
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/geometry/Point3.h>
+
+#include <Eigen/Core>
+#include <opencv2/core.hpp>
+#include <optional>
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
@@ -83,9 +83,47 @@ class Camera {
   inline gtsam::Pose3 getBodyPoseCam() const {
     return cam_params_.body_Pose_cam_;
   }
-  inline CameraParams getCamParams() const {
-    return cam_params_;
-  }
+  inline const CameraParams& getCamParams() const { return cam_params_; }
+
+  // TODO(marcus): these are here only because omnicam undistort
+  // happens here instead of in UndistorterRectifier.
+  // final solution is to move logic to a gtsam camera for omni
+  // and call in UndistorterRectifier
+  // Implemented according to this paper:
+  // http://rpg.ifi.uzh.ch/docs/CCMVS2007_scaramuzza.pdf
+  static void BackProjectOmni(const KeypointsCV& kps,
+                              const Depths& depths,
+                              const CameraParams& cam_params,
+                              LandmarksCV* lmks);
+  static void BackProjectOmni(const KeypointCV& kp,
+                              const Depth& depth,
+                              const CameraParams& cam_params,
+                              LandmarkCV* lmk);
+  static void UndistortKeypointsOmni(const KeypointsCV& keypoints,
+                                     const CameraParams& cam_params,
+                                     std::optional<cv::Mat> P,
+                                     KeypointsCV* status_keypoints);
+
+ protected:
+  void projectPinhole(const LandmarksCV& lmks, KeypointsCV* kpts) const;
+  void projectPinhole(const LandmarkCV& lmks, KeypointCV* kpts) const;
+
+  void backProjectPinhole(const KeypointsCV& kp,
+                          const Depths& depth,
+                          LandmarksCV* lmk) const;
+  void backProjectPinhole(const KeypointCV& kp,
+                          const Depth& depth,
+                          LandmarkCV* lmk) const;
+
+  void projectOmni(const LandmarksCV& lmks, KeypointsCV* Kpts) const;
+  void projectOmni(const LandmarkCV& lmks, KeypointCV* Kpts) const;
+
+  void backProjectOmni(const KeypointsCV& kps,
+                       const Depths& depths,
+                       LandmarksCV* lmks) const;
+  void backProjectOmni(const KeypointCV& kp,
+                       const Depth& depth,
+                       LandmarkCV* lmk) const;
 
  protected:
   CameraParams cam_params_;

@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include <vector>
-
 #include <glog/logging.h>
+
+#include <vector>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
@@ -38,7 +38,6 @@ class VisualizerModule
   using VizFrontendInput = FrontendOutputPacketBase::Ptr;
   using VizBackendInput = BackendOutput::Ptr;
   using VizMesherInput = MesherOutput::Ptr;
-  using VizLcdInput = LcdOutput::Ptr;
 
   VisualizerModule(OutputQueue* output_queue,
                    bool parallel_run,
@@ -46,17 +45,21 @@ class VisualizerModule
                    Visualizer3D::UniquePtr visualizer);
   virtual ~VisualizerModule() = default;
 
-  //! Callbacks to fill queues: they should be all lighting fast.
   inline void fillFrontendQueue(const VizFrontendInput& frontend_payload) {
+    if (!frontend_payload || !frontend_payload->is_keyframe_) {
+      return;
+    }
+
     frontend_queue_.push(frontend_payload);
   }
+
   inline void fillBackendQueue(const VizBackendInput& backend_payload) {
     backend_queue_.push(backend_payload);
   }
 
-  void fillLcdQueue(const VizLcdInput& lcd_payload);
-
   void fillMesherQueue(const VizMesherInput& mesher_payload);
+
+  inline void disableMesherQueue() { mesher_queue_.reset(nullptr); }
 
  protected:
   //! Synchronize input queues. Currently doing it in a crude way:
@@ -80,7 +83,6 @@ class VisualizerModule
   ThreadsafeQueue<VizBackendInput> backend_queue_;
   /// Mesher queue is optional, therefore it is a unique ptr (nullptr if unused)
   ThreadsafeQueue<VizMesherInput>::UniquePtr mesher_queue_;
-  ThreadsafeQueue<VizLcdInput>::UniquePtr lcd_queue_;
 
   //! Visualizer implementation
   Visualizer3D::UniquePtr visualizer_;

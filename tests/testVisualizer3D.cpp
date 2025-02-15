@@ -13,22 +13,22 @@
  * @author Marcus Abate
  */
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <random>
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
-
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Visualizer3D.h"
 #include "kimera-vio/visualizer/OpenCvVisualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 
 DECLARE_string(test_data_path);
 
@@ -48,7 +48,8 @@ class VisualizerFixture : public ::testing::Test {
     img_ = UtilsOpenCV::ReadAndConvertToGrayScale(img_name_);
     // Construct a frame from image name, and extract keypoints/landmarks.
     frame_ = constructFrame(true);
-    visualizer_ = VIO::make_unique<VIO::OpenCvVisualizer3D>(viz_type_, backend_type_);
+    visualizer_ =
+        std::make_unique<VIO::OpenCvVisualizer3D>(viz_type_, backend_type_);
   }
 
  protected:
@@ -62,7 +63,7 @@ class VisualizerFixture : public ::testing::Test {
     Timestamp tmp = 123;
 
     std::unique_ptr<Frame> frame =
-        VIO::make_unique<Frame>(id, tmp, CameraParams(), img_);
+        std::make_unique<Frame>(id, tmp, CameraParams(), img_);
 
     if (extract_corners) {
       UtilsOpenCV::ExtractCorners(frame->img_, &frame->keypoints_);
@@ -103,7 +104,7 @@ TEST_F(VisualizerFixture, spinOnce) {
       std::make_shared<BackendOutput>(timestamp,
                                       gtsam::Values(),
                                       gtsam::NonlinearFactorGraph(),
-                                      gtsam::Pose3::identity(),
+                                      gtsam::Pose3(),
                                       Vector3::Zero(),
                                       ImuBias(),
                                       gtsam::Matrix(),
@@ -112,24 +113,22 @@ TEST_F(VisualizerFixture, spinOnce) {
                                       DebugVioInfo(),
                                       PointsWithIdMap(),
                                       LmkIdToLmkTypeMap());
-  StereoFrontendOutput::Ptr frontend_output = std::make_shared<StereoFrontendOutput>(
-      true,
-      StatusStereoMeasurementsPtr(),
-      TrackingStatus(),
-      gtsam::Pose3::identity(),
-      gtsam::Pose3::identity(),
-      gtsam::Pose3::identity(),
-      StereoFrame(FrameId(),
-                  timestamp,
-                  Frame(FrameId(), timestamp, camera_params_, cv::Mat()),
-                  Frame(FrameId(), timestamp, camera_params_, cv::Mat())),
-      ImuFrontend::PimPtr(),
-      ImuAccGyrS(),
-      cv::Mat(),
-      DebugTrackerInfo());
-  LcdOutput::Ptr lcd_output = std::make_shared<LcdOutput>(timestamp);
+  StereoFrontendOutput::Ptr frontend_output =
+      std::make_shared<StereoFrontendOutput>(
+          true,
+          StatusStereoMeasurementsPtr(),
+          gtsam::Pose3(),
+          gtsam::Pose3(),
+          StereoFrame(FrameId(),
+                      timestamp,
+                      Frame(FrameId(), timestamp, camera_params_, cv::Mat()),
+                      Frame(FrameId(), timestamp, camera_params_, cv::Mat())),
+          ImuFrontend::PimPtr(),
+          ImuAccGyrS(),
+          cv::Mat(),
+          DebugTrackerInfo());
   VisualizerInput visualizer_input(
-      timestamp, mesher_output, backend_output, frontend_output, lcd_output);
+      timestamp, mesher_output, backend_output, frontend_output);
   // Visualize mesh.
   EXPECT_NO_THROW(visualizer_->spinOnce(visualizer_input));
 }

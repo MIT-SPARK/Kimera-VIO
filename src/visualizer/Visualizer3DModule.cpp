@@ -29,17 +29,12 @@ VisualizerModule::VisualizerModule(OutputQueue* output_queue,
       frontend_queue_("visualizer_frontend_queue"),
       backend_queue_("visualizer_backend_queue"),
       mesher_queue_(nullptr),
-      lcd_queue_(nullptr),
       visualizer_(std::move(visualizer)) {
   if (visualizer_->visualization_type_ ==
       VisualizationType::kMesh2dTo3dSparse) {
     // Activate mesher queue if we are going to visualize the mesh.
-    mesher_queue_ = VIO::make_unique<ThreadsafeQueue<VizMesherInput>>(
+    mesher_queue_ = std::make_unique<ThreadsafeQueue<VizMesherInput>>(
         "visualizer_mesher_queue");
-  }
-  if (use_lcd) {
-    lcd_queue_ =
-        VIO::make_unique<ThreadsafeQueue<VizLcdInput>>("visualizer_lcd_queue");
   }
 }
 
@@ -51,20 +46,10 @@ void VisualizerModule::fillMesherQueue(const VizMesherInput& mesher_payload) {
   mesher_queue_->push(mesher_payload);
 }
 
-void VisualizerModule::fillLcdQueue(const VizLcdInput& lcd_payload) {
-  CHECK(lcd_queue_) << "Filling lcd queue without lcd_queue_ being "
-                       "initialized... Make sure you tell the visualizer that "
-                       "you want to use lcd...";
-  lcd_queue_->push(lcd_payload);
-}
-
 VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   bool queue_state = false;
   VizBackendInput backend_payload = nullptr;
   if (PIO::parallel_run_) {
-    // TODO(Toni): if the mesher_ is not running (it is optional) then there is
-    // no module filling this queue, and the visualizer gets stuck at this
-    // pop blocking :(
     queue_state = backend_queue_.popBlocking(backend_payload);
   } else {
     queue_state = backend_queue_.pop(backend_payload);
@@ -97,19 +82,9 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
     PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload);
   }
 
-  VizLcdInput lcd_payload = nullptr;
-  if (lcd_queue_) {
-    // Mesher output is optional, only sync if callback registered.
-    CHECK(PIO::syncQueue(timestamp, lcd_queue_.get(), &lcd_payload));
-    CHECK(lcd_payload);
-  }
-
   // Push the synced messages to the visualizer's input queue
-  return VIO::make_unique<VisualizerInput>(timestamp,
-                                           mesher_payload,
-                                           backend_payload,
-                                           frontend_payload,
-                                           lcd_payload);
+  return std::make_unique<VisualizerInput>(
+      timestamp, mesher_payload, backend_payload, frontend_payload);
 }
 
 VisualizerModule::OutputUniquePtr VisualizerModule::spinOnce(
@@ -122,8 +97,10 @@ void VisualizerModule::shutdownQueues() {
   LOG(INFO) << "Shutting down queues for: " << name_id_;
   frontend_queue_.shutdown();
   backend_queue_.shutdown();
-  if (mesher_queue_) mesher_queue_->shutdown();
-  if (lcd_queue_) lcd_queue_->shutdown();
+  if (mesher_queue_) {
+    mesher_queue_->shutdown();
+  }
+
   // This shutdowns the output queue as well.
   MISO::shutdownQueues();
 }

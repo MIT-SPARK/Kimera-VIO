@@ -12,12 +12,12 @@
  * @author Luca Carlone, Antoni Rosinol
  */
 
-#include "RegularVioBackend.h"
-
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
+
+#include "RegularVioBackend.h"
 
 DECLARE_string(test_data_path);
 
@@ -67,11 +67,13 @@ vector<Point3> CreateScene() {
 }
 
 /* -------------------------------------------------------------------------- */
-StereoPoses CreateCameraPoses(const int& num_keyframes, const double& baseline,
-                              const Vector3& p0, const Vector3& v) {
+StereoPoses CreateCameraPoses(const int& num_keyframes,
+                              const double& baseline,
+                              const Vector3& p0,
+                              const Vector3& v) {
   StereoPoses poses;
   poses.reserve(num_keyframes);
-  Pose3 L_pose_R(Rot3::identity(), Vector3(baseline, 0, 0));
+  Pose3 L_pose_R(Rot3(), Vector3(baseline, 0, 0));
 
   // The camera is assumed to face (0, 0, 1):
   // z-forward, y down and x to the right
@@ -80,7 +82,7 @@ StereoPoses CreateCameraPoses(const int& num_keyframes, const double& baseline,
     // the robot moves to the right, keeping the point in front of the camera
     Vector3 p_offset = v * f_id * (time_step / ((double)1e9));
 
-    Pose3 pose_left(Rot3::identity(), p0 + p_offset);
+    Pose3 pose_left(Rot3(), p0 + p_offset);
     Pose3 pose_right = pose_left.compose(L_pose_R);
 
     poses.push_back(make_pair(pose_left, pose_right));
@@ -89,9 +91,12 @@ StereoPoses CreateCameraPoses(const int& num_keyframes, const double& baseline,
 }
 
 /* -------------------------------------------------------------------------- */
-void CreateImuBuffer(ImuFrontend& imu_buf, const int num_frames,
-                     const Vector3 v, const ImuBias imu_bias,
-                     const Vector3 n_gravity, const Timestamp time_step,
+void CreateImuBuffer(ImuFrontend& imu_buf,
+                     const int num_frames,
+                     const Vector3 v,
+                     const ImuBias imu_bias,
+                     const Vector3 n_gravity,
+                     const Timestamp time_step,
                      const Timestamp t_start) {
   // Synthesize IMU measurements.
   for (int f_id = 0; f_id < num_frames; f_id++) {
@@ -111,7 +116,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   VioBackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // We simulate points 20m away.
   vioParams.imuIntegrationSigma_ = 1e-4;
-  vioParams.horizon_ = 100;
+  vioParams.nr_states_ = 100;
   vioParams.landmarkDistanceThreshold_ = 50;
 
   // Create 3D points
@@ -135,8 +140,13 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   StereoPoses poses;
   ImuFrontend imu_buf;
   poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
-  CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias, vioParams.n_gravity_,
-                  time_step, t_start);
+  CreateImuBuffer(imu_buf,
+                  num_key_frames,
+                  v,
+                  imu_bias,
+                  vioParams.n_gravity_,
+                  time_step,
+                  t_start);
 
   // Create measurements
   //    using SmartStereoMeasurement = pair<LandmarkId,StereoPoint2>;
@@ -171,13 +181,12 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   }
 
   // Create regular VIO.
-  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
-  boost::shared_ptr<RegularVioBackend> regular_vio =
-      boost::make_shared<RegularVioBackend>(B_pose_camLrect, cam_params,
-                                            baseline, vioParams);
+  Pose3 B_pose_camLrect(Rot3(), Vector3::Zero());
+  auto regular_vio = std::make_shared<RegularVioBackend>(
+      B_pose_camLrect, cam_params, baseline, vioParams);
 
-  regular_vio->initializeStateAndSetPriors(t_start, poses.at(0).first, v,
-                                           imu_bias);
+  regular_vio->initializeStateAndSetPriors(
+      t_start, poses.at(0).first, v, imu_bias);
 
   // For each frame, add landmarks and optimize.
   for (int64_t k = 1; k < num_key_frames; k++) {
@@ -193,9 +202,10 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
 
     // Process data with VIO.
     regular_vio->addVisualInertialStateAndOptimize(
-        timestamp_k,                   // Current time for fixed lag smoother.
-        all_measurements[k],           // Vision data.
-        imu_stamps, imu_accgyr,        // Inertial data.
+        timestamp_k,          // Current time for fixed lag smoother.
+        all_measurements[k],  // Vision data.
+        imu_stamps,
+        imu_accgyr,                    // Inertial data.
         mesh_lmk_ids_ground_cluster);  // Lmk ids with regularities.
 
     NonlinearFactorGraph nlfg = regular_vio->smoother_->getFactors();
@@ -247,7 +257,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
   VioBackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // We simulate points 20m away.
   vioParams.imuIntegrationSigma_ = 1e-4;
-  vioParams.horizon_ = 100;
+  vioParams.nr_states_ = 100;
   vioParams.landmarkDistanceThreshold_ = 50;
 
   // Create 3D points
@@ -271,8 +281,13 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
   StereoPoses poses;
   ImuFrontend imu_buf;
   poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
-  CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias, vioParams.n_gravity_,
-                  time_step, t_start);
+  CreateImuBuffer(imu_buf,
+                  num_key_frames,
+                  v,
+                  imu_bias,
+                  vioParams.n_gravity_,
+                  time_step,
+                  t_start);
 
   // Create measurements.
   //    using SmartStereoMeasurement = pair<LandmarkId,StereoPoint2>;
@@ -300,13 +315,12 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
   }
 
   // Create regular VIO.
-  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
-  boost::shared_ptr<RegularVioBackend> regular_vio =
-      boost::make_shared<RegularVioBackend>(B_pose_camLrect, cam_params,
-                                            baseline, vioParams);
+  Pose3 B_pose_camLrect(Rot3(), Vector3::Zero());
+  auto regular_vio = std::make_shared<RegularVioBackend>(
+      B_pose_camLrect, cam_params, baseline, vioParams);
 
-  regular_vio->initializeStateAndSetPriors(t_start, poses.at(0).first, v,
-                                           imu_bias);
+  regular_vio->initializeStateAndSetPriors(
+      t_start, poses.at(0).first, v, imu_bias);
 
   // For each frame, add landmarks and optimize.
   for (int64_t k = 1; k < num_key_frames; k++) {
@@ -329,9 +343,10 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
 
     // Process data with VIO.
     regular_vio->addVisualInertialStateAndOptimize(
-        timestamp_k,                   // Current time for fixed lag smoother.
-        all_measurements[k],           // Vision data.
-        imu_stamps, imu_accgyr,        // Inertial data.
+        timestamp_k,          // Current time for fixed lag smoother.
+        all_measurements[k],  // Vision data.
+        imu_stamps,
+        imu_accgyr,                    // Inertial data.
         mesh_lmk_ids_ground_cluster);  // Lmk ids with regularities.
 
     NonlinearFactorGraph nlfg = regular_vio->smoother_->getFactors();

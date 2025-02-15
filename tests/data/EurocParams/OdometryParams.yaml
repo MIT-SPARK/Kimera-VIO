@@ -1,0 +1,15 @@
+%YAML:1.0
+T_BS:
+  cols: 4
+  rows: 4
+  data: [1.0, 0.0, 0.0, 1.0,
+         0.0, 1.0, 0.0, 2.0,
+         0.0, 0.0, 1.0, 3.0,
+         0.0, 0.0, 0.0, 1.0]
+
+
+odomRotationPrecision: 1.0
+odomPositionPrecision: 2.0
+odomVelPrecision: 3.0
+odomTimeShift: 0.0
+rate_hz: 4.0

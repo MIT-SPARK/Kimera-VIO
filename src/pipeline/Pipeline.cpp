@@ -46,6 +46,19 @@ DEFINE_int32(min_num_obs_for_mesher_points,
 DEFINE_bool(use_lcd,
             false,
             "Enable LoopClosureDetector processing in pipeline.");
+DEFINE_bool(
+    do_coarse_imu_camera_temporal_sync,
+    false,
+    "Compute the static offset between the IMU and camera timestamps. This is "
+    "only really suitable for time offsets that have no physical meaning as it "
+    "only computes the time difference between the last IMU and image "
+    "measurement, and applies that to all IMU measurements going forward.");
+DEFINE_bool(
+    do_fine_imu_camera_temporal_sync,
+    false,
+    "Estimate the delay between the IMU and the camera. This enables "
+    "estimating the time delay between the IMU and the camera (currently by "
+    "cross-correlation between relative rotation angles).");
 
 namespace VIO {
 
@@ -54,17 +67,17 @@ Pipeline::Pipeline(const VioParams& params)
       frontend_params_(params.frontend_params_),
       imu_params_(params.imu_params_),
       parallel_run_(params.parallel_run_),
-      shutdown_pipeline_cb_(nullptr),
       data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
+      frontend_input_queue_("frontend_input_queue"),
       vio_backend_module_(nullptr),
+      backend_input_queue_("backend_input_queue"),
       mesher_module_(nullptr),
       lcd_module_(nullptr),
       visualizer_module_(nullptr),
-      display_module_(nullptr),
-      frontend_input_queue_("frontend_input_queue"),
-      backend_input_queue_("backend_input_queue"),
       display_input_queue_("display_input_queue"),
+      display_module_(nullptr),
+      shutdown_pipeline_cb_(nullptr),
       frontend_thread_(nullptr),
       backend_thread_(nullptr),
       mesher_thread_(nullptr),
@@ -107,10 +120,9 @@ std::string Pipeline::printStatus() const {
      << "Backend initialized? " << vio_backend_module_->isInitialized() << '\n'
      << "Data provider is working? " << data_provider_module_->isWorking()
      << '\n'
-     << "Frontend input queue shutdown? "
-     << frontend_input_queue_.isShutdown() << '\n'
-     << "Frontend input queue empty? " << frontend_input_queue_.empty()
+     << "Frontend input queue shutdown? " << frontend_input_queue_.isShutdown()
      << '\n'
+     << "Frontend input queue empty? " << frontend_input_queue_.empty() << '\n'
      << "Frontend is working? " << vio_frontend_module_->isWorking() << '\n'
      << "Backend Input queue shutdown? " << backend_input_queue_.isShutdown()
      << '\n'
@@ -143,6 +155,15 @@ std::string Pipeline::printStatus() const {
 /* -------------------------------------------------------------------------- */
 bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
                                     const bool& print_stats) {
+  // defaults to only checking whether the pipeline itself has finished
+  return waitForShutdown(
+      []() -> bool { return true; }, sleep_time_ms, print_stats);
+}
+
+/* -------------------------------------------------------------------------- */
+bool Pipeline::waitForShutdown(const std::function<bool()>& data_done_cb,
+                               const int& sleep_time_ms,
+                               const bool& print_stats) {
   LOG_IF(INFO, parallel_run_)
       << "Shutting down VIO pipeline once processing has finished.";
 
@@ -150,7 +171,7 @@ bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms,
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
 
-  while (!hasFinished()) {
+  while (!hasFinished() || !data_done_cb()) {
     // Note that the values in the log below might be different than the
     // evaluation above since they are separately evaluated at different times.
     VLOG(5) << printStatus();
@@ -197,6 +218,34 @@ bool Pipeline::hasFinished() const {
   CHECK(data_provider_module_);
   CHECK(vio_frontend_module_);
   CHECK(vio_backend_module_);
+
+  const bool fqueue_done =
+      frontend_input_queue_.isShutdown() || frontend_input_queue_.empty();
+  const bool bqueue_done =
+      backend_input_queue_.isShutdown() || backend_input_queue_.empty();
+  const bool dqueue_done =
+      display_input_queue_.isShutdown() || display_input_queue_.empty();
+  const bool mesher_done =
+      mesher_module_ != nullptr ? !mesher_module_->isWorking() : true;
+  const bool lcd_done =
+      lcd_module_ != nullptr ? !lcd_module_->isWorking() : true;
+  const bool visualizer_done =
+      visualizer_module_ != nullptr ? !visualizer_module_->isWorking() : true;
+  const bool display_done =
+      display_module_ != nullptr ? !display_module_->isWorking() : true;
+
+  VLOG(10) << std::endl
+          << std::boolalpha
+          << "  - data: " << data_provider_module_->isWorking() << std::endl
+          << "  - frontend_input_queue: " << fqueue_done << std::endl
+          << "  - frontend: " << vio_frontend_module_->isWorking() << std::endl
+          << "  - backend_input_queue: " << bqueue_done << std::endl
+          << "  - backend: " << vio_backend_module_->isWorking() << std::endl
+          << "  - mesher: " << mesher_done << std::endl
+          << "  - lcd: " << lcd_done << std::endl
+          << "  - visualizer: " << visualizer_done << std::endl
+          << "  - display_input_queue: " << dqueue_done << std::endl
+          << "  - display: " << display_done << std::endl;
 
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
@@ -245,6 +294,12 @@ void Pipeline::shutdown() {
   }
   LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
             << "VIO Pipeline successful shutdown.";
+
+  if (FLAGS_log_output) {
+    PipelineLogger logger;
+    // TODO(nathan) consider adding actual elapsed time
+    logger.logPipelineOverallTiming(std::chrono::milliseconds(0));
+  }
 }
 
 void Pipeline::resume() {
@@ -273,24 +328,25 @@ void Pipeline::spinOnce(FrontendInputPacketBase::UniquePtr input) {
 
 void Pipeline::launchThreads() {
   if (parallel_run_) {
-    frontend_thread_ = VIO::make_unique<std::thread>(
-        &VisionImuFrontendModule::spin, CHECK_NOTNULL(vio_frontend_module_.get()));
+    frontend_thread_ = std::make_unique<std::thread>(
+        &VisionImuFrontendModule::spin,
+        CHECK_NOTNULL(vio_frontend_module_.get()));
 
-    backend_thread_ = VIO::make_unique<std::thread>(
+    backend_thread_ = std::make_unique<std::thread>(
         &VioBackendModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
     if (mesher_module_) {
-      mesher_thread_ = VIO::make_unique<std::thread>(
+      mesher_thread_ = std::make_unique<std::thread>(
           &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
     }
 
     if (lcd_module_) {
-      lcd_thread_ = VIO::make_unique<std::thread>(
+      lcd_thread_ = std::make_unique<std::thread>(
           &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
     }
 
     if (visualizer_module_) {
-      visualizer_thread_ = VIO::make_unique<std::thread>(
+      visualizer_thread_ = std::make_unique<std::thread>(
           &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
     }
     LOG(INFO) << "Pipeline Modules launched (parallel_run set to "
@@ -338,8 +394,7 @@ void Pipeline::joinThreads() {
   VLOG(1) << "All threads joined.";
 }
 
-void Pipeline::joinThread(const std::string& thread_name,
-                          std::thread* thread) {
+void Pipeline::joinThread(const std::string& thread_name, std::thread* thread) {
   if (thread) {
     VLOG(1) << "Joining " << thread_name.c_str() << " thread...";
     if (thread->joinable()) {

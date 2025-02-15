@@ -16,123 +16,19 @@
 
 namespace VIO {
 
-LoopClosureDetectorParams::LoopClosureDetectorParams(
-    int image_width,
-    int image_height,
-    double focal_length,
-    cv::Point2d principle_point,
-
-    bool use_nss,
-    float alpha,
-    int min_temporal_matches,
-    int recent_frames_window,
-    int max_db_results,
-    float min_nss_factor,
-    int min_matches_per_island,
-    int max_intraisland_gap,
-    int max_nrFrames_between_islands,
-    int max_nrFrames_between_queries,
-
-    GeomVerifOption geom_check,
-    int min_correspondences,
-    int max_ransac_iterations_mono,
-    double ransac_probability_mono,
-    double ransac_threshold_mono,
-    bool ransac_randomize_mono,
-    double ransac_inlier_threshold_mono,
-
-    PoseRecoveryOption pose_recovery_option,
-    int max_ransac_iterations_stereo,
-    double ransac_probability_stereo,
-    double ransac_threshold_stereo,
-    bool ransac_randomize_stereo,
-    double ransac_inlier_threshold_stereo,
-    bool use_mono_rot,
-    bool refine_pose,
-    double lowe_ratio,
-#if CV_VERSION_MAJOR == 3
-    int matcher_type,
-#else
-    cv::DescriptorMatcher::MatcherType matcher_type,
-#endif
-
-    int nfeatures,
-    float scale_factor,
-    int nlevels,
-    int edge_threshold,
-    int first_level,
-    int WTA_K,
-#if CV_VERSION_MAJOR == 3
-    int score_type,
-#else
-    cv::ORB::ScoreType score_type,
-#endif
-    int patch_sze,
-    int fast_threshold,
-
-    double betweenRotationPrecision,
-    double betweenTranslationPrecision,
-
-    double pgo_rot_threshold,
-    double pgo_trans_threshold)
-    : PipelineParams("Loop Closure Parameters"),
-      image_width_(image_width),
-      image_height_(image_height),
-      focal_length_(focal_length),
-      principle_point_(principle_point),
-
-      use_nss_(use_nss),
-      alpha_(alpha),
-      min_temporal_matches_(min_temporal_matches),
-      recent_frames_window_(recent_frames_window),
-      max_db_results_(max_db_results),
-      min_nss_factor_(min_nss_factor),
-      min_matches_per_island_(min_matches_per_island),
-      max_intraisland_gap_(max_intraisland_gap),
-      max_nrFrames_between_islands_(max_nrFrames_between_islands),
-      max_nrFrames_between_queries_(max_nrFrames_between_queries),
-
-      geom_check_(geom_check),
-      min_correspondences_(min_correspondences),
-      max_ransac_iterations_mono_(max_ransac_iterations_mono),
-      ransac_probability_mono_(ransac_probability_mono),
-      ransac_threshold_mono_(ransac_threshold_mono),
-      ransac_randomize_mono_(ransac_randomize_mono),
-      ransac_inlier_threshold_mono_(ransac_inlier_threshold_mono),
-
-      pose_recovery_option_(pose_recovery_option),
-      max_ransac_iterations_stereo_(max_ransac_iterations_stereo),
-      ransac_probability_stereo_(ransac_probability_stereo),
-      ransac_threshold_stereo_(ransac_threshold_stereo),
-      ransac_randomize_stereo_(ransac_randomize_stereo),
-      ransac_inlier_threshold_stereo_(ransac_inlier_threshold_stereo),
-      use_mono_rot_(use_mono_rot),
-      refine_pose_(refine_pose),
-
-      lowe_ratio_(lowe_ratio),
-      matcher_type_(matcher_type),
-
-      nfeatures_(nfeatures),
-      scale_factor_(scale_factor),
-      nlevels_(nlevels),
-      edge_threshold_(edge_threshold),
-      first_level_(first_level),
-      WTA_K_(WTA_K),
-      score_type_(score_type),
-      patch_sze_(patch_sze),
-      fast_threshold_(fast_threshold),
-
-      betweenRotationPrecision_(betweenRotationPrecision),
-      betweenTranslationPrecision_(betweenTranslationPrecision),
-
-      pgo_rot_threshold_(pgo_rot_threshold),
-      pgo_trans_threshold_(pgo_trans_threshold) {
+LoopClosureDetectorParams::LoopClosureDetectorParams()
+    : PipelineParams("Loop Closure Parameters") {
   // Trivial sanity checks:
   CHECK(alpha_ > 0);
   CHECK(nfeatures_ >= 100);  // TODO(marcus): add more checks, change this one
 }
 
 bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
+  // Use defaults and override the outlier-rejection params required
+  // TODO(marcus + toni): after fix/frontend is merged, just use the
+  // OutlierRejection class as a member and parse params here.
+  // tracker_params_.parseYAML(filepath);
+
   YamlParser yaml_parser(filepath);
 
   yaml_parser.getYamlParam("use_nss", &use_nss_);
@@ -147,58 +43,21 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
                            &max_nrFrames_between_islands_);
   yaml_parser.getYamlParam("max_nrFrames_between_queries",
                            &max_nrFrames_between_queries_);
-
-  int geom_check_id;
-  yaml_parser.getYamlParam("geom_check_id", &geom_check_id);
-  switch (geom_check_id) {
-    case static_cast<unsigned int>(GeomVerifOption::NISTER):
-      geom_check_ = GeomVerifOption::NISTER;
-      break;
-    case static_cast<unsigned int>(GeomVerifOption::NONE):
-      geom_check_ = GeomVerifOption::NONE;
-      break;
-    default:
-      throw std::runtime_error("LCDparams parseYAML: wrong geom_check_id");
-      break;
-  }
-  yaml_parser.getYamlParam("min_correspondences", &min_correspondences_);
-  yaml_parser.getYamlParam("max_ransac_iterations_mono",
-                           &max_ransac_iterations_mono_);
-  yaml_parser.getYamlParam("ransac_probability_mono",
-                           &ransac_probability_mono_);
-  yaml_parser.getYamlParam("ransac_threshold_mono", &ransac_threshold_mono_);
-  yaml_parser.getYamlParam("ransac_randomize_mono", &ransac_randomize_mono_);
-  yaml_parser.getYamlParam("ransac_inlier_threshold_mono",
-                           &ransac_inlier_threshold_mono_);
-
-  int pose_recovery_option_id;
-  yaml_parser.getYamlParam("pose_recovery_option_id", &pose_recovery_option_id);
-  switch (pose_recovery_option_id) {
-    case static_cast<unsigned int>(PoseRecoveryOption::RANSAC_ARUN):
-      pose_recovery_option_ = PoseRecoveryOption::RANSAC_ARUN;
-      break;
-    case static_cast<unsigned int>(PoseRecoveryOption::GIVEN_ROT):
-      pose_recovery_option_ = PoseRecoveryOption::GIVEN_ROT;
-      break;
-    default:
-      throw std::runtime_error(
-          "LCDparams parseYAML: wrong pose_recovery_option_id");
-      break;
-  }
-  yaml_parser.getYamlParam("max_ransac_iterations_stereo",
-                           &max_ransac_iterations_stereo_);
-  yaml_parser.getYamlParam("ransac_probability_stereo",
-                           &ransac_probability_stereo_);
-  yaml_parser.getYamlParam("ransac_threshold_stereo",
-                           &ransac_threshold_stereo_);
-  yaml_parser.getYamlParam("ransac_randomize_stereo",
-                           &ransac_randomize_stereo_);
-  yaml_parser.getYamlParam("ransac_inlier_threshold_stereo",
-                           &ransac_inlier_threshold_stereo_);
-  yaml_parser.getYamlParam("use_mono_rot", &use_mono_rot_);
   yaml_parser.getYamlParam("refine_pose", &refine_pose_);
+  int pose_recovery_type;
+  yaml_parser.getYamlParam("pose_recovery_type", &pose_recovery_type);
+  pose_recovery_type_ = static_cast<PoseRecoveryType>(pose_recovery_type);
   yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
-  yaml_parser.getYamlParam("matcher_type", &matcher_type_);
+
+  int matcher_type_id;
+  yaml_parser.getYamlParam("matcher_type", &matcher_type_id);
+#if CV_VERSION_MAJOR == 3
+  matcher_type_ = matcher_type_id;
+#else
+  matcher_type_ =
+      static_cast<cv::DescriptorMatcher::MatcherType>(matcher_type_id);
+#endif
+
   yaml_parser.getYamlParam("nfeatures", &nfeatures_);
   yaml_parser.getYamlParam("scale_factor", &scale_factor_);
   yaml_parser.getYamlParam("nlevels", &nlevels_);
@@ -223,27 +82,96 @@ bool LoopClosureDetectorParams::parseYAML(const std::string& filepath) {
   }
   yaml_parser.getYamlParam("patch_sze", &patch_sze_);
   yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
-  yaml_parser.getYamlParam("betweenRotationPrecision", &betweenRotationPrecision_);
-  yaml_parser.getYamlParam("betweenTranslationPrecision", &betweenTranslationPrecision_);
-  yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
-  yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
+  yaml_parser.getYamlParam("betweenRotationPrecision",
+                           &betweenRotationPrecision_);
+  yaml_parser.getYamlParam("betweenTranslationPrecision",
+                           &betweenTranslationPrecision_);
+  yaml_parser.getYamlParam("odom_rot_threshold", &odom_rot_threshold_);
+  yaml_parser.getYamlParam("odom_trans_threshold", &odom_trans_threshold_);
+  yaml_parser.getYamlParam("pcm_rot_threshold", &pcm_rot_threshold_);
+  yaml_parser.getYamlParam("pcm_trans_threshold", &pcm_trans_threshold_);
+  yaml_parser.getYamlParam("gnc_alpha", &gnc_alpha_);
+
+  yaml_parser.getYamlParam("max_lc_cached_before_optimize",
+                           &max_lc_cached_before_optimize_);
+
+  // Now manually change required parameters in tracker
+  yaml_parser.getYamlParam("disparity_threshold",
+                           &tracker_params_.disparityThreshold_);
+
+  yaml_parser.getYamlParam("min_nr_2d2d_inliers",
+                           &tracker_params_.minNrMonoInliers_);
+  yaml_parser.getYamlParam("min_nr_3d3d_inliers",
+                           &tracker_params_.minNrStereoInliers_);
+  yaml_parser.getYamlParam("min_nr_2d3d_inliers",
+                           &tracker_params_.min_pnp_inliers_);
+
+  yaml_parser.getYamlParam("ransac_threshold_2d2d",
+                           &tracker_params_.ransac_threshold_mono_);
+  yaml_parser.getYamlParam("ransac_threshold_3d3d",
+                           &tracker_params_.ransac_threshold_stereo_);
+  yaml_parser.getYamlParam("ransac_threshold_2d3d",
+                           &tracker_params_.ransac_threshold_pnp_);
+  yaml_parser.getYamlParam("ransac_max_iterations",
+                           &tracker_params_.ransac_max_iterations_);
+  yaml_parser.getYamlParam("ransac_probability",
+                           &tracker_params_.ransac_probability_);
+  yaml_parser.getYamlParam("ransac_randomize",
+                           &tracker_params_.ransac_randomize_);
+
+  yaml_parser.getYamlParam("ransac_use_1point_3d3d",
+                           &tracker_params_.ransac_use_1point_stereo_);
+  yaml_parser.getYamlParam("ransac_use_2point_2d2d",
+                           &tracker_params_.ransac_use_2point_mono_);
+
+  int pose_2d2d_algorithm;
+  yaml_parser.getYamlParam("ransac_2d2d_algorithm", &pose_2d2d_algorithm);
+  tracker_params_.pose_2d2d_algorithm_ =
+      static_cast<Pose2d2dAlgorithm>(pose_2d2d_algorithm);
+
+  int pnp_algorithm;
+  yaml_parser.getYamlParam("ransac_2d3d_algorithm", &pnp_algorithm);
+  tracker_params_.pnp_algorithm_ =
+      static_cast<Pose3d2dAlgorithm>(pnp_algorithm);
+
+  yaml_parser.getYamlParam("optimize_2d2d_pose_from_inliers",
+                           &tracker_params_.optimize_2d2d_pose_from_inliers_);
+  yaml_parser.getYamlParam("optimize_3d3d_pose_from_inliers",
+                           &tracker_params_.optimize_3d3d_pose_from_inliers_);
+
+  if (yaml_parser.hasParam("frame_cache_max_frames")) {
+    int max_frames;
+    yaml_parser.getYamlParam("frame_cache_max_frames", &max_frames);
+    frame_cache.max_frames = max_frames;
+  }
+
+  if (yaml_parser.hasParam("frame_cache_path")) {
+    yaml_parser.getYamlParam("frame_cache_path", &frame_cache.cache_path);
+  }
+
+  if (yaml_parser.hasParam("frame_cache_name")) {
+    yaml_parser.getYamlParam("frame_cache_name", &frame_cache.cache_name);
+  }
+
+  if (yaml_parser.hasParam("frame_cache_line_size")) {
+    int num_frames_per_file;
+    yaml_parser.getYamlParam("frame_cache_line_size", &num_frames_per_file);
+    frame_cache.num_frames_per_file = num_frames_per_file;
+  }
+
+  if (yaml_parser.hasParam("frame_cache_remove_on_exit")) {
+    yaml_parser.getYamlParam("frame_cache_remove_on_exit",
+                             &frame_cache.remove_cache_on_exit);
+  }
 
   return true;
 }
 
 void LoopClosureDetectorParams::print() const {
-  // TODO(marcus): print all params
+  tracker_params_.print();
+
   std::stringstream out;
   PipelineParams::print(out,
-                        "image_width_: ",
-                        image_width_,
-                        "image_height_: ",
-                        image_height_,
-                        "focal_length_: ",
-                        focal_length_,
-                        "principle_point_: ",
-                        principle_point_,
-
                         "use_nss_: ",
                         use_nss_,
                         "alpha_: ",
@@ -264,43 +192,13 @@ void LoopClosureDetectorParams::print() const {
                         max_intraisland_gap_,
                         "max_nrFrames_between_islands_: ",
                         max_nrFrames_between_islands_,
-
                         "max_nrFrames_between_queries_: ",
                         max_nrFrames_between_queries_,
 
-                        "geom_check_: ",
-                        static_cast<unsigned int>(geom_check_),
-                        "min_correspondences_: ",
-                        min_correspondences_,
-                        "max_ransac_iterations_mono_: ",
-                        max_ransac_iterations_mono_,
-
-                        "ransac_probability_mono_: ",
-                        ransac_probability_mono_,
-                        "ransac_threshold_mono_: ",
-                        ransac_threshold_mono_,
-                        "ransac_randomize_mono_: ",
-                        ransac_randomize_mono_,
-                        "ransac_inlier_threshold_mono_: ",
-                        ransac_inlier_threshold_mono_,
-
-                        "pose_recovery_option_: ",
-                        static_cast<unsigned int>(pose_recovery_option_),
-                        "max_ransac_iterations_stereo_: ",
-                        max_ransac_iterations_stereo_,
-
-                        "ransac_probability_stereo_: ",
-                        ransac_probability_stereo_,
-                        "ransac_threshold_stereo_: ",
-                        ransac_threshold_stereo_,
-                        "ransac_randomize_stereo_: ",
-                        ransac_randomize_stereo_,
-                        "ransac_inlier_threshold_stereo_: ",
-                        ransac_inlier_threshold_stereo_,
-                        "use_mono_rot_:",
-                        use_mono_rot_,
                         "refine_pose_:",
                         refine_pose_,
+                        "pose_recovery_type_",
+                        static_cast<unsigned int>(pose_recovery_type_),
                         "lowe_ratio_: ",
                         lowe_ratio_,
                         "matcher_type_:",
@@ -330,10 +228,78 @@ void LoopClosureDetectorParams::print() const {
                         "betweenTranslationPrecision_: ",
                         betweenTranslationPrecision_,
 
-                        "pgo_rot_threshold_: ",
-                        pgo_rot_threshold_,
-                        "pgo_trans_threshold_: ",
-                        pgo_trans_threshold_);
+                        "odom_rot_threshold_: ",
+                        odom_rot_threshold_,
+                        "odom_trans_threshold_: ",
+                        odom_trans_threshold_,
+                        "pcm_rot_threshold_: ",
+                        pcm_rot_threshold_,
+                        "pcm_trans_threshold_: ",
+                        pcm_trans_threshold_,
+                        "gnc_alpha_",
+                        gnc_alpha_,
+                        "max_lc_cached_before_optimize_",
+                        max_lc_cached_before_optimize_,
+
+                        "frame_cache.max_frames",
+                        frame_cache.max_frames,
+                        "frame_cache.cache_path",
+                        frame_cache.cache_path,
+                        "frame_cache.cache_name",
+                        frame_cache.cache_name,
+                        "frame_cache.num_frames_per_file",
+                        frame_cache.num_frames_per_file,
+                        "frame_cahce.remove_cache_on_exit",
+                        frame_cache.remove_cache_on_exit);
   LOG(INFO) << out.str();
 }
+
+bool LoopClosureDetectorParams::equals(const LoopClosureDetectorParams& lp2,
+                                       double tol) const {
+  return tracker_params_.equals(lp2.tracker_params_, tol) &&
+         (use_nss_ == lp2.use_nss_) && (fabs(alpha_ - lp2.alpha_) <= tol) &&
+         (min_temporal_matches_ == lp2.min_temporal_matches_) &&
+         (recent_frames_window_ == lp2.recent_frames_window_) &&
+         (max_db_results_ == lp2.max_db_results_) &&
+         (fabs(min_nss_factor_ - lp2.min_nss_factor_) <= tol) &&
+         (min_matches_per_island_ == lp2.min_matches_per_island_) &&
+         (max_intraisland_gap_ == lp2.max_intraisland_gap_) &&
+         (max_nrFrames_between_islands_ == lp2.max_nrFrames_between_islands_) &&
+         (max_nrFrames_between_queries_ == lp2.max_nrFrames_between_queries_) &&
+
+         (refine_pose_ == lp2.refine_pose_) &&
+         (pose_recovery_type_ == lp2.pose_recovery_type_) &&
+         (fabs(lowe_ratio_ - lp2.lowe_ratio_) <= tol) &&
+         (matcher_type_ == lp2.matcher_type_) &&
+
+         (nfeatures_ == lp2.nfeatures_) &&
+         (fabs(scale_factor_ - lp2.scale_factor_) <= tol) &&
+         (nlevels_ == lp2.nlevels_) &&
+         (edge_threshold_ == lp2.edge_threshold_) &&
+         (first_level_ == lp2.first_level_) && (WTA_K_ == lp2.WTA_K_) &&
+         (score_type_ == lp2.score_type_) && (patch_sze_ == lp2.patch_sze_) &&
+         (fast_threshold_ == lp2.fast_threshold_) &&
+
+         (fabs(betweenRotationPrecision_ - lp2.betweenRotationPrecision_) <=
+          tol) &&
+         (fabs(betweenTranslationPrecision_ -
+               lp2.betweenTranslationPrecision_) <= tol) &&
+
+         (fabs(odom_rot_threshold_ - lp2.odom_rot_threshold_) <= tol) &&
+         (fabs(odom_trans_threshold_ - lp2.odom_trans_threshold_) <= tol) &&
+         (fabs(pcm_rot_threshold_ - lp2.pcm_rot_threshold_) <= tol) &&
+         (fabs(pcm_trans_threshold_ - lp2.pcm_trans_threshold_) <= tol) &&
+         (fabs(gnc_alpha_ - lp2.gnc_alpha_) <= tol) &&
+         (max_lc_cached_before_optimize_ ==
+          lp2.max_lc_cached_before_optimize_) &&
+
+         (frame_cache.max_frames == lp2.frame_cache.max_frames) &&
+         (frame_cache.cache_path == lp2.frame_cache.cache_path) &&
+         (frame_cache.cache_name == lp2.frame_cache.cache_name) &&
+         (frame_cache.num_frames_per_file ==
+          lp2.frame_cache.num_frames_per_file) &&
+         (frame_cache.remove_cache_on_exit ==
+          lp2.frame_cache.remove_cache_on_exit);
+}
+
 }  // namespace VIO

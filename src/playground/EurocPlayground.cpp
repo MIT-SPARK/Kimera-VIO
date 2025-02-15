@@ -1,4 +1,5 @@
 #include "kimera-vio/playground/EurocPlayground.h"
+
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/visualizer/OpenCvDisplay.h"
 #include "kimera-vio/visualizer/OpenCvDisplayParams.h"
@@ -11,24 +12,24 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
                                  const int& initial_k,
                                  const int& final_k,
                                  const size_t& subsample_n)
-    : dataset_path_(dataset_path),
-      subsample_n(subsample_n),
-      vio_params_(params_path),
-      feature_detector_(nullptr),
-      euroc_data_provider_(nullptr),
+    : vio_params_(params_path),
       visualizer_3d_(nullptr),
+      stereo_camera_(nullptr),
+      stereo_matcher_(nullptr),
       display_module_(nullptr),
       display_input_queue_("display_input_queue"),
+      dataset_path_(dataset_path),
+      subsample_n(subsample_n),
+      feature_detector_(nullptr),
+      euroc_data_provider_(nullptr),
       imu_data_(),
       left_frame_queue_("left_frame_queue"),
-      right_frame_queue_("right_frame_queue"),
-      stereo_camera_(nullptr),
-      stereo_matcher_(nullptr) {
+      right_frame_queue_("right_frame_queue") {
   // Set sequential mode
   vio_params_.parallel_run_ = false;
 
   // Create euroc data parser
-  euroc_data_provider_ = VIO::make_unique<EurocDataProvider>(
+  euroc_data_provider_ = std::make_unique<EurocDataProvider>(
       dataset_path, initial_k, final_k, vio_params_);
 
   // Register Callbacks
@@ -47,40 +48,40 @@ EurocPlayground::EurocPlayground(const std::string& dataset_path,
   // Create 3D visualizer
   VisualizationType viz_type = VisualizationType::kPointcloud;
   BackendType backend_type = BackendType::kStereoImu;
-  visualizer_3d_ = VIO::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
+  visualizer_3d_ = std::make_unique<OpenCvVisualizer3D>(viz_type, backend_type);
 
   // Create Displayer
   CHECK(vio_params_.display_params_);
-  OpenCv3dDisplayParams modified_display_params =
-      VIO::safeCast<DisplayParams, OpenCv3dDisplayParams>(
-          *vio_params_.display_params_);
-  modified_display_params.hold_3d_display_ = true;
+  auto modified_display_params =
+      std::dynamic_pointer_cast<OpenCv3dDisplayParams>(
+          vio_params_.display_params_);
+  CHECK(modified_display_params);
+  modified_display_params->hold_3d_display_ = true;
   DisplayParams::Ptr new_display_params =
-      std::make_shared<OpenCv3dDisplayParams>(modified_display_params);
-  display_module_ = VIO::make_unique<DisplayModule>(
+      std::make_shared<OpenCv3dDisplayParams>(*modified_display_params);
+  display_module_ = std::make_unique<DisplayModule>(
       &display_input_queue_,
       nullptr,
       vio_params_.parallel_run_,
-      VIO::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
+      std::make_unique<OpenCv3dDisplay>(new_display_params, nullptr));
 
   // Create Feature detector
   FeatureDetectorParams feature_detector_params;
   feature_detector_params.feature_detector_type_ = FeatureDetectorType::ORB;
   feature_detector_ =
-      VIO::make_unique<FeatureDetector>(feature_detector_params);
+      std::make_unique<FeatureDetector>(feature_detector_params);
 
   // Create Stereo Camera
-  stereo_camera_ = VIO::make_unique<StereoCamera>(
-      vio_params_.camera_params_.at(0),
-      vio_params_.camera_params_.at(1));
-  stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+  stereo_camera_ = std::make_unique<StereoCamera>(
+      vio_params_.camera_params_.at(0), vio_params_.camera_params_.at(1));
+  stereo_matcher_ = std::make_unique<StereoMatcher>(
       stereo_camera_, vio_params_.frontend_params_.stereo_matching_params_);
 }
 
 void EurocPlayground::visualizeGtData(const bool& viz_traj,
                                       const bool& viz_img_in_frustum,
                                       const bool& viz_pointcloud) {
-  VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+  VisualizerOutput::UniquePtr output = std::make_unique<VisualizerOutput>();
   output->visualization_type_ = VisualizationType::kPointcloud;
 
   // Draw the global frame of reference
@@ -113,10 +114,7 @@ void EurocPlayground::visualizeGtData(const bool& viz_traj,
       CHECK(right_frame);
       CHECK_EQ(left_frame->timestamp_, right_frame->timestamp_);
       StereoFrame stereo_frame(
-          left_frame->id_,
-          left_frame->timestamp_,
-          *left_frame,
-          *right_frame);
+          left_frame->id_, left_frame->timestamp_, *left_frame, *right_frame);
 
       CHECK(stereo_camera_);
       if ((left_frame->id_ % subsample_n) == 0u) {
@@ -268,4 +266,4 @@ void EurocPlayground::fillRightFrameQueue(Frame::UniquePtr left_frame) {
   CHECK(left_frame);
   right_frame_queue_.push(std::move(left_frame));
 }
-}
+}  // namespace VIO

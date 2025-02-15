@@ -13,17 +13,16 @@
  * @author Luca Carlone
  */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <random>
-#include <boost/algorithm/string.hpp>
-
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
+#include <string>
+#include <vector>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
@@ -32,33 +31,36 @@
 DECLARE_string(test_data_path);
 DECLARE_string(output_path);
 
-
 namespace VIO {
 
 static const double tol = 1e-7;
 using CsvMat = std::vector<std::vector<std::string>>;
 
 void checkHeader(std::vector<std::string> actual,
-    std::vector<std::string> expected) {
+                 std::vector<std::string> expected) {
   EXPECT_EQ(actual.size(), expected.size());
 
-  for (size_t i=0; i<actual.size(); i++) {
+  for (size_t i = 0; i < actual.size(); i++) {
     EXPECT_EQ(actual.at(i), expected.at(i));
   }
 }
 
 class CSVReader {
  public:
-  CSVReader(std::string sep = ",") : sep_(sep) {}
+  CSVReader(char sep = ',') : sep_(sep) {}
 
   CsvMat getData(std::string filename) {
     std::ifstream file(filename);
     CsvMat dataList;
     std::string line = "";
-
     while (std::getline(file, line)) {
+      std::string word;
+      std::stringstream ss(line);
       std::vector<std::string> vec;
-      boost::algorithm::split(vec, line, boost::is_any_of(sep_));
+      while (std::getline(ss, word, sep_)) {
+        vec.push_back(word);
+      }
+
       dataList.push_back(vec);
     }
 
@@ -67,13 +69,14 @@ class CSVReader {
   }
 
  private:
-  std::string sep_;
+  char sep_;
 };
 
 class LoggerFixture : public ::testing::Test {
  public:
-  LoggerFixture() : logger_FLAGS_test_data_path(
-      FLAGS_test_data_path + std::string("/ForLogger/")) {}
+  LoggerFixture()
+      : logger_FLAGS_test_data_path(FLAGS_test_data_path +
+                                    std::string("/ForLogger/")) {}
 
  protected:
   virtual void SetUp() {}
@@ -88,7 +91,7 @@ class BackendLoggerFixture : public LoggerFixture {
  public:
   BackendLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "backend_output/";
-    logger_ = VIO::make_unique<BackendLogger>();
+    logger_ = std::make_unique<BackendLogger>();
 
     // Seed randomness.
     std::srand(0);
@@ -102,7 +105,7 @@ class FrontendLoggerFixture : public LoggerFixture {
  public:
   FrontendLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "frontend_output/";
-    logger_ = VIO::make_unique<FrontendLogger>();
+    logger_ = std::make_unique<FrontendLogger>();
 
     // Seed randomness.
     std::srand(0);
@@ -116,7 +119,7 @@ class LoopClosureDetectorLoggerFixture : public LoggerFixture {
  public:
   LoopClosureDetectorLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "loopclosure_output/";
-    logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
+    logger_ = std::make_unique<LoopClosureDetectorLogger>();
 
     // Seed randomness.
     std::srand(0);
@@ -130,8 +133,8 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   // Declare all random output members.
   const Timestamp& timestamp = 123;
   gtsam::Values state_values;
-  gtsam::Pose3 W_Pose_Blkf = gtsam::Pose3(
-      gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 W_Pose_Blkf =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Vector3 W_Vel_Blkf = gtsam::Vector3::Random();
   ImuBias imu_bias;
   FrameId cur_kf_id = 123;
@@ -159,9 +162,23 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Check csv header for output_posesVIO.csv.
   std::vector<std::string> actual_results_header = results.at(0);
-  std::vector<std::string> expected_results_header =
-      {"#timestamp", "x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz",
-       "bgx", "bgy", "bgz", "bax", "bay", "baz"};
+  std::vector<std::string> expected_results_header = {"#timestamp",
+                                                      "x",
+                                                      "y",
+                                                      "z",
+                                                      "qw",
+                                                      "qx",
+                                                      "qy",
+                                                      "qz",
+                                                      "vx",
+                                                      "vy",
+                                                      "vz",
+                                                      "bgx",
+                                                      "bgy",
+                                                      "bgz",
+                                                      "bax",
+                                                      "bay",
+                                                      "baz"};
   checkHeader(actual_results_header, expected_results_header);
 
   // Check values of the only result line.
@@ -202,7 +219,6 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   EXPECT_LT(actual_bay - imu_bias.accelerometer()(1), tol);
   EXPECT_LT(actual_baz - imu_bias.accelerometer()(2), tol);
 
-
   // Next we check the output_smartFactors.csv results file.
   std::string smart_factors_csv = FLAGS_output_path + "output_smartFactors.csv";
   CsvMat smart_factors = csv_reader_.getData(smart_factors_csv);
@@ -212,14 +228,24 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Check csv header for output_smartFactors.csv.
   std::vector<std::string> actual_smart_factors_header = smart_factors.at(0);
-  std::vector<std::string> expected_smart_factors_header =
-      {"#cur_kf_id", "timestamp_kf", "numSF", "numValid", "numDegenerate",
-       "numFarPoints", "numOutliers", "numCheirality", "numNonInitialized",
-       "meanPixelError", "maxPixelError", "meanTrackLength", "maxTrackLength",
-       "nrElementsInMatrix", "nrZeroElementsInMatrix"};
+  std::vector<std::string> expected_smart_factors_header = {
+      "#cur_kf_id",
+      "timestamp_kf",
+      "numSF",
+      "numValid",
+      "numDegenerate",
+      "numFarPoints",
+      "numOutliers",
+      "numCheirality",
+      "numNonInitialized",
+      "meanPixelError",
+      "maxPixelError",
+      "meanTrackLength",
+      "maxTrackLength",
+      "nrElementsInMatrix",
+      "nrZeroElementsInMatrix"};
   checkHeader(actual_smart_factors_header, expected_smart_factors_header);
   // TODO(marcus): check values if you can easily make them nonzero.
-
 
   // Next we check the output_pim_navstates.csv results file.
   std::string pim_csv = FLAGS_output_path + "output_pim_navstates.csv";
@@ -230,14 +256,14 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Check csv header for output_pim_navstates.csv.
   std::vector<std::string> actual_pim_header = pim.at(0);
-  std::vector<std::string> expected_pim_header =
-      {"#timestamp_kf", "x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz"};
+  std::vector<std::string> expected_pim_header = {
+      "#timestamp_kf", "x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz"};
   checkHeader(actual_pim_header, expected_pim_header);
   // TODO(marcus): check values if you can easily make them nonzero.
 
-
   // Next we check the output_backendFactors.csv results file.
-  std::string factor_stats_csv = FLAGS_output_path+"output_backendFactors.csv";
+  std::string factor_stats_csv =
+      FLAGS_output_path + "output_backendFactors.csv";
   CsvMat factor_stats = csv_reader_.getData(factor_stats_csv);
 
   // Check that only the header and one line were logged.
@@ -245,13 +271,17 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Check the csv header for output_backendFactors.csv.
   std::vector<std::string> actual_factor_stats_header = factor_stats.at(0);
-  std::vector<std::string> expected_factor_stats_header =
-      {"#cur_kf_id", "numAddedSmartF", "numAddedImuF", "numAddedNoMotionF",
-       "numAddedConstantF", "numAddedBetweenStereoF", "state_size",
-       "landmark_count"};
+  std::vector<std::string> expected_factor_stats_header = {
+      "#cur_kf_id",
+      "numAddedSmartF",
+      "numAddedImuF",
+      "numAddedNoMotionF",
+      "numAddedConstantF",
+      "numAddedBetweenStereoF",
+      "state_size",
+      "landmark_count"};
   checkHeader(actual_factor_stats_header, expected_factor_stats_header);
   // TODO(marcus): check values if you can easily make them nonzero.
-
 
   // Next we check the output_backendTiming.csv results file.
   std::string timing_csv = FLAGS_output_path + "output_backendTiming.csv";
@@ -262,24 +292,80 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
 
   // Check the csv header for output_backendTiming.csv.
   std::vector<std::string> actual_timing_header = timing.at(0);
-  std::vector<std::string> expected_timing_header =
-      {"#cur_kf_id", "factorsAndSlotsTime", "preUpdateTime", "updateTime",
-       "updateSlotTime", "extraIterationsTime", "linearizeTime",
-       "linearSolveTime", "retractTime", "linearizeMarginalizeTime",
-       "marginalizeTime"};
+  std::vector<std::string> expected_timing_header = {"#cur_kf_id",
+                                                     "factorsAndSlotsTime",
+                                                     "preUpdateTime",
+                                                     "updateTime",
+                                                     "updateSlotTime",
+                                                     "extraIterationsTime",
+                                                     "linearizeTime",
+                                                     "linearSolveTime",
+                                                     "retractTime",
+                                                     "linearizeMarginalizeTime",
+                                                     "marginalizeTime"};
   checkHeader(actual_timing_header, expected_timing_header);
   // TODO(marcus): check values if you can easily make them nonzero.
+}
+
+TEST_F(BackendLoggerFixture, logBackendExtOdom) {
+  // Declare all random output members.
+  const Timestamp& timestamp = 123;
+  const gtsam::Pose3 w_Pose_b =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
+  const gtsam::Vector3 b_w_Vel_b = gtsam::Vector3::Random();
+
+  logger_->logBackendExtOdom(BackendInput(timestamp,
+                                          nullptr,
+                                          nullptr,
+                                          ImuAccGyrS::Zero(6, 1),
+                                          w_Pose_b,
+                                          b_w_Vel_b));
+
+  // Next we check the output_smartFactors.csv results file.
+  std::string output_csv =
+      FLAGS_output_path + "output_backend_external_odometry.csv";
+  CsvMat ext_odom_data = csv_reader_.getData(output_csv);
+
+  // Check that only the header and one line were logged.
+  ASSERT_EQ(ext_odom_data.size(), 2);
+
+  // Check csv header for output_smartFactors.csv.
+  std::vector<std::string> actual_header = ext_odom_data.at(0);
+  std::vector<std::string> expected_header = {"#timestamp_kf",
+                                              "x",
+                                              "y",
+                                              "z",
+                                              "qw",
+                                              "qx",
+                                              "qy",
+                                              "qz",
+                                              "vx (kf)",
+                                              "vy (kf)",
+                                              "vz (kf)"};
+  checkHeader(actual_header, expected_header);
+
+  std::vector<std::string> output_line = ext_odom_data.at(1);
+  EXPECT_EQ(timestamp, std::stoi(output_line.at(0)));
+  EXPECT_NEAR(w_Pose_b.x(), std::stof(output_line.at(1)), tol);
+  EXPECT_NEAR(w_Pose_b.y(), std::stof(output_line.at(2)), tol);
+  EXPECT_NEAR(w_Pose_b.z(), std::stof(output_line.at(3)), tol);
+  EXPECT_NEAR(1.0, std::stof(output_line.at(4)), tol);  // unit quaternion w
+  EXPECT_NEAR(0.0, std::stof(output_line.at(5)), tol);  // unit quaternion x
+  EXPECT_NEAR(0.0, std::stof(output_line.at(6)), tol);  // unit quaternion y
+  EXPECT_NEAR(0.0, std::stof(output_line.at(7)), tol);  // unit quaternion z
+  EXPECT_NEAR(b_w_Vel_b.x(), std::stof(output_line.at(8)), tol);
+  EXPECT_NEAR(b_w_Vel_b.y(), std::stof(output_line.at(9)), tol);
+  EXPECT_NEAR(b_w_Vel_b.z(), std::stof(output_line.at(10)), tol);
 }
 
 TEST_F(FrontendLoggerFixture, logFrontendStats) {
   const Timestamp& timestamp = 123;
   const size_t& nrKeypoints = 123;
 
-  logger_->logFrontendStats(
-      timestamp,
-      VIO::DebugTrackerInfo(),
-      VIO::TrackerStatusSummary(),
-      nrKeypoints);
+  logger_->logFrontendStats(timestamp,
+                            VIO::DebugTrackerInfo(),
+                            VIO::TrackerStatusSummary(),
+                            nrKeypoints);
 
   // First check the output_frontend_stats.csv results file.
   std::string stats_csv = FLAGS_output_path + "output_frontend_stats.csv";
@@ -290,15 +376,15 @@ TEST_F(FrontendLoggerFixture, logFrontendStats) {
 
   // Check csv header for output_posesVIO.csv.
   std::vector<std::string> actual_results_header = stats.at(0);
-  std::vector<std::string> expected_results_header =
-      {"#timestamp_lkf", "mono_status", "stereo_status", "nr_keypoints",
-       "nrDetectedFeatures", "nrTrackerFeatures", "nrMonoInliers",
-       "nrMonoPutatives", "nrStereoInliers", "nrStereoPutatives",
-       "monoRansacIters", "stereoRansacIters", "nrValidRKP", "nrNoLeftRectRKP",
-       "nrNoRightRectRKP", "nrNoDepthRKP", "nrFailedArunRKP",
-       "featureDetectionTime", "featureTrackingTime", "monoRansacTime",
-       "stereoRansacTime", "featureSelectionTime", "extracted_corners",
-       "need_n_corners"};
+  std::vector<std::string> expected_results_header = {
+      "#timestamp_lkf",       "mono_status",        "stereo_status",
+      "nr_keypoints",         "nrDetectedFeatures", "nrTrackerFeatures",
+      "nrMonoInliers",        "nrMonoPutatives",    "nrStereoInliers",
+      "nrStereoPutatives",    "monoRansacIters",    "stereoRansacIters",
+      "nrValidRKP",           "nrNoLeftRectRKP",    "nrNoRightRectRKP",
+      "nrNoDepthRKP",         "nrFailedArunRKP",    "featureDetectionTime",
+      "featureTrackingTime",  "monoRansacTime",     "stereoRansacTime",
+      "featureSelectionTime", "extracted_corners",  "need_n_corners"};
   checkHeader(actual_results_header, expected_results_header);
 
   // Check values of the only result line.
@@ -323,19 +409,15 @@ TEST_F(FrontendLoggerFixture, logFrontendStats) {
 
 TEST_F(FrontendLoggerFixture, logFrontendRansac) {
   const Timestamp& timestamp = 123;
-  gtsam::Pose3 mono_pose = gtsam::Pose3(
-      gtsam::Rot3(), gtsam::Point3::Random());
-  gtsam::Pose3 stereo_pose = gtsam::Pose3(
-      gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 mono_pose = gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 stereo_pose =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
 
-  logger_->logFrontendRansac(
-      timestamp,
-      mono_pose,
-      stereo_pose);
+  logger_->logFrontendRansac(timestamp, mono_pose, stereo_pose);
 
   // First check the output_frontend_ransac_mono.csv results file.
-  std::string ransac_mono_csv = FLAGS_output_path +
-      "output_frontend_ransac_mono.csv";
+  std::string ransac_mono_csv =
+      FLAGS_output_path + "output_frontend_ransac_mono.csv";
   CsvMat ransac_mono = csv_reader_.getData(ransac_mono_csv);
 
   // Check that only header and one line were logged.
@@ -343,8 +425,8 @@ TEST_F(FrontendLoggerFixture, logFrontendRansac) {
 
   // Check csv header for output_frontend_ransac_mono.csv.
   std::vector<std::string> actual_mono_header = ransac_mono.at(0);
-  std::vector<std::string> expected_mono_header =
-      {"#timestamp_lkf", "x", "y", "z", "qw", "qx", "qy", "qz"};
+  std::vector<std::string> expected_mono_header = {
+      "#timestamp_lkf", "x", "y", "z", "qw", "qx", "qy", "qz"};
   checkHeader(actual_mono_header, expected_mono_header);
 
   // Check values of the only result line.
@@ -368,15 +450,15 @@ TEST_F(FrontendLoggerFixture, logFrontendRansac) {
   EXPECT_LT(actual_qz - mono_pose.rotation().toQuaternion().z(), tol);
 
   // Lastly do the same checks for the stereo file.
-  std::string ransac_stereo_csv = FLAGS_output_path +
-      "output_frontend_ransac_stereo.csv";
+  std::string ransac_stereo_csv =
+      FLAGS_output_path + "output_frontend_ransac_stereo.csv";
   CsvMat ransac_stereo = csv_reader_.getData(ransac_stereo_csv);
 
   EXPECT_EQ(ransac_stereo.size(), 2);
 
   std::vector<std::string> actual_stereo_header = ransac_stereo.at(0);
-  std::vector<std::string> expected_stereo_header =
-      {"#timestamp_lkf", "x", "y", "z", "qw", "qx", "qy", "qz"};
+  std::vector<std::string> expected_stereo_header = {
+      "#timestamp_lkf", "x", "y", "z", "qw", "qx", "qy", "qz"};
   checkHeader(actual_stereo_header, expected_stereo_header);
 
   std::vector<std::string> actual_ransac_stereo = ransac_stereo.at(1);
@@ -405,12 +487,13 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
   const Timestamp& timestamp_match = 123;
   const FrameId& id_match = 123;
   const FrameId& id_recent = 123;
-  gtsam::Pose3 relative_pose = gtsam::Pose3(
-    gtsam::Rot3(), gtsam::Point3::Random());
-  gtsam::Pose3 w_pose_map = gtsam::Pose3(
-    gtsam::Rot3(), gtsam::Point3::Random());
-  gtsam::Pose3 traj_pose = gtsam::Pose3(
-    gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 relative_pose =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 w_pose_map =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 map_pose_odom =
+      gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
+  gtsam::Pose3 traj_pose = gtsam::Pose3(gtsam::Rot3(), gtsam::Point3::Random());
   gtsam::Values traj_values;
   traj_values.insert(gtsam::Symbol(0), traj_pose);
   traj_values.insert(gtsam::Symbol(1), traj_pose);
@@ -421,20 +504,20 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
 
   logger_->logTimestampMap(ts_map);
 
-  logger_->logOptimizedTraj(LcdOutput(true,
-                                      timestamp_kf,
-                                      timestamp_query,
-                                      timestamp_match,
-                                      id_match,
-                                      id_recent,
-                                      relative_pose,
-                                      w_pose_map,
-                                      traj_values,
-                                      gtsam::NonlinearFactorGraph()));
+  LcdOutput lcd_packet(true,
+                       timestamp_kf,
+                       timestamp_query,
+                       timestamp_match,
+                       id_match,
+                       id_recent,
+                       relative_pose);
+  lcd_packet.setMapInformation(
+      w_pose_map, map_pose_odom, traj_values, gtsam::NonlinearFactorGraph());
+
+  logger_->logOptimizedTraj(lcd_packet);
 
   // First check the output_frontend_ransac_mono.csv results file.
-  std::string opt_traj_csv = FLAGS_output_path +
-      "traj_pgo.csv";
+  std::string opt_traj_csv = FLAGS_output_path + "traj_pgo.csv";
   CsvMat opt_traj = csv_reader_.getData(opt_traj_csv);
 
   // Check that only header and one line were logged.
@@ -442,8 +525,8 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
 
   // Check csv header for output_frontend_ransac_mono.csv.
   std::vector<std::string> actual_header = opt_traj.at(0);
-  std::vector<std::string> expected_header =
-      {"#timestamp_kf", "x", "y", "z", "qw", "qx", "qy", "qz"};
+  std::vector<std::string> expected_header = {
+      "#timestamp_kf", "x", "y", "z", "qw", "qx", "qy", "qz"};
   checkHeader(actual_header, expected_header);
 
   // Check values of the only result line.
@@ -477,4 +560,4 @@ TEST(testOpenFile, OpenFile) {
 
 // TODO(marcus): add remaining tests for non-critical logs on all three modules.
 
-} // namespace VIO
+}  // namespace VIO

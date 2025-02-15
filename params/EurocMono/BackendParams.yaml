@@ -62,12 +62,12 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 # OPTIMIZATION PARAMETERS #####################################################
 relinearizeThreshold: 0.01
 relinearizeSkip: 1
-zeroVelocitySigma: 0.001
-noMotionPositionSigma: 0.001
-noMotionRotationSigma: 0.0001
-constantVelSigma: 0.01
+zero_velocity_precision: 1000
+no_motion_position_precision: 1000
+no_motion_rotation_precision: 10000
+constant_vel_precision: 100
 numOptimize: 1
-horizon: 6 # In seconds.
+nr_states: 25 # number of nodes in horizon.
 # ISAM2GaussNewtonParams: continue updating the linear delta only when
 # changes are above this threshold (default: 0.001)
 wildfire_threshold: 0.001
@@ -81,3 +81,13 @@ useDogLeg: 0
 #   * flagged as degenerate.
 #   */
 #  double dynamicOutlierRejectionThreshold;
+
+# Method used to generate the initial guess for the pose of the keyframe
+# PoseGuessSource:
+#   IMU = 0
+#   MONO = 1
+#   STEREO = 2
+#   PNP = 3
+#   EXTERNAL_ODOM = 4
+pose_guess_source: 0
+mono_translation_scale_factor: 0.1

@@ -67,6 +67,12 @@ class YamlParser {
     file_handle_2 >> *CHECK_NOTNULL(output);
   }
 
+  inline bool hasParam(const std::string& id) const {
+    CHECK(!id.empty());
+    const auto& handle = fs_[id];
+    return handle.type() != cv::FileNode::NONE;
+  }
+
  private:
   void openFile(const std::string& filepath, cv::FileStorage* fs) const {
     CHECK(!filepath.empty()) << "Empty filepath!";

@@ -25,13 +25,6 @@
 
 #pragma once
 
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <unordered_map>
-
-#include <boost/foreach.hpp>
-
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoCamera.h>
@@ -44,12 +37,22 @@
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
+#if GTSAM_VERSION_MAJOR <= 4 && GTSAM_VERSION_MINOR < 3
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
+#else
+#include <gtsam/nonlinear/BatchFixedLagSmoother.h>
+#endif
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <unordered_map>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
+#include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontend.h"
 #include "kimera-vio/initial/InitializationFromImu.h"
@@ -70,6 +73,7 @@ class VioBackend {
   KIMERA_POINTER_TYPEDEFS(VioBackend);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef std::function<void(const ImuBias& imu_bias)> ImuBiasCallback;
+  typedef std::function<void(const LandmarksMap& map)> MapCallback;
 
   /**
    * @brief VioBackend Constructor. Initialization must be done separately.
@@ -79,12 +83,13 @@ class VioBackend {
    * @param backend_params Parameters for Backend.
    * @param log_output Whether to log to CSV files the Backend output.
    */
-  VioBackend(const Pose3& B_Pose_leftCam,
+  VioBackend(const gtsam::Pose3& B_Pose_leftCamRect,
              const StereoCalibPtr& stereo_calibration,
              const BackendParams& backend_params,
              const ImuParams& imu_params,
              const BackendOutputParams& backend_output_params,
-             bool log_output);
+             bool log_output,
+             std::optional<OdometryParams> odom_params = std::nullopt);
   virtual ~VioBackend() { LOG(INFO) << "Backend destructor called."; }
 
  public:
@@ -104,6 +109,14 @@ class VioBackend {
   // the callee of this function.
   void registerImuBiasUpdateCallback(
       const ImuBiasCallback& imu_bias_update_callback);
+
+  /**
+   * @brief registerMapUpdateCallback Register callback that will be called as
+   * soon as the Backend optimizes the 3D landmarks.
+   * @param map_update_callback Callback to call once backend finishes
+   * optimizing.
+   */
+  void registerMapUpdateCallback(const MapCallback& map_update_callback);
 
   // Get valid 3D points - TODO: this copies the graph.
   void get3DPoints(std::vector<gtsam::Point3>* points_3d) const;
@@ -138,7 +151,9 @@ class VioBackend {
         initializeFromIMU(input);
         break;
       }
-      default: { LOG(FATAL) << "Wrong initialization mode."; }
+      default: {
+        LOG(FATAL) << "Wrong initialization mode.";
+      }
     }
     // Signal that the Backend has been initialized.
     backend_state_ = BackendState::Nominal;
@@ -179,8 +194,7 @@ class VioBackend {
   }
 
   inline void saveGraph(const std::string& filepath) const {
-    OfstreamWrapper ofstream_wrapper (filepath);
-    smoother_->getFactors().saveGraph(ofstream_wrapper.ofstream_);
+    smoother_->getFactors().saveGraph(filepath);
   }
 
  protected:
@@ -205,7 +219,8 @@ class VioBackend {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+      std::optional<gtsam::Pose3> odometry_body_pose = std::nullopt,
+      std::optional<gtsam::Velocity3> odometry_vel = std::nullopt);
 
   // Uses landmark table to add factors in graph.
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
@@ -217,11 +232,27 @@ class VioBackend {
       const LandmarkId& lmk_id,
       const std::pair<FrameId, StereoPoint2>& new_measurement);
 
-  // Set initial guess at current state.
-  void addImuValues(const FrameId& cur_id,
-                    const gtsam::PreintegrationType& pim);
+  /**
+   * @brief addStateValues Add values for the state: pose, velocity, and imu
+   * bias.
+   * @param cur_id Current Keyframe ID
+   * @param pose Pose of body wrt world
+   * @param velocity Velocity of body expressed in world coordinates
+   * @param imu_bias Updated biases for gyro and accel
+   */
+  void addStateValues(const FrameId& cur_id,
+                      const gtsam::Pose3& pose,
+                      const gtsam::Velocity3& velocity,
+                      const ImuBias& imu_bias);
+  void addStateValues(
+      const FrameId& frame_id,
+      const TrackerStatusSummary& tracker_status,
+      const gtsam::PreintegrationType& pim,
+      const std::optional<gtsam::Pose3> odom_pose = std::nullopt,
+      std::optional<gtsam::Vector3> odom_vel = std::nullopt);
+  void addStateValuesFromNavState(const FrameId& frame_id,
+                                  const gtsam::NavState& nav_state);
 
-  // Add imu factors:
   void addImuFactor(const FrameId& from_id,
                     const FrameId& to_id,
                     const gtsam::PreintegrationType& pim);
@@ -231,9 +262,15 @@ class VioBackend {
 
   void addNoMotionFactor(const FrameId& from_id, const FrameId& to_id);
 
+  void addVelocityPrior(const FrameId& frame_id,
+                        const gtsam::Velocity3& vel,
+                        const double& precision);
+
   void addBetweenFactor(const FrameId& from_id,
                         const FrameId& to_id,
-                        const gtsam::Pose3& from_id_POSE_to_id);
+                        const gtsam::Pose3& from_id_POSE_to_id,
+                        const double& between_rotation_precision,
+                        const double& between_translation_precision);
 
   /**
    * @brief optimize
@@ -344,8 +381,8 @@ class VioBackend {
       const double& outlier_rejection,
       gtsam::SmartStereoProjectionParams* smart_factors_params);
 
-  void setNoMotionFactorsParams(const double& rotation_sigma,
-                                const double& position_sigma,
+  void setNoMotionFactorsParams(const double& rotation_precision,
+                                const double& position_precision,
                                 gtsam::SharedNoiseModel* no_motion_prior_noise);
 
   /// Private printers.
@@ -356,26 +393,12 @@ class VioBackend {
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
-  void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
-
-  void printPointPlaneFactor(
-      boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const;
-
-  void printPlanePrior(
-      boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const;
-
-  void printPointPrior(
-      boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const;
-
-  void printLinearContainerFactor(
-      boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const;
-
   // Provide a nonlinear factor, which will be casted to any of the selected
   // factors, and then printed.
   // Slot argument, is just to print the slot of the factor if you know it.
   // If slot is -1, there is no slot number printed.
   void printSelectedFactors(
-      const boost::shared_ptr<gtsam::NonlinearFactor>& g,
+      const gtsam::NonlinearFactor* g,
       const size_t& slot = 0,
       const bool print_smart_factors = true,
       const bool print_point_plane_factors = true,
@@ -417,7 +440,12 @@ class VioBackend {
   inline ImuBias getLatestImuBias() const { return imu_bias_lkf_; }
   inline ImuBias getImuBiasPrevKf() const { return imu_bias_prev_kf_; }
   inline Vector3 getWVelBLkf() const { return W_Vel_B_lkf_; }
-  inline Pose3 getWPoseBLkf() const { return W_Pose_B_lkf_; }
+  inline Pose3 getWPoseBLkfFromIncrements() const {
+    return W_Pose_B_lkf_from_increments_;
+  }
+  inline Pose3 getWPoseBLkfFromState() const {
+    return W_Pose_B_lkf_from_state_;
+  }
   inline gtsam::Matrix getStateCovarianceLkf() const {
     return state_covariance_lkf_;
   }
@@ -431,13 +459,19 @@ class VioBackend {
   const BackendParams backend_params_;
   const ImuParams imu_params_;
   const BackendOutputParams backend_output_params_;
+  std::optional<OdometryParams> odom_params_;
 
   // State estimates.
   // TODO(Toni): bundle these in a VioNavStateTimestamped.
   Timestamp timestamp_lkf_;
   ImuBias imu_bias_lkf_;  //!< Most recent bias estimate..
   Vector3 W_Vel_B_lkf_;   //!< Velocity of body at k-1 in world coordinates
-  Pose3 W_Pose_B_lkf_;    //!< Body pose at at k-1 in world coordinates.
+  Pose3 W_Pose_B_lkf_from_increments_;  //!< Body pose at at k-1 in world
+                                        //!< coordinates obtained by chaining
+                                        //!< relative motion estimates.
+  Pose3
+      W_Pose_B_lkf_from_state_;  //!< Body pose at at k-1 in world coordinates,
+                                 //!< straight from VIO smoother_.
 
   ImuBias imu_bias_prev_kf_;  //!< bias estimate at previous keyframe
 
@@ -448,7 +482,7 @@ class VioBackend {
   gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
   // Pose of the left camera wrt body
-  const Pose3 B_Pose_leftCam_;
+  const Pose3 B_Pose_leftCamRect_;
   // Stores calibration, baseline.
   const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_;
 
@@ -486,6 +520,9 @@ class VioBackend {
   // Imu Bias update callback. To be called as soon as we have a new IMU bias
   // update so that the Frontend performs preintegration with the newest bias.
   ImuBiasCallback imu_bias_update_callback_;
+
+  //! Map update callback for the frontend PnP tracker.
+  MapCallback map_update_callback_;
 
   // Debug info.
   DebugVioInfo debug_info_;

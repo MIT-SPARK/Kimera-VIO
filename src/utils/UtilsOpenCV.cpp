@@ -437,12 +437,12 @@ void UtilsOpenCV::PlainMatchTemplate(const cv::Mat stripe,
   for (int ii = 0; ii < templ.rows; ii++) {
     for (int jj = 0; jj < templ.cols; jj++) {
       tempSq += pow((int)templ.at<uchar>(ii, jj), 2);
-      // std::cout << " templ.at<double>(ii,jj) " << (int)
+      // VLOG(10) << " templ.at<double>(ii,jj) " << (int)
       // templ.at<uchar>(ii,jj) << std::endl;
     }
   }
-  for (size_t i = 0; i < result_rows; i++) {
-    for (size_t j = 0; j < result_cols; j++) {
+  for (int i = 0; i < result_rows; i++) {
+    for (int j = 0; j < result_cols; j++) {
       diffSq = 0;
       stripeSq = 0;
 
@@ -600,11 +600,11 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(
   keypoints_1.reserve(corners_with_status_1.size());
   keypoints_2.reserve(corners_with_status_2.size());
 
-  for (int i = 0; i < corners_with_status_1.size(); i++) {
+  for (size_t i = 0; i < corners_with_status_1.size(); i++) {
     keypoints_1.push_back(corners_with_status_1[i].second);
   }
 
-  for (int i = 0; i < corners_with_status_2.size(); i++) {
+  for (size_t i = 0; i < corners_with_status_2.size(); i++) {
     keypoints_2.push_back(corners_with_status_2[i].second);
   }
 
@@ -694,7 +694,7 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
                                  const bool& display_with_text) {
   KeypointCV text_offset(-10.0, -5.0);
   cv::Mat img_color = img.clone();
-  if (img_color.channels() < 3u) {
+  if (img_color.channels() < 3) {
     cv::cvtColor(img_color, img_color, cv::COLOR_GRAY2BGR);
   }
 
@@ -733,9 +733,9 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
   cv::Mat canvas = UtilsOpenCV::concatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
 
-  for (int i = 0; i < matches.size(); i++) {
+  for (size_t i = 0; i < matches.size(); i++) {
     cv::Mat baseCanvas = canvas.clone();
-    printf("Match %d\n", i);
+    LOG(INFO) << "Match " << i;
     cv::line(baseCanvas,
              corners1[matches[i].queryIdx],
              corners2[matches[i].trainIdx] + ptOffset,
@@ -770,8 +770,8 @@ void UtilsOpenCV::showImagesSideBySide(const cv::Mat& img_left,
 //  find max absolute value of matrix entry
 double UtilsOpenCV::MaxAbsValue(gtsam::Matrix M) {
   double maxVal = 0.0;
-  for (size_t i = 0u; i < M.rows(); i++) {
-    for (size_t j = 0u; j < M.cols(); j++) {
+  for (int i = 0u; i < M.rows(); i++) {
+    for (int j = 0u; j < M.cols(); j++) {
       maxVal = std::max(maxVal, fabs(M(i, j)));
     }
   }

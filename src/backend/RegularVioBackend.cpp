@@ -22,7 +22,6 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
@@ -98,19 +97,21 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 RegularVioBackend::RegularVioBackend(
-    const Pose3& B_Pose_leftCam,
+    const Pose3& B_Pose_leftCamRect,
     const StereoCalibPtr& stereo_calibration,
     const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
-    const bool& log_output)
-    : regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)),
-      VioBackend(B_Pose_leftCam,
+    const bool& log_output,
+    std::optional<OdometryParams> odom_params)
+    : VioBackend(B_Pose_leftCamRect,
                  stereo_calibration,
                  backend_params,
                  imu_params,
                  backend_output_params,
-                 log_output) {
+                 log_output,
+                 odom_params),
+      regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)) {
   LOG(INFO) << "Using Regular VIO Backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.
@@ -140,7 +141,7 @@ RegularVioBackend::RegularVioBackend(
                  regular_vio_params_.regularityNormType_,
                  regular_vio_params_.regularityNormParam_);
 
-  mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
+  mono_cal_.reset(new Cal3_S2(stereo_cal_->calibration()));
   CHECK(mono_cal_->equals(stereo_cal_->calibration()))
       << "Monocular calibration should match Stereo calibration";
 }
@@ -150,13 +151,9 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
+    std::optional<gtsam::Pose3> odometry_body_pose,
+    std::optional<gtsam::Velocity3> odometry_vel) {
   debug_info_.resetAddedFactorsStatistics();
-
-  // if (VLOG_IS_ON(20)) {
-  //  StereoVisionImuFrontend::PrintStatusStereoMeasurements(
-  //                                        status_smart_stereo_measurements_kf);
-  //}
 
   // Features and IMU line up --> do iSAM update.
   last_kf_id_ = curr_kf_id_;
@@ -166,24 +163,29 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
           << " at timestamp: " << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec)\n";
 
-  /////////////////// IMU FACTORS //////////////////////////////////////////////
-  // Predict next step, add initial guess.
-  addImuValues(curr_kf_id_, pim);
+  // Add initial guess.
+  addStateValues(curr_kf_id_, status_smart_stereo_measurements_kf.first, pim);
 
+  /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Add imu factors between consecutive keyframe states.
   VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
            << " and pose id: " << curr_kf_id_;
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
-  // Add between factor from RANSAC.
-  if (stereo_ransac_body_pose) {
-    VLOG(10) << "Adding RANSAC factor between pose id: " << last_kf_id_
-             << " and pose id: " << curr_kf_id_;
-    if (VLOG_IS_ON(20)) {
-      stereo_ransac_body_pose->print();
-    }
-    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
+  // Add between factor from RANSAC
+  if (backend_params_.addBetweenStereoFactors_ &&
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_ ==
+          TrackingStatus::VALID) {
+    addBetweenFactor(
+        last_kf_id_,
+        curr_kf_id_,
+        // I think this should be B_Pose_leftCamRect_...
+        B_Pose_leftCamRect_ *
+            status_smart_stereo_measurements_kf.first.lkf_T_k_stereo_ *
+            B_Pose_leftCamRect_.inverse(),
+        backend_params_.betweenRotationPrecision_,
+        backend_params_.betweenTranslationPrecision_);
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
@@ -351,6 +353,27 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     }
   }
 
+  // Add odometry factors if they're available and have non-zero precision
+  if (odometry_body_pose && odom_params_ &&
+      (odom_params_->betweenRotationPrecision_ > 0.0 ||
+       odom_params_->betweenTranslationPrecision_ > 0.0)) {
+    VLOG(1) << "Added external factor between " << last_kf_id_ << " and "
+            << curr_kf_id_;
+    addBetweenFactor(last_kf_id_,
+                     curr_kf_id_,
+                     *odometry_body_pose,
+                     odom_params_->betweenRotationPrecision_,
+                     odom_params_->betweenTranslationPrecision_);
+  }
+  if (odometry_vel && odom_params_ && odom_params_->velocityPrecision_ > 0.0) {
+    LOG_FIRST_N(WARNING, 1)
+        << "Using velocity priors from external odometry: "
+        << "This only works if you have velocity estimates in the world frame! "
+        << "(not provided by typical odometry sensors)";
+    addVelocityPrior(
+        curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
+  }
+
   /////////////////// OPTIMIZE /////////////////////////////////////////////////
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
@@ -402,7 +425,8 @@ void RegularVioBackend::addLandmarksToGraph(
     // (otherwise uninformative)
     // TODO(TONI): parametrize this min_num_of_obs... should be in Frontend
     // rather than Backend though...
-    if (feature_track.obs_.size() >= FLAGS_min_num_of_observations) {
+    if (feature_track.obs_.size() >=
+        static_cast<size_t>(FLAGS_min_num_of_observations)) {
       // We have enough observations of the lmk.
       if (!feature_track.in_ba_graph_) {
         // The lmk has not yet been added to the graph.
@@ -459,9 +483,8 @@ void RegularVioBackend::addLandmarkToGraph(const LandmarkId& lmk_id,
   // Add as a smart factor.
   // We use a unit pinhole projection camera for the smart factors to be
   // more efficient.
-  SmartStereoFactor::shared_ptr new_factor =
-      boost::make_shared<SmartStereoFactor>(
-          smart_noise_, smart_factors_params_, B_Pose_leftCam_);
+  SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(
+      smart_noise_, smart_factors_params_, B_Pose_leftCamRect_));
 
   VLOG(20) << "Adding landmark with id: " << lmk_id
            << " for the first time to graph. \n"
@@ -573,8 +596,7 @@ void RegularVioBackend::updateExistingSmartFactor(
   CHECK(old_factor);
 
   // Clone old factor as a new factor.
-  SmartStereoFactor::shared_ptr new_factor =
-      boost::make_shared<SmartStereoFactor>(*old_factor);
+  SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(*old_factor));
 
   // Add observation to new factor.
   VLOG(20) << "Added observation for smart factor of lmk with id: " << lmk_id;
@@ -638,23 +660,13 @@ bool RegularVioBackend::convertSmartToProjectionFactor(
 
   // Check triangulation result is initialized.
   if (old_factor->point().valid()) {
-    CHECK(old_factor->point().is_initialized());
+    CHECK(old_factor->point());
     VLOG(10) << "Performing conversion for lmk with id: " << lmk_id << " from "
              << " smart factor to projection factor.";
 
     // TODO check all the * whatever, for segmentation fault!
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id).key();
     new_values->insert(lmk_key, *(old_factor->point()));
-
-    // DEBUG add prior to lmks.
-    // LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
-    // static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
-    //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(1, 1, 1));
-    // new_imu_prior_and_other_factors_.push_back(
-    //      boost::make_shared<gtsam::PriorFactor<gtsam::Point3> >(
-    //        lmk_key,
-    //        *(old_factor->point()),
-    //        prior_lmk_noise));
 
     // Convert smart factor to multiple projection factors.
     // There is no need to have a threshold for how many observations we want
@@ -820,8 +832,8 @@ void RegularVioBackend::addProjectionFactor(
     if (!std::isnan(parallax)) {
       if (parallax < FLAGS_max_parallax) {
         CHECK_GT(parallax, 0.0);
-        new_imu_prior_and_other_factors->push_back(
-            boost::make_shared<gtsam::GenericStereoFactor<Pose3, Point3>>(
+        new_imu_prior_and_other_factors
+            ->emplace_shared<gtsam::GenericStereoFactor<Pose3, Point3>>(
                 new_obs.second,
                 stereo_noise_,
                 gtsam::Symbol('x', new_obs.first),
@@ -829,7 +841,7 @@ void RegularVioBackend::addProjectionFactor(
                 stereo_cal_,
                 true,
                 true,
-                B_Pose_leftCam_));
+                B_Pose_leftCamRect_);
       } else {
         LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = " << parallax;
       }
@@ -839,8 +851,8 @@ void RegularVioBackend::addProjectionFactor(
   } else {
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
     // of stereo.
-    new_imu_prior_and_other_factors->push_back(
-        boost::make_shared<gtsam::GenericProjectionFactor<Pose3, Point3>>(
+    new_imu_prior_and_other_factors
+        ->emplace_shared<gtsam::GenericProjectionFactor<Pose3, Point3>>(
             gtsam::Point2(new_obs.second.uL(), new_obs.second.v()),
             mono_noise_,
             gtsam::Symbol('x', new_obs.first),
@@ -848,7 +860,7 @@ void RegularVioBackend::addProjectionFactor(
             mono_cal_,
             true,
             true,
-            B_Pose_leftCam_));
+            B_Pose_leftCamRect_);
   }
 }
 
@@ -878,8 +890,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(),
                 lmk_id) == lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
-                                         "NOT involved in any regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to stay as it is since it is "
+                "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -892,8 +905,9 @@ bool RegularVioBackend::updateLmkIdIsSmart(
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
-                                         "is involved in a regularity.";
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to be a proj. factor, as it "
+                "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,
@@ -955,7 +969,6 @@ bool RegularVioBackend::isSmartFactor3dPointGood(
     VLOG(20) << "Smart factor is NOT valid.";
     return false;
   } else {
-    CHECK(factor->point().is_initialized());
     CHECK(factor->point());
     CHECK(!factor->isDegenerate());
     CHECK(!factor->isFarPoint());
@@ -1051,18 +1064,19 @@ void RegularVioBackend::addRegularityFactors(
             VLOG(20) << "Adding PointPlaneFactor.";
             idx_of_point_plane_factors_to_add->push_back(std::make_pair(
                 new_imu_prior_and_other_factors_.size(), lmk_id));
-            new_imu_prior_and_other_factors_.push_back(
-                boost::make_shared<gtsam::PointPlaneFactor>(
+            new_imu_prior_and_other_factors_
+                .emplace_shared<gtsam::PointPlaneFactor>(
                     gtsam::Symbol('l', lmk_id),
                     plane_key,
-                    point_plane_regularity_noise_));
+                    point_plane_regularity_noise_);
             // Acknowledge that this lmk has been used in a regularity.
             (*lmk_id_to_regularity_type_map)[lmk_id] =
                 RegularityType::POINT_PLANE;
           }
 
-          if (list_of_constraints.size() >
-              FLAGS_min_num_of_plane_constraints_to_add_factors) {
+          const auto min_num_plane_constraints = static_cast<size_t>(
+              FLAGS_min_num_of_plane_constraints_to_add_factors);
+          if (list_of_constraints.size() > min_num_plane_constraints) {
             // Acknowledge that the plane is constrained.
             is_plane_constrained = true;
 
@@ -1087,28 +1101,17 @@ void RegularVioBackend::addRegularityFactors(
                      << "\tWith distance: " << plane_value.distance();
             new_values_.insert(plane_key, plane_value);
 
-            // TODO Remove! DEBUG add a prior to the plane.
-            // static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise
-            // =
-            //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.5, 0.5, 0.5));
-            // new_imu_prior_and_other_factors_.push_back(
-            //      boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>
-            //      >(
-            //        plane_key,
-            //        plane_value,
-            //        prior_noise));
-
             // Add the factors for the lmks that we skipped while checking
             // that the plane is fully constrained.
             for (const LandmarkId& prev_lmk_id : list_of_constraints) {
               VLOG(20) << "Adding PointPlaneFactor.";
               idx_of_point_plane_factors_to_add->push_back(std::make_pair(
                   new_imu_prior_and_other_factors_.size(), prev_lmk_id));
-              new_imu_prior_and_other_factors_.push_back(
-                  boost::make_shared<gtsam::PointPlaneFactor>(
+              new_imu_prior_and_other_factors_
+                  .emplace_shared<gtsam::PointPlaneFactor>(
                       gtsam::Symbol('l', prev_lmk_id),
                       plane_key,
-                      point_plane_regularity_noise_));
+                      point_plane_regularity_noise_);
               // Acknowledge that this lmk has been used in a regularity.
               (*lmk_id_to_regularity_type_map)[prev_lmk_id] =
                   RegularityType::POINT_PLANE;
@@ -1184,11 +1187,11 @@ void RegularVioBackend::addRegularityFactors(
           VLOG(20) << "Adding PointPlaneFactor.";
           idx_of_point_plane_factors_to_add->push_back(
               std::make_pair(new_imu_prior_and_other_factors_.size(), lmk_id));
-          new_imu_prior_and_other_factors_.push_back(
-              boost::make_shared<gtsam::PointPlaneFactor>(
+          new_imu_prior_and_other_factors_
+              .emplace_shared<gtsam::PointPlaneFactor>(
                   gtsam::Symbol('l', lmk_id),
                   plane_key,
-                  point_plane_regularity_noise_));
+                  point_plane_regularity_noise_);
           // Acknowledge that this lmk has been used in a regularity.
           (*lmk_id_to_regularity_type_map)[lmk_id] =
               RegularityType::POINT_PLANE;
@@ -1283,11 +1286,12 @@ void RegularVioBackend::removeOldRegularityFactors_Slow(
   // Loop over current graph.
   for (const auto& g : graph) {
     if (g) {
-      const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-      const auto& plane_prior = boost::dynamic_pointer_cast<
-          gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
-      const auto& lcf =
-          boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g);
+      const auto ppf = dynamic_cast<const gtsam::PointPlaneFactor*>(g.get());
+      const auto plane_prior =
+          dynamic_cast<const gtsam::PriorFactor<gtsam::OrientedPlane3>*>(
+              g.get());
+      const auto lcf =
+          dynamic_cast<const gtsam::LinearContainerFactor*>(g.get());
       if (ppf) {
         // We found a PointPlaneFactor.
         for (const size_t& plane_id : plane_idx_to_clean) {
@@ -1488,9 +1492,9 @@ void RegularVioBackend::removeOldRegularityFactors_Slow(
                   Vector3(FLAGS_prior_noise_sigma_normal,
                           FLAGS_prior_noise_sigma_normal,
                           FLAGS_prior_noise_sigma_distance));
-          new_imu_prior_and_other_factors_.push_back(
-              boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
-                  plane_symbol.key(), plane_estimate, prior_noise));
+          new_imu_prior_and_other_factors_
+              .emplace_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
+                  plane_symbol.key(), plane_estimate, prior_noise);
 
           // Delete just the bad factors.
           // TODO Remove: this is just a patch to avoid issue 32:
@@ -1514,35 +1518,6 @@ void RegularVioBackend::removeOldRegularityFactors_Slow(
       }  // The plane has NOT a prior.
     }    // The plane is NOT fully constraint.
   }
-  //  // TODO now the plane could be floating around with a prior attached, but
-  //  // not really attached to the rest of the graph...
-
-  //  //  gtsam::Point3 point;
-  //  //  if (getEstimateOfKey(state_, point_symbol.key(), &point)) {
-  //  //    LOG(WARNING) << "Using lmk prior on lmk with id " <<
-  //  //                    gtsam::DefaultKeyFormatter(point_symbol);
-  //  //    // TODO make sure this prior is not repeated over and over on the
-  //  same
-  //  //    // lmk id.
-  //  //    // TODO is there the possibility that this lmk just have a prior
-  //  attached
-  //  //    // to it? and nothing else, I guess that it is unlikely because to
-  //  //    // be first added it must have had some proj factors besides
-  //  PointPlane
-  //  //    // factor...
-  //  //    static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise
-  //  =
-  //  //        gtsam::noiseModel::Diagonal::Sigmas(Vector3(1.0, 1.0, 1.0));
-  //  //    new_imu_prior_and_other_factors_.push_back(
-  //  //          boost::make_shared<gtsam::PriorFactor<gtsam::Point3>>(
-  //  //            point_symbol.key(),
-  //  //            point,
-  //  //            prior_lmk_noise));
-  //  //  } else {
-  //  //    LOG(ERROR) << "Lmk with id " <<
-  //  gtsam::DefaultKeyFormatter(point_symbol)
-  //  //               << " does not exist in graph.";
-  //  //  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1604,8 +1579,8 @@ void RegularVioBackend::deleteNewSlots(
     // The slot is valid.
     CHECK(new_imu_prior_and_other_factors->exists(i.first));
 
-    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(
-        new_imu_prior_and_other_factors->at(i.first));
+    const auto ppf = dynamic_cast<const gtsam::PointPlaneFactor*>(
+        new_imu_prior_and_other_factors->at(i.first).get());
     // The factor is really a point plane one.
     CHECK(ppf);
     // The factor is the one related to the right lmk.

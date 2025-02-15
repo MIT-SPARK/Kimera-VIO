@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/frontend/MonoVisionImuFrontend.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend.h"
+#include "kimera-vio/frontend/VisionImuFrontend.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 
 namespace VIO {
@@ -36,15 +36,17 @@ class VisionImuFrontendFactory {
       const FrontendParams& frontend_params,
       const Camera::ConstPtr& camera,
       DisplayQueue* display_queue,
-      bool log_output) {
+      bool log_output,
+      std::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
-        return VIO::make_unique<MonoVisionImuFrontend>(imu_params,
-                                                    imu_initial_bias,
-                                                    frontend_params,
-                                                    camera,
-                                                    display_queue,
-                                                    log_output);
+        return std::make_unique<MonoVisionImuFrontend>(frontend_params,
+                                                       imu_params,
+                                                       imu_initial_bias,
+                                                       camera,
+                                                       display_queue,
+                                                       log_output,
+                                                       odom_params);
       }
       case FrontendType::kStereoImu: {
         LOG(FATAL) << "Tried to create a StereoVisionFrontEnd"
@@ -69,19 +71,21 @@ class VisionImuFrontendFactory {
       const FrontendParams& frontend_params,
       const StereoCamera::ConstPtr& stereo_camera,
       DisplayQueue* display_queue,
-      bool log_output) {
+      bool log_output,
+      std::optional<OdometryParams> odom_params) {
     switch (frontend_type) {
       case FrontendType::kMonoImu: {
         LOG(FATAL) << "Tried to create a MonoVisionFrontEnd"
                    << "with a StereoCamera!";
       }
       case FrontendType::kStereoImu: {
-        return VIO::make_unique<StereoVisionImuFrontend>(imu_params,
-                                                      imu_initial_bias,
-                                                      frontend_params,
-                                                      stereo_camera,
-                                                      display_queue,
-                                                      log_output);
+        return std::make_unique<StereoVisionImuFrontend>(frontend_params,
+                                                         imu_params,
+                                                         imu_initial_bias,
+                                                         stereo_camera,
+                                                         display_queue,
+                                                         log_output,
+                                                         odom_params);
       }
       default: {
         LOG(FATAL) << "Requested frontend type is not supported.\n"

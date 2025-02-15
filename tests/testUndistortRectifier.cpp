@@ -21,6 +21,7 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoCamera.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/UndistorterRectifier.h"
@@ -44,7 +45,7 @@ class UndistortRectifierFixture : public ::testing::Test {
     // Construct UndistortRectifier
     stereo_camera = std::make_shared<VIO::StereoCamera>(
         cam_params_left, cam_params_right);
-    undistorter_rectifier = VIO::make_unique<VIO::UndistorterRectifier>(
+    undistorter_rectifier = std::make_unique<VIO::UndistorterRectifier>(
         stereo_camera->getP1(), 
         cam_params_left,
         stereo_camera->getR1());
@@ -282,7 +283,7 @@ TEST_F(UndistortRectifierFixture, DISABLED_undistortFisheyeStereoFrame) {
   cv::Mat right_fisheye_image_dist = VIO::UtilsOpenCV::ReadAndConvertToGrayScale(
       stereo_FLAGS_test_data_path + "right_fisheye_img_0.png", false);
 
-  VIO::StereoFrame::Ptr sf = std::make_shared<VIO::StereoFrame>(
+  std::shared_ptr<VIO::StereoFrame> sf = std::make_shared<VIO::StereoFrame>(
       0,
       0,
       VIO::Frame(0, 0, cam_params_left_fisheye, left_fisheye_image_dist),

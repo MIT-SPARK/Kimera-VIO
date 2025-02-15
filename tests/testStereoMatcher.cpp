@@ -44,7 +44,7 @@ class StereoMatcherFixture : public ::testing::Test {
     VIO::FrontendParams tp;
     stereo_camera =std::make_shared<VIO::StereoCamera>(
         cam_params_left, cam_params_right);
-    stereo_matcher = VIO::make_unique<StereoMatcher>(
+    stereo_matcher = std::make_unique<StereoMatcher>(
         stereo_camera, tp.stereo_matching_params_);
 
     initializeDataStereo();
@@ -101,7 +101,7 @@ class StereoMatcherFixture : public ::testing::Test {
           5 * landmark_count_);  // seen in a single (key)frame
       sfnew->left_frame_.scores_.push_back(10 * landmark_count_);
       sfnew->left_frame_.versors_.push_back(
-          UndistorterRectifier::UndistortKeypointAndGetVersor(
+          UndistorterRectifier::GetBearingVector(
               sfnew->left_frame_.keypoints_.at(i),
               sfnew->left_frame_.cam_param_,
               stereo_camera->getR1()));
@@ -231,7 +231,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // TEST: projecting 3d point to left camera (undist and rectified) =
       // original undistorted rectified point (CHECK BACKPROJECTION WORKS)
       gtsam::Point3 point3d = sfnew->keypoints_3d_.at(i);
-      gtsam::PinholeCamera<Cal3_S2> leftCam_undistRect(gtsam::Pose3::identity(),
+      gtsam::PinholeCamera<Cal3_S2> leftCam_undistRect(gtsam::Pose3(),
                                                        KundistRect);
       gtsam::Point2 p2_undistRect = leftCam_undistRect.project(point3d);
       EXPECT_TRUE(gtsam::assert_equal(
@@ -242,7 +242,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       gtsam::Point3 point3d_unrect = actual_camL_R_camLrect.rotate(
           point3d);  // compensate for the rotation induced by rectification
       gtsam::Cal3DS2 KdistUnrect = gtsam_calib;
-      gtsam::PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3::identity(), KdistUnrect);
+      gtsam::PinholeCamera<Cal3DS2> leftCam_distUnrect(gtsam::Pose3(), KdistUnrect);
       gtsam::Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unrect);
       EXPECT_TRUE(gtsam::assert_equal(
           Point2(kp_i_distUnrect.x, kp_i_distUnrect.y), p2_distUnrect, 1));
@@ -253,7 +253,7 @@ TEST_F(StereoMatcherFixture, sparseStereoReconstruction) {
       // Note: camera pose is the identity (instead of
       // sfnew->getBPoseCamLRect()) since the 3D point is in the left camera
       // frame
-      gtsam::StereoCamera stereoCam(gtsam::Pose3::identity(), stereo_camera->getStereoCalib());
+      gtsam::StereoCamera stereoCam(gtsam::Pose3(), stereo_camera->getStereoCalib());
       gtsam::StereoPoint2 sp2 = stereoCam.project(point3d);
       EXPECT_NEAR(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).second.x, 1);
       EXPECT_NEAR(sp2.v(), sfnew->left_keypoints_rectified_.at(i).second.y, 1);

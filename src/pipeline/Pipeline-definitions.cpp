@@ -14,42 +14,68 @@
 
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
-#include "kimera-vio/backend/RegularVioBackendParams.h"
-#include "kimera-vio/backend/VioBackend-definitions.h"
-#include "kimera-vio/backend/VioBackendParams.h"
-#include "kimera-vio/frontend/Camera.h"
-#include "kimera-vio/frontend/CameraParams.h"
-#include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
-#include "kimera-vio/frontend/VisionImuFrontendParams.h"
-#include "kimera-vio/imu-frontend/ImuFrontendParams.h"
-#include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
-#include "kimera-vio/visualizer/DisplayParams.h"
-#include "kimera-vio/visualizer/OpenCvDisplay.h" // for ocv display params...
-
+#include <gflags/gflags.h>
 #include <glog/logging.h>
+
+#include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/visualizer/OpenCvDisplay.h"  // for ocv display params...
+
+DEFINE_bool(use_external_odometry, false, "Use an external odometry input.");
 
 namespace VIO {
 
+decltype(VioParams::kPipelineFilename) constexpr VioParams::kPipelineFilename;
+decltype(VioParams::kImuFilename) constexpr VioParams::kImuFilename;
+decltype(
+    VioParams::kLeftCameraFilename) constexpr VioParams::kLeftCameraFilename;
+decltype(
+    VioParams::kRightCameraFilename) constexpr VioParams::kRightCameraFilename;
+decltype(VioParams::kFrontendFilename) constexpr VioParams::kFrontendFilename;
+decltype(VioParams::kBackendFilename) constexpr VioParams::kBackendFilename;
+decltype(VioParams::kLcdFilename) constexpr VioParams::kLcdFilename;
+decltype(VioParams::kDisplayFilename) constexpr VioParams::kDisplayFilename;
+decltype(VioParams::kOdometryFilename) constexpr VioParams::kOdometryFilename;
+
 VioParams::VioParams(const std::string& params_folder_path)
-    : VioParams(params_folder_path,
-                "PipelineParams.yaml",
-                "ImuParams.yaml",
-                "LeftCameraParams.yaml",
-                "RightCameraParams.yaml",
-                "FrontendParams.yaml",
-                "BackendParams.yaml",
-                "LcdParams.yaml",
-                "DisplayParams.yaml") {}
+    : VioParams(params_folder_path + '/' + kPipelineFilename,
+                params_folder_path + '/' + kImuFilename,
+                params_folder_path + '/' + kLeftCameraFilename,
+                params_folder_path + '/' + kRightCameraFilename,
+                params_folder_path + '/' + kFrontendFilename,
+                params_folder_path + '/' + kBackendFilename,
+                params_folder_path + '/' + kLcdFilename,
+                params_folder_path + '/' + kDisplayFilename,
+                FLAGS_use_external_odometry
+                    ? params_folder_path + '/' + kOdometryFilename
+                    : "",
+                !params_folder_path.empty()) {}
 
 VioParams::VioParams(const std::string& params_folder_path,
-                     const std::string& pipeline_params_filename,
-                     const std::string& imu_params_filename,
-                     const std::string& left_cam_params_filename,
-                     const std::string& right_cam_params_filename,
-                     const std::string& frontend_params_filename,
-                     const std::string& backend_params_filename,
-                     const std::string& lcd_params_filename,
-                     const std::string& display_params_filename)
+                     const std::string& sensor_folder_path)
+    : VioParams(params_folder_path + '/' + kPipelineFilename,
+                sensor_folder_path + '/' + kImuFilename,
+                sensor_folder_path + '/' + kLeftCameraFilename,
+                sensor_folder_path + '/' + kRightCameraFilename,
+                params_folder_path + '/' + kFrontendFilename,
+                params_folder_path + '/' + kBackendFilename,
+                params_folder_path + '/' + kLcdFilename,
+                params_folder_path + '/' + kDisplayFilename,
+                FLAGS_use_external_odometry
+                    ? sensor_folder_path + '/' + kOdometryFilename
+                    : "",
+                !params_folder_path.empty()) {}
+
+
+VioParams::VioParams(const std::string& pipeline_params_filepath,
+                     const std::string& imu_params_filepath,
+                     const std::string& left_cam_params_filepath,
+                     const std::string& right_cam_params_filepath,
+                     const std::string& frontend_params_filepath,
+                     const std::string& backend_params_filepath,
+                     const std::string& lcd_params_filepath,
+                     const std::string& display_params_filepath,
+                     const std::string& odom_params_filepath,
+                     bool should_parse)
     : PipelineParams("VioParams"),
       // Actual VIO Parameters
       imu_params_(),
@@ -62,16 +88,17 @@ VioParams::VioParams(const std::string& params_folder_path,
       backend_type_(BackendType::kStructuralRegularities),
       parallel_run_(true),
       // Filepaths, keep defaults unless you changed file names.
-      pipeline_params_filename_(pipeline_params_filename),
-      imu_params_filename_(imu_params_filename),
-      left_cam_params_filename_(left_cam_params_filename),
-      right_cam_params_filename_(right_cam_params_filename),
-      frontend_params_filename_(frontend_params_filename),
-      backend_params_filename_(backend_params_filename),
-      lcd_params_filename_(lcd_params_filename),
-      display_params_filename_(display_params_filename) {
-  if (!params_folder_path.empty()) {
-    parseYAML(params_folder_path);
+      pipeline_params_filepath_(pipeline_params_filepath),
+      imu_params_filepath_(imu_params_filepath),
+      left_cam_params_filepath_(left_cam_params_filepath),
+      right_cam_params_filepath_(right_cam_params_filepath),
+      frontend_params_filepath_(frontend_params_filepath),
+      backend_params_filepath_(backend_params_filepath),
+      lcd_params_filepath_(lcd_params_filepath),
+      display_params_filepath_(display_params_filepath),
+      odom_params_filepath_(odom_params_filepath) {
+  if (should_parse) {
+    parseYAML("");
   } else {
     LOG(WARNING)
         << "Calling VioParams constructor without parsing parameters..."
@@ -79,9 +106,9 @@ VioParams::VioParams(const std::string& params_folder_path,
   }
 }
 
-bool VioParams::parseYAML(const std::string& folder_path) {
+bool VioParams::parseYAML(const std::string&) {
   // Create a parser for pipeline params.
-  YamlParser yaml_parser(folder_path + '/' + pipeline_params_filename_);
+  YamlParser yaml_parser(pipeline_params_filepath_);
   int backend_type;
   yaml_parser.getYamlParam("backend_type", &backend_type);
   backend_type_ = static_cast<BackendType>(backend_type);
@@ -94,13 +121,13 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   yaml_parser.getYamlParam("parallel_run", &parallel_run_);
 
   // Parse IMU params
-  parsePipelineParams(folder_path + '/' + imu_params_filename_, &imu_params_);
+  parsePipelineParams(imu_params_filepath_, &imu_params_);
 
   // Parse Camera parameters
-  camera_params_.push_back(
-      parseCameraParams(folder_path + '/' + left_cam_params_filename_));
-  camera_params_.push_back(
-      parseCameraParams(folder_path + '/' + right_cam_params_filename_));
+  camera_params_.push_back(parseCameraParams(left_cam_params_filepath_));
+  if (frontend_type_ == FrontendType::kStereoImu) {
+    camera_params_.push_back(parseCameraParams(right_cam_params_filepath_));
+  }
 
   // Parse Backend params, needs a bit of help with backend_type
   switch (backend_type_) {
@@ -119,15 +146,13 @@ bool VioParams::parseYAML(const std::string& folder_path) {
     }
   }
   CHECK(backend_params_);
-  parsePipelineParams(folder_path + '/' + backend_params_filename_,
-                      backend_params_.get());
+  parsePipelineParams(backend_params_filepath_, backend_params_.get());
 
   // Parse Frontend params.
-  parsePipelineParams(folder_path + '/' + frontend_params_filename_,
-                      &frontend_params_);
+  parsePipelineParams(frontend_params_filepath_, &frontend_params_);
 
   // Parse LcdParams
-  parsePipelineParams(folder_path + '/' + lcd_params_filename_, &lcd_params_);
+  parsePipelineParams(lcd_params_filepath_, &lcd_params_);
 
   // Parse DisplayParams
   switch (display_type_) {
@@ -147,9 +172,14 @@ bool VioParams::parseYAML(const std::string& folder_path) {
     }
   }
   CHECK(display_params_);
-  parsePipelineParams(folder_path + '/' + display_params_filename_,
-                      display_params_.get());
+  parsePipelineParams(display_params_filepath_, display_params_.get());
   display_params_->display_type_ = display_type_;
+
+  if (!odom_params_filepath_.empty()) {
+    OdometryParams odom_params;
+    parsePipelineParams(odom_params_filepath_, &odom_params);
+    odom_params_ = odom_params;
+  }
 
   return true;
 }

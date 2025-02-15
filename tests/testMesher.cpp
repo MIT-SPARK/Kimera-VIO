@@ -42,7 +42,7 @@ class MesherFixture : public ::testing::Test {
     frame_ = constructFrame(true);
     mesher_params_ =
         MesherParams(camera_params.body_Pose_cam_, camera_params.image_size_);
-    mesher_ = VIO::make_unique<Mesher>(mesher_params_);
+    mesher_ = std::make_unique<Mesher>(mesher_params_);
   }
 
  protected:
@@ -56,7 +56,7 @@ class MesherFixture : public ::testing::Test {
     Timestamp tmp = 123;
 
     std::unique_ptr<Frame> frame =
-        VIO::make_unique<Frame>(id, tmp, CameraParams(), img_);
+        std::make_unique<Frame>(id, tmp, CameraParams(), img_);
 
     if (extract_corners) {
       UtilsOpenCV::ExtractCorners(frame->img_, &frame->keypoints_);

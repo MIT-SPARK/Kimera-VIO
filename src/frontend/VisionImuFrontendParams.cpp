@@ -7,20 +7,37 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file VisionImuFrontendParams.cpp
- * @brief Parameters for the visual Frontend of the pipeline
+ * @file   VisionImuFrontendParams.cpp
+ * @brief  Class to parse, print, and store the parameters of the frontend.
  * @author Antoni Rosinol
  */
 
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include <string>
 #include <utility>
 
-#include <glog/logging.h>
-
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/pipeline/PipelineParams.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
+#include "kimera-vio/utils/YamlParser.h"
+
+DEFINE_bool(visualize_feature_tracks, true, "Display feature tracks.");
+DEFINE_bool(visualize_frontend_images,
+            false,
+            "Display images in Frontend logger for debugging (only use "
+            "if in sequential mode, otherwise expect segfaults). ");
+DEFINE_bool(save_frontend_images,
+            false,
+            "Save images in Frontend logger to disk for debugging (only use "
+            "if in sequential mode, otherwise expect segfaults). ");
+DEFINE_bool(log_feature_tracks, false, "Display/Save feature tracks images.");
+DEFINE_bool(log_mono_tracking_images, false, "Display/Save mono tracking.");
+DEFINE_bool(log_stereo_matching_images,
+            false,
+            "Display/Save stereo tracking rectified and unrectified images.");
 
 namespace VIO {
 
@@ -30,142 +47,85 @@ void FrontendParams::print() const {
   std::stringstream out;
   PipelineParams::print(out,
                         // Tracker params
-                        "klt_win_size_: ",
-                        klt_win_size_,
-                        "klt_max_iter_: ",
-                        klt_max_iter_,
-                        "klt_max_level_: ",
-                        klt_max_level_,
-                        "klt_eps_: ",
-                        klt_eps_,
-                        "maxFeatureAge_: ",
-                        maxFeatureAge_,
-                        "Optical Flow Predictor Type",
-                        VIO::to_underlying(optical_flow_predictor_type_),
-                        // RANSAC params
-                        "useRANSAC_: ",
-                        useRANSAC_,
-                        "minNrMonoInliers_: ",
-                        minNrMonoInliers_,
-                        "minNrStereoInliers_: ",
-                        minNrStereoInliers_,
-                        "ransac_threshold_mono_: ",
-                        ransac_threshold_mono_,
-                        "ransac_threshold_stereo_: ",
-                        ransac_threshold_stereo_,
-                        "ransac_use_1point_stereo_: ",
-                        ransac_use_1point_stereo_,
-                        "ransac_use_2point_mono_: ",
-                        ransac_use_2point_mono_,
-                        "ransac_max_iterations_: ",
-                        ransac_max_iterations_,
-                        "ransac_probability_: ",
-                        ransac_probability_,
-                        "ransac_randomize_: ",
-                        ransac_randomize_,
                         // "** STEREO tracker parameters **\n"
-                        "intra_keyframe_time_: ",
-                        intra_keyframe_time_ns_,
+                        "min_intra_keyframe_time_: ",
+                        min_intra_keyframe_time_ns_,
+                        "max_intra_keyframe_time_: ",
+                        max_intra_keyframe_time_ns_,
                         "minNumberFeatures_: ",
                         min_number_features_,
                         "useStereoTracking_: ",
-                        useStereoTracking_,
-                        // OTHER parameters
-                        "disparityThreshold_: ",
-                        disparityThreshold_);
+                        use_stereo_tracking_,
+                        "max_disparity_since_lkf_: ",
+                        max_disparity_since_lkf_,
+                        "useRANSAC_: ",
+                        useRANSAC_,
+                        "Use 2D2D Tracking",
+                        use_2d2d_tracking_,
+                        "Use 3D3D Tracking",
+                        use_3d3d_tracking_,
+                        "Use PnP Tracking",
+                        use_pnp_tracking_);
   LOG(INFO) << out.str();
 
   feature_detector_params_.print();
 
-  if (useStereoTracking_) {
+  tracker_params_.print();
+
+  if (use_stereo_tracking_) {
     stereo_matching_params_.print();
   }
 }
 
 bool FrontendParams::parseYAML(const std::string& filepath) {
-  stereo_matching_params_.parseYAML(filepath);
   feature_detector_params_.parseYAML(filepath);
+  tracker_params_.parseYAML(filepath);
+  stereo_matching_params_.parseYAML(filepath);
 
   YamlParser yaml_parser(filepath);
-  yaml_parser.getYamlParam("klt_win_size", &klt_win_size_);
-  yaml_parser.getYamlParam("klt_max_iter", &klt_max_iter_);
-  yaml_parser.getYamlParam("klt_max_level", &klt_max_level_);
-  yaml_parser.getYamlParam("klt_eps", &klt_eps_);
-  yaml_parser.getYamlParam("maxFeatureAge", &maxFeatureAge_);
-
-  yaml_parser.getYamlParam("useRANSAC", &useRANSAC_);
-  yaml_parser.getYamlParam("minNrMonoInliers", &minNrMonoInliers_);
-  yaml_parser.getYamlParam("minNrStereoInliers", &minNrStereoInliers_);
-  yaml_parser.getYamlParam("ransac_threshold_mono", &ransac_threshold_mono_);
-  yaml_parser.getYamlParam("ransac_threshold_stereo",
-                           &ransac_threshold_stereo_);
-  yaml_parser.getYamlParam("ransac_use_1point_stereo",
-                           &ransac_use_1point_stereo_);
-  yaml_parser.getYamlParam("ransac_use_2point_mono", &ransac_use_2point_mono_);
-  yaml_parser.getYamlParam("ransac_max_iterations", &ransac_max_iterations_);
-  yaml_parser.getYamlParam("ransac_probability", &ransac_probability_);
-  yaml_parser.getYamlParam("ransac_randomize", &ransac_randomize_);
 
   // Given in seconds, needs to be converted to nanoseconds.
-  double intra_keyframe_time_seconds;
-  yaml_parser.getYamlParam("intra_keyframe_time", &intra_keyframe_time_seconds);
-  intra_keyframe_time_ns_ =
-      UtilsNumerical::SecToNsec(intra_keyframe_time_seconds);
+  double min_intra_keyframe_time_seconds;
+  yaml_parser.getYamlParam("min_intra_keyframe_time", &min_intra_keyframe_time_seconds);
+  min_intra_keyframe_time_ns_ =
+      UtilsNumerical::SecToNsec(min_intra_keyframe_time_seconds);
+
+  double max_intra_keyframe_time_seconds;
+  yaml_parser.getYamlParam("max_intra_keyframe_time", &max_intra_keyframe_time_seconds);
+  max_intra_keyframe_time_ns_ =
+      UtilsNumerical::SecToNsec(max_intra_keyframe_time_seconds);
 
   int min_number_features;
   yaml_parser.getYamlParam("minNumberFeatures", &min_number_features);
   min_number_features_ = static_cast<size_t>(min_number_features);
-  yaml_parser.getYamlParam("useStereoTracking", &useStereoTracking_);
-  yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
-
-  int optical_flow_predictor_type;
-  yaml_parser.getYamlParam("optical_flow_predictor_type",
-                           &optical_flow_predictor_type);
-  switch (optical_flow_predictor_type) {
-    case VIO::to_underlying(OpticalFlowPredictorType::kNoPrediction): {
-      optical_flow_predictor_type_ = OpticalFlowPredictorType::kNoPrediction;
-      break;
-    }
-    case VIO::to_underlying(OpticalFlowPredictorType::kRotational): {
-      optical_flow_predictor_type_ = OpticalFlowPredictorType::kRotational;
-      break;
-    }
-    default: {
-      LOG(FATAL) << "Unknown Optical Flow Predictor Type: "
-                 << optical_flow_predictor_type;
-    }
-  }
+  yaml_parser.getYamlParam("useStereoTracking", &use_stereo_tracking_);
+  yaml_parser.getYamlParam("useRANSAC", &useRANSAC_);
+  yaml_parser.getYamlParam("use_2d2d_tracking", &use_2d2d_tracking_);
+  yaml_parser.getYamlParam("use_3d3d_tracking", &use_3d3d_tracking_);
+  yaml_parser.getYamlParam("use_pnp_tracking", &use_pnp_tracking_);
+  yaml_parser.getYamlParam("max_disparity_since_lkf", &max_disparity_since_lkf_);
+  
+  // TODO(Toni): use yaml at some point
+  visualize_feature_tracks_ = FLAGS_visualize_feature_tracks;
+  visualize_frontend_images_ = FLAGS_visualize_frontend_images;
+  save_frontend_images_ = FLAGS_save_frontend_images;
+  log_feature_tracks_ = FLAGS_log_feature_tracks;
+  log_mono_tracking_images_ = FLAGS_log_mono_tracking_images;
+  log_stereo_matching_images_ = FLAGS_log_stereo_matching_images;
 
   return true;
 }
 
 bool FrontendParams::equals(const FrontendParams& tp2, double tol) const {
-  return (klt_win_size_ == tp2.klt_win_size_) &&
-         (klt_max_iter_ == tp2.klt_max_iter_) &&
-         (klt_max_level_ == tp2.klt_max_level_) &&
-         (fabs(klt_eps_ - tp2.klt_eps_) <= tol) &&
-         (maxFeatureAge_ == tp2.maxFeatureAge_) &&
+  return tracker_params_.equals(tp2.tracker_params_, tol) &&
          // stereo matching
          stereo_matching_params_.equals(tp2.stereo_matching_params_, tol) &&
-         // RANSAC parameters
-         (useRANSAC_ == tp2.useRANSAC_) &&
-         (minNrMonoInliers_ == tp2.minNrMonoInliers_) &&
-         (minNrStereoInliers_ == tp2.minNrStereoInliers_) &&
-         (fabs(ransac_threshold_mono_ - tp2.ransac_threshold_mono_) <= tol) &&
-         (fabs(ransac_threshold_stereo_ - tp2.ransac_threshold_stereo_) <=
-          tol) &&
-         (ransac_use_1point_stereo_ == tp2.ransac_use_1point_stereo_) &&
-         (ransac_use_2point_mono_ == tp2.ransac_use_2point_mono_) &&
-         (ransac_max_iterations_ == tp2.ransac_max_iterations_) &&
-         (fabs(ransac_probability_ - tp2.ransac_probability_) <= tol) &&
-         (ransac_randomize_ == tp2.ransac_randomize_) &&
          // STEREO parameters:
-         (fabs(intra_keyframe_time_ns_ - tp2.intra_keyframe_time_ns_) <= tol) &&
+         (fabs(max_intra_keyframe_time_ns_ - tp2.max_intra_keyframe_time_ns_) <= tol) &&
+         (fabs(min_intra_keyframe_time_ns_ - tp2.min_intra_keyframe_time_ns_) <= tol) &&
          (min_number_features_ == tp2.min_number_features_) &&
-         (useStereoTracking_ == tp2.useStereoTracking_) &&
-         // others:
-         (optical_flow_predictor_type_ == tp2.optical_flow_predictor_type_) &&
-         (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
+         (fabs(max_disparity_since_lkf_ - tp2.max_disparity_since_lkf_) <= tol) &&
+         (use_stereo_tracking_ == tp2.use_stereo_tracking_);
 }
 
 }  // namespace VIO

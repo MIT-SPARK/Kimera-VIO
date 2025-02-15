@@ -20,7 +20,7 @@ namespace VIO {
 
 BackendParams::BackendParams() : PipelineParams("Backend Parameters") {
   // Trivial sanity checks.
-  CHECK_GE(horizon_, 0);
+  CHECK_GE(nr_states_, 0);
   CHECK_GE(numOptimize_, 0);
 }
 
@@ -43,12 +43,12 @@ void BackendParams::setIsam2Params(const BackendParams& vio_params,
 
   // TODO (Toni): remove hardcoded
   // Cache Linearized Factors seems to improve performance.
-  isam_param->setCacheLinearizedFactors(true);
+  isam_param->cacheLinearizedFactors = true;
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
   isam_param->findUnusedFactorSlots = true;
   // isam_param->enablePartialRelinearizationCheck = true;
-  isam_param->setEvaluateNonlinearError(false);  // only for debugging
+  isam_param->evaluateNonlinearError = false;  // only for debugging
   isam_param->enableDetailedResults = false;     // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
 }
@@ -128,14 +128,46 @@ bool BackendParams::parseYAMLVioBackendParams(const YamlParser& yaml_parser) {
   // OPTIMIZATION PARAMS
   yaml_parser.getYamlParam("relinearizeThreshold", &relinearizeThreshold_);
   yaml_parser.getYamlParam("relinearizeSkip", &relinearizeSkip_);
-  yaml_parser.getYamlParam("zeroVelocitySigma", &zeroVelocitySigma_);
-  yaml_parser.getYamlParam("noMotionPositionSigma", &noMotionPositionSigma_);
-  yaml_parser.getYamlParam("noMotionRotationSigma", &noMotionRotationSigma_);
-  yaml_parser.getYamlParam("constantVelSigma", &constantVelSigma_);
+  yaml_parser.getYamlParam("zero_velocity_precision", &zero_velocity_precision_);
+  yaml_parser.getYamlParam("no_motion_position_precision", &no_motion_position_precision_);
+  yaml_parser.getYamlParam("no_motion_rotation_precision", &no_motion_rotation_precision_);
+  yaml_parser.getYamlParam("constant_vel_precision", &constant_vel_precision_);
   yaml_parser.getYamlParam("numOptimize", &numOptimize_);
-  yaml_parser.getYamlParam("horizon", &horizon_);
+  yaml_parser.getYamlParam("nr_states", &nr_states_);
   yaml_parser.getYamlParam("wildfire_threshold", &wildfire_threshold_);
   yaml_parser.getYamlParam("useDogLeg", &useDogLeg_);
+
+  int pose_guess_source = 0;
+  yaml_parser.getYamlParam("pose_guess_source", &pose_guess_source);
+  switch (pose_guess_source) {
+    case VIO::to_underlying(PoseGuessSource::IMU): {
+      pose_guess_source_ = PoseGuessSource::IMU;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::MONO): {
+      pose_guess_source_ = PoseGuessSource::MONO;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::STEREO): {
+      pose_guess_source_ = PoseGuessSource::STEREO;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::PNP): {
+      pose_guess_source_ = PoseGuessSource::PNP;
+      break;
+    }
+    case VIO::to_underlying(PoseGuessSource::EXTERNAL_ODOM): {
+      pose_guess_source_ = PoseGuessSource::EXTERNAL_ODOM;
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown PoseGuessSource : " << pose_guess_source;
+      break;
+    }
+  }
+
+  yaml_parser.getYamlParam("mono_translation_scale_factor",
+                           &mono_translation_scale_factor_);
 
   return true;
 }
@@ -171,13 +203,16 @@ bool BackendParams::equalsVioBackendParams(const BackendParams& vp2,
       // OPTIMIZATION PARAMS
       (fabs(relinearizeThreshold_ - vp2.relinearizeThreshold_) <= tol) &&
       (relinearizeSkip_ == vp2.relinearizeSkip_) &&
-      (fabs(zeroVelocitySigma_ - vp2.zeroVelocitySigma_) <= tol) &&
-      (fabs(noMotionPositionSigma_ - vp2.noMotionPositionSigma_) <= tol) &&
-      (fabs(noMotionRotationSigma_ - vp2.noMotionRotationSigma_) <= tol) &&
-      (fabs(constantVelSigma_ - vp2.constantVelSigma_) <= tol) &&
-      (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
+      (fabs(zero_velocity_precision_ - vp2.zero_velocity_precision_) <= tol) &&
+      (fabs(no_motion_position_precision_ - vp2.no_motion_position_precision_) <= tol) &&
+      (fabs(no_motion_rotation_precision_ - vp2.no_motion_rotation_precision_) <= tol) &&
+      (fabs(constant_vel_precision_ - vp2.constant_vel_precision_) <= tol) &&
+      (numOptimize_ == vp2.numOptimize_) && (nr_states_ == vp2.nr_states_) &&
       (wildfire_threshold_ == vp2.wildfire_threshold_) &&
-      (useDogLeg_ == vp2.useDogLeg_);
+      (useDogLeg_ == vp2.useDogLeg_) &&
+      (pose_guess_source_ == vp2.pose_guess_source_) &&
+      (fabs(mono_translation_scale_factor_ ==
+            vp2.mono_translation_scale_factor_));
 }
 
 void BackendParams::printVioBackendParams() const {
@@ -231,22 +266,26 @@ void BackendParams::printVioBackendParams() const {
       relinearizeThreshold_,
       "Relinearize Skip",
       relinearizeSkip_,
-      "Zero Velocity Sigma",
-      zeroVelocitySigma_,
-      "No Motion Position Sigma",
-      noMotionPositionSigma_,
-      "No Motion Rotation Sigma",
-      noMotionRotationSigma_,
-      "Constant Velocity Sigma",
-      constantVelSigma_,
+      "Zero Velocity Precision",
+      zero_velocity_precision_,
+      "No Motion Position Precision",
+      no_motion_position_precision_,
+      "No Motion Rotation Precision",
+      no_motion_rotation_precision_,
+      "Constant Velocity Precision",
+      constant_vel_precision_,
       "Optimization Iterations",
       numOptimize_,
-      "Horizon",
-      horizon_,
+      "nr_states",
+      nr_states_,
       "Isam Wildfire Threshold",
       wildfire_threshold_,
       "Use Dog Leg",
-      useDogLeg_);
+      useDogLeg_,
+      "Pose Guess Source",
+      VIO::to_underlying(pose_guess_source_),
+      "Mono Translation Scale Factor",
+      mono_translation_scale_factor_);
   LOG(INFO) << out.str();
   LOG(INFO) << "** Backend Iinitialization Parameters **\n"
             << "initial_ground_truth_state_: ";

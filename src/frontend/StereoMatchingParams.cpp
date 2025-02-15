@@ -46,8 +46,7 @@ bool StereoMatchingParams::equals(const StereoMatchingParams& tp2,
          (fabs(min_point_dist_ - tp2.min_point_dist_) <= tol) &&
          (fabs(max_point_dist_ - tp2.max_point_dist_) <= tol) &&
          (bidirectional_matching_ == tp2.bidirectional_matching_) &&
-         (subpixel_refinement_ == tp2.subpixel_refinement_) &&
-         (vision_sensor_type_ == tp2.vision_sensor_type_);
+         (subpixel_refinement_ == tp2.subpixel_refinement_);
 }
 
 void StereoMatchingParams::print() const {
@@ -74,13 +73,6 @@ void StereoMatchingParams::print() const {
                         "subpixelRefinementStereo_: ",
                         subpixel_refinement_);
   LOG(INFO) << out.str();
-
-  LOG(INFO) << "Using vision_sensor_type_: "
-            << to_underlying(vision_sensor_type_);
-  if (vision_sensor_type_ == VisionSensorType::RGBD) {
-    LOG(INFO) << "minDepthFactor_: " << min_depth_factor_ << '\n'
-              << "mapDepthFactor_: " << map_depth_factor_;
-  }
 }
 
 bool StereoMatchingParams::parseYAML(const std::string& filepath) {

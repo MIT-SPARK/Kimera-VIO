@@ -39,12 +39,15 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
  public:
-  MonoVisionImuFrontend(const ImuParams& imu_params,
-                     const ImuBias& imu_initial_bias,
-                     const MonoFrontendParams& frontend_params,
-                     const Camera::ConstPtr& camera,
-                     DisplayQueue* display_queue = nullptr,
-                     bool log_output = false);
+  MonoVisionImuFrontend(
+      const FrontendParams& frontend_params,
+      const ImuParams& imu_params,
+      const ImuBias& imu_initial_bias,
+      const Camera::ConstPtr& camera,
+      DisplayQueue* display_queue = nullptr,
+      bool log_output = false,
+      std::optional<OdometryParams> odom_params = std::nullopt);
+
   virtual ~MonoVisionImuFrontend();
 
  private:
@@ -55,17 +58,16 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
     CHECK(frontend_state_ == FrontendState::Bootstrap);
     CHECK(input);
     return bootstrapSpinMono(
-        VIO::safeCast<FrontendInputPacketBase, MonoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<MonoFrontendInputPayload>(std::move(input)));
   }
 
   inline FrontendOutputPacketBase::UniquePtr nominalSpin(
       FrontendInputPacketBase::UniquePtr&& input) override {
-    CHECK(frontend_state_ == FrontendState::Nominal);
+    CHECK(frontend_state_ == FrontendState::Nominal ||
+          frontend_state_ == FrontendState::InitialTimeAlignment);
     CHECK(input);
     return nominalSpinMono(
-        VIO::safeCast<FrontendInputPacketBase, MonoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<MonoFrontendInputPayload>(std::move(input)));
   }
 
   MonoFrontendOutput::UniquePtr nominalSpinMono(
@@ -82,9 +84,9 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
   void getSmartMonoMeasurements(const Frame::Ptr& frame,
                                 MonoMeasurements* smart_mono_measurements);
 
-  // void sendFeatureTracksToLogger() const;
+  void sendFeatureTracksToLogger() const;
 
-  // void sendMonoTrackingToLogger() const;
+  void sendMonoTrackingToLogger() const;
 
   static void printStatusMonoMeasurements(
       const StatusMonoMeasurements& status_mono_measurements);
@@ -102,8 +104,6 @@ class MonoVisionImuFrontend : public VisionImuFrontend {
   FeatureDetector::UniquePtr feature_detector_;
 
   Camera::ConstPtr mono_camera_;
-
-  MonoFrontendParams frontend_params_;
 };
 
 }  // namespace VIO

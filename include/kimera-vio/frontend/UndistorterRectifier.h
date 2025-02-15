@@ -20,6 +20,8 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 
+#include <optional>
+
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -34,6 +36,7 @@ class UndistorterRectifier {
  public:
   KIMERA_POINTER_TYPEDEFS(UndistorterRectifier);
   KIMERA_DELETE_COPY_CONSTRUCTORS(UndistorterRectifier);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /**
    * @brief UndistorterRectifier
@@ -58,20 +61,20 @@ class UndistorterRectifier {
       const KeypointsCV& keypoints,
       KeypointsCV* undistorted_keypoints,
       const CameraParams& cam_param,
-      boost::optional<cv::Mat> R = boost::none,
-      boost::optional<cv::Mat> P = boost::none);
+      std::optional<cv::Mat> R = std::nullopt,
+      std::optional<cv::Mat> P = std::nullopt);
 
   /**
-   * @brief UndistortKeypointAndGetVersor undistort a single pixel,
+   * @brief GetBearingVector undistort a single pixel,
    * and return the corresponding versor.
    * (unit norm vector corresponding to bearing).
    * @param cv_px keypoint
    * @param cam_param CameraParams instance
    */
-  static gtsam::Vector3 UndistortKeypointAndGetVersor(
+  static gtsam::Vector3 GetBearingVector(
       const KeypointCV& keypoint,
       const CameraParams& cam_param,
-      boost::optional<cv::Mat> R = boost::none);
+      std::optional<cv::Mat> R = std::nullopt);
 
   /**
    * @brief undistortRectifyImage Given distorted (and optionally non-rectified)

@@ -72,7 +72,7 @@ class StereoFrameFixture : public ::testing::Test {
 
     stereo_camera_ =
         std::make_shared<VIO::StereoCamera>(cam_params_left, cam_params_right);
-    stereo_matcher_ = VIO::make_unique<StereoMatcher>(
+    stereo_matcher_ = std::make_unique<StereoMatcher>(
         stereo_camera_, tp.stereo_matching_params_);
 
     // stereo_matcher_->sparseStereoReconstruction(sf.get());
@@ -123,7 +123,7 @@ class StereoFrameFixture : public ::testing::Test {
           5 * landmark_count_);  // seen in a single (key)frame
       sfnew->left_frame_.scores_.push_back(10 * landmark_count_);
       sfnew->left_frame_.versors_.push_back(
-          UndistorterRectifier::UndistortKeypointAndGetVersor(
+          UndistorterRectifier::GetBearingVector(
               sfnew->left_frame_.keypoints_.at(i),
               sfnew->left_frame_.cam_param_));
       ++landmark_count_;
@@ -205,7 +205,7 @@ TEST_F(StereoFrameFixture, setIsKeyframe) {
 //     matchTemplate(stripe, templ, result1, CV_TM_SQDIFF_NORMED);
 //   }
 //   double timeMatching1 = utils::Timer::toc<std::chrono::seconds>(tic).count();
-//   std::cout << "timeMatching 1: " << timeMatching1 / double(nrTests) << endl;
+//   LOG(INFO) << "timeMatching 1: " << timeMatching1 / double(nrTests) << endl;
 
 //   ///////////////////////////////////////////////////////////////////////////////////////////////
 //   tic = utils::Timer::tic();
@@ -217,7 +217,7 @@ TEST_F(StereoFrameFixture, setIsKeyframe) {
 //     UtilsOpenCV::PlainMatchTemplate(stripe, templ, result2);
 //   }
 //   double timeMatching2 = utils::Timer::toc<std::chrono::seconds>(tic).count();
-//   std::cout << "timeMatching 2: " << timeMatching2 / double(nrTests) << endl;
+//   LOG(INFO) << "timeMatching 2: " << timeMatching2 / double(nrTests) << endl;
 
 //   // check that results are the same
 //   // cout << result1 << "\n" << result2 << endl;

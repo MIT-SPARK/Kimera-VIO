@@ -127,7 +127,7 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   // TODO(marcus): LoopClosureDetector rewrites stereoframes that are already
   //   rectified using this function! That's why the above check doesn't work...
   if (stereo_frame->isRectified()) {
-    LOG(WARNING) << "sparseStereoMatching: StereoFrame is already rectified!";
+    VLOG(1) << "sparseStereoMatching: StereoFrame is already rectified!";
   }
   stereo_camera_->undistortRectifyStereoFrame(stereo_frame);
   CHECK(stereo_frame->isRectified());
@@ -144,7 +144,6 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
                              &stereo_frame->right_keypoints_rectified_);
 
   //! Fill out keypoint depths
-  // TODO(marcus): we are trying to replace this method with something else?
   getDepthFromRectifiedMatches(stereo_frame->left_keypoints_rectified_,
                                stereo_frame->right_keypoints_rectified_,
                                &stereo_frame->keypoints_depth_);
@@ -160,7 +159,7 @@ void StereoMatcher::sparseStereoReconstruction(StereoFrame* stereo_frame) {
   stereo_frame->keypoints_3d_.reserve(
       stereo_frame->right_keypoints_rectified_.size());
   for (size_t i = 0; i < stereo_frame->right_keypoints_rectified_.size(); i++) {
-    if (stereo_frame->right_keypoints_rectified_[i].first == 
+    if (stereo_frame->right_keypoints_rectified_[i].first ==
         KeypointStatus::VALID) {
       // NOTE: versors are already in the rectified frame.
       Vector3 versor = stereo_frame->left_frame_.versors_[i];
@@ -186,24 +185,12 @@ void StereoMatcher::sparseStereoReconstruction(
   CHECK(stereo_calib);
   const auto& baseline = stereo_calib->baseline();
   const auto& fx = stereo_calib->fx();
-  switch (stereo_matching_params_.vision_sensor_type_) {
-    case VisionSensorType::STEREO: {
-      getRightKeypointsRectified(left_img_rectified,
-                                 right_img_rectified,
-                                 left_keypoints_rectified,
-                                 fx,
-                                 baseline,
-                                 right_keypoints_rectified);
-    } break;
-    case VisionSensorType::RGBD: {
-      LOG(FATAL) << "Not implemented...";
-      // Nor it should be implemented here...
-    } break;
-    default: {
-      LOG(FATAL) << "sparseStereoMatching: only works when "
-                    "VisionSensorType::STEREO or RGBD";
-    }
-  }
+  getRightKeypointsRectified(left_img_rectified,
+                             right_img_rectified,
+                             left_keypoints_rectified,
+                             fx,
+                             baseline,
+                             right_keypoints_rectified);
 }
 
 void StereoMatcher::getRightKeypointsRectified(
@@ -216,7 +203,7 @@ void StereoMatcher::getRightKeypointsRectified(
   CHECK_NOTNULL(right_keypoints_rectified)->clear();
   right_keypoints_rectified->reserve(left_keypoints_rectified.size());
 
-  int verbosity = 0;  // Change back to 0
+  int verbosity = 0;
 
   // The stripe has to be placed in the right image, on the left-hand-side wrt
   // x of the left feature, since: disparity = left_px.x - right_px.x, hence
@@ -274,15 +261,22 @@ void StereoMatcher::getRightKeypointsRectified(
   }
 
   if (verbosity > 0) {
-    cv::Mat left_img_with_keypoints =
-        UtilsOpenCV::DrawCircles(left_img_rectified, left_keypoints_rectified);
-    cv::Mat right_img_with_keypoints = UtilsOpenCV::DrawCircles(
-        right_img_rectified, *right_keypoints_rectified);
-    UtilsOpenCV::showImagesSideBySide(left_img_with_keypoints,
-                                      right_img_with_keypoints,
-                                      "result_getRightKeypointsRectified",
-                                      verbosity == 1,
-                                      verbosity == 2);
+    std::vector<cv::DMatch> matches;
+    for (size_t i = 0; i < left_keypoints_rectified.size(); ++i) {
+      if (left_keypoints_rectified[i].first == KeypointStatus::VALID &&
+          right_keypoints_rectified->at(i).first == KeypointStatus::VALID) {
+        matches.push_back(cv::DMatch(i, i, 0.0));
+      }
+    }
+
+    const auto match_img =
+        UtilsOpenCV::DrawCornersMatches(left_img_rectified,
+                                        left_keypoints_rectified,
+                                        right_img_rectified,
+                                        *right_keypoints_rectified,
+                                        matches);
+    cv::imshow("stereo matches", match_img);
+    cv::waitKey(0);
   }
 }
 
@@ -308,9 +302,8 @@ void StereoMatcher::searchRightKeypointEpipolar(
   // y-component of upper left corner of template
   int temp_corner_y =
       rounded_left_rectified_i_y - (stereo_matching_params.templ_rows_ - 1) / 2;
-  if (temp_corner_y < 0 ||
-      temp_corner_y + stereo_matching_params.templ_rows_ >
-          left_img_rectified.rows - 1) {
+  if (temp_corner_y < 0 || temp_corner_y + stereo_matching_params.templ_rows_ >
+                               left_img_rectified.rows - 1) {
     // template exceeds bottom or top of the image
     // skip point too close to up or down boundary
     *score = -1.0;
@@ -392,13 +385,11 @@ void StereoMatcher::searchRightKeypointEpipolar(
   cv::Point min_loc;
   cv::Point max_loc;
 
-  cv::matchTemplate(stripe, templ, result, CV_TM_SQDIFF_NORMED);
+  cv::matchTemplate(stripe, templ, result, CV_TM_SQDIFF);
+  normalize(result, result, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+
   // Localizing the best match with minMaxLoc
   cv::minMaxLoc(result, &min_val, &max_val, &min_loc, &max_loc, cv::Mat());
-
-  // normalize( result, result, 0, 1, cv::NORM_MINMAX, -1, cv::Mat() ); //
-  // TODO:
-  // do we need to normalize??
 
   // Position within the result matrix
   cv::Point matchLoc = min_loc;
@@ -472,10 +463,10 @@ void StereoMatcher::getDepthFromRectifiedMatches(
     } else {
       // Something is wrong.
       if (left_keypoints_rectified[i].first != KeypointStatus::VALID &&
-          right_keypoints_rectified.at(i).first != 
-          left_keypoints_rectified[i].first) {
+          right_keypoints_rectified.at(i).first !=
+              left_keypoints_rectified[i].first) {
         // We cannot have a valid right, without a valid left keypoint.
-        LOG(WARNING) 
+        LOG(WARNING)
             << "Cannot have a valid right kpt without also a valid left kpt!"
             << "\nLeft kpt status: "
             << to_underlying(left_keypoints_rectified[i].first)

@@ -20,6 +20,8 @@
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/pipeline/PipelinePayload.h"
 
+#include <optional>
+
 namespace VIO {
 
 class FrontendInputPacketBase : public PipelinePayload {
@@ -32,10 +34,12 @@ class FrontendInputPacketBase : public PipelinePayload {
 
   FrontendInputPacketBase(const Timestamp& timestamp,
                           const ImuStampS& imu_stamps,
-                          const ImuAccGyrS& imu_accgyrs)
+                          const ImuAccGyrS& imu_accgyrs,
+                          std::optional<gtsam::NavState> world_NavState_ext_odom = std::nullopt)
       : PipelinePayload(timestamp),
         imu_stamps_(imu_stamps),
-        imu_accgyrs_(imu_accgyrs) {
+        imu_accgyrs_(imu_accgyrs),
+        world_NavState_ext_odom_(world_NavState_ext_odom) {
     CHECK_GT(imu_stamps_.cols(), 0u);
     CHECK_GT(imu_accgyrs_.cols(), 0u);
     CHECK_EQ(imu_stamps_.cols(), imu_accgyrs_.cols());
@@ -45,6 +49,7 @@ class FrontendInputPacketBase : public PipelinePayload {
 
   const ImuStampS imu_stamps_;
   const ImuAccGyrS imu_accgyrs_;
+  std::optional<gtsam::NavState> world_NavState_ext_odom_;
 };
 
 }  // namespace VIO

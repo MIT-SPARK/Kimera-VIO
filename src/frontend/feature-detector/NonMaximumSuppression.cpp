@@ -10,18 +10,17 @@
  * @file   NonMaximumSuppression.cpp
  * @brief  Base class for non maximum suppresion interface
  * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 
-#include <numeric>
-#include <vector>
-
-#include <opencv2/opencv.hpp>
-
 #include <glog/logging.h>
 
-#include "kimera-vio/common/vio_types.h"
+#include <numeric>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
 #include "kimera-vio/frontend/feature-detector/anms/anms.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -36,7 +35,10 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
     const int& numRetPoints,
     const float& tolerance,
     const int& cols,
-    const int& rows) {
+    const int& rows,
+    const int& nr_horizontal_bins,
+    const int& nr_vertical_bins,
+    const Eigen::MatrixXd& binning_mask) {
   auto tic = utils::Timer::tic();
   if (keyPoints.size() == 0) {
     LOG(WARNING) << "No keypoints for non-max suppression...";
@@ -96,6 +98,18 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
           anms::Ssc(keyPointsSorted, numRetPoints, tolerance, cols, rows);
       break;
     };
+    case AnmsAlgorithmType::Binning: {
+      VLOG(1) << "Running Binning: "
+              << VIO::to_underlying(anms_algorithm_type_);
+      keypoints = binning(keyPointsSorted,
+                          numRetPoints,
+                          cols,
+                          rows,
+                          nr_horizontal_bins,
+                          nr_vertical_bins,
+                          binning_mask);
+      break;
+    };
     default: {
       VLOG(1) << "Unknown ANMS algorithm requested: "
               << VIO::to_underlying(anms_algorithm_type_);
@@ -105,6 +119,53 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
   VLOG(1) << "Non Maximum Suppression Timing [ms]: "
           << utils::Timer::toc(tic).count();
   return keypoints;
+}
+
+// ---------------------------------------------------------------------------------
+std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::binning(
+    const std::vector<cv::KeyPoint>& keyPoints,
+    const int& numKptsToRetain,
+    const int& imgCols,
+    const int& imgRows,
+    const int& nr_horizontal_bins,
+    const int& nr_vertical_bins,
+    const Eigen::MatrixXd& binning_mask) {
+  if (static_cast<size_t>(numKptsToRetain) > keyPoints.size()) {
+    return keyPoints;
+  }
+
+  float binRowSize = float(imgRows) / float(nr_vertical_bins);
+  float binColSize = float(imgCols) / float(nr_horizontal_bins);
+
+  // Note: features should be already sorted by score at this point from detect
+
+  // 0. count the number of valid bins (as specified by the user in the yaml
+  float nrActiveBins = binning_mask.sum();  // sum of 1's in binary mask
+
+  // 1. compute how many features we want to retain in each bin
+  // numRetPointsPerBin
+  const int numRetPointsPerBin =
+      std::round(float(numKptsToRetain) / float(nrActiveBins));
+
+  // 2. assign keypoints to bins and retain top numRetPointsPerBin for each bin
+  std::vector<cv::KeyPoint> binnedKpts;  // binned keypoints we want to output
+  Eigen::MatrixXd nrKptsInBin = Eigen::MatrixXd::Zero(
+      nr_vertical_bins,
+      nr_horizontal_bins);  // store number of kpts for each bin
+  for (size_t i = 0; i < keyPoints.size(); i++) {
+    const size_t binRowInd =
+        static_cast<size_t>(keyPoints[i].pt.y / binRowSize);
+    const size_t binColInd =
+        static_cast<size_t>(keyPoints[i].pt.x / binColSize);
+    // if bin is active and needs more keypoints
+    if (binning_mask(binRowInd, binColInd) == 1 &&
+        nrKptsInBin(binRowInd, binColInd) <
+            numRetPointsPerBin) {  // if we need more kpts in that bin
+      binnedKpts.push_back(keyPoints[i]);
+      nrKptsInBin(binRowInd, binColInd) += 1;
+    }
+  }
+  return binnedKpts;
 }
 
 }  // namespace VIO

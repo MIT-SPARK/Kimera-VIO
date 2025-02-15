@@ -1,0 +1,19 @@
+%YAML:1.0
+# Type of odometry sensor:
+
+# Sensor extrinsics wrt. the body-frame.
+T_BS:
+  cols: 4
+  rows: 4
+  data: [1.0, 0.0, 0.0, 0.0,
+         0.0, 1.0, 0.0, 0.0,
+         0.0, 0.0, 1.0, 0.0,
+         0.0, 0.0, 0.0, 1.0]
+rate_hz: 200
+
+# odometry sensor noise model parameters (static)
+odomPositionPrecision: 1000
+odomRotationPrecision: 1.0e-2
+odomVelPrecision: 0
+odomTimeShift: 0.0
+# Extra parameters

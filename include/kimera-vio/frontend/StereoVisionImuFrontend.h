@@ -14,29 +14,25 @@
 
 #pragma once
 
-#include <memory>
-#include <atomic>
-
-#include <boost/shared_ptr.hpp>  // used for opengv
-
 #include <opencv2/highgui/highgui_c.h>
+
+#include <atomic>
+#include <memory>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-
-#include "kimera-vio/frontend/VisionImuFrontend.h"
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatcher.h"
 #include "kimera-vio/frontend/StereoVisionImuFrontend-definitions.h"
+#include "kimera-vio/frontend/VisionImuFrontend.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
-
-#include "kimera-vio/pipeline/PipelineModule.h"
 
 namespace VIO {
 
@@ -49,12 +45,15 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  StereoVisionImuFrontend(const ImuParams& imu_params,
-                       const ImuBias& imu_initial_bias,
-                       const FrontendParams& tracker_params,
-                       const StereoCamera::ConstPtr& stereo_camera,
-                       DisplayQueue* display_queue = nullptr,
-                       bool log_output = false);
+  StereoVisionImuFrontend(
+      const FrontendParams& params,
+      const ImuParams& imu_params,
+      const ImuBias& imu_initial_bias,
+      const StereoCamera::ConstPtr& stereo_camera,
+      DisplayQueue* display_queue = nullptr,
+      bool log_output = false,
+      std::optional<OdometryParams> odom_params = std::nullopt);
+
   virtual ~StereoVisionImuFrontend();
 
  public:
@@ -90,8 +89,7 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
     CHECK(frontend_state_ == FrontendState::Bootstrap);
     CHECK(input);
     return bootstrapSpinStereo(
-        VIO::safeCast<FrontendInputPacketBase, StereoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<StereoFrontendInputPayload>(std::move(input)));
   }
 
   /**
@@ -102,11 +100,11 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
    */
   inline FrontendOutputPacketBase::UniquePtr nominalSpin(
       FrontendInputPacketBase::UniquePtr&& input) override {
-    CHECK(frontend_state_ == FrontendState::Nominal);
+    CHECK(frontend_state_ == FrontendState::Nominal ||
+          frontend_state_ == FrontendState::InitialTimeAlignment);
     CHECK(input);
     return nominalSpinStereo(
-        VIO::safeCast<FrontendInputPacketBase, StereoFrontendInputPayload>(
-            std::move(input)));
+        castUnique<StereoFrontendInputPayload>(std::move(input)));
   }
 
   /* ------------------------------------------------------------------------ */
@@ -129,12 +127,6 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
       cv::Mat* feature_tracks = nullptr);
 
   /* ------------------------------------------------------------------------ */
-  void outlierRejectionStereo(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
-                              const StereoFrame::Ptr& left_frame_lkf,
-                              const StereoFrame::Ptr& left_frame_k,
-                              TrackingStatusPose* status_pose_stereo);
-
-  /* ------------------------------------------------------------------------ */
   // Static function to display output of stereo tracker
   static void printStatusStereoMeasurements(
       const StatusStereoMeasurements& statusStereoMeasurements);
@@ -151,15 +143,6 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   /* ------------------------------------------------------------------------ */
   // Log, visualize and/or save quality of temporal and stereo matching
   void sendMonoTrackingToLogger() const;
-
-  /* ------------------------------------------------------------------------ */
-  // Force use of 3/5 point methods in initialization phase.
-  // This despite the parameter specified in the tracker
-  void forceFiveThreePointMethod(const bool force_flag) {
-    force_53point_ransac_ = force_flag;
-    LOG(WARNING) << "Forcing of 5/3 point method has been turned "
-                 << (force_53point_ransac_ ? "ON!!" : "OFF");
-  }
 
  private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
@@ -186,15 +169,9 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   // Set of functionalities for stereo matching
   StereoMatcher stereo_matcher_;
 
-  // Used to force the use of 5/3 point ransac, despite parameters
-  std::atomic_bool force_53point_ransac_ = {false};
-
   // This is not const as for debugging we want to redirect the image save path
   // where we like
   std::string output_images_path_;
-
-  // Parameters
-  FrontendParams frontend_params_;
 };
 
 }  // namespace VIO

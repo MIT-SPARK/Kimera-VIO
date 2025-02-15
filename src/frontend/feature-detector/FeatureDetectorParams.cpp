@@ -13,6 +13,7 @@
  */
 
 #include "kimera-vio/frontend/feature-detector/FeatureDetectorParams.h"
+
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
@@ -79,6 +80,12 @@ void FeatureDetectorParams::print() const {
                         VIO::to_underlying(non_max_suppression_type_),
                         "Min dist btw tracked/detected features",
                         min_distance_btw_tracked_and_detected_features_,
+                        "Nr of keypoints extracted before non-max suppression",
+                        max_nr_keypoints_before_anms_,
+                        "Nr of horizontal bins for feature binning",
+                        nr_horizontal_bins_,
+                        "Nr of vertical bins for feature binning",
+                        nr_vertical_bins_,
                         "quality_level_: ",
                         quality_level_,
                         "block_size_: ",
@@ -158,13 +165,47 @@ bool FeatureDetectorParams::parseYAML(const std::string& filepath) {
       non_max_suppression_type_ = AnmsAlgorithmType::Ssc;
       break;
     }
+    case VIO::to_underlying(AnmsAlgorithmType::Binning): {
+      non_max_suppression_type_ = AnmsAlgorithmType::Binning;
+      break;
+    }
     default: {
-      LOG(FATAL) << "Unknown Non Maximum Suppresion Type: "
+      LOG(FATAL) << "Unknown Non Maximum Suppression Type: "
                  << non_max_suppression_type;
     }
   }
 
   yaml_parser.getYamlParam("maxFeaturesPerFrame", &max_features_per_frame_);
+  yaml_parser.getYamlParam("max_nr_keypoints_before_anms",
+                           &max_nr_keypoints_before_anms_);
+  yaml_parser.getYamlParam("nr_horizontal_bins", &nr_horizontal_bins_);
+  yaml_parser.getYamlParam("nr_vertical_bins", &nr_vertical_bins_);
+  std::vector<int> vector_mask;
+  yaml_parser.getYamlParam("binning_mask", &vector_mask);
+  // mask is either empty or should have the right size
+  const size_t total_bins = nr_horizontal_bins_ * nr_vertical_bins_;
+  if (vector_mask.size() > 0 && (vector_mask.size() != total_bins)) {
+    LOG(FATAL) << "Binning mask size specified by the user is inconsistent and "
+                  "should have"
+               << nr_vertical_bins_ << " rows and " << nr_vertical_bins_
+               << " columns";
+  }
+  // initialize mask such that all bins are considered
+  binning_mask_ = Eigen::MatrixXd::Ones(nr_vertical_bins_, nr_horizontal_bins_);
+
+  // if user has speficied mask, adjust mask
+  if (vector_mask.size() > 0) {
+    size_t vec_ind = 0;
+    for (int r = 0; r < nr_vertical_bins_; r++) {
+      for (int c = 0; c < nr_horizontal_bins_; c++) {
+        if (vector_mask[vec_ind] != 0 && vector_mask[vec_ind] != 1) {
+          LOG(FATAL) << "Binning mask can only have binary entries {0;1}";
+        }
+        binning_mask_(r, c) = vector_mask[vec_ind];
+        vec_ind++;
+      }
+    }
+  }
 
   // GFTT specific parameters
   yaml_parser.getYamlParam("quality_level", &quality_level_);
@@ -192,6 +233,10 @@ bool FeatureDetectorParams::equals(const FeatureDetectorParams& tp2,
              tp2.subpixel_corner_finder_params_)) &&
          (fabs(min_distance_btw_tracked_and_detected_features_ -
                tp2.min_distance_btw_tracked_and_detected_features_) <= tol) &&
+         (fabs(nr_horizontal_bins_ - tp2.nr_horizontal_bins_) <= tol) &&
+         (fabs(max_nr_keypoints_before_anms_ -
+               tp2.max_nr_keypoints_before_anms_) <= tol) &&
+         (fabs(nr_vertical_bins_ - tp2.nr_vertical_bins_) <= tol) &&
          (fabs(quality_level_ - tp2.quality_level_) <= tol) &&
          (block_size_ == tp2.block_size_) &&
          (use_harris_corner_detector_ == tp2.use_harris_corner_detector_) &&

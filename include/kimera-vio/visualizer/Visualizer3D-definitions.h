@@ -15,11 +15,10 @@
 #pragma once
 
 #include <memory>
+#include <opencv2/viz/widgets.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include <opencv2/viz/widgets.hpp>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
@@ -75,25 +74,22 @@ struct VisualizerInput : public PipelinePayload {
   VisualizerInput(const Timestamp& timestamp,
                   const MesherOutput::Ptr& mesher_output,
                   const BackendOutput::Ptr& backend_output,
-                  const FrontendOutputPacketBase::Ptr& frontend_output,
-                  const LcdOutput::Ptr& lcd_output)
+                  const FrontendOutputPacketBase::Ptr& frontend_output)
       : PipelinePayload(timestamp),
         mesher_output_(mesher_output),
         backend_output_(backend_output),
-        frontend_output_(frontend_output),
-        lcd_output_(lcd_output) {
+        frontend_output_(frontend_output) {
     if (backend_output) CHECK_EQ(timestamp, backend_output->timestamp_);
     if (frontend_output) CHECK_EQ(timestamp, frontend_output->timestamp_);
     if (mesher_output) CHECK_EQ(timestamp, mesher_output->timestamp_);
-    if (lcd_output) CHECK_EQ(timestamp, lcd_output->timestamp_);
   }
   virtual ~VisualizerInput() = default;
 
   // Copy the pointers so that we do not need to copy the data.
   const MesherOutput::ConstPtr mesher_output_;
   const BackendOutput::ConstPtr backend_output_;
-  const FrontendOutputPacketBase::Ptr frontend_output_;  // not ConstPtr because polymorphic
-  const LcdOutput::ConstPtr lcd_output_;
+  const FrontendOutputPacketBase::Ptr
+      frontend_output_;  // not ConstPtr because polymorphic
 };
 
 struct VisualizerOutput : public DisplayInputBase {

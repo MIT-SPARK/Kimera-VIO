@@ -16,15 +16,14 @@
 
 #pragma once
 
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/linear/NoiseModel.h>
+
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/linear/NoiseModel.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/Values.h>
-
+#include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/FrontendOutputPacketBase.h"
 #include "kimera-vio/utils/Macros.h"
@@ -33,7 +32,10 @@ namespace VIO {
 
 typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
-typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
+
+enum class LoopClosureDetectorType {
+  BoW = 0u,  //! Bag of Words approach
+};
 
 enum class LCDStatus : int {
   LOOP_DETECTED,
@@ -46,22 +48,18 @@ enum class LCDStatus : int {
   FAILED_POSE_RECOVERY
 };
 
-enum class GeomVerifOption : int { NISTER, NONE };
-
-enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT };
-
 struct LCDFrame {
-  LCDFrame() {}
+  KIMERA_POINTER_TYPEDEFS(LCDFrame);
+  LCDFrame() = default;
+
   LCDFrame(const Timestamp& timestamp,
            const FrameId& id,
            const FrameId& id_kf,
            const std::vector<cv::KeyPoint>& keypoints,
-           const std::vector<gtsam::Vector3>& keypoints_3d,
+           const Landmarks& keypoints_3d,
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
-           const BearingVectors& versors,
-           const StatusKeypointsCV& left_keypoints_rectified,
-           const StatusKeypointsCV& right_keypoints_rectified)
+           const BearingVectors& bearing_vectors)
       : timestamp_(timestamp),
         id_(id),
         id_kf_(id_kf),
@@ -69,21 +67,66 @@ struct LCDFrame {
         keypoints_3d_(keypoints_3d),
         descriptors_vec_(descriptors_vec),
         descriptors_mat_(descriptors_mat),
-        versors_(versors),
-        left_keypoints_rectified_(left_keypoints_rectified),
-        right_keypoints_rectified_(right_keypoints_rectified) {}
+        bearing_vectors_(bearing_vectors) {}
+
+  virtual ~LCDFrame() = default;
+
+  virtual void save(std::ostream& buffer) const;
+
+  static LCDFrame::Ptr load(std::istream& buffer);
 
   Timestamp timestamp_;
   FrameId id_;
   FrameId id_kf_;
   std::vector<cv::KeyPoint> keypoints_;
-  std::vector<gtsam::Vector3> keypoints_3d_;
+  Landmarks keypoints_3d_;
   OrbDescriptorVec descriptors_vec_;
   OrbDescriptor descriptors_mat_;
-  BearingVectors versors_;
+  BearingVectors bearing_vectors_;
+
+ protected:
+  virtual void saveBytes(std::ostream& buffer) const;
+
+  virtual void loadBytes(std::istream& buffer);
+};
+
+struct StereoLCDFrame : LCDFrame {
+  KIMERA_POINTER_TYPEDEFS(StereoLCDFrame);
+  StereoLCDFrame() = default;
+
+  StereoLCDFrame(const Timestamp& timestamp,
+                 const FrameId& id,
+                 const FrameId& id_kf,
+                 const std::vector<cv::KeyPoint>& keypoints,
+                 const Landmarks& keypoints_3d,
+                 const OrbDescriptorVec& descriptors_vec,
+                 const OrbDescriptor& descriptors_mat,
+                 const BearingVectors& bearing_vectors,
+                 const StatusKeypointsCV& left_keypoints_rectified,
+                 const StatusKeypointsCV& right_keypoints_rectified)
+      : LCDFrame(timestamp,
+                 id,
+                 id_kf,
+                 keypoints,
+                 keypoints_3d,
+                 descriptors_vec,
+                 descriptors_mat,
+                 bearing_vectors),
+        left_keypoints_rectified_(left_keypoints_rectified),
+        right_keypoints_rectified_(right_keypoints_rectified) {}
+
+  virtual ~StereoLCDFrame() = default;
+
+  void save(std::ostream& buffer) const override;
+
   StatusKeypointsCV left_keypoints_rectified_;
   StatusKeypointsCV right_keypoints_rectified_;
-};  // struct LCDFrame
+
+ protected:
+  void saveBytes(std::ostream& buffer) const override;
+
+  void loadBytes(std::istream& buffer) override;
+};
 
 struct MatchIsland {
   MatchIsland()
@@ -174,7 +217,7 @@ struct LoopResult {
     return status_str;
   }
 
-  LCDStatus status_;
+  LCDStatus status_ = LCDStatus::NO_MATCHES;
   FrameId query_id_;
   FrameId match_id_;
   gtsam::Pose3 relative_pose_;
@@ -233,10 +276,12 @@ struct LcdInput : public PipelinePayload {
   LcdInput(const Timestamp& timestamp,
            const FrontendOutputPacketBase::Ptr& frontend_output,
            const FrameId& cur_kf_id,
+           const PointsWithIdMap& W_points_with_ids,
            const gtsam::Pose3& W_Pose_Blkf)
       : PipelinePayload(timestamp),
         frontend_output_(frontend_output),
         cur_kf_id_(cur_kf_id),
+        W_points_with_ids_(W_points_with_ids),
         W_Pose_Blkf_(W_Pose_Blkf) {
     CHECK(frontend_output);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
@@ -244,56 +289,8 @@ struct LcdInput : public PipelinePayload {
 
   const FrontendOutputPacketBase::Ptr frontend_output_;
   const FrameId cur_kf_id_;
+  const PointsWithIdMap W_points_with_ids_;
   const gtsam::Pose3 W_Pose_Blkf_;
-};
-
-struct LcdOutput : PipelinePayload {
-  KIMERA_POINTER_TYPEDEFS(LcdOutput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LcdOutput(bool is_loop_closure,
-            const Timestamp& timestamp_kf,
-            const Timestamp& timestamp_query,
-            const Timestamp& timestamp_match,
-            const FrameId& id_match,
-            const FrameId& id_recent,
-            const gtsam::Pose3& relative_pose,
-            const gtsam::Pose3& W_Pose_Map,
-            const gtsam::Values& states,
-            const gtsam::NonlinearFactorGraph& nfg)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(is_loop_closure),
-        timestamp_query_(timestamp_query),
-        timestamp_match_(timestamp_match),
-        id_match_(id_match),
-        id_recent_(id_recent),
-        relative_pose_(relative_pose),
-        W_Pose_Map_(W_Pose_Map),
-        states_(states),
-        nfg_(nfg) {}
-
-  LcdOutput(const Timestamp& timestamp_kf)
-      : PipelinePayload(timestamp_kf),
-        is_loop_closure_(false),
-        timestamp_query_(0),
-        timestamp_match_(0),
-        id_match_(0),
-        id_recent_(0),
-        relative_pose_(gtsam::Pose3::identity()),
-        W_Pose_Map_(gtsam::Pose3::identity()),
-        states_(gtsam::Values()),
-        nfg_(gtsam::NonlinearFactorGraph()) {}
-
-  // TODO(marcus): inlude stats/score of match
-  bool is_loop_closure_;
-  Timestamp timestamp_query_;
-  Timestamp timestamp_match_;
-  FrameId id_match_;
-  FrameId id_recent_;
-  gtsam::Pose3 relative_pose_;
-  gtsam::Pose3 W_Pose_Map_;
-  gtsam::Values states_;
-  gtsam::NonlinearFactorGraph nfg_;
 };
 
 }  // namespace VIO

@@ -28,15 +28,16 @@ class OpticalFlowPredictorFactory {
       Args&&... args) {
     switch (optical_flow_predictor_type) {
       case OpticalFlowPredictorType::kNoPrediction: {
-        return VIO::make_unique<NoOpticalFlowPredictor>();
+        return std::make_unique<NoOpticalFlowPredictor>();
       }
       case OpticalFlowPredictorType::kRotational: {
-        return VIO::make_unique<RotationalOpticalFlowPredictor>(
+        return std::make_unique<RotationalOpticalFlowPredictor>(
             std::forward<Args>(args)...);
       }
       default: {
         LOG(FATAL) << "Unknown OpticalFlowPredictorType: "
                    << static_cast<int>(optical_flow_predictor_type);
+        return nullptr;
       }
     }
   }
