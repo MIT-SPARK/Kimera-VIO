@@ -111,14 +111,14 @@ sudo make -j $(nproc) install
 
 Note that you can use `apt-get install libopencv-dev libopencv-contrib-dev` on 20.04 instead of building from source.
 
-Download OpenCV and run cmake:
+Download OpenCV and [opencv_contrib](https://github.com/opencv/opencv_contrib) and run cmake:
 ```bash
 git clone https://github.com/opencv/opencv.git
 cd opencv
 git checkout tags/4.2  # 3.4 or higher should be fine
 mkdir build
 cd build
-cmake -DWITH_VTK=On .. # Use -DWITH_TBB=On if you have TBB
+cmake -DOPENCV_EXTRA_MODULES_PATH=<path to opencv_contrib>/opencv_contrib/modules -DWITH_VTK=On .. # Use -DWITH_TBB=On if you have TBB
 ```
 
 Finally, build and install OpenCV:
@@ -142,7 +142,7 @@ sudo make -j $(nproc) install
 
 Finally, go to the OpenCV build folder and build and install OpenCV:
 ```bash
-cmake -DWITH_VTK=On .. # now VTK should be correctly detected, Use -DWITH_TBB=On if you have TBB
+cmake  -DOPENCV_EXTRA_MODULES_PATH=<path to opencv_contrib>/opencv_contrib/modules -DWITH_VTK=On .. # now VTK should be correctly detected, Use -DWITH_TBB=On if you have TBB
 sudo make -j $(nproc) install
 ```
 
