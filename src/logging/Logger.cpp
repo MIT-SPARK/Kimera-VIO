@@ -413,13 +413,30 @@ FrontendLogger::FrontendLogger()
       output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
   namespace fs = std::filesystem;
   const fs::path logger_dir(output_frontend_img_path_);
+  // Create parent directory.
   fs::create_directory(logger_dir);
-  fs::create_directory(logger_dir / "monoFeatureTracksLeftImg");
-  fs::create_directory(logger_dir / "monoTrackingUnrectifiedImg");
-  fs::create_directory(logger_dir / "monoTrackingRectifiedImg");
-  fs::create_directory(logger_dir / "stereoMatchingUnrectifiedImg");
-  fs::create_directory(logger_dir / "stereoMatchingRectifiedImg");
-  fs::create_directory(logger_dir / "rgbdDepthFeaturesImg");
+  // Initialise list of directory names to create
+  std::vector<std::string> sub_directories = {
+    "monoFeatureTracksLeftImg",
+    "monoTrackingUnrectifiedImg",
+    "monoTrackingRectifiedImg",
+    "stereoMatchingUnrectifiedImg",
+    "stereoMatchingRectifiedImg",
+    "rgbdDepthFeaturesImg"
+  };
+  // Loop through the directory names and create each directory if it doesn't exist.
+  for (const auto& sub_directory : sub_directories) {
+    std::string full_sub_dir_path = logger_dir / sub_directory;
+    if(fs::exists(full_sub_dir_path)){
+      // Iterate over the contents of the directory and remove each file.
+      for (const auto& entry : fs::directory_iterator(full_sub_dir_path)) {
+        fs::remove(entry);
+      }
+    }
+    else{
+      fs::create_directory(full_sub_dir_path);
+    }
+  }
 }
 
 void FrontendLogger::logFrontendStats(
