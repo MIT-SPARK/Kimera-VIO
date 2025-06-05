@@ -8,4 +8,5 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/PipelineParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/QueueSynchronizer.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoImuPipeline.h"
+  "${CMAKE_CURRENT_LIST_DIR}/GnssStereoImuPipeline.h"
 )

@@ -11,11 +11,16 @@
  * @brief  Pipeline Module that takes care of providing RBGD + IMU data to the
  * VIO pipeline.
  * @author Antoni Rosinol
+ * @author Elizaveta Karaseva
  */
 
+#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
+
+#include <memory>  // for make_unique
+#include <optional>
+#include <string>   // for string
 #include <utility>  // for move
 
-#include "kimera-vio/dataprovider/MonoDataProviderModule.h"
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
 
 namespace VIO {
@@ -117,7 +122,7 @@ MonoImuSyncPacket::UniquePtr MonoDataProviderModule::getMonoImuSyncPacket(
 
   //! Send synchronized left frame and IMU data.
   return std::make_unique<MonoImuSyncPacket>(
-      std::move(left_frame_payload), imu_meas.timestamps_, imu_meas.acc_gyr_);
+      std::move(left_frame_payload), imu_meas.timestamps_, imu_meas.acc_gyr_, std::nullopt);
 }
 
 Frame::UniquePtr MonoDataProviderModule::getLeftFramePayload() {

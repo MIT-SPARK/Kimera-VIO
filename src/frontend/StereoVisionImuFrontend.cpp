@@ -27,16 +27,16 @@ DECLARE_bool(do_fine_imu_camera_temporal_sync);
 namespace VIO {
 
 StereoVisionImuFrontend::StereoVisionImuFrontend(
-    const FrontendParams& frontend_params,
-    const ImuParams& imu_params,
-    const ImuBias& imu_initial_bias,
+  const ImuParams& imu_params,
+  const ImuBias& imu_initial_bias,
+  const FrontendParams& frontend_params,
     const StereoCamera::ConstPtr& stereo_camera,
     DisplayQueue* display_queue,
     bool log_output,
     std::optional<OdometryParams> odom_params)
-    : VisionImuFrontend(frontend_params,
-                        imu_params,
+    : VisionImuFrontend(imu_params,
                         imu_initial_bias,
+                        frontend_params,
                         display_queue,
                         log_output,
                         odom_params),

@@ -23,6 +23,13 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionImuFrontend.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.h"
+### GNSS
+  #"${CMAKE_CURRENT_LIST_DIR}/GnssVisionImuFrontendModule.h"
+  "${CMAKE_CURRENT_LIST_DIR}/GnssStereoVisionImuFrontend-definitions.h"
+  "${CMAKE_CURRENT_LIST_DIR}/GnssStereoVisionImuFrontend.h"
+  "${CMAKE_CURRENT_LIST_DIR}/Gnss.h"
+  "${CMAKE_CURRENT_LIST_DIR}/GnssStereoImuSyncPacket.h"
+  "${CMAKE_CURRENT_LIST_DIR}/GnssParams.h"
   "${CMAKE_CURRENT_LIST_DIR}/UndistorterRectifier.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontend-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/VisionImuFrontend.h"

@@ -56,23 +56,21 @@ struct StereoFrontendOutput : public FrontendOutputPacketBase {
 
   virtual ~StereoFrontendOutput() = default;
 
-  virtual const Frame* getTrackingFrame() const override {
+  const Frame* getTrackingFrame() const override {
     return &stereo_frame_lkf_.left_frame_;
   }
 
-  virtual const cv::Mat* getTrackingImage() const override {
-    return &feature_tracks_;
-  }
+  const cv::Mat* getTrackingImage() const override { return &feature_tracks_; }
 
-  virtual const gtsam::Pose3* getBodyPoseCam() const override {
+  const gtsam::Pose3* getBodyPoseCam() const override {
     return &b_Pose_camL_rect_;
   }
 
-  virtual const gtsam::Pose3* getBodyPoseCamRight() const override {
+  const gtsam::Pose3* getBodyPoseCamRight() const override {
     return &b_Pose_camR_rect_;
   }
 
-  virtual const TrackerStatusSummary* getTrackerStatus() const override {
+  const TrackerStatusSummary* getTrackerStatus() const override {
     return status_stereo_measurements_ ? &(status_stereo_measurements_->first)
                                        : nullptr;
   }

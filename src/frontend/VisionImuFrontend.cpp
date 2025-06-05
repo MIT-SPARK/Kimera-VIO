@@ -14,14 +14,19 @@
 
 #include "kimera-vio/frontend/VisionImuFrontend.h"
 
+#include <memory>   // for make_unique
+#include <string>   // for string
+#include <utility>  // for move
+#include <vector>   // for vector
+
 #include "kimera-vio/initial/CrossCorrTimeAligner.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 
 namespace VIO {
 
-VisionImuFrontend::VisionImuFrontend(const FrontendParams& frontend_params,
-                                     const ImuParams& imu_params,
+VisionImuFrontend::VisionImuFrontend(const ImuParams& imu_params,
                                      const ImuBias& imu_initial_bias,
+                                     const FrontendParams& frontend_params,
                                      DisplayQueue* display_queue,
                                      bool log_output,
                                      std::optional<OdometryParams> odom_params)

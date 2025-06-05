@@ -1,0 +1,22 @@
+%YAML:1.0
+# Type of VIO Frontend to use
+# 0: MonoImu
+# 1: StereoImu
+# 3: GnssStereoVio
+frontend_type: 3
+
+# Type of vioBackend to use:
+# 0: VioBackend
+# 1: RegularVioBackend
+# 2: GnssVioBackend
+backend_type: 2
+
+# Type of Displayer to use:
+# 0: OpenCV
+# 1: Pangolin
+display_type: 0
+
+# Run VIO parallel or sequential
+# 0: Sequential
+# 1: Parallel
+parallel_run: 1

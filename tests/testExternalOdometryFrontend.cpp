@@ -119,9 +119,9 @@ ImuParams makeFakeImuParams() {
 class MockVisionImuFrontend : public VisionImuFrontend {
  public:
   explicit MockVisionImuFrontend(const OdometryParams& params)
-      : VisionImuFrontend(FrontendParams(),
-                          makeFakeImuParams(),
+      : VisionImuFrontend(makeFakeImuParams(),
                           ImuBias(),
+                          FrontendParams(),
                           nullptr,
                           false,
                           params) {}

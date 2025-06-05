@@ -4,7 +4,7 @@
 backend_modality: 0
 
 #INITIALIZATION PARAMETERS
-autoInitialize: 0
+autoInitialize: 2
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
@@ -43,11 +43,11 @@ outlierRejection: 3
 retriangulationThreshold: 0.001
 
 ## Noise models ##
-smartNoiseSigma: 3.0
+smartNoiseSigma: 2.5
 monoNoiseSigma: 1.8
 monoNormType: 2
 monoNormParam: 4.6851
-stereoNoiseSigma: 1.8
+stereoNoiseSigma: 2.0
 stereoNormType: 2
 stereoNormParam: 4.6851
 regularityNoiseSigma: 0.03
@@ -62,10 +62,10 @@ betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 # OPTIMIZATION PARAMETERS #####################################################
 relinearizeThreshold: 0.01
 relinearizeSkip: 1
-zero_velocity_precision: 1000
-no_motion_position_precision: 1000
-no_motion_rotation_precision: 10000
-constant_vel_precision: 100
+zero_velocity_precision: 150
+no_motion_position_precision: 100
+no_motion_rotation_precision: 800
+constant_vel_precision: 50
 numOptimize: 1
 nr_states: 25 # number of nodes in horizon.
 # ISAM2GaussNewtonParams: continue updating the linear delta only when
@@ -91,3 +91,9 @@ useDogLeg: 0
 #   EXTERNAL_ODOM = 4
 pose_guess_source: 0
 mono_translation_scale_factor: 0.1
+
+# GNSS backend params
+initialGnssPoseSigma: 3.0
+gnssNoiseSigma: 1.5
+gnssNormType: 1
+gnssNormParam: 3.0

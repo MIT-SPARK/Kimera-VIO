@@ -67,6 +67,8 @@ class StereoDataProviderModule : public MonoDataProviderModule {
   //! The data synchronization function
   InputUniquePtr getInputPacket() override;
 
+  std::atomic_bool send_packet_ = {true};
+
   //! Called when general shutdown of PipelineModule is triggered.
   void shutdownQueues() override;
 

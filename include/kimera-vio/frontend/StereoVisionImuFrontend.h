@@ -17,6 +17,7 @@
 #include <opencv2/highgui/highgui_c.h>
 
 #include <atomic>
+#include <boost/shared_ptr.hpp>  // used for opengv
 #include <memory>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -45,15 +46,13 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  StereoVisionImuFrontend(
-      const FrontendParams& params,
-      const ImuParams& imu_params,
-      const ImuBias& imu_initial_bias,
-      const StereoCamera::ConstPtr& stereo_camera,
-      DisplayQueue* display_queue = nullptr,
-      bool log_output = false,
-      std::optional<OdometryParams> odom_params = std::nullopt);
-
+  StereoVisionImuFrontend(const ImuParams& imu_params,
+                          const ImuBias& imu_initial_bias,
+                          const FrontendParams& tracker_params,
+                          const StereoCamera::ConstPtr& stereo_camera,
+                          DisplayQueue* display_queue = nullptr,
+                          bool log_output = false,
+                          std::optional<OdometryParams> odom_params = std::nullopt);
   virtual ~StereoVisionImuFrontend();
 
  public:
@@ -79,6 +78,7 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
   // Frontend initialization.
   void processFirstStereoFrame(const StereoFrame& firstFrame);
 
+ public:
   /**
    * @brief bootstrapSpin SpinOnce used when initializing the Frontend.
    * @param input
@@ -107,6 +107,7 @@ class StereoVisionImuFrontend : public VisionImuFrontend {
         castUnique<StereoFrontendInputPayload>(std::move(input)));
   }
 
+ private:
   /* ------------------------------------------------------------------------ */
   // Used when initializing the Frontend, operates on Stereo Frontend-specific
   // structures.

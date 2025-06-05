@@ -9,7 +9,7 @@
 /**
  * @file   ImuFrontend.h
  * @brief  Class managing sequences of IMU measurements.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone, Elizaveta Karaseva
  */
 
 #pragma once
@@ -23,6 +23,7 @@
 
 #include <Eigen/Dense>
 #include <map>
+#include <memory>  // for unique_ptr
 #include <mutex>
 #include <string>
 #include <thread>
@@ -32,9 +33,24 @@
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontendParams.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/utils/ThreadsafeGnssBuffer.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
 namespace VIO {
+
+class GnssData {
+ public:
+  KIMERA_POINTER_TYPEDEFS(GnssData);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(GnssData);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Imu buffer with virtually infinite memory.
+  GnssData() : gnss_buffer_(-1) {}
+  double aaaaa;
+
+  // Gnss data.
+  utils::ThreadsafeGnssBuffer gnss_buffer_;
+};
 
 class ImuData {
  public:

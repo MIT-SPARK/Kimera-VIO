@@ -73,6 +73,11 @@ class VisionImuFrontendModule
     vio_frontend_->registerImuTimeShiftUpdateCallback(callback);
   }
 
+  inline void registerGnssTimeShiftUpdateCallback(
+      const VisionImuFrontend::GnssTimeShiftCallback& callback) {
+    vio_frontend_->registerGnssTimeShiftUpdateCallback(callback);
+  }
+
  private:
   VisionImuFrontend::UniquePtr vio_frontend_;
 };

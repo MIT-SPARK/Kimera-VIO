@@ -18,4 +18,7 @@ target_sources(kimera_vio
     "${CMAKE_CURRENT_LIST_DIR}/UtilsNumerical.h"
     "${CMAKE_CURRENT_LIST_DIR}/YamlParser.h"
     "${CMAKE_CURRENT_LIST_DIR}/FilesystemUtils.h"
+### GNSS
+    "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeGnssBuffer.h"
+    "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeGnssBuffer-inl.h"
 )

@@ -365,7 +365,7 @@ TEST_F(StereoVisionImuFrontendFixture, getSmartStereoMeasurements) {
       std::make_shared<StereoCamera>(cam_params_left_, cam_params_right_);
 
   StereoVisionImuFrontend st(
-      FrontendParams(), imu_params_, ImuBias(), stereo_camera);
+      imu_params_, ImuBias(), FrontendParams(), stereo_camera);
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -518,7 +518,7 @@ TEST_F(StereoVisionImuFrontendFixture, processFirstFrame) {
   StereoCamera::ConstPtr stereo_camera =
       std::make_shared<StereoCamera>(cam_params_left, cam_params_right);
 
-  StereoVisionImuFrontend st(p, imu_params_, ImuBias(), stereo_camera);
+  StereoVisionImuFrontend st(imu_params_, ImuBias(), p, stereo_camera);
 
   EXPECT_FALSE(st.isInitialized());
   ImuStampS fake_imu_stamps;
@@ -724,7 +724,7 @@ TEST_F(StereoVisionImuFrontendFixture, testDisparityCheck) {
   auto stereo_camera =
       std::make_shared<StereoCamera>(cam_params_left, cam_params_right);
 
-  StereoVisionImuFrontend st(p, imu_params_, ImuBias(), stereo_camera);
+  StereoVisionImuFrontend st(imu_params_, ImuBias(), p, stereo_camera);
 
   EXPECT_FALSE(st.isInitialized());
   ImuStampS zeroth_imu_stamps(1, 3);
@@ -978,7 +978,7 @@ TEST_F(StereoVisionImuFrontendFixture, testLostFeatureTrack) {
   StereoCamera::ConstPtr stereo_camera =
       std::make_shared<StereoCamera>(cam_params_left, cam_params_right);
 
-  StereoVisionImuFrontend st(p, imu_params_, ImuBias(), stereo_camera);
+  StereoVisionImuFrontend st(imu_params_, ImuBias(), p, stereo_camera);
 
   EXPECT_FALSE(st.isInitialized());
   ImuStampS zeroth_imu_stamps(1, 3);

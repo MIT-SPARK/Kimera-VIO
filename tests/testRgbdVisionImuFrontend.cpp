@@ -139,7 +139,7 @@ class RgbdVisionImuFrontendFixture : public ::testing::Test {
 
 TEST_F(RgbdVisionImuFrontendFixture, fillSmartStereoMeasurements) {
   RgbdVisionImuFrontend frontend(
-      FrontendParams(), imu_params, ImuBias(), camera);
+      imu_params, ImuBias(), FrontendParams(), camera);
 
   // Parameters for the synthesis!
   const int num_valid = 12;

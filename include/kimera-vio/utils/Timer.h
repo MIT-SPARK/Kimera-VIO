@@ -8,17 +8,17 @@ namespace utils {
 
 class Timer {
  public:
-  static std::chrono::high_resolution_clock::time_point tic() {
-    return std::chrono::high_resolution_clock::now();
+  static std::chrono::steady_clock::time_point tic() {
+    return std::chrono::steady_clock::now();
   }
 
   // Stop timer and report duration in given time.
   // Returns duration in milliseconds by default.
   // call .count() on returned duration to have number of ticks.
   template <typename T = std::chrono::milliseconds>
-  static T toc(const std::chrono::high_resolution_clock::time_point& start) {
+  static T toc(const std::chrono::steady_clock::time_point& start) {
     return std::chrono::duration_cast<T>(
-        std::chrono::high_resolution_clock::now() - start);
+        std::chrono::steady_clock::now() - start);
   }
 };
 

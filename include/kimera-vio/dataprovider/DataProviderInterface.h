@@ -22,6 +22,7 @@
 #include "kimera-vio/frontend/DepthFrame.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/frontend/Gnss.h"
 
 namespace VIO {
 
@@ -37,6 +38,7 @@ class DataProviderInterface {
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
   typedef std::function<void(DepthFrame::UniquePtr)> DepthFrameInputCallback;
   typedef std::function<void(const ExternalOdomMeasurement&)> ExternalOdomInputCallback;
+  typedef std::function<void(const GnssMeasurement&)> GnssInputCallback;
 
   DataProviderInterface() = default;
   virtual ~DataProviderInterface();
@@ -90,6 +92,10 @@ class DataProviderInterface {
       const ExternalOdomInputCallback& callback) {
     external_odom_callback_ = callback;
   }
+  inline void registerGnssCallback(
+      const GnssInputCallback& callback) {
+    gnss_callback_ = callback;
+  }
 
  protected:
   // Vio callbacks. These functions should be called once data is available for
@@ -100,6 +106,7 @@ class DataProviderInterface {
   FrameInputCallback right_frame_callback_;
   DepthFrameInputCallback depth_frame_callback_;
   ExternalOdomInputCallback external_odom_callback_;
+  GnssInputCallback gnss_callback_;
 
   // Shutdown switch to stop data provider.
   std::atomic_bool shutdown_ = {false};

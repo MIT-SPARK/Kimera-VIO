@@ -16,20 +16,20 @@
 
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 
-#include <algorithm>  // for max
-#include <fstream>
-#include <map>
-#include <string>
-#include <utility>  // for pair<>
-#include <vector>
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <gflags/gflags.h>
-
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
+
+#include <algorithm>  // for max
+#include <fstream>
+#include <limits>  // for numeric_limits
+#include <map>
+#include <memory>  // for make_unique
+#include <string>
+#include <utility>  // for pair<>
+#include <vector>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontend-definitions.h"

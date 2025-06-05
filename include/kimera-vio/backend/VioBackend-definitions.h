@@ -10,6 +10,7 @@
  * @file   VioBackend-definitions.h
  * @brief  Definitions for VioBackend.
  * @author Antoni Rosinol
+ * @author Elizaveta Karaseva
  */
 
 #pragma once
@@ -20,6 +21,11 @@
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
+#include <cstdint>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "kimera-vio/common/VioNavState.h"
@@ -62,7 +68,8 @@ using SmartStereoFactor = gtsam::SmartStereoProjectionPoseFactor;
 using SmartFactorParams = gtsam::SmartStereoProjectionParams;
 using LandmarkIdSmartFactorMap =
     std::unordered_map<LandmarkId, SmartStereoFactor::shared_ptr>;
-using Slot = long int;
+// using Slot = long int;
+using Slot = std::int64_t;
 using SmartFactorMap =
     gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
@@ -238,23 +245,25 @@ struct BackendInput : public PipelinePayload {
       const ImuAccGyrS& imu_acc_gyrs,
       std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf = std::nullopt,
       std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf =
-          std::nullopt)
+          std::nullopt,
+      std::optional<GnssPoint> gnss_point = std::nullopt)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         pim_(pim),
         imu_acc_gyrs_(imu_acc_gyrs),
         body_lkf_OdomPose_body_kf_(body_lkf_OdomPose_body_kf),
-        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf) {}
+        body_kf_world_OdomVel_body_kf_(body_kf_world_OdomVel_body_kf),
+        gnss_point_(gnss_point) {}
 
  public:
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
   ImuFrontend::PimPtr pim_;
   ImuAccGyrS imu_acc_gyrs_;
-  // between pose from last keyframe to current according to external odometry
   std::optional<gtsam::Pose3> body_lkf_OdomPose_body_kf_;
-  // velocity of the current keyframe body w.r.t. the world frame in the body
   // frame
   std::optional<gtsam::Velocity3> body_kf_world_OdomVel_body_kf_;
+
+  std::optional<GnssPoint> gnss_point_;
 
  public:
   void print() const {
@@ -346,7 +355,12 @@ struct BackendOutput : public PipelinePayload {
  *  - kStereoImu: vanilla Backend type using Stereo and IMU
  *  - kStructuralRegularities: the `regular VIO` Backend, using structural
  * regularities derived from the 3D Mesh.
+ * - kGnssStructuralRegularities: based on `regular vio`, using GNSS factors
  */
-enum class BackendType { kStereoImu = 0, kStructuralRegularities = 1 };
+enum class BackendType {
+  kStereoImu = 0,
+  kStructuralRegularities = 1,
+  kGnssStructuralRegularities = 2
+};
 
 }  // namespace VIO

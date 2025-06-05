@@ -16,10 +16,13 @@
 
 #include <gflags/gflags.h>
 
+#include <string>  // for string
+
 #include "kimera-vio/backend/RegularVioBackendParams.h"
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
 #include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/frontend/GnssParams.h"
 #include "kimera-vio/frontend/OdometryParams.h"
 #include "kimera-vio/frontend/VisionImuFrontend-definitions.h"
 #include "kimera-vio/frontend/VisionImuFrontendParams.h"
@@ -80,18 +83,18 @@ struct VioParams : public PipelineParams {
    * ```
    * where folder_path is the path to the folder containing all the YAML params.
    *
-   * @param imu_params_filepath IMU params YAML file path.
-   * @param left_camera_params_filepath  Left Camera params YAML file path.
-   * @param right_camera_params_filepath Right Camera params YAML file path.
-   * @param frontend_params_filepath Frontend params YAML file path.
-   * @param backend_params_filepath Backend params YAML file path.
-   * @param lcd_params_filepath Loop closure params YAML file path.
-   * @param display_params_filepath Display params YAML file path.
-   * @param pipeline_params_filepath Pipeline params YAML file path.
-   * @param odom_params_filepath External odometry params file path
-   * @param should_parse Whether or not to attempt to read from the YAML files
+   * @param params_folder_path A path to the folder containing YAML files below.
+   * @param pipeline_params_filepath Pipeline params YAML file name.
+   * @param imu_params_filepath IMU params YAML file name.
+   * @param left_camera_params_filepath  Left Camera params YAML file name.
+   * @param right_camera_params_filepath Right Camera params YAML file name.
+   * @param frontend_params_filepath Frontend params YAML file name.
+   * @param backend_params_filepath Backend params YAML file name.
+   * @param lcd_params_filepath Loop closure params YAML file name.
+   * @param display_params_filepath Display params YAML file name.
    */
-  VioParams(const std::string& pipeline_params_filepath,
+  VioParams(const std::string& params_folder_path,
+            const std::string& pipeline_params_filepath,
             const std::string& imu_params_filepath,
             const std::string& left_cam_params_filepath,
             const std::string& right_cam_params_filepath,
@@ -99,9 +102,7 @@ struct VioParams : public PipelineParams {
             const std::string& backend_params_filepath,
             const std::string& lcd_params_filepath,
             const std::string& display_params_filepath,
-            const std::string& odom_params_filepath = "",
-            bool should_parse = true);
-
+            const std::string& gnss_params_filepath);
   virtual ~VioParams() = default;
 
   /**
@@ -112,7 +113,7 @@ struct VioParams : public PipelineParams {
    * - BackendParams
    * - LcdParams
    * - DisplayParams
-   * - ExternalOdometryParams
+   * - GnssParams
    *
    * @return true if all parsing went ok.
    */
@@ -132,6 +133,7 @@ struct VioParams : public PipelineParams {
   static constexpr char kBackendFilename[] = "BackendParams.yaml";
   static constexpr char kLcdFilename[] = "LcdParams.yaml";
   static constexpr char kDisplayFilename[] = "DisplayParams.yaml";
+  static constexpr char kGnssFilename[] = "GnssParams.yaml";
   static constexpr char kOdometryFilename[] = "ExternalOdometryParams.yaml";
 
   // The actual VIO parameters:
@@ -144,6 +146,7 @@ struct VioParams : public PipelineParams {
   //!  so that any changes to this pointer will affect both.
   BackendParams::Ptr backend_params_;
   LoopClosureDetectorParams lcd_params_;
+  GnssParams gnss_params_;
   DisplayParams::Ptr display_params_;
   //! General Pipeline parameters
   FrontendType frontend_type_;
@@ -151,6 +154,7 @@ struct VioParams : public PipelineParams {
   DisplayType display_type_;
   std::optional<OdometryParams> odom_params_;
   bool parallel_run_;
+
 
  protected:
   //! Helper function to parse camera params.
@@ -167,7 +171,8 @@ struct VioParams : public PipelineParams {
            display_type_ == rhs.display_type_ &&
            lcd_params_ == rhs.lcd_params_ &&
            display_params_ == rhs.display_params_ &&
-           parallel_run_ == rhs.parallel_run_;
+           parallel_run_ == rhs.parallel_run_ &&
+           gnss_params_ == rhs.gnss_params_;
   }
 
   //! Names of the YAML files with the parameters.
@@ -179,7 +184,7 @@ struct VioParams : public PipelineParams {
   std::string backend_params_filepath_;
   std::string lcd_params_filepath_;
   std::string display_params_filepath_;
-  std::string odom_params_filepath_;
+  std::string gnss_params_filepath_;
 };
 
 //! Callback called when the VIO pipeline has shut down.

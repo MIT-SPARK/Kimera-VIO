@@ -46,8 +46,12 @@
 
 #include <fstream>
 #include <iostream>
+#include <map>  // for map<>
 #include <memory>
+#include <string>  // for string
 #include <unordered_map>
+#include <utility>  // for pair<>
+#include <vector>   // for vector<>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
 #include "kimera-vio/backend/VioBackendParams.h"
@@ -151,6 +155,10 @@ class VioBackend {
         initializeFromIMU(input);
         break;
       }
+      case 2: {
+        initializeFromGnss(input);
+        break;
+      }
       default: {
         LOG(FATAL) << "Wrong initialization mode.";
       }
@@ -166,8 +174,27 @@ class VioBackend {
     CHECK(!backend_params_.initial_ground_truth_state_.equals(VioNavState()))
         << "Requested initialization from Ground-Truth pose but got an "
            "identity pose: did you parse your ground-truth correctly?";
+    VioNavState initial_gt = backend_params_.initial_ground_truth_state_;
     return initStateAndSetPriors(VioNavStateTimestamped(
         input.timestamp_, backend_params_.initial_ground_truth_state_));
+  }
+
+  bool initializeFromGnss(const BackendInput& input) {
+    // If the gtNavState is identity, the params provider probably did a
+    // mistake, although it can happen that the ground truth initial pose is
+    // identity, but this is super unlikely
+    CHECK(!backend_params_.initial_ground_truth_state_.equals(VioNavState()))
+        << "Requested initialization from GNSS but got an "
+           "identity pose: did you parse your ground-truth correctly?";
+    VioNavState initial_gt = backend_params_.initial_ground_truth_state_;
+    if (input.gnss_point_.has_value()) {
+      const Eigen::Matrix<double, 3, 1>& gt_eig = *input.gnss_point_;
+      gtsam::Point3 gnss_t(gt_eig(0), gt_eig(1), gt_eig(2));
+      const gtsam::Rot3& R = initial_gt.pose_.rotation();
+      initial_gt.pose_ = gtsam::Pose3(R, gnss_t);
+    }
+    return initStateAndSetPriors(
+        VioNavStateTimestamped(input.timestamp_, std::move(initial_gt)));
   }
 
   /**
@@ -220,7 +247,8 @@ class VioBackend {
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegrationType& pim,
       std::optional<gtsam::Pose3> odometry_body_pose = std::nullopt,
-      std::optional<gtsam::Velocity3> odometry_vel = std::nullopt);
+      std::optional<gtsam::Velocity3> odometry_vel = std::nullopt,
+      std::optional<GnssPoint> gnss_point = std::nullopt);
 
   // Uses landmark table to add factors in graph.
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
@@ -421,8 +449,8 @@ class VioBackend {
 
   // Debugging post optimization and estimate calculation.
   void postDebug(
-      const std::chrono::high_resolution_clock::time_point& total_start_time,
-      const std::chrono::high_resolution_clock::time_point& start_time);
+      const std::chrono::steady_clock::time_point& total_start_time,
+      const std::chrono::steady_clock::time_point& start_time);
 
   // Reset state of debug info.
   void resetDebugInfo(DebugVioInfo* debug_info);

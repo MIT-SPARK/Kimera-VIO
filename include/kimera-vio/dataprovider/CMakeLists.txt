@@ -7,4 +7,7 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/DataProviderInterface.h"
   "${CMAKE_CURRENT_LIST_DIR}/EurocDataProvider.h"
   # "${CMAKE_CURRENT_LIST_DIR}/KittiDataProvider.h"
+### GNSS
+  "${CMAKE_CURRENT_LIST_DIR}/GNSSVIODataProvider"
+  "${CMAKE_CURRENT_LIST_DIR}/GnssStereoDataProviderModule.h"
   )

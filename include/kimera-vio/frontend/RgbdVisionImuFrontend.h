@@ -31,9 +31,9 @@ class RgbdVisionImuFrontend : public VisionImuFrontend {
 
  public:
   RgbdVisionImuFrontend(
-      const FrontendParams& frontend_params,
       const ImuParams& imu_params,
       const ImuBias& imu_initial_bias,
+      const FrontendParams& frontend_params,
       const RgbdCamera::ConstPtr& camera,
       DisplayQueue* display_queue = nullptr,
       bool log_output = false,

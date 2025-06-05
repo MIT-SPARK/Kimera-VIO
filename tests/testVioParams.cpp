@@ -67,7 +67,7 @@ class VioParamsFixture : public ::testing::Test {
 };
 
 TEST_F(VioParamsFixture, defaultConstructorWithoutParsing) {
-  VioParams vio_params ("");
+  VioParams vio_params("");
 
   // Check that it matches all default ctors!
 
@@ -109,16 +109,17 @@ TEST_F(VioParamsFixture, defaultConstructorWithParsing) {
 
 TEST_F(VioParamsFixture, explicitConstructorCorrect) {
   // Use vio params parser
-  VioParams vio_params(FLAGS_test_data_path + "/EurocParams/" + VioParams::kPipelineFilename,
-                       FLAGS_test_data_path + "/AlternateTestParams/" + VioParams::kImuFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kLeftCameraFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kRightCameraFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kFrontendFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kBackendFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kLcdFilename,
-                       FLAGS_test_data_path + "/EurocParams/" + VioParams::kDisplayFilename,
-                       "",
-                       true);
+  VioParams vio_params(
+      FLAGS_test_data_path + "/EurocParams",
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kPipelineFilename,
+      FLAGS_test_data_path + "/AlternateTestParams/" + VioParams::kImuFilename,
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kLeftCameraFilename,
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kRightCameraFilename,
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kFrontendFilename,
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kBackendFilename,
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kLcdFilename,
+      FLAGS_test_data_path + "/EurocParams/" + VioParams::kDisplayFilename,
+      "");
 
   // Parse yourself
   parseParamsManually();

@@ -34,6 +34,7 @@
 
 #include <limits>  // for numeric_limits<>
 #include <map>
+#include <memory>  // for make_unique<>
 #include <string>
 #include <utility>  // for make_pair
 #include <vector>
@@ -298,7 +299,8 @@ bool VioBackend::addVisualInertialStateAndOptimize(
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
     std::optional<gtsam::Pose3> odometry_body_pose,
-    std::optional<gtsam::Velocity3> odometry_vel) {
+    std::optional<gtsam::Velocity3> odometry_vel,
+    std::optional<GnssPoint> gnss_point) {
   debug_info_.resetAddedFactorsStatistics();
 
   // Features and IMU line up --> do iSAM update
@@ -436,7 +438,8 @@ bool VioBackend::addVisualInertialStateAndOptimize(const BackendInput& input) {
       *input.status_stereo_measurements_kf_,  // Vision data.
       *input.pim_,                            // Imu preintegrated data.
       input.body_lkf_OdomPose_body_kf_,
-      input.body_kf_world_OdomVel_body_kf_);
+      input.body_kf_world_OdomVel_body_kf_,
+      input.gnss_point_);
   // Bookkeeping
   timestamp_lkf_ = input.timestamp_;
   return is_smoother_ok;
@@ -1989,7 +1992,7 @@ void VioBackend::printSmootherInfo(
     new_values_.print("new values:\n");
     // LOG(INFO) << "new_smart_factors_: "  << std::endl;
     // for (auto& s : new_smart_factors_)
-    //	s.second->print();
+    //  s.second->print();
   }
 
   LOG(INFO) << " =============== END: " << message << " =============== ";
@@ -2147,8 +2150,8 @@ void VioBackend::computeSparsityStatistics() {
 
 // Debugging post optimization and estimate calculation.
 void VioBackend::postDebug(
-    const std::chrono::high_resolution_clock::time_point& total_start_time,
-    const std::chrono::high_resolution_clock::time_point& start_time) {
+    const std::chrono::steady_clock::time_point& total_start_time,
+    const std::chrono::steady_clock::time_point& start_time) {
   if (log_output_) {
     computeSparsityStatistics();
     computeSmartFactorStatistics();

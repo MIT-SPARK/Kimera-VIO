@@ -170,6 +170,9 @@ add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
 
+add_executable(GnssStereoVIO ./examples/GnssStereoVIO.cpp)
+target_link_libraries(GnssStereoVIO PUBLIC kimera_vio::kimera_vio)
+
 ############################### TESTS ##########################################
 ### Add testing
 option(KIMERA_BUILD_TESTS "Build tests" ON)
@@ -269,6 +272,12 @@ if(KIMERA_BUILD_TESTS)
     tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     tests/testOpticalFlowPredictor.cpp
+    ### GNSS
+    tests/testGnssParams.cpp
+    tests/testGnssStereoImuPipeline.cpp
+    tests/testGnssStereoProvider.cpp
+    tests/testThreadsafeGnssBuffer.cpp
+    tests/testGnssFactor.cpp
   )
   target_include_directories(testKimeraVIO PUBLIC tests/include)
   target_link_libraries(testKimeraVIO gtest gmock kimera_vio::kimera_vio)

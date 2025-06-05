@@ -11,11 +11,16 @@
  * @brief  Pipeline Module that takes care of providing data to the VIO
  * pipeline.
  * @author Antoni Rosinol
+ * @author Elizaveta Karaseva
  */
 
 #include "kimera-vio/dataprovider/StereoDataProviderModule.h"
 
 #include <glog/logging.h>
+
+#include <memory>   // for make_unique
+#include <string>   // for string
+#include <utility>  // for move
 
 #include "kimera-vio/frontend/MonoImuSyncPacket.h"
 
@@ -60,16 +65,20 @@ StereoDataProviderModule::getInputPacket() {
   timestamp_last_frame_ = timestamp;
 
   if (!shutdown_) {
-    CHECK(vio_pipeline_callback_);
-    vio_pipeline_callback_(std::make_unique<StereoImuSyncPacket>(
+    auto packet = std::make_unique<StereoImuSyncPacket>(
         StereoFrame(left_frame_id,
                     timestamp,
                     *mono_imu_sync_packet->frame_,  // this copies...
                     *right_frame_payload),          // this copies...
         // be given in PipelineParams.
         mono_imu_sync_packet->imu_stamps_,
-        mono_imu_sync_packet->imu_accgyrs_,
-        mono_imu_sync_packet->world_NavState_ext_odom_));
+        mono_imu_sync_packet->imu_accgyrs_);
+    if (send_packet_) {
+      CHECK(vio_pipeline_callback_);
+      vio_pipeline_callback_(std::move(packet));
+    } else {
+      return packet;
+    }
   }
 
   // Push the synced messages to the Frontend's input queue

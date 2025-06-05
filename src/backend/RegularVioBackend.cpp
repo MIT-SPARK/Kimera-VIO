@@ -25,6 +25,10 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
+#include <map>      // for map
+#include <utility>  // for pair
+#include <vector>   // for vector
+
 #include "kimera-vio/factors/PointPlaneFactor.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 
@@ -112,8 +116,6 @@ RegularVioBackend::RegularVioBackend(
                  log_output,
                  odom_params),
       regular_vio_params_(RegularVioBackendParams::safeCast(backend_params)) {
-  LOG(INFO) << "Using Regular VIO Backend.\n";
-
   // Set type of mono_noise_ for generic projection factors.
   gtsam::SharedNoiseModel gaussian_dim_2 = gtsam::noiseModel::Isotropic::Sigma(
       2, regular_vio_params_.monoNoiseSigma_);
@@ -152,7 +154,8 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegrationType& pim,
     std::optional<gtsam::Pose3> odometry_body_pose,
-    std::optional<gtsam::Velocity3> odometry_vel) {
+    std::optional<gtsam::Velocity3> odometry_vel,
+    std::optional<GnssPoint> gnss_point) {
   debug_info_.resetAddedFactorsStatistics();
 
   // Features and IMU line up --> do iSAM update.
@@ -277,8 +280,8 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
             break;
           }
         }
-        VLOG(10) << "Finished extracting lmk ids from set of planes, total of "
-                 << lmk_ids_with_regularity.size()
+        VLOG(10) << "Finished extracting lmk ids from "
+                 << "set of planes, total of " << lmk_ids_with_regularity.size()
                  << " lmks with regularities.";
 
         // We add features in VIO.
@@ -372,6 +375,11 @@ bool RegularVioBackend::addVisualInertialStateAndOptimize(
         << "(not provided by typical odometry sensors)";
     addVelocityPrior(
         curr_kf_id_, *odometry_vel, odom_params_->velocityPrecision_);
+  }
+
+  if (gnss_point.has_value()) {
+    const gtsam::Symbol pose_key(kPoseSymbolChar, curr_kf_id_);
+    this->beforeOptimizeHook(timestamp_kf_nsec, gnss_point);
   }
 
   /////////////////// OPTIMIZE /////////////////////////////////////////////////

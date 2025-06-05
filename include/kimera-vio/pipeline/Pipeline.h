@@ -21,7 +21,9 @@
 #include <atomic>
 #include <cstdlib>  // for srand()
 #include <memory>
+#include <string>  // for string
 #include <thread>
+#include <utility>  // for move
 #include <vector>
 
 #include "kimera-vio/backend/VioBackend-definitions.h"
@@ -55,7 +57,7 @@ class Pipeline {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  Pipeline(const VioParams& params);
+  explicit Pipeline(const VioParams& params);
 
   virtual ~Pipeline();
 
@@ -88,6 +90,11 @@ class Pipeline {
       const ExternalOdomMeasurement& odom_measurement) {
     CHECK(data_provider_module_);
     data_provider_module_->fillExternalOdometryQueue(odom_measurement);
+  }
+
+  inline void fillGnssQueue(const GnssMeasurement& gnss_measurement) {
+    CHECK(data_provider_module_);
+    data_provider_module_->fillGnssQueue(gnss_measurement);
   }
 
   inline LcdModule* getLcdModule() const { return lcd_module_.get(); }
