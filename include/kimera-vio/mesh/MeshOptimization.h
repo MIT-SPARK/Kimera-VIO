@@ -21,6 +21,7 @@
 #include <Eigen/Core>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/viz.hpp>
 
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Pose3.h>
