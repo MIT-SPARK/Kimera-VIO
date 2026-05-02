@@ -15,6 +15,7 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/viz.hpp>
 
 #include "kimera-vio/pipeline/Pipeline-definitions.h"  // Needed for shutdown cb
 #include "kimera-vio/utils/Macros.h"
