@@ -22,6 +22,7 @@
 
 #include <Eigen/Core>
 #include <opencv2/opencv.hpp>
+#include <opencv2/viz.hpp>
 #include <string>
 #include <vector>
 

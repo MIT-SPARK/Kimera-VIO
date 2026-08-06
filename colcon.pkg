@@ -1,0 +1,3 @@
+{
+  "cmake-args": ["-DKIMERA_BUILD_TESTS=OFF"]
+}

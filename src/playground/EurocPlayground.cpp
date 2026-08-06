@@ -1,5 +1,7 @@
 #include "kimera-vio/playground/EurocPlayground.h"
 
+#include <opencv2/viz.hpp>
+
 #include "kimera-vio/mesh/MeshUtils.h"
 #include "kimera-vio/visualizer/OpenCvDisplay.h"
 #include "kimera-vio/visualizer/OpenCvDisplayParams.h"

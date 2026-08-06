@@ -15,7 +15,9 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
+#include <vector>
 
 namespace VIO {
 
