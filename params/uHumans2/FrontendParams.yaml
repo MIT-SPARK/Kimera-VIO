@@ -52,6 +52,9 @@ zero_zone: -1
 subpixelRefinementStereo: 0
 useSuccessProbabilities: 1
 useRANSAC: 1
+# PnP tracking triggers heap corruption in vendored opengv Epnp on
+# gcc13/eigen-3.4 (see workspace notes); disabled until fixed upstream.
+use_pnp_tracking: 0
 minNrMonoInliers: 10
 minNrStereoInliers: 5
 ransac_threshold_mono: 1e-06
