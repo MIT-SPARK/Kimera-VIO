@@ -1,7 +1,7 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.1
+alpha: 0.5  # retuned from 0.1: online lcd over-accepted loops (256 on V1_01)
 min_temporal_matches: 3
 recent_frames_window: 60
 max_db_results: 50
@@ -13,7 +13,7 @@ max_nrFrames_between_queries: 2
 
 refine_pose: 1
 
-lowe_ratio: 0.9
+lowe_ratio: 0.7  # retuned from 0.9, see alpha
 matcher_type: 3
 
 nfeatures: 1000
