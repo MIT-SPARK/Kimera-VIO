@@ -1,0 +1,92 @@
+%YAML:1.0
+# Backend modality for regular VIO
+# 0: Structureless factors only, 4: SPR pipeline
+backend_modality: 0
+#INITIALIZATION PARAMETERS
+autoInitialize: 0
+roundOnAutoInitialize: 0
+initialPositionSigma: 1e-05
+initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
+initialYawSigma: 0.00174533 # 0.1/180.0*M_PI
+initialVelocitySigma: 0.001
+initialAccBiasSigma: 0.1
+initialGyroBiasSigma: 0.01
+
+# VISION PARAMETERS ###########################################################
+## Smart Factors ##
+#
+# How to linearize the factor:
+# 0: Hessian, 1: Implicit Schur, 2:Jacobian_Q, 3:Jacobian_SVD
+linearizationMode: 0
+# How to manage degeneracy
+# 0: Ignore degeneracy, 1: Zero on degeneracy, 2: handle infinity
+degeneracyMode: 1
+# rankTolerance: threshold to decide whether triangulation is result.degenerate
+# (the rank is the number of singular values of the triangulation matrix which
+# are larger than rankTolerance)
+rankTolerance: 1
+# /** landmarkDistanceThreshold
+#   * if the landmark is triangulated at distance larger than this,
+#   * result is flagged as degenerate.
+#   */
+landmarkDistanceThreshold: 10
+
+# DynamicOutlierRejection:
+#  /**
+#   * If this is nonnegative the we will check if the average reprojection error
+#   * is smaller than this threshold after triangulation, otherwise result is
+#   * flagged as degenerate.
+#   */
+outlierRejection: 3
+# ///< threshold to decide whether to re-triangulate
+retriangulationThreshold: 0.001
+
+## Noise models ##
+smartNoiseSigma: 3.0
+monoNoiseSigma: 1.8
+monoNormType: 2
+monoNormParam: 4.6851
+stereoNoiseSigma: 1.8
+stereoNormType: 2
+stereoNormParam: 4.6851
+regularityNoiseSigma: 0.03
+regularityNormType: 1
+regularityNormParam: 0.04
+
+## Between Stereo Factors ##
+addBetweenStereoFactors: 1
+betweenRotationPrecision: 0 # Inverse of variance.
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
+
+# OPTIMIZATION PARAMETERS #####################################################
+relinearizeThreshold: 0.01
+relinearizeSkip: 1
+zero_velocity_precision: 1000
+no_motion_position_precision: 1000
+no_motion_rotation_precision: 10000
+constant_vel_precision: 100
+numOptimize: 1
+nr_states: 30 # number of nodes in horizon.
+# ISAM2GaussNewtonParams: continue updating the linear delta only when
+# changes are above this threshold (default: 0.001)
+wildfire_threshold: 0.001
+useDogLeg: 0
+
+## NON PARSED PARAMS ##########################################################
+#  bool enableEPI; ///< if set to true, will refine triangulation using LM
+#  /**
+#   * If this is nonnegative the we will check if the average reprojection error
+#   * is smaller than this threshold after triangulation, otherwise result is
+#   * flagged as degenerate.
+#   */
+#  double dynamicOutlierRejectionThreshold;
+
+# Method used to generate the initial guess for the pose of the keyframe
+# PoseGuessSource:
+#   IMU = 0
+#   MONO = 1
+#   STEREO = 2
+#   PNP = 3
+#   EXTERNAL_ODOM = 4
+pose_guess_source: 0
+mono_translation_scale_factor: 0.1

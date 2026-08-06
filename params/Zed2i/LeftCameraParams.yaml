@@ -1,0 +1,22 @@
+%YAML:1.0
+camera_id: zed2i_left_optical
+T_BS:
+  cols: 4
+  rows: 4
+  data: [0.007209, -0.003783, 0.999967, 0.001833,
+         -0.999963, -0.004814, 0.007191, 0.023113,
+         0.004786, -0.999981, -0.003817, -0.000318,
+         0.000000, 0.000000, 0.000000, 1.000000]
+rate_hz: 10
+resolution: [1280, 720]
+camera_model: pinhole
+intrinsics: [519.047, 519.047, 629.61, 355.779]
+distortion_model: radial-tangential
+distortion_coefficients: [0.0, 0.0, 0.0, 0.0]
+
+# Depth specific parameters (registered 32FC1 meters, zed2i baseline 0.12m)
+virtual_baseline: 0.12
+min_depth: 0.3
+depth_to_meters: 1.0
+max_depth: 10.0
+is_registered: 1
